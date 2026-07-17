@@ -18,6 +18,7 @@ class JobsTest final : public QObject {
     void progressNeverMovesBackwards();
     void queuePersistsChunksAndRecoversInterruption();
     void clearingCompletedQueuePreservesJobHistory();
+    void removingTerminalJobHidesItFromQueueButPreservesHistory();
     void runtimeDiagnosticsArePersisted();
 };
 
@@ -114,6 +115,40 @@ void JobsTest::clearingCompletedQueuePreservesJobHistory() {
     QCOMPARE(cleared.value(), 1);
     QCOMPARE(repository.list(true).value().size(), 0);
     QVERIFY(repository.findById(job.id).value().has_value());
+}
+
+void JobsTest::removingTerminalJobHidesItFromQueueButPreservesHistory() {
+    QTemporaryDir directory;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    Recording recording;
+    recording.id = QStringLiteral("rec");
+    recording.title = QStringLiteral("Meeting");
+    QVERIFY(recordings.create(recording));
+
+    SqliteJobRepository repository(database);
+    JobQueue queue(repository);
+    TranscriptionJob failedJob;
+    failedJob.id = QStringLiteral("failed-job");
+    failedJob.recordingId = recording.id;
+    QVERIFY(repository.create(failedJob));
+    QVERIFY(repository.transition(failedJob.id, JobState::Preparing));
+    QVERIFY(repository.transition(failedJob.id, JobState::Failed, QStringLiteral("ModelLoadFailed"),
+                                  QStringLiteral("The model could not be loaded.")));
+
+    QVERIFY(queue.remove(failedJob.id));
+    QCOMPARE(repository.list(true).value().size(), 0);
+    QVERIFY(repository.findById(failedJob.id).value().has_value());
+
+    TranscriptionJob queuedJob;
+    queuedJob.id = QStringLiteral("queued-job");
+    queuedJob.recordingId = recording.id;
+    QVERIFY(repository.create(queuedJob));
+    const auto rejected = queue.remove(queuedJob.id);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.error().code, ErrorCode::InvalidStateTransition);
+    QCOMPARE(repository.list(true).value().size(), 1);
 }
 
 void JobsTest::runtimeDiagnosticsArePersisted() {

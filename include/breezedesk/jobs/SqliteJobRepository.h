@@ -25,6 +25,7 @@ class SqliteJobRepository final : public IJobRepository {
     [[nodiscard]] Result<void> updateChunk(const JobChunk& chunk) override;
     [[nodiscard]] Result<void> reorder(const QStringList& orderedJobIds) override;
     [[nodiscard]] Result<int> markRunningJobsInterrupted(const QString& reason) override;
+    [[nodiscard]] Result<void> removeFromQueue(const QString& id) override;
     [[nodiscard]] Result<int> clearCompleted() override;
 
   private:

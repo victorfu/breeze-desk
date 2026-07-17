@@ -12,6 +12,7 @@ AppDialog {
     signal recordingCompleted(string path)
 
     title: qsTr("Record from Microphone")
+    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/mic.svg"
     standardButtons: Dialog.NoButton
     closePolicy: recorder.recording ? Popup.NoAutoClose : Popup.CloseOnEscape
 

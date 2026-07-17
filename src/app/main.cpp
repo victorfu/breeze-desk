@@ -285,6 +285,8 @@ int main(int argc, char* argv[]) {
                      &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::retry);
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::resumeRequested,
                      &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::resume);
+    QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::removeRequested,
+                     &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::remove);
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::reorderRequested,
                      &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::reorder);
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::clearCompletedRequested,
@@ -766,12 +768,14 @@ int main(int argc, char* argv[]) {
         return reply;
     });
     QObject::connect(&showAction, &QAction::triggered, &application, showWindow);
+#ifndef Q_OS_MACOS
     QObject::connect(&tray, &QSystemTrayIcon::activated, &application,
                      [showWindow](QSystemTrayIcon::ActivationReason reason) {
                          if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
                              showWindow();
                          }
                      });
+#endif
     QObject::connect(&importAction, &QAction::triggered, viewModel.get(),
                      &BreezeDesk::ApplicationViewModel::openImportDialogRequested);
     QObject::connect(&recordAction, &QAction::triggered, &application, [&engine, showWindow] {

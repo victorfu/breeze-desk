@@ -114,14 +114,14 @@ Item {
                         text: qsTr("Duplicate")
                         onClicked: root.vm.duplicateProfile(root.vm.selectedProfileId)
                     }
-                    AppButton {
+                    RemoveButton {
                         id: deleteProfileButton
                         objectName: "glossaryDeleteProfileButton"
                         Layout.row: profileActions.stacked ? 1 : 0
                         Layout.column: profileActions.stacked ? 0 : 1
-                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignRight
                         enabled: root.vm.selectedProfileId.length > 0
-                        text: qsTr("Delete")
+                        accessibleName: qsTr("Delete glossary profile")
                         onClicked: root.vm.deleteProfile(root.vm.selectedProfileId)
                     }
                 }
@@ -281,7 +281,11 @@ Item {
                         }
                         StatusBadge { text: qsTr("Priority %1").arg(priority); tone: priority >= 80 ? "accent" : "neutral" }
                         Toggle { text: qsTr("Enabled"); checked: termEnabled; onToggled: root.vm.setTermEnabled(termId, checked) }
-                        AppButton { text: qsTr("Delete"); onClicked: root.vm.deleteTerm(termId) }
+                        RemoveButton {
+                            objectName: "glossaryDeleteTermButton"
+                            accessibleName: qsTr("Delete glossary term %1").arg(canonicalText)
+                            onClicked: root.vm.deleteTerm(termId)
+                        }
                     }
                 }
             }
@@ -316,38 +320,400 @@ Item {
     }
     AppDialog {
         id: profileDialog
+        objectName: "glossaryProfileDialog"
         title: qsTr("New Glossary Profile")
-        standardButtons: Dialog.Cancel | Dialog.Ok
-        onAccepted: {
-            if (root.vm.createProfile(profileName.text, profileDescription.text, profileContext.text).length > 0) {
-                profileName.clear(); profileDescription.clear(); profileContext.clear()
+        standardButtons: Dialog.NoButton
+
+        function clearFields() {
+            profileName.clear()
+            profileDescription.clear()
+            profileContext.clear()
+        }
+
+        function createProfile() {
+            if (profileName.text.trim().length === 0)
+                return
+
+            if (root.vm.createProfile(profileName.text.trim(),
+                                      profileDescription.text.trim(),
+                                      profileContext.text.trim()).length > 0) {
+                profileDialog.close()
             }
         }
+
+        onOpened: profileName.forceActiveFocus()
+        onClosed: clearFields()
+
+        background: Rectangle {
+            objectName: "glossaryProfileDialogSurface"
+            color: SemanticTokens.surfaceRaised
+            radius: SemanticTokens.radiusLg
+            border.width: 1
+            border.color: SemanticTokens.border
+        }
+
+        header: Rectangle {
+            objectName: "glossaryProfileDialogHeader"
+            implicitHeight: profileHeaderLayout.implicitHeight + SemanticTokens.spacingLg * 2
+            color: SemanticTokens.surfaceRaised
+
+            RowLayout {
+                id: profileHeaderLayout
+                anchors.fill: parent
+                anchors.margins: SemanticTokens.spacingLg
+                spacing: SemanticTokens.spacingMd
+
+                Rectangle {
+                    Layout.preferredWidth: 42
+                    Layout.preferredHeight: 42
+                    Layout.alignment: Qt.AlignTop
+                    color: SemanticTokens.accentMuted
+                    radius: SemanticTokens.radiusMd
+
+                    AppIcon {
+                        anchors.centerIn: parent
+                        source: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
+                        color: SemanticTokens.accent
+                        iconSize: 22
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: SemanticTokens.spacingXs
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: profileDialog.title
+                        color: SemanticTokens.text
+                        wrapMode: Text.WordWrap
+                        font.family: SemanticTokens.fontFamily
+                        font.pixelSize: SemanticTokens.headingSize
+                        font.weight: Font.DemiBold
+                        Accessible.role: Accessible.Heading
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Profiles keep project context and important names scoped to a meeting or recording.")
+                        color: SemanticTokens.textMuted
+                        wrapMode: Text.WordWrap
+                        font.family: SemanticTokens.fontFamily
+                        font.pixelSize: SemanticTokens.captionSize
+                    }
+                }
+            }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: SemanticTokens.border
+            }
+        }
+
         ColumnLayout {
+            id: profileDialogContent
+            objectName: "glossaryProfileDialogContent"
             width: parent.width
-            AppTextField { id: profileName; Layout.fillWidth: true; Accessible.name: qsTr("Profile name"); placeholderText: qsTr("Profile name") }
-            AppTextField { id: profileDescription; Layout.fillWidth: true; Accessible.name: qsTr("Description"); placeholderText: qsTr("Description") }
-            AppTextField { id: profileContext; Layout.fillWidth: true; Accessible.name: qsTr("Project context"); placeholderText: qsTr("Project or meeting context") }
+            spacing: SemanticTokens.spacingMd
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: SemanticTokens.spacingXs
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Profile name")
+                    color: SemanticTokens.text
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.bodySize
+                    font.weight: Font.DemiBold
+                }
+                AppTextField {
+                    id: profileName
+                    objectName: "glossaryProfileNameField"
+                    Layout.fillWidth: true
+                    accessibleName: qsTr("Profile name")
+                    placeholderText: qsTr("Profile name")
+                    onAccepted: profileDialog.createProfile()
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: SemanticTokens.spacingXs
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Description")
+                    color: SemanticTokens.text
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.bodySize
+                    font.weight: Font.DemiBold
+                }
+                AppTextField {
+                    id: profileDescription
+                    objectName: "glossaryProfileDescriptionField"
+                    Layout.fillWidth: true
+                    accessibleName: qsTr("Description")
+                    placeholderText: qsTr("Description")
+                    onAccepted: profileDialog.createProfile()
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: SemanticTokens.spacingXs
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Project context")
+                    color: SemanticTokens.text
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.bodySize
+                    font.weight: Font.DemiBold
+                }
+                AppTextField {
+                    id: profileContext
+                    objectName: "glossaryProfileContextField"
+                    Layout.fillWidth: true
+                    accessibleName: qsTr("Project context")
+                    placeholderText: qsTr("Project or meeting context")
+                    onAccepted: profileDialog.createProfile()
+                }
+            }
+        }
+
+        footer: Rectangle {
+            objectName: "glossaryProfileDialogFooter"
+            implicitHeight: profileFooterLayout.implicitHeight + SemanticTokens.spacingMd * 2
+            color: SemanticTokens.surfaceRaised
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: SemanticTokens.border
+            }
+
+            RowLayout {
+                id: profileFooterLayout
+                anchors.fill: parent
+                anchors.margins: SemanticTokens.spacingMd
+                spacing: SemanticTokens.spacingSm
+
+                Item { Layout.fillWidth: true }
+                AppButton {
+                    objectName: "glossaryProfileCancelButton"
+                    text: qsTr("Cancel")
+                    onClicked: profileDialog.close()
+                }
+                AppButton {
+                    objectName: "glossaryProfileCreateButton"
+                    text: qsTr("New Profile")
+                    primary: true
+                    enabled: profileName.text.trim().length > 0
+                    onClicked: profileDialog.createProfile()
+                }
+            }
         }
     }
     AppDialog {
         id: termDialog
+        objectName: "glossaryTermDialog"
         title: qsTr("Add Glossary Term")
-        standardButtons: Dialog.Cancel | Dialog.Ok
-        onAccepted: {
+        standardButtons: Dialog.NoButton
+
+        function clearFields() {
+            canonicalText.clear()
+            aliasText.clear()
+            priority.value = 80
+        }
+
+        function addTerm() {
+            if (canonicalText.text.trim().length === 0)
+                return
+
             const aliases = aliasText.text.length > 0 ? aliasText.text.split(",").map(function(value) { return value.trim() }) : []
-            if (root.vm.addTerm(canonicalText.text, aliases, priority.value).length > 0) {
-                canonicalText.clear(); aliasText.clear(); priority.value = 80
+            if (root.vm.addTerm(canonicalText.text.trim(), aliases, priority.value).length > 0)
+                termDialog.close()
+        }
+
+        onOpened: canonicalText.forceActiveFocus()
+        onClosed: clearFields()
+
+        background: Rectangle {
+            color: SemanticTokens.surfaceRaised
+            radius: SemanticTokens.radiusLg
+            border.width: 1
+            border.color: SemanticTokens.border
+        }
+
+        header: Rectangle {
+            implicitHeight: termHeaderLayout.implicitHeight + SemanticTokens.spacingLg * 2
+            color: SemanticTokens.surfaceRaised
+
+            RowLayout {
+                id: termHeaderLayout
+                anchors.fill: parent
+                anchors.margins: SemanticTokens.spacingLg
+                spacing: SemanticTokens.spacingMd
+
+                Rectangle {
+                    Layout.preferredWidth: 42
+                    Layout.preferredHeight: 42
+                    Layout.alignment: Qt.AlignTop
+                    color: SemanticTokens.accentMuted
+                    radius: SemanticTokens.radiusMd
+
+                    AppIcon {
+                        anchors.centerIn: parent
+                        source: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
+                        color: SemanticTokens.accent
+                        iconSize: 22
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    spacing: SemanticTokens.spacingXs
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: termDialog.title
+                        color: SemanticTokens.text
+                        wrapMode: Text.WordWrap
+                        font.family: SemanticTokens.fontFamily
+                        font.pixelSize: SemanticTokens.headingSize
+                        font.weight: Font.DemiBold
+                        Accessible.role: Accessible.Heading
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
+                        color: SemanticTokens.textMuted
+                        wrapMode: Text.WordWrap
+                        font.family: SemanticTokens.fontFamily
+                        font.pixelSize: SemanticTokens.captionSize
+                    }
+                }
+            }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: SemanticTokens.border
             }
         }
+
         ColumnLayout {
             width: parent.width
-            AppTextField { id: canonicalText; Layout.fillWidth: true; Accessible.name: qsTr("Canonical term"); placeholderText: qsTr("Canonical term") }
-            AppTextField { id: aliasText; Layout.fillWidth: true; Accessible.name: qsTr("Aliases"); placeholderText: qsTr("Aliases separated by commas") }
+            spacing: SemanticTokens.spacingMd
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: SemanticTokens.spacingXs
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Canonical term")
+                    color: SemanticTokens.text
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.bodySize
+                    font.weight: Font.DemiBold
+                }
+                AppTextField {
+                    id: canonicalText
+                    Layout.fillWidth: true
+                    accessibleName: qsTr("Canonical term")
+                    placeholderText: qsTr("Canonical term")
+                    onAccepted: termDialog.addTerm()
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: SemanticTokens.spacingXs
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Aliases")
+                    color: SemanticTokens.text
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.bodySize
+                    font.weight: Font.DemiBold
+                }
+                AppTextField {
+                    id: aliasText
+                    Layout.fillWidth: true
+                    accessibleName: qsTr("Aliases")
+                    placeholderText: qsTr("Aliases separated by commas")
+                    onAccepted: termDialog.addTerm()
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: SemanticTokens.spacingXs
+                Text {
+                    Layout.fillWidth: true
+                    text: qsTr("Priority")
+                    color: SemanticTokens.text
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.bodySize
+                    font.weight: Font.DemiBold
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: SemanticTokens.spacingMd
+                    Slider {
+                        id: priority
+                        Layout.fillWidth: true
+                        from: 0
+                        to: 100
+                        stepSize: 10
+                        value: 80
+                        Accessible.name: qsTr("Term priority")
+                    }
+                    StatusBadge {
+                        text: Math.round(priority.value).toString()
+                        tone: priority.value >= 80 ? "accent" : "neutral"
+                        Accessible.name: qsTr("Priority %1").arg(Math.round(priority.value))
+                    }
+                }
+            }
+        }
+
+        footer: Rectangle {
+            implicitHeight: termFooterLayout.implicitHeight + SemanticTokens.spacingMd * 2
+            color: SemanticTokens.surfaceRaised
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: SemanticTokens.border
+            }
+
             RowLayout {
-                Text { text: qsTr("Priority"); color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
-                Slider { id: priority; Layout.fillWidth: true; from: 0; to: 100; stepSize: 10; value: 80; Accessible.name: qsTr("Term priority") }
-                Text { text: priority.value; color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
+                id: termFooterLayout
+                anchors.fill: parent
+                anchors.margins: SemanticTokens.spacingMd
+                spacing: SemanticTokens.spacingSm
+
+                Item { Layout.fillWidth: true }
+                AppButton {
+                    text: qsTr("Cancel")
+                    onClicked: termDialog.close()
+                }
+                AppButton {
+                    text: qsTr("Add Term")
+                    primary: true
+                    enabled: canonicalText.text.trim().length > 0
+                    onClicked: termDialog.addTerm()
+                }
             }
         }
     }

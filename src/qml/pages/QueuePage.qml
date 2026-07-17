@@ -57,9 +57,9 @@ Item {
                     checked: root.vm.pauseAfterCurrent
                     onToggled: root.vm.pauseAfterCurrent = checked
                 }
-                AppButton {
+                RemoveButton {
                     objectName: "queueClearCompletedButton"
-                    text: qsTr("Clear Completed")
+                    accessibleName: qsTr("Clear Completed")
                     onClicked: root.vm.clearCompleted()
                 }
             }
@@ -83,9 +83,10 @@ Item {
             ScrollBar.vertical: ScrollBar { }
             delegate: JobProgress {
                 width: ListView.view.width
-                onCancelRequested: root.vm.cancel(id)
-                onRetryRequested: root.vm.retry(id)
-                onResumeRequested: root.vm.resume(id)
+                onCancelRequested: function(id) { root.vm.cancel(id) }
+                onRetryRequested: function(id) { root.vm.retry(id) }
+                onResumeRequested: function(id) { root.vm.resume(id) }
+                onRemoveRequested: function(id) { root.vm.remove(id) }
             }
         }
     }

@@ -46,6 +46,12 @@ void JobQueueViewModel::resume(const QString& jobId) {
     }
 }
 
+void JobQueueViewModel::remove(const QString& jobId) {
+    if (m_jobs.remove(jobId)) {
+        emit removeRequested(jobId);
+    }
+}
+
 void JobQueueViewModel::reorder(const QString& jobId, int destination) {
     if (m_jobs.move(jobId, destination)) {
         emit reorderRequested(jobId, destination);

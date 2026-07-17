@@ -7,7 +7,6 @@ target_link_libraries(breezedesk-asr-worker
         Qt6::Core
         Qt6::Network
         breezedesk_build_config
-        breezedesk_core
         breezedesk_ipc
         breezedesk_asr
 )

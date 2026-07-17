@@ -56,6 +56,20 @@ int main(int argc, char* argv[]) {
     QObject::connect(
         &server, &Ipc::WorkerServer::envelopeReceived, &application,
         [&server, &deferredAnalysisRequests](const quint64 clientId, const Ipc::Envelope& request) {
+            if (request.type == Ipc::MessageType::GetCapabilities) {
+                Ipc::Envelope capabilities;
+                capabilities.type = Ipc::MessageType::Capabilities;
+                capabilities.requestId = request.requestId;
+                capabilities.payload.insert(
+                    QStringLiteral("runtimeAvailable"),
+                    qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_RUNTIME_AVAILABLE", "1") !=
+                        QLatin1String("0"));
+                capabilities.payload.insert(QStringLiteral("compiledBackend"), QStringLiteral("cpu"));
+                capabilities.payload.insert(QStringLiteral("whisperVersion"),
+                                            QStringLiteral("fake-whisper-1.2.3"));
+                server.send(clientId, capabilities);
+                return;
+            }
             if (request.type == Ipc::MessageType::AnalyzeSpeech) {
                 if (!validAnalysisRequest(request)) {
                     server.send(clientId, errorEnvelope(request, QStringLiteral("Invalid analysis payload")));

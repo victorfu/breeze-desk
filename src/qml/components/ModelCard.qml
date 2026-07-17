@@ -80,13 +80,17 @@ Rectangle {
                 font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.captionSize
             }
-            AppButton {
+            AppLinkButton {
+                objectName: "modelLicenseLink"
                 text: qsTr("License")
+                accessibleName: qsTr("Open model license")
                 enabled: root.licenseUrl.toString().length > 0
                 onClicked: root.licenseRequested(root.licenseUrl)
             }
-            AppButton {
+            AppLinkButton {
+                objectName: "modelSourceLink"
                 text: qsTr("Source")
+                accessibleName: qsTr("Open model source")
                 enabled: root.sourceUrl.toString().length > 0
                 onClicked: root.sourceRequested(root.sourceUrl)
             }
@@ -141,11 +145,11 @@ Rectangle {
                 onClicked: root.defaultRequested(root.modelId)
             }
             Item { Layout.fillWidth: true }
-            AppButton {
+            RemoveButton {
+                objectName: "modelDeleteButton"
                 visible: root.installed
                 enabled: !root.loaded && root.modelState !== "Testing" && root.modelState !== "Verifying"
-                text: qsTr("Delete")
-                Accessible.name: root.loaded ? qsTr("Model is in use and cannot be deleted") : qsTr("Delete model")
+                accessibleName: root.loaded ? qsTr("Model is in use and cannot be deleted") : qsTr("Delete model")
                 onClicked: root.deleteRequested(root.modelId)
             }
         }

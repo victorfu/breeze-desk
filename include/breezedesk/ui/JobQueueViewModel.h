@@ -27,6 +27,7 @@ class JobQueueViewModel final : public QObject {
     Q_INVOKABLE void cancel(const QString& jobId);
     Q_INVOKABLE void retry(const QString& jobId);
     Q_INVOKABLE void resume(const QString& jobId);
+    Q_INVOKABLE void remove(const QString& jobId);
     Q_INVOKABLE void reorder(const QString& jobId, int destination);
     Q_INVOKABLE void clearCompleted();
 
@@ -42,6 +43,7 @@ class JobQueueViewModel final : public QObject {
     void cancelRequested(const QString& jobId);
     void retryRequested(const QString& jobId);
     void resumeRequested(const QString& jobId);
+    void removeRequested(const QString& jobId);
     void reorderRequested(const QString& jobId, int destination);
     void clearCompletedRequested();
 

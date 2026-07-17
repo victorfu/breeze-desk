@@ -60,8 +60,9 @@ Item {
                         font.pixelSize: SemanticTokens.bodySize
                     }
                     AppButton { text: qsTr("Restore"); onClicked: root.vm.restore(recordingId) }
-                    AppButton {
-                        text: qsTr("Delete Permanently")
+                    RemoveButton {
+                        objectName: "trashDeletePermanentlyButton"
+                        accessibleName: qsTr("Delete %1 permanently").arg(title)
                         onClicked: { root.pendingDeleteId = recordingId; confirmDelete.open() }
                     }
                 }
@@ -70,9 +71,8 @@ Item {
     }
     AppDialog {
         id: confirmDelete
-        implicitHeight: 220
-        height: 220
         title: qsTr("Delete recording permanently?")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
         standardButtons: Dialog.Cancel | Dialog.Ok
         onAccepted: root.vm.deletePermanently(root.pendingDeleteId)
         Text {

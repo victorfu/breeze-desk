@@ -62,6 +62,7 @@ class TranscriptionCoordinatorTest final : public QObject {
 
   private slots:
     void analyzesLongAudioAndPersistsGlobalSegments();
+    void runtimeUnavailableFailsBeforeMediaPreparation();
 };
 
 void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() {
@@ -225,6 +226,73 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
 
     QVERIFY(models.removeModel(QStringLiteral("breeze-asr-25-q5")));
     QVERIFY(models.removeModel(QStringLiteral("silero-vad-v6.2.0")));
+}
+
+void TranscriptionCoordinatorTest::runtimeUnavailableFailsBeforeMediaPreparation() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
+    const QByteArray previousRuntimeAvailability = qgetenv("BREEZEDESK_TEST_COORDINATOR_RUNTIME_AVAILABLE");
+    const auto restoreEnvironment =
+        qScopeGuard([previousDataRoot, previousWorkerPath, previousRuntimeAvailability] {
+            const auto restore = [](const char* name, const QByteArray& value) {
+                if (value.isNull()) {
+                    qunsetenv(name);
+                } else {
+                    qputenv(name, value);
+                }
+            };
+            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+            restore("BREEZEDESK_TEST_COORDINATOR_RUNTIME_AVAILABLE", previousRuntimeAvailability);
+        });
+    qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+    qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
+    qputenv("BREEZEDESK_TEST_COORDINATOR_RUNTIME_AVAILABLE", QByteArrayLiteral("0"));
+    QVERIFY(StoragePaths::ensureLayout());
+
+    ModelManager models;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    const QString sourcePath = directory.filePath(QStringLiteral("runtime-preflight.m4a"));
+    QVERIFY(writeFixture(sourcePath));
+    Recording recording;
+    recording.id = QStringLiteral("recording-runtime-unavailable");
+    recording.title = QStringLiteral("Runtime preflight");
+    recording.sourcePath = sourcePath;
+    QVERIFY(recordings.create(recording));
+
+    WorkerProcessManager worker;
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker);
+    QSignalSpy errors(&coordinator, &TranscriptionCoordinator::errorOccurred);
+    coordinator.initialize();
+    coordinator.enqueue(QStringLiteral("job-runtime-unavailable"), recording.id);
+
+    const auto jobFailed = [&jobs] {
+        const auto current = jobs.findById(QStringLiteral("job-runtime-unavailable"));
+        return current && current.value().has_value() && current.value()->state == JobState::Failed;
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(jobFailed(), 10'000);
+    const auto failed = jobs.findById(QStringLiteral("job-runtime-unavailable"));
+    QVERIFY(failed && failed.value().has_value());
+    QCOMPARE(failed.value()->errorCode, QStringLiteral("BackendUnavailable"));
+    QVERIFY(failed.value()->errorMessage.contains(QStringLiteral("whisper.cpp")));
+    QCOMPARE(failed.value()->stage, JobStage::Preparing);
+    QCOMPARE(failed.value()->progress, 0.0);
+    const auto chunks = jobs.chunks(QStringLiteral("job-runtime-unavailable"));
+    QVERIFY(chunks);
+    QVERIFY(chunks.value().isEmpty());
+    QVERIFY(!errors.isEmpty());
+
+    const auto savedRecording = recordings.findById(recording.id);
+    QVERIFY(savedRecording && savedRecording.value().has_value());
+    QVERIFY(savedRecording.value()->normalizedPcmPath.isEmpty());
+    QVERIFY(savedRecording.value()->waveformPath.isEmpty());
 }
 
 QTEST_GUILESS_MAIN(TranscriptionCoordinatorTest)

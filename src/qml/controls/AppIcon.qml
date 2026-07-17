@@ -1,5 +1,5 @@
 import QtQuick
-import QtQuick.Effects
+import QtQuick.Controls.impl as ControlsImpl
 
 Item {
     id: root
@@ -10,21 +10,13 @@ Item {
     implicitHeight: iconSize
     Accessible.ignored: true
 
-    Image {
-        id: sourceImage
+    ControlsImpl.IconImage {
         anchors.fill: parent
         source: root.source
         sourceSize.width: Math.ceil(width * Math.max(1, Screen.devicePixelRatio))
         sourceSize.height: Math.ceil(height * Math.max(1, Screen.devicePixelRatio))
+        color: root.color
         fillMode: Image.PreserveAspectFit
         smooth: true
-        visible: false
-    }
-
-    MultiEffect {
-        anchors.fill: sourceImage
-        source: sourceImage
-        colorization: 1.0
-        colorizationColor: root.color
     }
 }

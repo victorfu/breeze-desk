@@ -65,6 +65,7 @@ class LibraryViewModel final : public QObject {
     Q_INVOKABLE void setReviewState(const QString& id, bool reviewed);
     Q_INVOKABLE bool setNotes(const QString& id, const QString& notes);
     Q_INVOKABLE QVariantMap details(const QString& id) const;
+    Q_INVOKABLE void activateRecording(const QString& id);
     Q_INVOKABLE void refresh();
 
     void setRepository(IRecordingRepository* repository);

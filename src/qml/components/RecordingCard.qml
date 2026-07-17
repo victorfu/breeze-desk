@@ -24,6 +24,7 @@ ItemDelegate {
     implicitHeight: 116
     padding: SemanticTokens.spacingMd
     Accessible.name: title + ", " + status
+    Accessible.description: qsTr("Open recording details")
     onClicked: openRequested(recordingId)
     background: Rectangle {
         color: control.hovered ? SemanticTokens.surfaceMuted : SemanticTokens.surface
@@ -97,40 +98,52 @@ ItemDelegate {
                 value: control.progress
             }
         }
-        ColumnLayout {
+        RowLayout {
+            objectName: "recordingActionRow"
+            Layout.alignment: Qt.AlignVCenter
             spacing: SemanticTokens.spacingXs
             AppButton {
                 id: actionsButton
+                objectName: "recordingActionsButton"
                 text: qsTr("Actions")
                 Accessible.name: qsTr("Actions for %1").arg(control.title)
-                onClicked: actionsMenu.popup()
+                onClicked: actionsMenu.popup(
+                               actionsButton,
+                               actionsButton.width - actionsMenu.implicitWidth,
+                               actionsButton.height + SemanticTokens.spacingXs)
             }
-            AppButton {
-                text: qsTr("Trash")
-                Accessible.name: qsTr("Move %1 to Trash").arg(control.title)
+            RemoveButton {
+                objectName: "recordingTrashButton"
+                accessibleName: qsTr("Move %1 to Trash").arg(control.title)
                 onClicked: control.trashRequested(control.recordingId)
             }
         }
-        Menu {
+        AppMenu {
             id: actionsMenu
-            MenuItem {
+            AppMenuItem {
+                objectName: "recordingOpenMenuItem"
+                text: qsTr("Open Recording")
+                onTriggered: control.openRequested(control.recordingId)
+            }
+            AppMenuSeparator { }
+            AppMenuItem {
                 text: qsTr("Rename…")
                 onTriggered: control.renameRequested(control.recordingId, control.title)
             }
-            MenuItem {
+            AppMenuItem {
                 text: qsTr("Show in Finder / Explorer")
                 onTriggered: control.revealRequested(control.recordingId)
             }
-            MenuItem {
+            AppMenuItem {
                 text: control.sourceMissing ? qsTr("Relink Missing Source…") : qsTr("Relink Source…")
                 onTriggered: control.relinkRequested(control.recordingId)
             }
-            MenuSeparator { }
-            MenuItem {
+            AppMenuSeparator { }
+            AppMenuItem {
                 text: qsTr("Edit Tags…")
                 onTriggered: control.editTagsRequested(control.recordingId, control.tags)
             }
-            MenuItem {
+            AppMenuItem {
                 text: control.reviewState.toLowerCase() === "reviewed"
                       ? qsTr("Mark as Unreviewed") : qsTr("Mark as Reviewed")
                 onTriggered: control.reviewRequested(

@@ -12,6 +12,7 @@ class DesignSystem final : public QObject {
     Q_PROPERTY(qreal textScale READ textScale WRITE setTextScale NOTIFY textScaleChanged)
     Q_PROPERTY(bool compact READ compact WRITE setCompact NOTIFY compactChanged)
     Q_PROPERTY(QString systemFontFamily READ systemFontFamily CONSTANT)
+    Q_PROPERTY(QString systemFixedFontFamily READ systemFixedFontFamily CONSTANT)
 
   public:
     enum class Theme { System, Light, Dark };
@@ -24,6 +25,7 @@ class DesignSystem final : public QObject {
     [[nodiscard]] qreal textScale() const noexcept;
     [[nodiscard]] bool compact() const noexcept;
     [[nodiscard]] QString systemFontFamily() const;
+    [[nodiscard]] QString systemFixedFontFamily() const;
 
   public slots:
     void setTheme(Theme theme);

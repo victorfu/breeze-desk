@@ -10,6 +10,7 @@
       "cacheVariables": {
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_UNITY_BUILD": "OFF",
+        "BREEZEDESK_ENABLE_WHISPER": "ON",
         "BREEZEDESK_WARNINGS_AS_ERRORS": "ON"
       }
     },
@@ -17,6 +18,13 @@
       "name": "debug",
       "inherits": "base",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "debug-runtime-off",
+      "displayName": "Debug without whisper.cpp runtime",
+      "description": "Protocol/domain development only; transcription is intentionally unavailable.",
+      "inherits": "debug",
+      "cacheVariables": { "BREEZEDESK_ENABLE_WHISPER": "OFF" }
     },
     {
       "name": "release",
@@ -41,12 +49,18 @@
   ],
   "buildPresets": [
     { "name": "debug", "configurePreset": "debug" },
+    { "name": "debug-runtime-off", "configurePreset": "debug-runtime-off" },
     { "name": "release", "configurePreset": "release" },
     { "name": "windows-universal", "configurePreset": "windows-universal" },
     { "name": "windows-cuda", "configurePreset": "windows-cuda" },
     { "name": "windows-cpu", "configurePreset": "windows-cpu" }
   ],
   "testPresets": [
-    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } }
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } },
+    {
+      "name": "debug-runtime-off",
+      "configurePreset": "debug-runtime-off",
+      "output": { "outputOnFailure": true }
+    }
   ]
 }

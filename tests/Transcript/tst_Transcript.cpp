@@ -214,6 +214,41 @@ void TranscriptTest::viewModelPreservesMetadataAndControlsGlossaryAudit() {
     viewModel.setGlossaryReplacementApplied(0, 0, true);
     QCOMPARE(validationSpy.size(), 1);
     QCOMPARE(viewModel.snapshot().first().editedText, QStringLiteral("Manual text"));
+
+    TranscriptSegmentModel::Segment filteredOut = segment;
+    filteredOut.id = QStringLiteral("filtered-out");
+    filteredOut.originalText = QStringLiteral("Unrelated text");
+    filteredOut.editedText = filteredOut.originalText;
+    TranscriptSegmentModel::Segment filteredIn = segment;
+    filteredIn.id = QStringLiteral("filtered-in");
+    filteredIn.startMs = 3'000;
+    filteredIn.endMs = 4'000;
+    filteredIn.originalText = QStringLiteral("Needle result");
+    filteredIn.editedText = filteredIn.originalText;
+
+    TranscriptViewModel filteredViewModel;
+    filteredViewModel.replaceSegments({filteredOut, filteredIn});
+    filteredViewModel.setSelectedIndex(1);
+    filteredViewModel.updatePlaybackPosition(3'500);
+    filteredViewModel.setSearchText(QStringLiteral("Needle"));
+    QAbstractItemModel* filteredModel = filteredViewModel.segments();
+    QCOMPARE(filteredModel->rowCount(), 1);
+    QCOMPARE(filteredViewModel.visibleSegmentCount(), 1);
+    QCOMPARE(filteredViewModel.selectedIndex(), 0);
+    QCOMPARE(filteredViewModel.activePlaybackIndex(), 0);
+    QCOMPARE(filteredModel->roleNames().value(TranscriptFilterProxyModel::ProxyRowRole),
+             QByteArrayLiteral("proxyRow"));
+    QCOMPARE(filteredModel->data(filteredModel->index(0, 0), TranscriptFilterProxyModel::ProxyRowRole)
+                 .toInt(),
+             0);
+    filteredViewModel.editText(0, QStringLiteral("Edited filtered result"));
+    QCOMPARE(filteredViewModel.snapshot().at(0).editedText, filteredOut.editedText);
+    QCOMPARE(filteredViewModel.snapshot().at(1).editedText, QStringLiteral("Edited filtered result"));
+    filteredViewModel.setSearchText(QStringLiteral("Unrelated"));
+    QCOMPARE(filteredViewModel.visibleSegmentCount(), 1);
+    QCOMPARE(filteredViewModel.selectedIndex(), -1);
+    QCOMPARE(filteredViewModel.activePlaybackIndex(), -1);
+    QCOMPARE(filteredViewModel.findPrevious(12), 0);
 }
 
 QTEST_GUILESS_MAIN(TranscriptTest)

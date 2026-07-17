@@ -186,25 +186,31 @@ Item {
             ScrollBar.vertical: ScrollBar { }
             delegate: RecordingCard {
                 width: ListView.view.width
-                onOpenRequested: root.vm.selectedRecordingId = id
-                onTrashRequested: root.vm.moveToTrash(id)
-                onRenameRequested: function(id, title) {
-                    root.pendingRecordingId = id
+                onOpenRequested: function(recordingId) {
+                    root.vm.activateRecording(recordingId)
+                }
+                onTrashRequested: function(recordingId) {
+                    root.vm.moveToTrash(recordingId)
+                }
+                onRenameRequested: function(recordingId, title) {
+                    root.pendingRecordingId = recordingId
                     renameField.text = title
                     renameDialog.open()
                 }
-                onRevealRequested: root.app.revealRecording(id)
-                onRelinkRequested: function(id) {
-                    root.pendingRecordingId = id
+                onRevealRequested: function(recordingId) {
+                    root.app.revealRecording(recordingId)
+                }
+                onRelinkRequested: function(recordingId) {
+                    root.pendingRecordingId = recordingId
                     relinkDialog.open()
                 }
-                onEditTagsRequested: function(id, tags) {
-                    root.pendingRecordingId = id
+                onEditTagsRequested: function(recordingId, tags) {
+                    root.pendingRecordingId = recordingId
                     tagsField.text = tags.join(", ")
                     tagsDialog.open()
                 }
-                onReviewRequested: function(id, reviewed) {
-                    root.vm.setReviewState(id, reviewed)
+                onReviewRequested: function(recordingId, reviewed) {
+                    root.vm.setReviewState(recordingId, reviewed)
                 }
             }
         }
@@ -216,6 +222,7 @@ Item {
         id: renameDialog
         objectName: "renameRecordingDialog"
         title: qsTr("Rename Recording")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/library.svg"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.vm.rename(root.pendingRecordingId, renameField.text)
         onClosed: root.pendingRecordingId = ""
@@ -232,6 +239,7 @@ Item {
         id: tagsDialog
         objectName: "editRecordingTagsDialog"
         title: qsTr("Edit Tags")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.vm.setTagsText(root.pendingRecordingId, tagsField.text)
         onClosed: root.pendingRecordingId = ""

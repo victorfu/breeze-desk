@@ -51,7 +51,7 @@ include(BreezeDeskCompilerCache)
 include(BreezeDeskWarnings)
 breezedesk_enable_compiler_cache()
 
-find_package(Qt6 6.8 REQUIRED COMPONENTS
+find_package(Qt6 6.8 REQUIRED QUIET COMPONENTS
     Core Gui Qml Quick QuickControls2 Sql Multimedia Network Concurrent Svg Widgets LinguistTools)
 qt_standard_project_setup(REQUIRES 6.8 I18N_TRANSLATED_LANGUAGES en zh_TW)
 
@@ -74,6 +74,9 @@ if(BREEZEDESK_ENABLE_WHISPER)
     set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
     if(APPLE)
         set(GGML_METAL ON CACHE BOOL "" FORCE)
+        # Apple Clang does not ship OpenMP. Avoid a known-failing optional probe;
+        # Accelerate and Metal remain enabled for the macOS runtime.
+        set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
     elseif(WIN32)
         if(BREEZEDESK_WINDOWS_BACKEND STREQUAL "CUDA")
             set(GGML_CUDA ON CACHE BOOL "" FORCE)
@@ -87,6 +90,22 @@ if(BREEZEDESK_ENABLE_WHISPER)
         endif()
     endif()
 
+    # The pinned whisper.cpp revision still declares compatibility with old
+    # CMake versions. Suppress that dependency-only deprecation notice while
+    # retaining normal warnings for BreezeDesk itself.
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.4")
+        cmake_diagnostic(PUSH)
+        cmake_diagnostic(SET CMD_DEPRECATED IGNORE)
+    else()
+        if(DEFINED CMAKE_WARN_DEPRECATED)
+            set(_breezedesk_saved_cmake_warn_deprecated "${CMAKE_WARN_DEPRECATED}")
+            set(_breezedesk_had_cmake_warn_deprecated ON)
+        else()
+            set(_breezedesk_had_cmake_warn_deprecated OFF)
+        endif()
+        set(CMAKE_WARN_DEPRECATED OFF)
+    endif()
+
     if(BREEZEDESK_WHISPER_CPP_SOURCE_DIR)
         add_subdirectory("${BREEZEDESK_WHISPER_CPP_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/third_party/whisper.cpp" EXCLUDE_FROM_ALL)
     else()
@@ -98,6 +117,28 @@ if(BREEZEDESK_ENABLE_WHISPER)
             GIT_PROGRESS TRUE)
         FetchContent_MakeAvailable(whisper_cpp)
     endif()
+
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.4")
+        cmake_diagnostic(POP)
+    else()
+        if(_breezedesk_had_cmake_warn_deprecated)
+            set(CMAKE_WARN_DEPRECATED "${_breezedesk_saved_cmake_warn_deprecated}")
+        else()
+            unset(CMAKE_WARN_DEPRECATED)
+        endif()
+        unset(_breezedesk_saved_cmake_warn_deprecated)
+        unset(_breezedesk_had_cmake_warn_deprecated)
+    endif()
+
+    if(NOT TARGET whisper)
+        message(FATAL_ERROR
+            "BREEZEDESK_ENABLE_WHISPER=ON, but the pinned whisper.cpp source did not define the whisper target")
+    endif()
+    message(STATUS
+        "BreezeDesk whisper.cpp runtime: enabled (${BREEZEDESK_WHISPER_CPP_REF})")
+else()
+    message(STATUS
+        "BreezeDesk whisper.cpp runtime: intentionally disabled; transcription will be unavailable")
 endif()
 
 add_subdirectory(src/core)
@@ -119,7 +160,7 @@ add_subdirectory(src/cli)
 
 if(BREEZEDESK_BUILD_TESTS)
     enable_testing()
-    find_package(Qt6 6.8 REQUIRED COMPONENTS Test QuickTest)
+    find_package(Qt6 6.8 REQUIRED QUIET COMPONENTS Test QuickTest)
     add_subdirectory(tests)
 endif()
 

@@ -20,6 +20,8 @@ ctest --preset debug
 The equivalent repository scripts are `scripts/build.sh`, `scripts/run-tests.sh`, and
 `scripts/build-and-run.sh`; Windows uses the matching `.bat` files. Debug intentionally uses a distinct
 display name, executable, bundle id, and data directory so it cannot open Release settings by accident.
+The normal `debug` and `release` presets explicitly enable whisper.cpp, so reconfiguring an older build
+tree cannot silently retain a runtime-off cache value.
 
 Important cache variables are:
 
@@ -50,10 +52,19 @@ cmake --build build/manual --parallel
 ctest --test-dir build/manual --output-on-failure
 ```
 
-`-DBREEZEDESK_ENABLE_WHISPER=OFF` is useful for protocol/domain configure checks, but it is not a
-production package. With whisper enabled, expected build products are under `src/app`, `src/worker`, and
-`src/cli` in the chosen build tree. On macOS the application is a bundle and the post-build rule copies
-the worker into `Contents/MacOS`.
+The isolated `debug-runtime-off` preset is useful for protocol/domain checks that intentionally omit the
+native runtime:
+
+```sh
+cmake --preset debug-runtime-off
+cmake --build --preset debug-runtime-off --parallel
+ctest --preset debug-runtime-off
+```
+
+It uses `build/debug-runtime-off`, never the normal Debug cache, and is not a production package. The
+equivalent manual switch remains `-DBREEZEDESK_ENABLE_WHISPER=OFF`. With whisper enabled, expected build
+products are under `src/app`, `src/worker`, and `src/cli` in the chosen build tree. On macOS the
+application is a bundle and the post-build rule copies the worker into `Contents/MacOS`.
 
 `BREEZEDESK_WINDOWS_BACKEND` is `VULKAN`, `CUDA`, or `CPU` and must use a separate build tree. ccache is
 selected before sccache. Compile commands are exported, Unity builds are disabled, project targets use

@@ -20,6 +20,20 @@ Item {
         }
         return 0
     }
+
+    function computeBackendName(backend) {
+        const value = String(backend).trim()
+        return value.toLowerCase() === "auto" ? qsTr("Automatic") : value
+    }
+
+    function localComputeSummary(selectedBackend, actualBackend) {
+        const selected = computeBackendName(selectedBackend)
+        const actual = String(actualBackend).trim()
+        if (actual.length === 0 || actual.toLowerCase() === "not loaded")
+            return qsTr("Local compute: %1 (determined after a model is loaded)").arg(selected)
+        return qsTr("Local compute: %1 (using %2)").arg(selected).arg(actual)
+    }
+
     ScrollView {
         id: settingsScroll
         objectName: "settingsScroll"
@@ -275,7 +289,16 @@ Item {
                 Layout.fillWidth: true
                 title: qsTr("Diagnostics")
                 Text { text: qsTr("Qt %1 · %2 · %3").arg(root.diagnostics.qtVersion).arg(root.diagnostics.osDescription).arg(root.diagnostics.cpuArchitecture); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
-                Text { text: qsTr("Backend: %1 (actual: %2)").arg(root.diagnostics.selectedBackend).arg(root.diagnostics.actualBackend); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
+                Text {
+                    objectName: "diagnosticsLocalCompute"
+                    Layout.fillWidth: true
+                    text: root.localComputeSummary(root.diagnostics.selectedBackend,
+                                                   root.diagnostics.actualBackend)
+                    color: SemanticTokens.textMuted
+                    wrapMode: Text.Wrap
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.bodySize
+                }
                 RowLayout {
                     AppButton { text: qsTr("Refresh"); onClicked: root.diagnostics.refresh() }
                     AppButton { text: qsTr("Export Sanitized Diagnostics"); onClicked: root.diagnostics.exportDiagnostics(false) }

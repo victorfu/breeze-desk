@@ -1,12 +1,17 @@
 import QtQuick
 import QtQuick.Controls as T
+import QtQuick.Layouts
 
 T.Button {
     id: control
     property string accessibleName: text
     property bool primary: false
     property url iconSource
-    implicitHeight: ComponentTokens.controlHeight
+    property int contentAlignment: Qt.AlignHCenter
+    property int iconSize: 18
+    property int contentSpacing: SemanticTokens.spacingXs
+    implicitHeight: Math.max(ComponentTokens.controlHeight,
+                             contentItem.implicitHeight + topPadding + bottomPadding)
     implicitWidth: Math.max(92, contentItem.implicitWidth + SemanticTokens.spacingLg * 2)
     padding: SemanticTokens.spacingSm
     font.family: SemanticTokens.fontFamily
@@ -16,23 +21,42 @@ T.Button {
     contentItem: Item {
         implicitWidth: buttonContents.implicitWidth
         implicitHeight: buttonContents.implicitHeight
-        Row {
+        clip: true
+        RowLayout {
             id: buttonContents
-            anchors.centerIn: parent
-            spacing: SemanticTokens.spacingXs
+            anchors.fill: parent
+            spacing: icon.visible ? control.contentSpacing : 0
+            Item {
+                visible: control.contentAlignment === Qt.AlignHCenter
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+            }
             AppIcon {
-                anchors.verticalCenter: parent.verticalCenter
+                id: icon
+                objectName: control.objectName.length > 0 ? control.objectName + "Icon" : ""
+                Layout.alignment: Qt.AlignVCenter
+                Layout.preferredWidth: control.iconSize
+                Layout.preferredHeight: control.iconSize
                 visible: String(control.iconSource).length > 0
                 source: control.iconSource
-                iconSize: 18
+                iconSize: control.iconSize
                 color: control.primary ? SemanticTokens.textOnAccent : SemanticTokens.text
             }
             Text {
-                anchors.verticalCenter: parent.verticalCenter
+                Layout.alignment: Qt.AlignVCenter
+                Layout.fillWidth: control.contentAlignment !== Qt.AlignHCenter
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: implicitWidth
                 text: control.text
                 color: control.primary ? SemanticTokens.textOnAccent : SemanticTokens.text
                 font: control.font
                 elide: Text.ElideRight
+                maximumLineCount: 1
+            }
+            Item {
+                visible: control.contentAlignment === Qt.AlignHCenter
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
             }
         }
     }

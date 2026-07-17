@@ -16,6 +16,7 @@ class JobQueue final {
     [[nodiscard]] Result<QString> retry(const QString& jobId);
     [[nodiscard]] Result<void> resume(const QString& jobId);
     [[nodiscard]] Result<void> reorder(const QStringList& orderedJobIds);
+    [[nodiscard]] Result<void> remove(const QString& jobId);
     [[nodiscard]] Result<int> clearCompleted();
 
   private:

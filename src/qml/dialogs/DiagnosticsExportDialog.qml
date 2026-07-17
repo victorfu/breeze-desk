@@ -10,6 +10,7 @@ AppDialog {
     signal exportRequested(url destination, bool includePersonalPaths)
 
     title: qsTr("Export Diagnostics")
+    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/settings.svg"
     standardButtons: Dialog.NoButton
 
     ColumnLayout {

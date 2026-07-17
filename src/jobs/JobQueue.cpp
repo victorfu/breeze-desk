@@ -84,6 +84,11 @@ Result<void> JobQueue::resume(const QString& jobId) {
 Result<void> JobQueue::reorder(const QStringList& orderedJobIds) {
     return m_repository.reorder(orderedJobIds);
 }
+
+Result<void> JobQueue::remove(const QString& jobId) {
+    return m_repository.removeFromQueue(jobId);
+}
+
 Result<int> JobQueue::clearCompleted() {
     return m_repository.clearCompleted();
 }

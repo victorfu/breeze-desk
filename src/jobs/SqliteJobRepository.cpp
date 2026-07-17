@@ -430,6 +430,32 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
     return Result<int>::success(affected);
 }
 
+Result<void> SqliteJobRepository::removeFromQueue(const QString& id) {
+    const auto current = findById(id);
+    if (!current)
+        return Result<void>::failure(current.error());
+    if (!current.value())
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+    if (!JobStateMachine::isTerminal(current.value()->state)) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidStateTransition,
+            QStringLiteral("Only completed, cancelled, or failed jobs can be removed from the queue.")));
+    }
+
+    auto connectionResult = m_databaseManager.connection();
+    if (!connectionResult)
+        return Result<void>::failure(connectionResult.error());
+    QSqlQuery query(connectionResult.value());
+    query.prepare(QStringLiteral("UPDATE transcription_jobs SET queue_hidden=1 WHERE id=?"));
+    query.addBindValue(id);
+    if (!query.exec()) {
+        return Result<void>::failure(
+            queryError(QStringLiteral("The job could not be removed from the queue."), query));
+    }
+    return Result<void>::success();
+}
+
 Result<int> SqliteJobRepository::clearCompleted() {
     auto connectionResult = m_databaseManager.connection();
     if (!connectionResult)

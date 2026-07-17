@@ -38,6 +38,8 @@ QVariant JobListModel::data(const QModelIndex& index, int role) const {
         return job.state == QLatin1String("Failed") || job.state == QLatin1String("Cancelled");
     case CanResumeRole:
         return job.state == QLatin1String("Interrupted");
+    case CanRemoveRole:
+        return terminal;
     default:
         return {};
     }
@@ -48,7 +50,8 @@ QHash<int, QByteArray> JobListModel::roleNames() const {
             {TitleRole, "title"},        {StateRole, "jobState"},
             {StageRole, "stage"},        {ProgressRole, "progress"},
             {ErrorRole, "errorMessage"}, {CanCancelRole, "canCancel"},
-            {CanRetryRole, "canRetry"},  {CanResumeRole, "canResume"}};
+            {CanRetryRole, "canRetry"},  {CanResumeRole, "canResume"},
+            {CanRemoveRole, "canRemove"}};
 }
 
 QString JobListModel::enqueue(const QString& recordingId, const QString& title) {
@@ -124,6 +127,17 @@ bool JobListModel::resume(const QString& id) {
     }
     m_jobs[row].state = QStringLiteral("Queued");
     emitRowChanged(row);
+    return true;
+}
+
+bool JobListModel::remove(const QString& id) {
+    const int row = indexOf(id);
+    if (row < 0 || !data(index(row), CanRemoveRole).toBool()) {
+        return false;
+    }
+    beginRemoveRows({}, row, row);
+    m_jobs.removeAt(row);
+    endRemoveRows();
     return true;
 }
 

@@ -44,6 +44,7 @@ class TranscriptionCoordinator final : public QObject {
     void cancel(const QString& jobId);
     void retry(const QString& jobId);
     void resume(const QString& jobId);
+    void remove(const QString& jobId);
     void reorder(const QString& jobId, int destination);
     void clearCompleted();
     void setPauseAfterCurrent(bool enabled);
@@ -56,10 +57,12 @@ class TranscriptionCoordinator final : public QObject {
     void errorOccurred(const QString& message);
 
   private:
-    enum class RequestKind { None, AnalyzeSpeech, LoadModel, TranscribeChunk };
+    enum class RequestKind { None, GetCapabilities, AnalyzeSpeech, LoadModel, TranscribeChunk };
+    enum class RuntimeAvailability { Unknown, Available, Unavailable };
 
     void scheduleNext();
     void beginJob(const TranscriptionJob& job);
+    void continuePreparingJob();
     void inspectMedia();
     void beginNormalization();
     void beginWaveformGeneration();
@@ -67,6 +70,8 @@ class TranscriptionCoordinator final : public QObject {
     bool saveChunkPlan(QList<JobChunk> chunks, QString* error = nullptr);
     void beginWaitingForModel();
     void ensureWorkerReady(const QString& jobId, int attempt = 0);
+    void requestWorkerCapabilities();
+    void continueAfterWorkerPreflight();
     void analyzeSpeech();
     void loadModel();
     void startNextChunk();
@@ -116,6 +121,7 @@ class TranscriptionCoordinator final : public QObject {
     QString m_loadedVadPath;
     QString m_requestId;
     RequestKind m_requestKind{RequestKind::None};
+    RuntimeAvailability m_runtimeAvailability{RuntimeAvailability::Unknown};
     bool m_loadedFlashAttention{false};
     bool m_initialized{false};
     bool m_shuttingDown{false};

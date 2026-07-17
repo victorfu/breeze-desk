@@ -46,6 +46,12 @@ QString downloadStateName(ModelDownloadOperation::State state) {
     return QStringLiteral("Failed");
 }
 
+bool isTransientOperationState(const QString& state) {
+    return state == QLatin1String("Requested") || state == QLatin1String("Downloading") ||
+           state == QLatin1String("Paused") || state == QLatin1String("Verifying") ||
+           state == QLatin1String("Testing");
+}
+
 ModelListModel::ModelItem modelItem(const ModelManifestEntry& entry) {
     ModelListModel::ModelItem item;
     item.id = entry.id;
@@ -241,12 +247,13 @@ void ModelListModel::replaceModels(QList<ModelItem> models) {
         if (old == previous.cend()) {
             continue;
         }
-        item.installed = old->installed;
-        item.state = old->state;
-        item.progress = old->progress;
-        item.downloadSpeed = old->downloadSpeed;
-        item.remainingSeconds = old->remainingSeconds;
-        item.checksumValid = old->checksumValid;
+        if (isTransientOperationState(old->state)) {
+            item.state = old->state;
+            item.progress = old->progress;
+            item.downloadSpeed = old->downloadSpeed;
+            item.remainingSeconds = old->remainingSeconds;
+        }
+        item.checksumValid = item.installed && old->installed && old->checksumValid;
         item.loaded = old->loaded;
         item.backend = old->backend;
         item.isDefault = old->isDefault;

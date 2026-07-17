@@ -1,6 +1,7 @@
 #include "breezedesk/ui/DesignSystem.h"
 
 #include <QFont>
+#include <QFontDatabase>
 #include <QGuiApplication>
 #include <QStyleHints>
 #include <QtGlobal>
@@ -48,6 +49,10 @@ QString DesignSystem::systemFontFamily() const {
         return {};
     }
     return family;
+}
+
+QString DesignSystem::systemFixedFontFamily() const {
+    return QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 }
 
 void DesignSystem::setTheme(Theme theme) {

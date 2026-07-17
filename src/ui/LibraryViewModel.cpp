@@ -567,6 +567,9 @@ void LibraryViewModel::setSelectedRecordingId(const QString& id) {
     }
     m_selectedRecordingId = id;
     emit selectedRecordingIdChanged();
+}
+
+void LibraryViewModel::activateRecording(const QString& id) {
     if (!id.isEmpty()) {
         emit recordingActivated(id);
     }

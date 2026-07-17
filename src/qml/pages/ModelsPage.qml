@@ -8,6 +8,18 @@ Item {
     signal customImportRequested
     objectName: "modelsPage"
     readonly property int responsiveStackWidth: 760
+
+    function computeBackendName(backend) {
+        const value = String(backend).trim()
+        return value.toLowerCase() === "auto" ? qsTr("Automatic") : value
+    }
+
+    function activeComputeName(backend) {
+        const value = String(backend).trim()
+        return value.length === 0 || value.toLowerCase() === "not loaded"
+               ? qsTr("Available after model load") : value
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: SemanticTokens.spacingLg
@@ -76,11 +88,13 @@ Item {
                                                        * DesignSystem.textScale
                 Text {
                     id: selectedBackend
+                    objectName: "modelsPreferredCompute"
                     Layout.row: 0
                     Layout.column: 0
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    text: qsTr("Selected backend: %1").arg(root.vm.selectedBackend)
+                    text: qsTr("Preferred local compute: %1")
+                              .arg(root.computeBackendName(root.vm.selectedBackend))
                     color: SemanticTokens.text
                     wrapMode: Text.WordWrap
                     font.family: SemanticTokens.fontFamily
@@ -88,11 +102,13 @@ Item {
                 }
                 Text {
                     id: actualBackend
+                    objectName: "modelsCurrentCompute"
                     Layout.row: backendRow.stacked ? 1 : 0
                     Layout.column: backendRow.stacked ? 0 : 1
                     Layout.fillWidth: backendRow.stacked
                     Layout.minimumWidth: 0
-                    text: qsTr("Actual backend: %1").arg(root.vm.actualBackend)
+                    text: qsTr("Currently using: %1")
+                              .arg(root.activeComputeName(root.vm.actualBackend))
                     color: SemanticTokens.textMuted
                     wrapMode: Text.WordWrap
                     font.family: SemanticTokens.fontFamily
@@ -123,14 +139,14 @@ Item {
             ScrollBar.vertical: ScrollBar { }
             delegate: ModelCard {
                 width: ListView.view.width
-                onDownloadRequested: root.vm.download(id)
-                onPauseRequested: root.vm.pause(id)
-                onResumeRequested: root.vm.resume(id)
-                onCancelRequested: root.vm.cancel(id)
-                onDeleteRequested: root.vm.remove(id)
-                onVerifyRequested: root.vm.verify(id)
-                onTestRequested: root.vm.testModel(id)
-                onDefaultRequested: root.vm.setDefaultModel(id)
+                onDownloadRequested: function(id) { root.vm.download(id) }
+                onPauseRequested: function(id) { root.vm.pause(id) }
+                onResumeRequested: function(id) { root.vm.resume(id) }
+                onCancelRequested: function(id) { root.vm.cancel(id) }
+                onDeleteRequested: function(id) { root.vm.remove(id) }
+                onVerifyRequested: function(id) { root.vm.verify(id) }
+                onTestRequested: function(id) { root.vm.testModel(id) }
+                onDefaultRequested: function(id) { root.vm.setDefaultModel(id) }
                 onLicenseRequested: function(url) { Qt.openUrlExternally(url) }
                 onSourceRequested: function(url) { Qt.openUrlExternally(url) }
             }

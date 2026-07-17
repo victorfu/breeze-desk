@@ -18,7 +18,8 @@ class JobListModel final : public QAbstractListModel {
         ErrorRole,
         CanCancelRole,
         CanRetryRole,
-        CanResumeRole
+        CanResumeRole,
+        CanRemoveRole
     };
     Q_ENUM(Role)
 
@@ -44,6 +45,7 @@ class JobListModel final : public QAbstractListModel {
     bool cancel(const QString& id);
     bool retry(const QString& id);
     bool resume(const QString& id);
+    bool remove(const QString& id);
     bool move(const QString& id, int destination);
     void clearCompleted();
     [[nodiscard]] int activeCount() const;

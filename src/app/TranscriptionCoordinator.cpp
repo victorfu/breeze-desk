@@ -40,6 +40,7 @@ namespace {
 
 constexpr int WorkerReadyAttempts = 100;
 constexpr int WorkerReadyIntervalMs = 100;
+constexpr int WorkerCapabilitiesTimeoutMs = 5'000;
 constexpr qsizetype MaximumWorkerChunks = 4'096;
 constexpr qint64 SegmentTimestampToleranceMs = 1'000;
 constexpr qint64 ShortAudioThresholdMs = 12 * 60 * 1'000;
@@ -302,6 +303,11 @@ TranscriptionCoordinator::TranscriptionCoordinator(IRecordingRepository& recordi
     }
     connect(m_worker.client(), &Ipc::AsrWorkerClient::envelopeReceived, this,
             &TranscriptionCoordinator::handleWorkerEnvelope);
+    connect(&m_worker, &WorkerProcessManager::readyChanged, this, [this] {
+        if (!m_worker.isReady()) {
+            m_runtimeAvailability = RuntimeAvailability::Unknown;
+        }
+    });
     connect(&m_worker, &WorkerProcessManager::workerInterrupted, this,
             &TranscriptionCoordinator::interruptActiveJob);
 }
@@ -481,6 +487,13 @@ void TranscriptionCoordinator::resume(const QString& jobId) {
     retry(jobId);
 }
 
+void TranscriptionCoordinator::remove(const QString& jobId) {
+    const auto result = m_jobs.removeFromQueue(jobId);
+    if (!result) {
+        emit errorOccurred(result.error().message);
+    }
+}
+
 void TranscriptionCoordinator::reorder(const QString& jobId, int destination) {
     const auto jobs = m_jobs.list(false);
     if (!jobs) {
@@ -566,8 +579,16 @@ void TranscriptionCoordinator::beginJob(const TranscriptionJob& job) {
         return;
     }
     m_activeJob.state = JobState::Preparing;
+    advanceProgress(JobStage::Preparing, 0.0);
+    ensureWorkerReady(m_activeJob.id);
+}
+
+void TranscriptionCoordinator::continuePreparingJob() {
+    if (m_activeJob.state != JobState::Preparing) {
+        return;
+    }
     advanceProgress(JobStage::Preparing, 1.0);
-    const auto recording = m_recordings.findById(job.recordingId);
+    const auto recording = m_recordings.findById(m_activeJob.recordingId);
     if (!recording || !recording.value().has_value()) {
         failActiveJob(QStringLiteral("SourceFileMissing"),
                       recording ? tr("The recording no longer exists.") : recording.error().message);
@@ -834,11 +855,11 @@ void TranscriptionCoordinator::ensureWorkerReady(const QString& jobId, int attem
         return;
     }
     if (m_worker.isReady()) {
-        if (m_activeJob.state == JobState::AnalyzingSpeech) {
-            analyzeSpeech();
-        } else {
-            loadModel();
+        if (m_runtimeAvailability == RuntimeAvailability::Unknown) {
+            requestWorkerCapabilities();
+            return;
         }
+        continueAfterWorkerPreflight();
         return;
     }
     if (attempt == 0 && !m_worker.start()) {
@@ -851,6 +872,55 @@ void TranscriptionCoordinator::ensureWorkerReady(const QString& jobId, int attem
     }
     QTimer::singleShot(WorkerReadyIntervalMs, this,
                        [this, jobId, attempt] { ensureWorkerReady(jobId, attempt + 1); });
+}
+
+void TranscriptionCoordinator::requestWorkerCapabilities() {
+    if (m_activeJob.id.isEmpty() || !m_worker.isReady() || m_requestKind == RequestKind::GetCapabilities) {
+        return;
+    }
+    m_requestKind = RequestKind::GetCapabilities;
+    m_requestId = m_worker.client()->sendRequest(Ipc::MessageType::GetCapabilities, {}, {});
+    if (m_requestId.isEmpty()) {
+        failActiveJob(QStringLiteral("WorkerCrashed"),
+                      tr("The ASR worker capability request could not be sent."));
+        return;
+    }
+    const QString jobId = m_activeJob.id;
+    const QString requestId = m_requestId;
+    QTimer::singleShot(WorkerCapabilitiesTimeoutMs, this, [this, jobId, requestId] {
+        if (activeJobMatches(jobId) && m_requestKind == RequestKind::GetCapabilities &&
+            m_requestId == requestId) {
+            failActiveJob(QStringLiteral("WorkerTimeout"),
+                          tr("The ASR worker did not report its runtime capabilities."));
+        }
+    });
+}
+
+void TranscriptionCoordinator::continueAfterWorkerPreflight() {
+    if (m_activeJob.id.isEmpty()) {
+        return;
+    }
+    if (m_activeJob.state == JobState::Cancelling) {
+        finishCancellation();
+        return;
+    }
+    if (m_runtimeAvailability == RuntimeAvailability::Unavailable) {
+        failActiveJob(
+            QStringLiteral("BackendUnavailable"),
+            tr("Speech recognition is unavailable because this ASR worker does not include whisper.cpp. "
+               "Reinstall the application or use a build configured with whisper.cpp."));
+        return;
+    }
+    if (m_runtimeAvailability != RuntimeAvailability::Available) {
+        return;
+    }
+    if (m_activeJob.state == JobState::Preparing) {
+        continuePreparingJob();
+    } else if (m_activeJob.state == JobState::AnalyzingSpeech) {
+        analyzeSpeech();
+    } else if (m_activeJob.state == JobState::WaitingForModel) {
+        loadModel();
+    }
 }
 
 void TranscriptionCoordinator::analyzeSpeech() {
@@ -1085,6 +1155,25 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         failActiveJob(workerErrorCode(envelope.payload, m_requestKind == RequestKind::AnalyzeSpeech,
                                       m_requestKind == RequestKind::LoadModel),
                       message);
+        return;
+    }
+    if (m_requestKind == RequestKind::GetCapabilities) {
+        if (envelope.type != Ipc::MessageType::Capabilities) {
+            failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
+                          tr("The ASR worker returned an invalid capability response."));
+            return;
+        }
+        const QCborValue runtimeAvailable = envelope.payload.value(QStringLiteral("runtimeAvailable"));
+        if (!runtimeAvailable.isBool()) {
+            failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
+                          tr("The ASR worker capability response is missing runtime availability."));
+            return;
+        }
+        m_runtimeAvailability =
+            runtimeAvailable.toBool() ? RuntimeAvailability::Available : RuntimeAvailability::Unavailable;
+        m_requestId.clear();
+        m_requestKind = RequestKind::None;
+        continueAfterWorkerPreflight();
         return;
     }
     if (envelope.type == Ipc::MessageType::JobCancelled) {

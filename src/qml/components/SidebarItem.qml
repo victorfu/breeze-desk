@@ -7,8 +7,12 @@ Button {
     property bool selected: false
     property string badgeText: ""
     property url iconSource
-    implicitHeight: ComponentTokens.clickTarget
-    padding: SemanticTokens.spacingMd
+    implicitHeight: Math.max(ComponentTokens.clickTarget,
+                             contentItem.implicitHeight + topPadding + bottomPadding)
+    leftPadding: SemanticTokens.spacingMd
+    rightPadding: SemanticTokens.spacingMd
+    topPadding: SemanticTokens.spacingSm
+    bottomPadding: SemanticTokens.spacingSm
     Accessible.name: text
     Accessible.description: selected ? qsTr("Selected") : ""
     background: Rectangle {
@@ -21,6 +25,7 @@ Button {
     contentItem: RowLayout {
         spacing: SemanticTokens.spacingSm
         AppIcon {
+            objectName: control.objectName.length > 0 ? control.objectName + "Icon" : ""
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             source: control.iconSource
@@ -29,9 +34,11 @@ Button {
         }
         Text {
             Layout.fillWidth: true
+            Layout.minimumWidth: 0
             text: control.text
             color: SemanticTokens.text
             elide: Text.ElideRight
+            maximumLineCount: 1
             font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
             font.weight: control.selected ? Font.DemiBold : Font.Normal

@@ -21,8 +21,10 @@ QtObject {
     readonly property color playhead: PrimitiveTokens.red500
     readonly property color selection: DesignSystem.dark ? "#664B70E2" : "#334B70E2"
     readonly property color focusRing: DesignSystem.dark ? PrimitiveTokens.blue300 : PrimitiveTokens.blue600
+    readonly property color shadow: PrimitiveTokens.black
 
     readonly property string fontFamily: DesignSystem.systemFontFamily
+    readonly property string fixedFontFamily: DesignSystem.systemFixedFontFamily
     readonly property real bodySize: 14 * DesignSystem.textScale
     readonly property real captionSize: 12 * DesignSystem.textScale
     readonly property real titleSize: 22 * DesignSystem.textScale

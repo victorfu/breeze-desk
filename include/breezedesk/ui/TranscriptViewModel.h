@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QPersistentModelIndex>
 #include <QSortFilterProxyModel>
 
 #include "breezedesk/ui/TranscriptSegmentModel.h"
@@ -11,7 +12,11 @@ class TranscriptFilterProxyModel final : public QSortFilterProxyModel {
     Q_OBJECT
 
   public:
+    static constexpr int ProxyRowRole = Qt::UserRole + 1'024;
+
     explicit TranscriptFilterProxyModel(QObject* parent = nullptr);
+    [[nodiscard]] QVariant data(const QModelIndex& index, int role) const override;
+    [[nodiscard]] QHash<int, QByteArray> roleNames() const override;
     void setQuery(const QString& query);
     void setLowConfidenceOnly(bool enabled);
 
@@ -35,6 +40,7 @@ class TranscriptViewModel final : public QObject {
     Q_PROPERTY(bool dirty READ dirty NOTIFY dirtyChanged)
     Q_PROPERTY(bool editingLocked READ editingLocked NOTIFY editingLockedChanged)
     Q_PROPERTY(int segmentCount READ segmentCount NOTIFY segmentCountChanged)
+    Q_PROPERTY(int visibleSegmentCount READ visibleSegmentCount NOTIFY visibleSegmentCountChanged)
     Q_PROPERTY(int activePlaybackIndex READ activePlaybackIndex NOTIFY activePlaybackIndexChanged)
 
   public:
@@ -49,21 +55,22 @@ class TranscriptViewModel final : public QObject {
     [[nodiscard]] bool dirty() const noexcept;
     [[nodiscard]] bool editingLocked() const noexcept;
     [[nodiscard]] int segmentCount() const;
+    [[nodiscard]] int visibleSegmentCount() const;
     [[nodiscard]] int activePlaybackIndex() const noexcept;
 
-    Q_INVOKABLE void editText(int sourceRow, const QString& text);
-    Q_INVOKABLE void splitAt(int sourceRow, qint64 positionMs);
-    Q_INVOKABLE void mergePrevious(int sourceRow);
-    Q_INVOKABLE void mergeNext(int sourceRow);
-    Q_INVOKABLE void insertAfter(int sourceRow, qint64 startMs, qint64 endMs, const QString& text);
-    Q_INVOKABLE void remove(int sourceRow);
-    Q_INVOKABLE void setTimes(int sourceRow, qint64 startMs, qint64 endMs);
-    Q_INVOKABLE void markReviewed(int sourceRow, bool reviewed);
-    Q_INVOKABLE void setGlossaryReplacementApplied(int sourceRow, int replacementIndex, bool applied);
+    Q_INVOKABLE void editText(int proxyRow, const QString& text);
+    Q_INVOKABLE void splitAt(int proxyRow, qint64 positionMs);
+    Q_INVOKABLE void mergePrevious(int proxyRow);
+    Q_INVOKABLE void mergeNext(int proxyRow);
+    Q_INVOKABLE void insertAfter(int proxyRow, qint64 startMs, qint64 endMs, const QString& text);
+    Q_INVOKABLE void remove(int proxyRow);
+    Q_INVOKABLE void setTimes(int proxyRow, qint64 startMs, qint64 endMs);
+    Q_INVOKABLE void markReviewed(int proxyRow, bool reviewed);
+    Q_INVOKABLE void setGlossaryReplacementApplied(int proxyRow, int replacementIndex, bool applied);
     Q_INVOKABLE void undo();
     Q_INVOKABLE void redo();
-    Q_INVOKABLE int findNext(int fromSourceRow) const;
-    Q_INVOKABLE int findPrevious(int fromSourceRow) const;
+    Q_INVOKABLE int findNext(int fromProxyRow) const;
+    Q_INVOKABLE int findPrevious(int fromProxyRow) const;
     Q_INVOKABLE QString fullText() const;
     Q_INVOKABLE void save();
     Q_INVOKABLE void updatePlaybackPosition(qint64 positionMs);
@@ -86,6 +93,7 @@ class TranscriptViewModel final : public QObject {
     void dirtyChanged();
     void editingLockedChanged();
     void segmentCountChanged();
+    void visibleSegmentCountChanged();
     void activePlaybackIndexChanged();
     void saveRequested();
     void seekRequested(qint64 positionMs);
@@ -94,6 +102,7 @@ class TranscriptViewModel final : public QObject {
   private:
     void beforeMutation();
     void afterMutation(bool changed);
+    void remapTrackedRows();
     [[nodiscard]] bool rejectIfEditingLocked();
     [[nodiscard]] int sourceRowForProxyRow(int proxyRow) const;
 
@@ -102,11 +111,13 @@ class TranscriptViewModel final : public QObject {
     QList<QList<TranscriptSegmentModel::Segment>> m_undo;
     QList<QList<TranscriptSegmentModel::Segment>> m_redo;
     int m_selectedIndex{-1};
+    QPersistentModelIndex m_selectedSourceIndex;
     QString m_searchText;
     bool m_lowConfidenceOnly{false};
     bool m_dirty{false};
     bool m_editingLocked{false};
     int m_activePlaybackIndex{-1};
+    QPersistentModelIndex m_activePlaybackSourceIndex;
 };
 
 } // namespace BreezeDesk

@@ -14,6 +14,20 @@ ApplicationWindow {
     title: window.vm.displayName
     color: SemanticTokens.window
 
+    palette.window: SemanticTokens.surfaceRaised
+    palette.windowText: SemanticTokens.text
+    palette.base: SemanticTokens.surface
+    palette.alternateBase: SemanticTokens.surfaceMuted
+    palette.text: SemanticTokens.text
+    palette.button: SemanticTokens.surface
+    palette.buttonText: SemanticTokens.text
+    palette.highlight: SemanticTokens.accentMuted
+    palette.highlightedText: SemanticTokens.text
+    palette.placeholderText: SemanticTokens.textMuted
+    palette.mid: SemanticTokens.surfaceMuted
+    palette.dark: SemanticTokens.borderStrong
+    palette.shadow: SemanticTokens.shadow
+
     property var injectedApplicationViewModel: typeof App !== "undefined" ? App : null
     property var injectedRecorder: typeof Recorder !== "undefined" ? Recorder : null
     property var injectedMaintenance: typeof Maintenance !== "undefined" ? Maintenance : null
@@ -127,6 +141,7 @@ ApplicationWindow {
             Layout.preferredWidth: ComponentTokens.sidebarWidth
             Layout.maximumWidth: ComponentTokens.sidebarWidth
             Layout.fillHeight: true
+            clip: true
             color: SemanticTokens.surface
             border.color: SemanticTokens.border
             ColumnLayout {
@@ -159,23 +174,62 @@ ApplicationWindow {
                         font.weight: Font.DemiBold
                     }
                 }
-                SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/library.svg"; text: qsTr("Library"); selected: window.vm.currentPage === "Library" || window.vm.currentPage === "Recording"; onClicked: window.vm.navigate("Library") }
-                SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"; text: qsTr("Queue"); badgeText: window.vm.jobQueue.activeCount > 0 ? window.vm.jobQueue.activeCount.toString() : ""; selected: window.vm.currentPage === "Queue"; onClicked: window.vm.navigate("Queue") }
-                SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"; text: qsTr("Trash"); selected: window.vm.currentPage === "Trash"; onClicked: window.vm.navigate("Trash") }
-                SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/box.svg"; text: qsTr("Models"); selected: window.vm.currentPage === "Models"; onClicked: window.vm.navigate("Models") }
-                SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"; text: qsTr("Glossary"); selected: window.vm.currentPage === "Glossary"; onClicked: window.vm.navigate("Glossary") }
-                Item { Layout.fillHeight: true }
-                AppButton { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/file-input.svg"; text: qsTr("Import Media"); primary: true; onClicked: importDialog.open() }
-                AppButton { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/mic.svg"; text: qsTr("Start Recording"); onClicked: window.openRecordingDialog() }
-                SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/settings.svg"; text: qsTr("Settings"); selected: window.vm.currentPage === "Settings"; onClicked: window.vm.navigate("Settings") }
-                Text {
+                ColumnLayout {
+                    id: sidebarNavigation
+                    objectName: "sidebarNavigation"
                     Layout.fillWidth: true
-                    Layout.topMargin: SemanticTokens.spacingSm
-                    text: qsTr("Offline by default")
-                    color: SemanticTokens.textMuted
-                    horizontalAlignment: Text.AlignHCenter
-                    font.family: SemanticTokens.fontFamily
-                    font.pixelSize: SemanticTokens.captionSize
+                    spacing: SemanticTokens.spacingXs
+                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/library.svg"; text: qsTr("Library"); selected: window.vm.currentPage === "Library" || window.vm.currentPage === "Recording"; onClicked: window.vm.navigate("Library") }
+                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"; text: qsTr("Queue"); badgeText: window.vm.jobQueue.activeCount > 0 ? window.vm.jobQueue.activeCount.toString() : ""; selected: window.vm.currentPage === "Queue"; onClicked: window.vm.navigate("Queue") }
+                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"; text: qsTr("Trash"); selected: window.vm.currentPage === "Trash"; onClicked: window.vm.navigate("Trash") }
+                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/box.svg"; text: qsTr("Models"); selected: window.vm.currentPage === "Models"; onClicked: window.vm.navigate("Models") }
+                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"; text: qsTr("Glossary"); selected: window.vm.currentPage === "Glossary"; onClicked: window.vm.navigate("Glossary") }
+                }
+                Item {
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: SemanticTokens.spacingSm
+                }
+                ColumnLayout {
+                    id: sidebarFooter
+                    objectName: "sidebarFooter"
+                    Layout.fillWidth: true
+                    Layout.minimumHeight: implicitHeight
+                    spacing: SemanticTokens.spacingXs
+                    AppButton {
+                        objectName: "sidebarImportButton"
+                        Layout.fillWidth: true
+                        Layout.minimumHeight: ComponentTokens.clickTarget
+                        leftPadding: SemanticTokens.spacingMd
+                        rightPadding: SemanticTokens.spacingMd
+                        contentAlignment: Qt.AlignLeft
+                        iconSize: 20
+                        contentSpacing: SemanticTokens.spacingSm
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/file-input.svg"
+                        text: qsTr("Import Media")
+                        primary: true
+                        onClicked: importDialog.open()
+                    }
+                    AppButton {
+                        objectName: "sidebarRecordButton"
+                        Layout.fillWidth: true
+                        Layout.minimumHeight: ComponentTokens.clickTarget
+                        leftPadding: SemanticTokens.spacingMd
+                        rightPadding: SemanticTokens.spacingMd
+                        contentAlignment: Qt.AlignLeft
+                        iconSize: 20
+                        contentSpacing: SemanticTokens.spacingSm
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/mic.svg"
+                        text: qsTr("Start Recording")
+                        onClicked: window.openRecordingDialog()
+                    }
+                    SidebarItem {
+                        objectName: "sidebarSettingsButton"
+                        Layout.fillWidth: true
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/settings.svg"
+                        text: qsTr("Settings")
+                        selected: window.vm.currentPage === "Settings"
+                        onClicked: window.vm.navigate("Settings")
+                    }
                 }
             }
         }
@@ -279,6 +333,7 @@ ApplicationWindow {
     AppDialog {
         id: quitDialog
         title: qsTr("Transcription is still running")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/pause.svg"
         standardButtons: Dialog.NoButton
         ColumnLayout {
             width: parent.width

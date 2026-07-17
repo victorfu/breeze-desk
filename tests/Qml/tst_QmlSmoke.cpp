@@ -7,8 +7,10 @@
 #include "breezedesk/settings/SettingsManagers.h"
 #include "breezedesk/transcript/ITranscriptRepository.h"
 #include "breezedesk/ui/ApplicationViewModel.h"
+#include "breezedesk/ui/GlossaryViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
 
+#include <QAccessible>
 #include <QColor>
 #include <QDataStream>
 #include <QDirIterator>
@@ -17,6 +19,7 @@
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
+#include <QQuickItemGrabResult>
 #include <QQuickWindow>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -58,6 +61,20 @@ void messageHandler(QtMsgType type, const QMessageLogContext&, const QString& me
     if (type == QtWarningMsg || type == QtCriticalMsg || type == QtFatalMsg) {
         qmlMessages.append(message);
     }
+}
+
+QList<QQuickItem*> visualDescendantsNamed(QQuickItem* root, const QString& objectName) {
+    QList<QQuickItem*> matches;
+    const auto visit = [&matches, &objectName](auto&& self, QQuickItem* item) -> void {
+        for (QQuickItem* child : item->childItems()) {
+            if (child->objectName() == objectName) {
+                matches.append(child);
+            }
+            self(self, child);
+        }
+    };
+    visit(visit, root);
+    return matches;
 }
 
 } // namespace
@@ -221,6 +238,138 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 
+    void primaryButtonIconUsesAccentForeground() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* icon = root->findChild<QQuickItem*>(QStringLiteral("sidebarImportButtonIcon"));
+        QVERIFY(window);
+        QVERIFY(icon);
+        QCOMPARE(icon->property("color").value<QColor>(), QColor(QStringLiteral("#FFFFFF")));
+
+        window->show();
+        QCoreApplication::processEvents();
+        const QSharedPointer<QQuickItemGrabResult> grab = icon->grabToImage();
+        QVERIFY(grab);
+        QSignalSpy readySpy(grab.data(), &QQuickItemGrabResult::ready);
+        if (grab->image().isNull()) {
+            QVERIFY2(readySpy.wait(1'000), "Timed out while rendering the primary button icon.");
+        }
+
+        const QImage image = grab->image().convertToFormat(QImage::Format_RGBA8888);
+        QVERIFY(!image.isNull());
+        int lightPixelCount = 0;
+        for (int y = 0; y < image.height(); ++y) {
+            for (int x = 0; x < image.width(); ++x) {
+                const QColor pixel = image.pixelColor(x, y);
+                if (pixel.alpha() > 96 && pixel.red() > 220 && pixel.green() > 220 && pixel.blue() > 220) {
+                    ++lightPixelCount;
+                }
+            }
+        }
+        QVERIFY2(lightPixelCount > 4, "The primary button icon was not rendered with a light tint.");
+    }
+
+    void removalActionsUseOneAccessibleIcon() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                width: 640
+                height: 320
+                visible: true
+                property int openRequests: 0
+
+                RemoveButton {
+                    id: removeButton
+                    objectName: "sharedRemoveButton"
+                    accessibleName: "Remove fixture"
+                }
+
+                RecordingCard {
+                    objectName: "fixtureRecordingCard"
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    recordingId: "recording-id"
+                    title: "Fixture recording"
+                    durationMs: 1000
+                    createdAt: new Date(0)
+                    status: "Imported"
+                    modelName: ""
+                    tags: []
+                    reviewState: "Unreviewed"
+                    progress: 0
+                    sourceMissing: false
+                    onOpenRequested: function(id) {
+                        if (id === "recording-id") {
+                            openRequests += 1
+                        }
+                    }
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:RemovalActionsTestHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* removeButton = root->findChild<QQuickItem*>(QStringLiteral("sharedRemoveButton"));
+        auto* recordingActionRow =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingActionRow"));
+        auto* recordingActions =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingActionsButton"));
+        auto* recordingTrash = root->findChild<QQuickItem*>(QStringLiteral("recordingTrashButton"));
+        auto* openMenuItem = root->findChild<QObject*>(QStringLiteral("recordingOpenMenuItem"));
+        QVERIFY(removeButton);
+        QVERIFY(recordingActionRow);
+        QVERIFY(recordingActions);
+        QVERIFY(recordingTrash);
+        QVERIFY(openMenuItem);
+
+        QCoreApplication::processEvents();
+        const qreal actionsCenterY =
+            recordingActions
+                ->mapToItem(recordingActionRow,
+                            QPointF(recordingActions->width() / 2.0,
+                                    recordingActions->height() / 2.0))
+                .y();
+        const qreal trashCenterY =
+            recordingTrash
+                ->mapToItem(recordingActionRow,
+                            QPointF(recordingTrash->width() / 2.0,
+                                    recordingTrash->height() / 2.0))
+                .y();
+        QVERIFY2(qAbs(actionsCenterY - trashCenterY) <= 0.5,
+                 "The recording Actions and Trash controls must share one horizontal row.");
+
+        const QUrl expectedIcon(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"));
+        QCOMPARE(removeButton->property("iconSource").toUrl(), expectedIcon);
+        QCOMPARE(recordingTrash->property("iconSource").toUrl(), expectedIcon);
+        QCOMPARE(removeButton->property("iconColor").value<QColor>(), QColor(QStringLiteral("#C83D4B")));
+        QCOMPARE(removeButton->property("accessibleName").toString(), QStringLiteral("Remove fixture"));
+        QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(removeButton);
+        QVERIFY(interface);
+        QCOMPARE(interface->text(QAccessible::Name), QStringLiteral("Remove fixture"));
+
+        QVERIFY(QMetaObject::invokeMethod(openMenuItem, "triggered", Qt::DirectConnection));
+        QCOMPARE(root->property("openRequests").toInt(), 1);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
     void settingsLayoutStaysWithinViewport() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
@@ -252,8 +401,8 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(settingsContent->width() <= 924.5);
 
             const qreal leftInset = settingsContent->x();
-            const qreal rightInset = settingsViewport->width() - settingsContent->x()
-                                     - settingsContent->width();
+            const qreal rightInset =
+                settingsViewport->width() - settingsContent->x() - settingsContent->width();
             QVERIFY(leftInset >= 23.5);
             QVERIFY(rightInset >= 23.5);
             QVERIFY(qAbs(leftInset - rightInset) <= 1.0);
@@ -306,9 +455,8 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(brandText->x() >= 0.0);
             QVERIFY(brandText->x() + brandText->width() <= brandRow->width() + 0.5);
             QVERIFY(brandText->property("paintedWidth").toReal() <= brandText->width() + 0.5);
-            QTRY_VERIFY_WITH_TIMEOUT(brandText->property("paintedHeight").toReal()
-                                         <= brandText->height() + 0.5,
-                                     1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(
+                brandText->property("paintedHeight").toReal() <= brandText->height() + 0.5, 1'000);
         };
 
         verifyWidth(980, 216.0);
@@ -362,15 +510,17 @@ class tst_QmlSmoke final : public QObject {
 
         vm->settings()->setTextScale(1.5);
         const int enlargedChanges = processTransition();
-        QVERIFY2(enlargedChanges < maximumExpectedGeometryChanges,
-                 qPrintable(QStringLiteral("Text scale 1.5 did not settle (%1 geometry changes).")
-                                .arg(enlargedChanges)));
+        QVERIFY2(
+            enlargedChanges < maximumExpectedGeometryChanges,
+            qPrintable(
+                QStringLiteral("Text scale 1.5 did not settle (%1 geometry changes).").arg(enlargedChanges)));
 
         vm->settings()->setTextScale(1.0);
         const int restoredChanges = processTransition();
-        QVERIFY2(restoredChanges < maximumExpectedGeometryChanges,
-                 qPrintable(QStringLiteral("Text scale 1.0 did not settle (%1 geometry changes).")
-                                .arg(restoredChanges)));
+        QVERIFY2(
+            restoredChanges < maximumExpectedGeometryChanges,
+            qPrintable(
+                QStringLiteral("Text scale 1.0 did not settle (%1 geometry changes).").arg(restoredChanges)));
 
         vm->navigate(QStringLiteral("Library"));
         const int navigationChanges = processTransition();
@@ -380,6 +530,136 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(vm->currentPage(), QStringLiteral("Library"));
         QVERIFY(settingsContent->width() > 0.0);
         QCOMPARE(pages->x() + pages->width(), window->width());
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void sidebarFooterStaysAlignedAndWithinViewport() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
+        auto* sidebar = root->findChild<QQuickItem*>(QStringLiteral("mainSidebar"));
+        auto* navigation = root->findChild<QQuickItem*>(QStringLiteral("sidebarNavigation"));
+        auto* footer = root->findChild<QQuickItem*>(QStringLiteral("sidebarFooter"));
+        auto* importButton = root->findChild<QQuickItem*>(QStringLiteral("sidebarImportButton"));
+        auto* recordButton = root->findChild<QQuickItem*>(QStringLiteral("sidebarRecordButton"));
+        auto* settingsButton = root->findChild<QQuickItem*>(QStringLiteral("sidebarSettingsButton"));
+        auto* importIcon = root->findChild<QQuickItem*>(QStringLiteral("sidebarImportButtonIcon"));
+        auto* recordIcon = root->findChild<QQuickItem*>(QStringLiteral("sidebarRecordButtonIcon"));
+        auto* settingsIcon = root->findChild<QQuickItem*>(QStringLiteral("sidebarSettingsButtonIcon"));
+        QVERIFY(window);
+        QVERIFY(vm);
+        QVERIFY(sidebar);
+        QVERIFY(navigation);
+        QVERIFY(footer);
+        QVERIFY(importButton);
+        QVERIFY(recordButton);
+        QVERIFY(settingsButton);
+        QVERIFY(importIcon);
+        QVERIFY(recordIcon);
+        QVERIFY(settingsIcon);
+
+        const auto childOrigin = [](QQuickItem* parent, QQuickItem* child) {
+            return child->mapToItem(parent, QPointF{});
+        };
+        const auto labelForButton = [](QQuickItem* button) -> QQuickItem* {
+            const QString expectedText = button->property("text").toString();
+            for (QQuickItem* candidate : button->findChildren<QQuickItem*>()) {
+                if (candidate->property("text").toString() == expectedText) {
+                    return candidate;
+                }
+            }
+            return nullptr;
+        };
+        const auto verifyInside = [&childOrigin](QQuickItem* parent, QQuickItem* child,
+                                                 const QString& context) {
+            const auto contained = [&childOrigin, parent, child] {
+                const QPointF origin = childOrigin(parent, child);
+                return origin.x() >= -0.5 && origin.y() >= -0.5 &&
+                       origin.x() + child->width() <= parent->width() + 0.5 &&
+                       origin.y() + child->height() <= parent->height() + 0.5;
+            };
+            const auto failureMessage = [&childOrigin, parent, child, &context] {
+                const QPointF origin = childOrigin(parent, child);
+                return QStringLiteral("%1 is outside its parent: x=%2 y=%3 w=%4 h=%5; parent w=%6 h=%7")
+                    .arg(context)
+                    .arg(origin.x())
+                    .arg(origin.y())
+                    .arg(child->width())
+                    .arg(child->height())
+                    .arg(parent->width())
+                    .arg(parent->height());
+            };
+            QTRY_VERIFY2_WITH_TIMEOUT(contained(), qPrintable(failureMessage()), 1'000);
+        };
+
+        for (const QString& language : {QStringLiteral("en"), QStringLiteral("zh_TW")}) {
+            vm->settings()->setLanguage(language);
+            for (const bool compact : {false, true}) {
+                vm->settings()->setCompactMode(compact);
+                for (const double textScale : {1.0, 1.5}) {
+                    vm->settings()->setTextScale(textScale);
+                    for (const int height : {640, 820}) {
+                        window->setWidth(980);
+                        window->setHeight(height);
+                        QCoreApplication::processEvents();
+
+                        verifyInside(sidebar, navigation, QStringLiteral("navigation"));
+                        verifyInside(sidebar, footer, QStringLiteral("footer"));
+                        verifyInside(footer, importButton, QStringLiteral("import button"));
+                        verifyInside(footer, recordButton, QStringLiteral("record button"));
+                        verifyInside(footer, settingsButton, QStringLiteral("settings button"));
+
+                        const QPointF navigationOrigin = childOrigin(sidebar, navigation);
+                        const QPointF footerOrigin = childOrigin(sidebar, footer);
+                        QVERIFY(navigationOrigin.y() + navigation->height() <= footerOrigin.y() + 0.5);
+
+                        const QPointF importOrigin = childOrigin(footer, importButton);
+                        const QPointF recordOrigin = childOrigin(footer, recordButton);
+                        const QPointF settingsOrigin = childOrigin(footer, settingsButton);
+                        QVERIFY(importOrigin.y() + importButton->height() <= recordOrigin.y() + 0.5);
+                        QVERIFY(recordOrigin.y() + recordButton->height() <= settingsOrigin.y() + 0.5);
+                        QCOMPARE(importButton->height(), recordButton->height());
+                        QCOMPARE(importButton->height(), settingsButton->height());
+
+                        const qreal importIconX = childOrigin(footer, importIcon).x();
+                        const qreal recordIconX = childOrigin(footer, recordIcon).x();
+                        const qreal settingsIconX = childOrigin(footer, settingsIcon).x();
+                        QVERIFY(qAbs(importIconX - recordIconX) <= 0.5);
+                        QVERIFY2(qAbs(importIconX - settingsIconX) <= 2.5,
+                                 qPrintable(QStringLiteral("Sidebar icons are misaligned: import=%1, "
+                                                           "record=%2, settings=%3")
+                                                .arg(importIconX)
+                                                .arg(recordIconX)
+                                                .arg(settingsIconX)));
+
+                        QList<qreal> labelPositions;
+                        for (QQuickItem* button : {importButton, recordButton, settingsButton}) {
+                            QQuickItem* label = labelForButton(button);
+                            QVERIFY(label);
+                            verifyInside(button, label, button->property("text").toString());
+                            labelPositions.append(childOrigin(footer, label).x());
+                            QTRY_VERIFY_WITH_TIMEOUT(
+                                label->property("paintedWidth").toReal() <= label->width() + 0.5,
+                                1'000);
+                            QTRY_VERIFY_WITH_TIMEOUT(
+                                label->property("paintedHeight").toReal() <= label->height() + 0.5,
+                                1'000);
+                        }
+                        QCOMPARE(labelPositions.size(), 3);
+                        QVERIFY(qAbs(labelPositions.at(0) - labelPositions.at(1)) <= 0.5);
+                        QVERIFY(qAbs(labelPositions.at(0) - labelPositions.at(2)) <= 0.5);
+                    }
+                }
+            }
+        }
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
@@ -401,14 +681,12 @@ class tst_QmlSmoke final : public QObject {
         vm->settings()->setLanguage(QStringLiteral("zh_TW"));
         vm->settings()->setTextScale(1.5);
 
-        const auto verifyContained = [](QQuickItem* parent, QQuickItem* child,
-                                        const QString& context) {
+        const auto verifyContained = [](QQuickItem* parent, QQuickItem* child, const QString& context) {
             QVERIFY(parent);
             QVERIFY(child);
             const auto isContained = [parent, child] {
                 const QPointF origin = child->mapToItem(parent, QPointF{});
-                return origin.x() >= -0.5
-                       && origin.x() + child->width() <= parent->width() + 0.5;
+                return origin.x() >= -0.5 && origin.x() + child->width() <= parent->width() + 0.5;
             };
             const auto failureMessage = [parent, child, &context] {
                 const QPointF origin = child->mapToItem(parent, QPointF{});
@@ -427,10 +705,8 @@ class tst_QmlSmoke final : public QObject {
         const QList<std::tuple<QString, QString, QString>> pages{
             {QStringLiteral("Library"), QStringLiteral("libraryPage"),
              QStringLiteral("libraryHeaderActions")},
-            {QStringLiteral("Queue"), QStringLiteral("queuePage"),
-             QStringLiteral("queueHeaderActions")},
-            {QStringLiteral("Models"), QStringLiteral("modelsPage"),
-             QStringLiteral("modelsHeaderActions")},
+            {QStringLiteral("Queue"), QStringLiteral("queuePage"), QStringLiteral("queueHeaderActions")},
+            {QStringLiteral("Models"), QStringLiteral("modelsPage"), QStringLiteral("modelsHeaderActions")},
             {QStringLiteral("Glossary"), QStringLiteral("glossaryPage"),
              QStringLiteral("glossaryHeaderActions")},
         };
@@ -443,10 +719,188 @@ class tst_QmlSmoke final : public QObject {
                 QCoreApplication::processEvents();
                 auto* page = root->findChild<QQuickItem*>(pageObjectName);
                 auto* actions = root->findChild<QQuickItem*>(actionsObjectName);
-                verifyContained(page, actions,
-                                QStringLiteral("%1 at %2 px").arg(pageName).arg(width));
+                verifyContained(page, actions, QStringLiteral("%1 at %2 px").arg(pageName).arg(width));
             }
         }
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void glossaryProfileDialogIsAccessibleAndResponsive() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        BreezeDesk::GlossaryViewModel glossaryViewModel;
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                id: host
+                required property var glossaryVm
+                property bool compactMode: false
+                property real scale: 1.0
+                property bool darkMode: false
+                width: 980
+                height: 720
+                visible: true
+
+                function applyAppearance() {
+                    DesignSystem.compact = compactMode
+                    DesignSystem.textScale = scale
+                    DesignSystem.theme = darkMode ? DesignSystem.Dark : DesignSystem.Light
+                }
+
+                Component.onCompleted: applyAppearance()
+                onCompactModeChanged: applyAppearance()
+                onScaleChanged: applyAppearance()
+                onDarkModeChanged: applyAppearance()
+
+                GlossaryPage {
+                    anchors.fill: parent
+                    vm: host.glossaryVm
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:GlossaryDialogTestHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.createWithInitialProperties(
+            {{QStringLiteral("glossaryVm"), QVariant::fromValue<QObject*>(&glossaryViewModel)}}));
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* newProfileButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryNewProfileButton"));
+        QObject* dialog = root->findChild<QObject*>(QStringLiteral("glossaryProfileDialog"));
+        auto* surface = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogSurface"));
+        auto* header = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogHeader"));
+        auto* content = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogContent"));
+        auto* footer = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogFooter"));
+        auto* nameField = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileNameField"));
+        auto* descriptionField =
+            root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDescriptionField"));
+        auto* contextField = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileContextField"));
+        auto* cancelButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileCancelButton"));
+        auto* createButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileCreateButton"));
+        QVERIFY(window);
+        QVERIFY(newProfileButton);
+        QVERIFY(dialog);
+        QVERIFY(surface);
+        QVERIFY(header);
+        QVERIFY(content);
+        QVERIFY(footer);
+        QVERIFY(nameField);
+        QVERIFY(descriptionField);
+        QVERIFY(contextField);
+        QVERIFY(cancelButton);
+        QVERIFY(createButton);
+
+        window->show();
+        QCoreApplication::processEvents();
+        QVERIFY2(QMetaObject::invokeMethod(newProfileButton, "clicked", Qt::DirectConnection),
+                 "The New Profile action does not expose its click boundary.");
+        QTRY_VERIFY_WITH_TIMEOUT(dialog->property("visible").toBool(), 1'000);
+
+        for (QObject* accessibleControl :
+             {static_cast<QObject*>(nameField), static_cast<QObject*>(descriptionField),
+              static_cast<QObject*>(contextField), static_cast<QObject*>(cancelButton),
+              static_cast<QObject*>(createButton)}) {
+            QVERIFY2(
+                !accessibleControl->property("accessibleName").toString().trimmed().isEmpty(),
+                qPrintable(accessibleControl->objectName() + QStringLiteral(" has no accessible name.")));
+            QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(accessibleControl);
+            QVERIFY2(interface, qPrintable(accessibleControl->objectName() +
+                                           QStringLiteral(" has no accessibility interface.")));
+            QVERIFY2(!interface->text(QAccessible::Name).trimmed().isEmpty(),
+                     qPrintable(accessibleControl->objectName() +
+                                QStringLiteral(" exposes an empty accessibility name.")));
+        }
+
+        QQmlComponent tokenProbe(&engine);
+        tokenProbe.setData(R"(
+            import QtQuick
+            import BreezeDesk
+            QtObject {
+                property color surfaceRaised: SemanticTokens.surfaceRaised
+            }
+        )",
+                           QUrl(QStringLiteral("inline:GlossaryDialogTokenProbe.qml")));
+        QScopedPointer<QObject> tokens(tokenProbe.create());
+        QVERIFY2(tokens, qPrintable(tokenProbe.errorString()));
+
+        const auto verifyContained = [](QQuickItem* parent, QQuickItem* child, const QString& context) {
+            const auto contained = [parent, child] {
+                const QPointF origin = child->mapToItem(parent, QPointF{});
+                return origin.x() >= -0.5 && origin.y() >= -0.5 &&
+                       origin.x() + child->width() <= parent->width() + 0.5 &&
+                       origin.y() + child->height() <= parent->height() + 0.5;
+            };
+            const auto failureMessage = [parent, child, &context] {
+                const QPointF origin = child->mapToItem(parent, QPointF{});
+                return QStringLiteral("%1 is outside its parent: x=%2 y=%3 w=%4 h=%5; parent w=%6 h=%7")
+                    .arg(context)
+                    .arg(origin.x())
+                    .arg(origin.y())
+                    .arg(child->width())
+                    .arg(child->height())
+                    .arg(parent->width())
+                    .arg(parent->height());
+            };
+            QTRY_VERIFY2_WITH_TIMEOUT(contained(), qPrintable(failureMessage()), 1'000);
+        };
+
+        for (const bool darkMode : {false, true}) {
+            root->setProperty("darkMode", darkMode);
+            QCoreApplication::processEvents();
+            QCOMPARE(surface->property("color").value<QColor>(),
+                     tokens->property("surfaceRaised").value<QColor>());
+
+            for (const bool compact : {false, true}) {
+                root->setProperty("compactMode", compact);
+                for (const double textScale : {1.0, 1.5}) {
+                    root->setProperty("scale", textScale);
+                    for (const int width : {560, 980}) {
+                        window->setWidth(width);
+                        window->setHeight(720);
+                        QCoreApplication::processEvents();
+
+                        QVERIFY(surface->width() > 0.0);
+                        QVERIFY(surface->height() > 0.0);
+                        verifyContained(window->contentItem(), surface,
+                                        QStringLiteral("dialog surface at %1 px").arg(width));
+                        verifyContained(surface, header, QStringLiteral("dialog header"));
+                        verifyContained(surface, content, QStringLiteral("dialog content"));
+                        verifyContained(surface, footer, QStringLiteral("dialog footer"));
+                        verifyContained(content, nameField, QStringLiteral("profile name field"));
+                        verifyContained(content, descriptionField,
+                                        QStringLiteral("profile description field"));
+                        verifyContained(content, contextField, QStringLiteral("profile context field"));
+                        verifyContained(footer, cancelButton, QStringLiteral("dialog cancel button"));
+                        verifyContained(footer, createButton, QStringLiteral("dialog create button"));
+
+                        const QPointF headerOrigin = header->mapToItem(surface, QPointF{});
+                        const QPointF contentOrigin = content->mapToItem(surface, QPointF{});
+                        const QPointF footerOrigin = footer->mapToItem(surface, QPointF{});
+                        QVERIFY(headerOrigin.y() + header->height() <= contentOrigin.y() + 0.5);
+                        QVERIFY(contentOrigin.y() + content->height() <= footerOrigin.y() + 0.5);
+                    }
+                }
+            }
+        }
+
+        QCOMPARE(createButton->property("enabled").toBool(), false);
+        nameField->setProperty("text", QStringLiteral("Fixture profile"));
+        QTRY_COMPARE_WITH_TIMEOUT(createButton->property("enabled").toBool(), true, 1'000);
+        QVERIFY2(QMetaObject::invokeMethod(cancelButton, "clicked", Qt::DirectConnection),
+                 "The Cancel action does not expose its click boundary.");
+        QTRY_VERIFY_WITH_TIMEOUT(!dialog->property("visible").toBool(), 1'000);
+        root->setProperty("darkMode", false);
+        root->setProperty("compactMode", false);
+        root->setProperty("scale", 1.0);
+        QCoreApplication::processEvents();
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
@@ -463,46 +917,80 @@ class tst_QmlSmoke final : public QObject {
         auto* window = qobject_cast<QQuickWindow*>(root.data());
         auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
         auto* page = root->findChild<QQuickItem*>(QStringLiteral("recordingPage"));
+        auto* workspace = root->findChild<QQuickItem*>(QStringLiteral("recordingWorkspace"));
         auto* inspector = root->findChild<QQuickItem*>(QStringLiteral("recordingInspector"));
-        auto* inspectorButton =
-            root->findChild<QQuickItem*>(QStringLiteral("recordingInspectorButton"));
+        auto* inspectorButton = root->findChild<QQuickItem*>(QStringLiteral("recordingInspectorButton"));
         auto* mainPane = root->findChild<QQuickItem*>(QStringLiteral("recordingMainPane"));
+        auto* header = root->findChild<QQuickItem*>(QStringLiteral("recordingHeader"));
+        auto* waveform = root->findChild<QQuickItem*>(QStringLiteral("recordingWaveformCard"));
         auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
         auto* timeline = root->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackTimeline"));
-        auto* positionSlider =
-            root->findChild<QQuickItem*>(QStringLiteral("playbackPositionSlider"));
+        auto* positionSlider = root->findChild<QQuickItem*>(QStringLiteral("playbackPositionSlider"));
         auto* options = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportOptions"));
-        auto* transcriptToolbar =
-            root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
+        auto* transcriptToolbar = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
         QVERIFY(window);
         QVERIFY(vm);
         QVERIFY(page);
+        QVERIFY(workspace);
         QVERIFY(inspector);
         QVERIFY(inspectorButton);
         QVERIFY(mainPane);
+        QVERIFY(header);
+        QVERIFY(waveform);
         QVERIFY(transport);
         QVERIFY(timeline);
         QVERIFY(positionSlider);
         QVERIFY(options);
         QVERIFY(transcriptToolbar);
 
+        vm->settings()->setCompactMode(true);
+        vm->settings()->setCompactMode(false);
+        vm->settings()->setTextScale(1.0);
         vm->settings()->setTextScale(1.5);
         vm->navigate(QStringLiteral("Recording"));
+        window->show();
 
         const auto verifyWidth = [&](int width, bool compactInspector) {
             window->setWidth(width);
             window->setHeight(720);
-            QCoreApplication::processEvents();
-
-            QCOMPARE(inspector->isVisible(), !compactInspector);
+            QCOMPARE(vm->currentPage(), QStringLiteral("Recording"));
+            QTRY_COMPARE_WITH_TIMEOUT(page->property("compactInspector").toBool(), compactInspector,
+                                      1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(qAbs(workspace->width() - page->width()) <= 0.5, 1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(inspector->isVisible() == !compactInspector, 1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(mainPane->width() > 700.0, 1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(transport->width() > 700.0, 1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(timeline->width() <= transport->width() + 0.5, 1'000);
+            QVERIFY2(inspector->isVisible() == !compactInspector,
+                     qPrintable(QStringLiteral("Inspector visibility mismatch at %1 px: page=%2, "
+                                                       "compact=%3, inspector=%4/%5")
+                                    .arg(width)
+                                    .arg(page->width())
+                                    .arg(page->property("compactInspector").toBool())
+                                    .arg(inspector->property("visible").toBool())
+                                    .arg(inspector->isVisible())));
             QCOMPARE(inspectorButton->isVisible(), compactInspector);
             QVERIFY(mainPane->width() > 0.0);
+            QVERIFY(header->height() <= 72.0);
             QVERIFY(transport->width() <= mainPane->width() + 0.5);
             QVERIFY(timeline->width() > 0.0);
-            QVERIFY(timeline->width() <= transport->width() + 0.5);
+            QVERIFY2(timeline->width() <= transport->width() + 0.5,
+                     qPrintable(QStringLiteral("Playback timeline exceeds transport at %1 px: %2 of %3 px "
+                                                       "(main pane %4, workspace %5, page %6, inspector %7/%8)")
+                                    .arg(width)
+                                    .arg(timeline->width())
+                                    .arg(transport->width())
+                                    .arg(mainPane->width())
+                                    .arg(workspace->width())
+                                    .arg(page->width())
+                                    .arg(inspector->width())
+                                    .arg(inspector->property("visible").toBool())));
             QVERIFY(positionSlider->width() >= 160.0);
             QVERIFY(options->width() <= transport->width() + 0.5);
             QVERIFY(transcriptToolbar->width() <= mainPane->width() + 0.5);
+            QVERIFY(waveform->height() <= 68.0);
+            QVERIFY(transport->height() <= 132.0);
+            QVERIFY(transcriptToolbar->height() <= 144.0);
 
             const QPointF paneOrigin = mainPane->mapToItem(page, QPointF{});
             QVERIFY(paneOrigin.x() >= -0.5);
@@ -511,6 +999,312 @@ class tst_QmlSmoke final : public QObject {
 
         verifyWidth(980, true);
         verifyWidth(1280, false);
+        vm->settings()->setTextScale(0.9);
+        vm->settings()->setTextScale(1.0);
+        QCoreApplication::processEvents();
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void compactTranscriptKeepsContentDenseAccessibleAndResponsive() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
+        auto* page = root->findChild<QQuickItem*>(QStringLiteral("recordingPage"));
+        auto* mainPane = root->findChild<QQuickItem*>(QStringLiteral("recordingMainPane"));
+        auto* waveform = root->findChild<QQuickItem*>(QStringLiteral("recordingWaveformCard"));
+        auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
+        auto* toolbar = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
+        auto* list = root->findChild<QQuickItem*>(QStringLiteral("segmentList"));
+        auto* noMatchesState =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingNoMatchesState"));
+        QVERIFY(window);
+        QVERIFY(vm);
+        QVERIFY(page);
+        QVERIFY(mainPane);
+        QVERIFY(waveform);
+        QVERIFY(transport);
+        QVERIFY(toolbar);
+        QVERIFY(list);
+        QVERIFY(noMatchesState);
+
+        QList<BreezeDesk::TranscriptSegmentModel::Segment> segments;
+        constexpr int segmentFixtureCount = 20;
+        segments.reserve(segmentFixtureCount);
+        for (int index = 0; index < segmentFixtureCount; ++index) {
+            BreezeDesk::TranscriptSegmentModel::Segment segment;
+            segment.id = QStringLiteral("compact-segment-%1").arg(index);
+            segment.ordinal = index;
+            segment.startMs = index * 3'000;
+            segment.endMs = segment.startMs + 2'800;
+            segment.originalText = QStringLiteral("Compact transcript fixture %1").arg(index);
+            segment.editedText = segment.originalText;
+            segment.lowConfidence = index == 1;
+            segment.reviewed = index == 2;
+            segments.append(std::move(segment));
+        }
+        vm->transcript()->replaceSegments(segments);
+        vm->settings()->setTextScale(1.5);
+        vm->settings()->setTextScale(1.0);
+        vm->settings()->setCompactMode(true);
+        vm->settings()->setCompactMode(false);
+        vm->navigate(QStringLiteral("Recording"));
+        window->show();
+
+        const auto verifyContainedHorizontally = [](QQuickItem* parent, QQuickItem* child,
+                                                    const QString& context) {
+            const QPointF origin = child->mapToItem(parent, QPointF{});
+            const bool contained = origin.x() >= -0.5 && origin.x() + child->width() <= parent->width() + 0.5;
+            QVERIFY2(contained,
+                     qPrintable(QStringLiteral("%1 is clipped horizontally: x=%2 width=%3; parent=%4")
+                                    .arg(context)
+                                    .arg(origin.x())
+                                    .arg(child->width())
+                                    .arg(parent->width())));
+        };
+
+        const auto verifyGeometry = [&](int width, int height, bool compactInspector) {
+            window->setWidth(width);
+            window->setHeight(height);
+            QCoreApplication::processEvents();
+            QTRY_VERIFY_WITH_TIMEOUT(list->height() > 0.0, 1'000);
+
+            QTRY_COMPARE_WITH_TIMEOUT(page->property("compactInspector").toBool(), compactInspector,
+                                      1'000);
+            verifyContainedHorizontally(page, mainPane,
+                                        QStringLiteral("recording main pane at %1 px").arg(width));
+            for (QQuickItem* item : {waveform, transport, toolbar, list}) {
+                verifyContainedHorizontally(mainPane, item, item->objectName());
+            }
+
+            const QPointF waveformOrigin = waveform->mapToItem(mainPane, QPointF{});
+            const QPointF transportOrigin = transport->mapToItem(mainPane, QPointF{});
+            const QPointF toolbarOrigin = toolbar->mapToItem(mainPane, QPointF{});
+            const QPointF listOrigin = list->mapToItem(mainPane, QPointF{});
+            QVERIFY(waveformOrigin.y() + waveform->height() <= transportOrigin.y() + 0.5);
+            QVERIFY(transportOrigin.y() + transport->height() <= toolbarOrigin.y() + 0.5);
+            QVERIFY(toolbarOrigin.y() + toolbar->height() <= listOrigin.y() + 0.5);
+            QVERIFY(listOrigin.y() + list->height() <= mainPane->height() + 0.5);
+
+            QVERIFY2(list->height() >= mainPane->height() * 0.42,
+                     qPrintable(QStringLiteral("Transcript viewport is too short at %1x%2: %3 of %4 px")
+                                    .arg(width)
+                                    .arg(height)
+                                    .arg(list->height())
+                                    .arg(mainPane->height())));
+            QVERIFY(waveform->height() <= 68.0);
+            QVERIFY(transport->height() <= 104.0);
+            QTRY_VERIFY_WITH_TIMEOUT(toolbar->height() <= (compactInspector ? 96.0 : 56.0),
+                                     1'000);
+
+            const auto editors = visualDescendantsNamed(list, QStringLiteral("segmentEditor"));
+            QVERIFY2(!editors.isEmpty(), "The transcript viewport did not instantiate segment delegates.");
+            int fullyVisibleEditors = 0;
+            for (QQuickItem* editor : editors) {
+                const QPointF origin = editor->mapToItem(list, QPointF{});
+                verifyContainedHorizontally(list, editor, QStringLiteral("transcript segment"));
+                if (origin.y() >= -0.5 && origin.y() + editor->height() <= list->height() + 0.5) {
+                    ++fullyVisibleEditors;
+                    QVERIFY2(editor->height() <= 76.0,
+                             qPrintable(QStringLiteral("Unselected segment is not compact: %1 px")
+                                            .arg(editor->height())));
+                }
+            }
+            QVERIFY2(fullyVisibleEditors >= 4,
+                     qPrintable(QStringLiteral("Only %1 transcript segments fit at %2x%3")
+                                    .arg(fullyVisibleEditors)
+                                    .arg(width)
+                                    .arg(height)));
+
+            auto* editor = editors.constFirst();
+            auto* textEditor = visualDescendantsNamed(editor, QStringLiteral("segmentTextEditor")).value(0);
+            auto* reviewedControl =
+                visualDescendantsNamed(editor, QStringLiteral("segmentReviewedControl")).value(0);
+            QVERIFY(textEditor);
+            QVERIFY(reviewedControl);
+            verifyContainedHorizontally(editor, textEditor, QStringLiteral("segment text editor"));
+            verifyContainedHorizontally(editor, reviewedControl, QStringLiteral("segment reviewed control"));
+
+            for (QQuickItem* accessibleItem : {editor, textEditor, reviewedControl}) {
+                QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(accessibleItem);
+                QVERIFY2(interface, qPrintable(accessibleItem->objectName() +
+                                               QStringLiteral(" has no accessibility interface.")));
+                QVERIFY2(
+                    !interface->text(QAccessible::Name).trimmed().isEmpty(),
+                    qPrintable(accessibleItem->objectName() + QStringLiteral(" has no accessible name.")));
+            }
+        };
+
+        verifyGeometry(980, 720, true);
+        verifyGeometry(1'280, 720, false);
+        verifyGeometry(1'600, 1'080, false);
+
+        vm->transcript()->setSelectedIndex(5);
+        vm->transcript()->updatePlaybackPosition(15'500);
+        QCOMPARE(vm->transcript()->selectedIndex(), 5);
+        QCOMPARE(vm->transcript()->activePlaybackIndex(), 5);
+        vm->transcript()->setSearchText(QStringLiteral("no segment contains this phrase"));
+        QTRY_COMPARE_WITH_TIMEOUT(vm->transcript()->visibleSegmentCount(), 0, 1'000);
+        QTRY_VERIFY_WITH_TIMEOUT(noMatchesState->isVisible(), 1'000);
+        QVERIFY(!list->isVisible());
+        QCOMPARE(vm->transcript()->selectedIndex(), -1);
+        QCOMPARE(vm->transcript()->activePlaybackIndex(), -1);
+        vm->transcript()->setSearchText(QString{});
+        QTRY_COMPARE_WITH_TIMEOUT(vm->transcript()->visibleSegmentCount(), segmentFixtureCount,
+                                  1'000);
+        QCOMPARE(vm->transcript()->selectedIndex(), 5);
+        QCOMPARE(vm->transcript()->activePlaybackIndex(), 5);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void selectedTranscriptSegmentKeepsActionsCompactAndAccessible() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                width: 640
+                height: 240
+                visible: true
+                property real uiScale: 1.0
+                Component.onCompleted: DesignSystem.textScale = uiScale
+                onUiScaleChanged: DesignSystem.textScale = uiScale
+
+                SegmentEditor {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: 16
+                    height: implicitHeight
+                    proxyRow: 0
+                    startMs: 4_078_000
+                    endMs: 14_400_000
+                    originalText: "Compact selected segment"
+                    editedText: originalText
+                    lowConfidence: true
+                    edited: false
+                    glossaryReplacement: false
+                    glossaryAudit: []
+                    reviewed: false
+                    editingLocked: false
+                    selected: true
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:SelectedSegmentTestHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> host(component.create());
+        QVERIFY2(host, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* window = qobject_cast<QQuickWindow*>(host.data());
+        QVERIFY(window);
+        const auto segments = visualDescendantsNamed(window->contentItem(), QStringLiteral("segmentEditor"));
+        QVERIFY(!segments.isEmpty());
+        QQuickItem* segment = segments.constFirst();
+        auto* timeColumn = visualDescendantsNamed(segment, QStringLiteral("segmentTimeColumn")).value(0);
+        auto* textEditor = visualDescendantsNamed(segment, QStringLiteral("segmentTextEditor")).value(0);
+        auto* statusRow = visualDescendantsNamed(segment, QStringLiteral("segmentStatusRow")).value(0);
+        auto* reviewedControl =
+            visualDescendantsNamed(segment, QStringLiteral("segmentReviewedControl")).value(0);
+        auto* actionsRow = visualDescendantsNamed(segment, QStringLiteral("segmentActionsRow")).value(0);
+        auto* deleteButton = visualDescendantsNamed(segment, QStringLiteral("segmentDeleteButton")).value(0);
+        auto* startTimeCode =
+            visualDescendantsNamed(segment, QStringLiteral("segmentStartTimeCode")).value(0);
+        auto* endTimeCode =
+            visualDescendantsNamed(segment, QStringLiteral("segmentEndTimeCode")).value(0);
+        QVERIFY(timeColumn);
+        QVERIFY(textEditor);
+        QVERIFY(statusRow);
+        QVERIFY(reviewedControl);
+        QVERIFY(actionsRow);
+        QVERIFY(deleteButton);
+        QVERIFY(startTimeCode);
+        QVERIFY(endTimeCode);
+
+        const auto verifySegment = [&](int width) {
+            window->setWidth(width);
+            QCoreApplication::processEvents();
+            QTRY_VERIFY_WITH_TIMEOUT(segment->height() > 0.0, 1'000);
+            QVERIFY2(segment->height() >= 100.0 && segment->height() <= 128.0,
+                     qPrintable(QStringLiteral("Selected segment has unexpected height at %1 px: %2")
+                                    .arg(width)
+                                    .arg(segment->height())));
+            QVERIFY(statusRow->isVisible());
+            QVERIFY(actionsRow->isVisible());
+
+            for (QQuickItem* item :
+                 {timeColumn, textEditor, statusRow, reviewedControl, actionsRow, deleteButton}) {
+                const QPointF origin = item->mapToItem(segment, QPointF{});
+                const bool contained = origin.x() >= -0.5 && origin.y() >= -0.5 &&
+                                       origin.x() + item->width() <= segment->width() + 0.5 &&
+                                       origin.y() + item->height() <= segment->height() + 0.5;
+                QVERIFY2(contained, qPrintable(QStringLiteral("%1 is clipped at %2 px: x=%3 y=%4 w=%5 h=%6; "
+                                                              "segment=%7x%8")
+                                                   .arg(item->objectName())
+                                                   .arg(width)
+                                                   .arg(origin.x())
+                                                   .arg(origin.y())
+                                                   .arg(item->width())
+                                                   .arg(item->height())
+                                                   .arg(segment->width())
+                                                   .arg(segment->height())));
+            }
+        };
+
+        verifySegment(560);
+        verifySegment(920);
+
+        QSignalSpy selectionSpy(segment, SIGNAL(selectedRequested(int)));
+        textEditor->forceActiveFocus();
+        QTRY_VERIFY_WITH_TIMEOUT(!selectionSpy.isEmpty(), 1'000);
+
+        host->setProperty("uiScale", 1.5);
+        QTRY_VERIFY_WITH_TIMEOUT(timeColumn->width() >= 90.0, 1'000);
+        for (QQuickItem* timeCode : {startTimeCode, endTimeCode}) {
+            const QPointF origin = timeCode->mapToItem(timeColumn, QPointF{});
+            QVERIFY(origin.x() >= -0.5);
+            QVERIFY(origin.x() + timeCode->width() <= timeColumn->width() + 0.5);
+            auto* contentItem = qvariant_cast<QQuickItem*>(timeCode->property("contentItem"));
+            QVERIFY(contentItem);
+            const qreal requiredHeight = contentItem->implicitHeight() +
+                                         timeCode->property("topPadding").toReal() +
+                                         timeCode->property("bottomPadding").toReal();
+            const auto heightMessage = [timeCode, contentItem, requiredHeight] {
+                return QStringLiteral("Long timecode is vertically clipped: height=%1, required=%2, "
+                                      "implicit=%3, content=%4")
+                    .arg(timeCode->height())
+                    .arg(requiredHeight)
+                    .arg(timeCode->implicitHeight())
+                    .arg(contentItem->implicitHeight());
+            };
+            QTRY_VERIFY2_WITH_TIMEOUT(timeCode->height() + 0.5 >= requiredHeight,
+                                      qPrintable(heightMessage()), 1'000);
+        }
+        host->setProperty("uiScale", 1.0);
+        QCoreApplication::processEvents();
+
+        for (QQuickItem* accessibleItem : {segment, textEditor, reviewedControl, deleteButton}) {
+            QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(accessibleItem);
+            QVERIFY2(interface, qPrintable(accessibleItem->objectName() +
+                                           QStringLiteral(" has no accessibility interface.")));
+            QVERIFY2(!interface->text(QAccessible::Name).trimmed().isEmpty(),
+                     qPrintable(accessibleItem->objectName() + QStringLiteral(" has no accessible name.")));
+        }
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
@@ -533,6 +1327,99 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(diagnostics.isReady(), qPrintable(diagnostics.errorString()));
         QScopedPointer<QObject> diagnosticsDialog(diagnostics.create());
         QVERIFY2(diagnosticsDialog, qPrintable(diagnostics.errorString()));
+    }
+
+    void sharedQmlPopupsUseSemanticSurfaces() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                width: 640
+                height: 480
+                visible: true
+
+                AppComboBox {
+                    id: combo
+                    objectName: "popupStyleCombo"
+                    x: 24
+                    y: 24
+                    width: 220
+                    model: ["Newest", "Oldest"]
+                }
+                AppMenu {
+                    id: menu
+                    objectName: "popupStyleMenu"
+                    AppMenuItem { text: "Rename" }
+                    AppMenuSeparator { }
+                    AppMenuItem { text: "Edit tags" }
+                }
+                AppDialog {
+                    id: dialog
+                    objectName: "popupStyleDialog"
+                    title: "Rename Recording"
+                    standardButtons: Dialog.Ok | Dialog.Cancel
+                    AppTextField { width: parent.width; text: "Fixture" }
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:SharedPopupStyleHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* combo = root->findChild<QObject*>(QStringLiteral("popupStyleCombo"));
+        auto* menu = root->findChild<QObject*>(QStringLiteral("popupStyleMenu"));
+        auto* dialog = root->findChild<QObject*>(QStringLiteral("popupStyleDialog"));
+        QVERIFY(combo);
+        QVERIFY(menu);
+        QVERIFY(dialog);
+
+        QQmlComponent tokenProbe(&engine);
+        tokenProbe.setData(R"(
+            import QtQuick
+            import BreezeDesk
+            QtObject { property color surfaceRaised: SemanticTokens.surfaceRaised }
+        )",
+                           QUrl(QStringLiteral("inline:SharedPopupTokenProbe.qml")));
+        QScopedPointer<QObject> tokens(tokenProbe.create());
+        QVERIFY2(tokens, qPrintable(tokenProbe.errorString()));
+        const QColor expectedSurface = tokens->property("surfaceRaised").value<QColor>();
+
+        QVERIFY(QMetaObject::invokeMethod(dialog, "open", Qt::DirectConnection));
+        QCoreApplication::processEvents();
+        auto* dialogSurface = dialog->findChild<QQuickItem*>(QStringLiteral("appDialogSurface"));
+        auto* dialogFooter = dialog->findChild<QQuickItem*>(QStringLiteral("appDialogFooter"));
+        QVERIFY(dialogSurface);
+        QVERIFY(dialogFooter);
+        QCOMPARE(dialogSurface->property("color").value<QColor>(), expectedSurface);
+        QCOMPARE(dialogFooter->property("count").toInt(), 2);
+        QVERIFY(QMetaObject::invokeMethod(dialog, "close", Qt::DirectConnection));
+
+        QObject* comboPopup = combo->property("popup").value<QObject*>();
+        QVERIFY(comboPopup);
+        QVERIFY(QMetaObject::invokeMethod(comboPopup, "open", Qt::DirectConnection));
+        QCoreApplication::processEvents();
+        auto* comboSurface = comboPopup->findChild<QQuickItem*>(QStringLiteral("appComboBoxPopupSurface"));
+        QVERIFY(comboSurface);
+        QCOMPARE(comboSurface->property("color").value<QColor>(), expectedSurface);
+        QVERIFY(QMetaObject::invokeMethod(comboPopup, "close", Qt::DirectConnection));
+
+        QVERIFY(QMetaObject::invokeMethod(menu, "open", Qt::DirectConnection));
+        QCoreApplication::processEvents();
+        auto* menuSurface = menu->findChild<QQuickItem*>(QStringLiteral("appMenuSurface"));
+        QVERIFY(menuSurface);
+        QCOMPARE(menuSurface->property("color").value<QColor>(), expectedSurface);
+        QVERIFY(QMetaObject::invokeMethod(menu, "close", Qt::DirectConnection));
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 
     void viewModelCommandsHaveObservableState() {
@@ -562,10 +1449,46 @@ class tst_QmlSmoke final : public QObject {
         vm.enqueueTranscription(id);
         QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 1);
         QCOMPARE(vm.currentPage(), QStringLiteral("Queue"));
+        const QModelIndex queuedJob = vm.jobQueue()->jobs()->index(0, 0);
+        const QString jobId =
+            vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::IdRole).toString();
+        QVERIFY(!jobId.isEmpty());
+        vm.jobQueue()->updateJob(jobId, id, QStringLiteral("Fixture job"), QStringLiteral("Failed"),
+                                 QStringLiteral("Transcribing"), 0.2, QStringLiteral("Fixture failure"));
+        QVERIFY(vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::CanRemoveRole).toBool());
+        QSignalSpy removeRequested(vm.jobQueue(), &BreezeDesk::JobQueueViewModel::removeRequested);
+        vm.jobQueue()->remove(jobId);
+        QCOMPARE(removeRequested.count(), 1);
+        QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 0);
         vm.library()->moveToTrash(id);
         QCOMPARE(vm.library()->trash()->rowCount(), 1);
         vm.library()->restore(id);
         QCOMPARE(vm.library()->recordings()->rowCount(), 1);
+    }
+
+    void sameRecordingCanBeOpenedAgainAfterReturningToLibrary() {
+        BreezeDesk::ApplicationViewModel vm;
+        QTemporaryFile media;
+        QVERIFY(media.open());
+        QCOMPARE(vm.importUrls({QUrl::fromLocalFile(media.fileName())}), 1);
+
+        const QModelIndex first = vm.library()->recordings()->index(0, 0);
+        const QString id =
+            vm.library()->recordings()->data(first, BreezeDesk::RecordingListModel::IdRole).toString();
+        QVERIFY(!id.isEmpty());
+
+        vm.library()->activateRecording(id);
+        QCOMPARE(vm.currentPage(), QStringLiteral("Recording"));
+        QCOMPARE(vm.activeRecordingId(), id);
+        QCOMPARE(vm.library()->selectedRecordingId(), id);
+
+        vm.navigate(QStringLiteral("Library"));
+        QCOMPARE(vm.currentPage(), QStringLiteral("Library"));
+
+        vm.library()->activateRecording(id);
+        QCOMPARE(vm.currentPage(), QStringLiteral("Recording"));
+        QCOMPARE(vm.activeRecordingId(), id);
+        QCOMPARE(vm.library()->selectedRecordingId(), id);
     }
 
     void libraryStateSurvivesViewModelRecreation() {
@@ -959,6 +1882,47 @@ class tst_QmlSmoke final : public QObject {
         second.installServices(&manager, &settings);
         QCOMPARE(second.defaultModelId(), QStringLiteral("breeze-asr-25-q8"));
         QCOMPARE(manager.defaultModelId(), QStringLiteral("breeze-asr-25-q8"));
+    }
+
+    void existingManifestModelIsRecognizedAfterServiceRecreation() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        EnvironmentVariableGuard dataRootGuard(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+        qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+
+        const QString modelId = QStringLiteral("breeze-asr-25-q5");
+        QString installedPath;
+        {
+            BreezeDesk::ModelManager first;
+            installedPath = first.modelPath(modelId);
+            QFile installedModel(installedPath);
+            QVERIFY2(installedModel.open(QIODevice::WriteOnly), qPrintable(installedModel.errorString()));
+            QCOMPARE(installedModel.write("existing-model", 14), 14);
+            installedModel.close();
+            QVERIFY(first.isInstalled(modelId));
+        }
+
+        BreezeDesk::ModelManager restarted;
+        QVERIFY(restarted.isInstalled(modelId));
+        BreezeDesk::ModelManagerViewModel viewModel;
+        viewModel.installServices(&restarted);
+
+        QAbstractItemModel* models = viewModel.models();
+        QVERIFY(models != nullptr);
+        QModelIndex installedIndex;
+        for (int row = 0; row < models->rowCount(); ++row) {
+            const QModelIndex candidate = models->index(row, 0);
+            if (models->data(candidate, BreezeDesk::ModelListModel::IdRole).toString() == modelId) {
+                installedIndex = candidate;
+                break;
+            }
+        }
+        QVERIFY(installedIndex.isValid());
+        QVERIFY(models->data(installedIndex, BreezeDesk::ModelListModel::InstalledRole).toBool());
+        QCOMPARE(models->data(installedIndex, BreezeDesk::ModelListModel::StateRole).toString(),
+                 QStringLiteral("Installed"));
+        QCOMPARE(models->data(installedIndex, BreezeDesk::ModelListModel::ProgressRole).toDouble(), 1.0);
+        QCOMPARE(restarted.modelPath(modelId), installedPath);
     }
 
     void glossaryStateSurvivesViewModelRecreation() {
