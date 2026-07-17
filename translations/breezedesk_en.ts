@@ -767,17 +767,17 @@
 <context>
     <name>GlossaryPage</name>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="27"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="42"/>
         <source>Glossary Profiles</source>
         <translation>Glossary Profiles</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="33"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="55"/>
         <source>New</source>
         <translation>New</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="48"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="72"/>
         <source>%1, %n term(s)</source>
         <translation>
             <numerusform>%1, %n term(s)</numerusform>
@@ -785,7 +785,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="66"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="90"/>
         <source>%n term(s)</source>
         <translation>
             <numerusform>%n term(s)</numerusform>
@@ -793,186 +793,186 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="78"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="113"/>
         <source>Duplicate</source>
         <translation>Duplicate</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="83"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="195"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="123"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="284"/>
         <source>Delete</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="92"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="140"/>
         <source>Import</source>
         <translation>Import</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="98"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="149"/>
         <source>Export JSON</source>
         <translation>Export JSON</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="105"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="158"/>
         <source>Export CSV</source>
         <translation>Export CSV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="120"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="187"/>
         <source>Terms</source>
         <translation>Terms</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="127"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="196"/>
         <source>Explicit aliases can be applied conservatively and remain auditable.</source>
         <translation>Explicit aliases can be applied conservatively and remain auditable.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="141"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="223"/>
         <source>Add Term</source>
         <translation>Add Term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="150"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="233"/>
         <source>Create a glossary profile</source>
         <translation>Create a glossary profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="151"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="234"/>
         <source>Profiles keep project context and important names scoped to a meeting or recording.</source>
         <translation>Profiles keep project context and important names scoped to a meeting or recording.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="152"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="235"/>
         <source>New Profile</source>
         <translation>New Profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="187"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="275"/>
         <source>Aliases: %1</source>
         <translation>Aliases: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="187"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="275"/>
         <source>No aliases</source>
         <translation>No aliases</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="193"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="282"/>
         <source>Priority %1</source>
         <translation>Priority %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="194"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="283"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="202"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="291"/>
         <source>Prompt Preview</source>
         <translation>Prompt Preview</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="212"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="301"/>
         <source>No enabled terms are selected for this prompt.</source>
         <translation>No enabled terms are selected for this prompt.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="220"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="309"/>
         <source>Estimated tokens: %1 / %2</source>
         <translation>Estimated tokens: %1 / %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="230"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="319"/>
         <source>New Glossary Profile</source>
         <translation>New Glossary Profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="239"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="239"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="328"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="328"/>
         <source>Profile name</source>
         <translation>Profile name</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="240"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="240"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="329"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="329"/>
         <source>Description</source>
         <translation>Description</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="241"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="330"/>
         <source>Project context</source>
         <translation>Project context</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="241"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="330"/>
         <source>Project or meeting context</source>
         <translation>Project or meeting context</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="246"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="335"/>
         <source>Add Glossary Term</source>
         <translation>Add Glossary Term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="256"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="256"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="345"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="345"/>
         <source>Canonical term</source>
         <translation>Canonical term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="257"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="346"/>
         <source>Aliases</source>
         <translation>Aliases</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="257"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="346"/>
         <source>Aliases separated by commas</source>
         <translation>Aliases separated by commas</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="259"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="348"/>
         <source>Priority</source>
         <translation>Priority</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="260"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="349"/>
         <source>Term priority</source>
         <translation>Term priority</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="267"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="356"/>
         <source>Import Glossary</source>
         <translation>Import Glossary</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="269"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="358"/>
         <source>Glossary files (*.json *.csv)</source>
         <translation>Glossary files (*.json *.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="269"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="358"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="274"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="363"/>
         <source>Export Glossary as JSON</source>
         <translation>Export Glossary as JSON</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="276"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="365"/>
         <source>JSON file (*.json)</source>
         <translation>JSON file (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="282"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="371"/>
         <source>Export Glossary Terms as CSV</source>
         <translation>Export Glossary Terms as CSV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="284"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="373"/>
         <source>CSV file (*.csv)</source>
         <translation>CSV file (*.csv)</translation>
     </message>
@@ -998,12 +998,12 @@
 <context>
     <name>LibraryPage</name>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="22"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="35"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="29"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="44"/>
         <source>Your offline recordings and transcripts</source>
         <translation>Your offline recordings and transcripts</translation>
     </message>
@@ -1012,97 +1012,97 @@
         <translation type="vanished">Import Media</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="40"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="70"/>
         <source>Import Files</source>
         <translation>Import Files</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="41"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="76"/>
         <source>Open Folder</source>
         <translation>Open Folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="48"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="104"/>
         <source>Sort recordings</source>
         <translation>Sort recordings</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="49"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="105"/>
         <source>Newest first</source>
         <translation>Newest first</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="49"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="105"/>
         <source>Oldest first</source>
         <translation>Oldest first</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="49"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="105"/>
         <source>Title A–Z</source>
         <translation>Title A–Z</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="49"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="105"/>
         <source>Title Z–A</source>
         <translation>Title Z–A</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="58"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="116"/>
         <source>Filter by review state</source>
         <translation>Filter by review state</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="59"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="117"/>
         <source>All recordings</source>
         <translation>All recordings</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="59"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="117"/>
         <source>Reviewed</source>
         <translation>Reviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="59"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="117"/>
         <source>Unreviewed</source>
         <translation>Unreviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="73"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="138"/>
         <source>Scanning folder</source>
         <translation>Scanning folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="83"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="149"/>
         <source>Importing %1 of %2…</source>
         <translation>Importing %1 of %2…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="86"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="152"/>
         <source>Scanning folder…</source>
         <translation>Scanning folder…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="91"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="158"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="99"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="166"/>
         <source>No matching recordings</source>
         <translation>No matching recordings</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="99"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="166"/>
         <source>Import your first recording</source>
         <translation>Import your first recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="101"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="168"/>
         <source>Try a different title, tag, or note.</source>
         <translation>Try a different title, tag, or note.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="102"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="169"/>
         <source>Audio and video remain on this computer. %1 prepares them for offline transcription.</source>
         <translation>Audio and video remain on this computer. %1 prepares them for offline transcription.</translation>
     </message>
@@ -1111,48 +1111,48 @@
         <translation type="vanished">Audio and video remain on this computer. BreezeDesk prepares them for offline transcription.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="103"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="170"/>
         <source>Choose Files</source>
         <translation>Choose Files</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="149"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="216"/>
         <source>Rename Recording</source>
         <translation>Rename Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="156"/>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="157"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="223"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="224"/>
         <source>Recording title</source>
         <translation>Recording title</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="165"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="232"/>
         <source>Edit Tags</source>
         <translation>Edit Tags</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="175"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="242"/>
         <source>meeting, product, customer</source>
         <translation>meeting, product, customer</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="176"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="243"/>
         <source>Comma-separated recording tags</source>
         <translation>Comma-separated recording tags</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="181"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="248"/>
         <source>Separate tags with commas.</source>
         <translation>Separate tags with commas.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="193"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="260"/>
         <source>Relink Recording Source</source>
         <translation>Relink Recording Source</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="196"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="263"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
@@ -1178,137 +1178,137 @@
         <translation type="vanished">BreezeDesk logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="137"/>
+        <location filename="../src/qml/Main.qml" line="145"/>
         <source>%1 logo</source>
         <translation>%1 logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="148"/>
+        <location filename="../src/qml/Main.qml" line="162"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="149"/>
+        <location filename="../src/qml/Main.qml" line="163"/>
         <source>Queue</source>
         <translation>Queue</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="150"/>
+        <location filename="../src/qml/Main.qml" line="164"/>
         <source>Trash</source>
         <translation>Trash</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="151"/>
+        <location filename="../src/qml/Main.qml" line="165"/>
         <source>Models</source>
         <translation>Models</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="152"/>
+        <location filename="../src/qml/Main.qml" line="166"/>
         <source>Glossary</source>
         <translation>Glossary</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="154"/>
+        <location filename="../src/qml/Main.qml" line="168"/>
         <source>Import Media</source>
         <translation>Import Media</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="155"/>
+        <location filename="../src/qml/Main.qml" line="169"/>
         <source>Start Recording</source>
         <translation>Start Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="156"/>
+        <location filename="../src/qml/Main.qml" line="170"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="160"/>
+        <location filename="../src/qml/Main.qml" line="174"/>
         <source>Offline by default</source>
         <translation>Offline by default</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="196"/>
+        <location filename="../src/qml/Main.qml" line="212"/>
         <source>Import Audio or Video</source>
         <translation>Import Audio or Video</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="199"/>
+        <location filename="../src/qml/Main.qml" line="215"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="200"/>
+        <location filename="../src/qml/Main.qml" line="216"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="208"/>
+        <location filename="../src/qml/Main.qml" line="224"/>
         <source>Import Media Folder</source>
         <translation>Import Media Folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="214"/>
+        <location filename="../src/qml/Main.qml" line="230"/>
         <source>Export Transcript</source>
         <translation>Export Transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="217"/>
+        <location filename="../src/qml/Main.qml" line="233"/>
         <source>Plain text (*.txt)</source>
         <translation>Plain text (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="218"/>
+        <location filename="../src/qml/Main.qml" line="234"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="219"/>
+        <location filename="../src/qml/Main.qml" line="235"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip subtitles (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="220"/>
+        <location filename="../src/qml/Main.qml" line="236"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT subtitles (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="221"/>
+        <location filename="../src/qml/Main.qml" line="237"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="222"/>
+        <location filename="../src/qml/Main.qml" line="238"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="232"/>
+        <location filename="../src/qml/Main.qml" line="248"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>Import a whisper.cpp GGML model</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="234"/>
+        <location filename="../src/qml/Main.qml" line="250"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML model (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="265"/>
+        <location filename="../src/qml/Main.qml" line="281"/>
         <source>Transcription is still running</source>
         <translation>Transcription is still running</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="272"/>
+        <location filename="../src/qml/Main.qml" line="288"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="281"/>
+        <location filename="../src/qml/Main.qml" line="297"/>
         <source>Continue in Background</source>
         <translation>Continue in Background</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="282"/>
+        <location filename="../src/qml/Main.qml" line="298"/>
         <source>Quit and Resume Later</source>
         <translation>Quit and Resume Later</translation>
     </message>
@@ -1414,32 +1414,32 @@
 <context>
     <name>ModelsPage</name>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="19"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="32"/>
         <source>Models</source>
         <translation>Models</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="26"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="41"/>
         <source>Models are downloaded only when you request them. Checksums are verified before loading.</source>
         <translation>Models are downloaded only when you request them. Checksums are verified before loading.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="32"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="57"/>
         <source>Import GGML Model</source>
         <translation>Import GGML Model</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="44"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="85"/>
         <source>Selected backend: %1</source>
         <translation>Selected backend: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="51"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="97"/>
         <source>Actual backend: %1</source>
         <translation>Actual backend: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="57"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="109"/>
         <source>whisper.cpp: %1</source>
         <translation>whisper.cpp: %1</translation>
     </message>
@@ -1492,68 +1492,68 @@
         <translation type="vanished">Show BreezeDesk</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="451"/>
+        <location filename="../src/app/main.cpp" line="456"/>
         <source>Show %1</source>
         <translation>Show %1</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="452"/>
+        <location filename="../src/app/main.cpp" line="457"/>
         <source>Import Files</source>
         <translation>Import Files</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="453"/>
+        <location filename="../src/app/main.cpp" line="458"/>
         <source>Start Recording</source>
         <translation>Start Recording</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="454"/>
-        <location filename="../src/app/main.cpp" line="787"/>
+        <location filename="../src/app/main.cpp" line="459"/>
+        <location filename="../src/app/main.cpp" line="792"/>
         <source>Queue: idle</source>
         <translation>Queue: idle</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="456"/>
+        <location filename="../src/app/main.cpp" line="461"/>
         <source>Pause after current job</source>
         <translation>Pause after current job</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="458"/>
+        <location filename="../src/app/main.cpp" line="463"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="497"/>
+        <location filename="../src/app/main.cpp" line="502"/>
         <source>A microphone recording is already in progress.</source>
         <translation>A microphone recording is already in progress.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="501"/>
+        <location filename="../src/app/main.cpp" line="506"/>
         <source>Waiting for microphone permission.</source>
         <translation>Waiting for microphone permission.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="509"/>
+        <location filename="../src/app/main.cpp" line="514"/>
         <source>Requesting microphone access…</source>
         <translation>Requesting microphone access…</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="519"/>
+        <location filename="../src/app/main.cpp" line="524"/>
         <source>Microphone permission was not granted.</source>
         <translation>Microphone permission was not granted.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="525"/>
+        <location filename="../src/app/main.cpp" line="530"/>
         <source>The microphone recording could not be started.</source>
         <translation>The microphone recording could not be started.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="548"/>
+        <location filename="../src/app/main.cpp" line="553"/>
         <source>The recording was saved but could not be opened.</source>
         <translation>The recording was saved but could not be opened.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/main.cpp" line="788"/>
+        <location filename="../src/app/main.cpp" line="793"/>
         <source>Queue: %n active job(s)</source>
         <translation>
             <numerusform>Queue: %n active job(s)</numerusform>
@@ -1564,32 +1564,32 @@
 <context>
     <name>QueuePage</name>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="18"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="31"/>
         <source>Job Queue</source>
         <translation>Job Queue</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="25"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="40"/>
         <source>One transcription runs at a time; completed chunks are saved immediately.</source>
         <translation>One transcription runs at a time; completed chunks are saved immediately.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="32"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="57"/>
         <source>Pause after current job</source>
         <translation>Pause after current job</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="36"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="63"/>
         <source>Clear Completed</source>
         <translation>Clear Completed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="42"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="72"/>
         <source>The queue is empty</source>
         <translation>The queue is empty</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="43"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="73"/>
         <source>Open a recording from Library and add it to the transcription queue.</source>
         <translation>Open a recording from Library and add it to the transcription queue.</translation>
     </message>
@@ -1748,167 +1748,188 @@
 <context>
     <name>RecordingPage</name>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="35"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="81"/>
         <source>Transcribe</source>
         <translation>Transcribe</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="36"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="82"/>
         <source>Export</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="65"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="86"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="358"/>
+        <source>Details</source>
+        <translation>Details</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="87"/>
+        <source>Show recording details</source>
+        <translation>Show recording details</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="120"/>
         <source>Recording waveform</source>
         <translation>Recording waveform</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="80"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="153"/>
         <source>−5 s</source>
         <translation>−5 s</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="80"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="153"/>
         <source>Back 5 seconds</source>
         <translation>Back 5 seconds</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="81"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="154"/>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="81"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="154"/>
         <source>Play</source>
         <translation>Play</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="82"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="155"/>
         <source>+5 s</source>
         <translation>+5 s</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="82"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="155"/>
         <source>Forward 5 seconds</source>
         <translation>Forward 5 seconds</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="89"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="173"/>
         <source>Playback position</source>
         <translation>Playback position</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="95"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="188"/>
         <source>Playback rate</source>
         <translation>Playback rate</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="102"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="195"/>
         <source>Mute</source>
         <translation>Mute</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="113"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="206"/>
         <source>Volume</source>
         <translation>Volume</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="116"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="209"/>
         <source>Loop selection</source>
         <translation>Loop selection</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="123"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="222"/>
         <source>Live transcription — editing locked</source>
         <translation>Live transcription — editing locked</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="129"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="234"/>
         <source>Find in transcript</source>
         <translation>Find in transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="132"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="237"/>
         <source>Low confidence</source>
         <translation>Low confidence</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="133"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="243"/>
         <source>Previous</source>
         <translation>Previous</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="134"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="244"/>
         <source>Next</source>
         <translation>Next</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="135"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="246"/>
         <source>Undo</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="136"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="247"/>
         <source>Redo</source>
         <translation>Redo</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="137"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="248"/>
         <source>Save Changes</source>
         <translation>Save Changes</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="137"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="248"/>
         <source>Saved</source>
         <translation>Saved</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="143"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="255"/>
         <source>No transcript yet</source>
         <translation>No transcript yet</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="144"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="256"/>
         <source>Add this recording to the queue. Partial segments will appear here as each long-form unit completes.</source>
         <translation>Add this recording to the queue. Partial segments will appear here as each long-form unit completes.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="145"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="257"/>
         <source>Add to Queue</source>
         <translation>Add to Queue</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="198"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="332"/>
+        <source>Close recording details</source>
+        <translation>Close recording details</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="366"/>
+        <source>Close</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="24"/>
         <source>Recording</source>
         <translation>Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="199"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="25"/>
         <source>Duration: %1</source>
         <translation>Duration: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="201"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="27"/>
         <source>Status: %1</source>
         <translation>Status: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="202"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="28"/>
         <source>Model: %1</source>
         <translation>Model: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="202"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="28"/>
         <source>Not transcribed</source>
         <translation>Not transcribed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="206"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="32"/>
         <source>Transcript</source>
         <translation>Transcript</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/RecordingPage.qml" line="207"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="33"/>
         <source>%n segment(s)</source>
         <translation>
             <numerusform>%n segment(s)</numerusform>
@@ -1916,17 +1937,17 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="208"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="34"/>
         <source>Auto-scroll</source>
         <translation>Auto-scroll</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="212"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="38"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="218"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="44"/>
         <source>Recording notes</source>
         <translation>Recording notes</translation>
     </message>
@@ -1934,8 +1955,8 @@
 <context>
     <name>SearchField</name>
     <message>
-        <location filename="../src/qml/controls/SearchField.qml" line="7"/>
-        <location filename="../src/qml/controls/SearchField.qml" line="8"/>
+        <location filename="../src/qml/controls/SearchField.qml" line="5"/>
+        <location filename="../src/qml/controls/SearchField.qml" line="6"/>
         <source>Search</source>
         <translation>Search</translation>
     </message>
@@ -2026,361 +2047,361 @@
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="28"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="49"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="36"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="57"/>
         <source>General</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="38"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="41"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="59"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="63"/>
         <source>Interface language</source>
         <translation>Interface language</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="39"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="60"/>
         <source>Transcript text is never transformed when the UI language changes.</source>
         <translation>Transcript text is never transformed when the UI language changes.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="42"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="64"/>
         <source>繁體中文</source>
         <translation>繁體中文</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="42"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="64"/>
         <source>English</source>
         <translation>English</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="48"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="70"/>
         <source>Launch at startup</source>
         <translation>Launch at startup</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="49"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="71"/>
         <source>Uses the native startup mechanism when supported.</source>
         <translation>Uses the native startup mechanism when supported.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="53"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="55"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="75"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="78"/>
         <source>Close behavior</source>
         <translation>Close behavior</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="56"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="79"/>
         <source>Minimize to tray</source>
         <translation>Minimize to tray</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="56"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="79"/>
         <source>Close window</source>
         <translation>Close window</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="56"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="79"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="62"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="64"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="85"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="88"/>
         <source>Import behavior</source>
         <translation>Import behavior</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="65"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="192"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="89"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="223"/>
         <source>Reference original</source>
         <translation>Reference original</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="65"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="89"/>
         <source>Copy into managed storage</source>
         <translation>Copy into managed storage</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="74"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="98"/>
         <source>Appearance</source>
         <translation>Appearance</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="76"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="78"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="100"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="103"/>
         <source>Theme</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="79"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="104"/>
         <source>System</source>
         <translation>System</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="79"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="104"/>
         <source>Light</source>
         <translation>Light</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="79"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="104"/>
         <source>Dark</source>
         <translation>Dark</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="85"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="88"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="110"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="114"/>
         <source>Text size</source>
         <translation>Text size</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="92"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="118"/>
         <source>Compact mode</source>
         <translation>Compact mode</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="94"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="120"/>
         <source>Waveform density</source>
         <translation>Waveform density</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="96"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="123"/>
         <source>Sparse</source>
         <translation>Sparse</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="96"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="120"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="123"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="148"/>
         <source>Balanced</source>
         <translation>Balanced</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="96"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="123"/>
         <source>Dense</source>
         <translation>Dense</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="105"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="132"/>
         <source>Transcription</source>
         <translation>Transcription</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="107"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="134"/>
         <source>Default model</source>
         <translation>Default model</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="109"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="137"/>
         <source>Breeze-ASR-25 Q5</source>
         <translation>Breeze-ASR-25 Q5</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="109"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="137"/>
         <source>Breeze-ASR-25 Q8</source>
         <translation>Breeze-ASR-25 Q8</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="115"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="143"/>
         <source>Language</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="116"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="144"/>
         <source>Chinese (zh)</source>
         <translation>Chinese (zh)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="116"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="144"/>
         <source>Automatic</source>
         <translation>Automatic</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="119"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="147"/>
         <source>Preset</source>
         <translation>Preset</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="120"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="148"/>
         <source>Fast</source>
         <translation>Fast</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="120"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="148"/>
         <source>Accurate</source>
         <translation>Accurate</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="122"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="150"/>
         <source>Silero VAD</source>
         <translation>Silero VAD</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="122"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="150"/>
         <source>Finds speech boundaries before long recordings are divided into resumable units.</source>
         <translation>Finds speech boundaries before long recordings are divided into resumable units.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="124"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="152"/>
         <source>Initial prompt</source>
         <translation>Initial prompt</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="125"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="153"/>
         <source>Uses the selected glossary profile, project context, and the previous chunk within the model token budget.</source>
         <translation>Uses the selected glossary profile, project context, and the previous chunk within the model token budget.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="127"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="156"/>
         <source>Glossary and context</source>
         <translation>Glossary and context</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="127"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="156"/>
         <source>Disabled</source>
         <translation>Disabled</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="133"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="162"/>
         <source>Backend</source>
         <translation>Backend</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="136"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="165"/>
         <source>Flash attention</source>
         <translation>Flash attention</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="137"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="166"/>
         <source>Token timestamps</source>
         <translation>Token timestamps</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="139"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="140"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="168"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="169"/>
         <source>Worker threads</source>
         <translation>Worker threads</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="143"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="144"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="172"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="173"/>
         <source>Low-confidence threshold</source>
         <translation>Low-confidence threshold</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="150"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="179"/>
         <source>Audio</source>
         <translation>Audio</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="152"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="158"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="181"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="188"/>
         <source>Microphone</source>
         <translation>Microphone</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="163"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="169"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="193"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="200"/>
         <source>Playback device</source>
         <translation>Playback device</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="173"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="173"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="204"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="204"/>
         <source>Recording format</source>
         <translation>Recording format</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="173"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="204"/>
         <source>PCM WAV</source>
         <translation>PCM WAV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="175"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="179"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="206"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="210"/>
         <source>Transcribe new recordings automatically</source>
         <translation>Transcribe new recordings automatically</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="176"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="207"/>
         <source>Starts a queued transcription after microphone recording stops.</source>
         <translation>Starts a queued transcription after microphone recording stops.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="187"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="218"/>
         <source>Storage</source>
         <translation>Storage</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="188"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="219"/>
         <source>Application data</source>
         <translation>Application data</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="188"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="189"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="219"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="220"/>
         <source>Choose</source>
         <translation>Choose</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="189"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="220"/>
         <source>Export directory</source>
         <translation>Export directory</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="191"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="222"/>
         <source>Managed media</source>
         <translation>Managed media</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="192"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="223"/>
         <source>Copy managed media</source>
         <translation>Copy managed media</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="194"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="225"/>
         <source>Cache</source>
         <translation>Cache</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="194"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="225"/>
         <source>Clear Cache</source>
         <translation>Clear Cache</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="195"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="226"/>
         <source>Database backup</source>
         <translation>Database backup</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="195"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="226"/>
         <source>Back Up Now</source>
         <translation>Back Up Now</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="200"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="231"/>
         <source>Updates</source>
         <translation>Updates</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="201"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="232"/>
         <source>Automatic update checks</source>
         <translation>Automatic update checks</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="201"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="232"/>
         <source>Disabled by default. No update check runs during startup.</source>
         <translation>Disabled by default. No update check runs during startup.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="203"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="234"/>
         <source>Update channel</source>
         <translation>Update channel</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="204"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="235"/>
         <source>Stable</source>
         <translation>Stable</translation>
     </message>
@@ -2389,27 +2410,27 @@
         <translation type="vanished">Beta</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="206"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="237"/>
         <source>Version %1</source>
         <translation>Version %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="206"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="237"/>
         <source>Check Now</source>
         <translation>Check Now</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="211"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="242"/>
         <source>Privacy</source>
         <translation>Privacy</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="214"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="245"/>
         <source>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are model downloads you start and optional app update checks.</source>
         <translation>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are model downloads you start and optional app update checks.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="227"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="258"/>
         <source>Application and whisper.cpp: MIT · Qt: LGPL · FFmpeg: LGPL · Lucide: ISC</source>
         <translation>Application and whisper.cpp: MIT · Qt: LGPL · FFmpeg: LGPL · Lucide: ISC</translation>
     </message>
@@ -2418,7 +2439,7 @@
         <translation type="vanished">Audio and transcripts are processed locally. BreezeDesk has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are model downloads you start and optional app update checks.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="224"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="255"/>
         <source>Open Source Licenses</source>
         <translation>Open Source Licenses</translation>
     </message>
@@ -2427,42 +2448,42 @@
         <translation type="vanished">BreezeDesk and whisper.cpp: MIT · Qt: LGPL · FFmpeg: LGPL · Lucide: ISC</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="235"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="266"/>
         <source>Complete third-party notices, license texts, and FFmpeg build/source information are included with every packaged copy.</source>
         <translation>Complete third-party notices, license texts, and FFmpeg build/source information are included with every packaged copy.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="245"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="276"/>
         <source>Diagnostics</source>
         <translation>Diagnostics</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="246"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="277"/>
         <source>Qt %1 · %2 · %3</source>
         <translation>Qt %1 · %2 · %3</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="247"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="278"/>
         <source>Backend: %1 (actual: %2)</source>
         <translation>Backend: %1 (actual: %2)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="249"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="280"/>
         <source>Refresh</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="250"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="281"/>
         <source>Export Sanitized Diagnostics</source>
         <translation>Export Sanitized Diagnostics</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="258"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="290"/>
         <source>Choose Application Data Folder</source>
         <translation>Choose Application Data Folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="263"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="295"/>
         <source>Choose Default Export Folder</source>
         <translation>Choose Default Export Folder</translation>
     </message>

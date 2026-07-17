@@ -18,9 +18,11 @@ class SettingsTest final : public QObject {
 void SettingsTest::defaultsArePrivacyPreserving() {
     QTemporaryDir directory;
     SettingsStore store(directory.filePath(QStringLiteral("settings.ini")));
+    AppearanceSettingsManager appearance(store);
     TranscriptionSettingsManager transcription(store);
     UpdateSettingsManager updates(store);
     PrivacySettingsManager privacy(store);
+    QCOMPARE(appearance.theme(), ThemeMode::Light);
     QCOMPARE(transcription.defaultModelId(), QStringLiteral("breeze-q5"));
     QCOMPARE(transcription.language(), QStringLiteral("zh"));
     QCOMPARE(transcription.preset(), QStringLiteral("balanced"));

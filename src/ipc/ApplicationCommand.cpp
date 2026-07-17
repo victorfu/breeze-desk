@@ -20,6 +20,7 @@ constexpr qsizetype MaximumCombinedOutputBytes = 8 * 1024 * 1024;
 constexpr int ConnectionAttemptMs = 50;
 constexpr int MaximumUnavailableAttempts = 3;
 constexpr int RetryDelayMs = 20;
+constexpr int MinimumRetryRoundTripBudgetMs = ConnectionAttemptMs;
 
 QString unavailableGuiMessage() {
     return QStringLiteral("No running %1 GUI was found.").arg(QString::fromLatin1(AppConfig::ProductName));
@@ -128,12 +129,17 @@ ApplicationCommandForwardResult ApplicationCommandClient::forward(const QString&
                 const int readBudget =
                     qMin(ConnectionAttemptMs, boundedTimeout - static_cast<int>(timer.elapsed()));
                 if (!socket.waitForReadyRead(qMax(1, readBudget))) {
-                    if (socket.state() == QLocalSocket::UnconnectedState) {
-                        return failed(ApplicationCommandForwardStatus::Indeterminate,
-                                      QStringLiteral("The GUI disconnected before confirming the "
-                                                     "forwarded command."));
+                    // QLocalSocket can report the peer disconnect at the same time as the final
+                    // response becomes readable. Always drain those buffered bytes before treating
+                    // the disconnect as an unconfirmed delivery.
+                    if (socket.bytesAvailable() == 0) {
+                        if (socket.state() == QLocalSocket::UnconnectedState) {
+                            return failed(ApplicationCommandForwardStatus::Indeterminate,
+                                          QStringLiteral("The GUI disconnected before confirming the "
+                                                         "forwarded command."));
+                        }
+                        continue;
                     }
-                    continue;
                 }
             }
             const FrameParseResult parsed = decoder.append(socket.readAll());
@@ -186,9 +192,14 @@ ApplicationCommandForwardResult ApplicationCommandClient::forward(const QString&
             return failed(ApplicationCommandForwardStatus::Indeterminate,
                           QStringLiteral("Timed out while waiting for the GUI command result."));
         }
-        if (timer.elapsed() < boundedTimeout) {
-            QThread::msleep(RetryDelayMs);
+        const int remainingBudget = boundedTimeout - static_cast<int>(timer.elapsed());
+        // Once the primary has explicitly reported that its handler is not ready, do not send a
+        // final retry that cannot leave enough time to receive its response. Doing so would turn a
+        // safe local fallback into an indeterminate delivery at the timeout boundary.
+        if (remainingBudget <= RetryDelayMs + MinimumRetryRoundTripBudgetMs) {
+            break;
         }
+        QThread::msleep(RetryDelayMs);
     }
 
     if (primaryExplicitlyNotReady) {

@@ -64,15 +64,15 @@ $Manifest = $Manifest.Replace('@EXECUTABLE_NAME@', (Escape-XmlAttribute $Executa
 $Manifest = $Manifest.Replace('@PRODUCT_ID@', (Escape-XmlAttribute $ProductId))
 $Manifest | Set-Content (Join-Path $LayoutDirectory "AppxManifest.xml") -Encoding utf8
 
-$Svg = Join-Path $ProjectDirectory "resources\icons\breezedesk.svg"
+$Icon = Join-Path $ProjectDirectory "resources\icons\breezedesk.png"
 $Assets = Join-Path $LayoutDirectory "Assets"
-& $Magick -background transparent $Svg -resize 44x44 (Join-Path $Assets "Square44x44Logo.png")
+& $Magick -background transparent $Icon -resize 44x44 (Join-Path $Assets "Square44x44Logo.png")
 if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create Square44x44Logo.png." }
-& $Magick -background transparent $Svg -resize 150x150 (Join-Path $Assets "Square150x150Logo.png")
+& $Magick -background transparent $Icon -resize 150x150 (Join-Path $Assets "Square150x150Logo.png")
 if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create Square150x150Logo.png." }
-& $Magick -background transparent $Svg -resize 50x50 (Join-Path $Assets "StoreLogo.png")
+& $Magick -background transparent $Icon -resize 50x50 (Join-Path $Assets "StoreLogo.png")
 if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create StoreLogo.png." }
-& $Magick -background transparent -size 310x150 -gravity center $Svg -resize 140x140 -extent 310x150 (Join-Path $Assets "Wide310x150Logo.png")
+& $Magick -background transparent -size 310x150 -gravity center $Icon -resize 140x140 -extent 310x150 (Join-Path $Assets "Wide310x150Logo.png")
 if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create Wide310x150Logo.png." }
 
 $OutputFile = [IO.Path]::GetFullPath($OutputFile)

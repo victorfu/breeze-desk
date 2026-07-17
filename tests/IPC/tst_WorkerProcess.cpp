@@ -23,6 +23,7 @@ using namespace BreezeDesk::Ipc;
 
 namespace {
 
+#ifdef BREEZEDESK_TEST_VAD_MODEL_PATH
 bool writeSilenceWav(const QString& path, int durationMs) {
     constexpr quint32 sampleRate = 16'000;
     constexpr quint16 channelCount = 1;
@@ -65,6 +66,7 @@ QByteArray sha256File(const QString& path) {
     }
     return hash.result().toHex();
 }
+#endif
 
 } // namespace
 

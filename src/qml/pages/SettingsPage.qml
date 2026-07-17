@@ -9,6 +9,10 @@ Item {
     required property var diagnostics
     objectName: "settingsPage"
 
+    readonly property real contentMaximumWidth: ComponentTokens.inspectorWidth * 3
+                                                + SemanticTokens.spacingLg * 2
+    readonly property real pageMargin: SemanticTokens.spacingLg
+
     function deviceIndex(devices, selectedId) {
         for (let index = 0; index < devices.length; ++index) {
             if (devices[index].id === selectedId)
@@ -17,14 +21,31 @@ Item {
         return 0
     }
     ScrollView {
+        id: settingsScroll
+        objectName: "settingsScroll"
         anchors.fill: parent
         contentWidth: availableWidth
+        contentHeight: settingsViewport.implicitHeight
+        clip: true
         ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+
+        Item {
+            id: settingsViewport
+            objectName: "settingsViewport"
+            width: settingsScroll.availableWidth
+            height: implicitHeight
+            implicitHeight: settingsContent.implicitHeight + root.pageMargin * 2
+
         ColumnLayout {
-            width: parent.width
-            anchors.margins: SemanticTokens.spacingLg
+            id: settingsContent
+            objectName: "settingsContent"
+            width: Math.max(0, Math.min(root.contentMaximumWidth,
+                                        settingsViewport.width - root.pageMargin * 2))
+            x: Math.max(root.pageMargin, (settingsViewport.width - width) / 2)
+            y: root.pageMargin
             spacing: SemanticTokens.spacingLg
             Text {
+                Layout.fillWidth: true
                 text: qsTr("Settings")
                 color: SemanticTokens.text
                 font.family: SemanticTokens.fontFamily
@@ -38,6 +59,7 @@ Item {
                     label: qsTr("Interface language")
                     description: qsTr("Transcript text is never transformed when the UI language changes.")
                     AppComboBox {
+                        Layout.fillWidth: true
                         Accessible.name: qsTr("Interface language")
                         model: [qsTr("繁體中文"), qsTr("English")]
                         currentIndex: root.vm.language === "zh_TW" ? 0 : 1
@@ -52,6 +74,7 @@ Item {
                 SettingRow {
                     label: qsTr("Close behavior")
                     AppComboBox {
+                        Layout.fillWidth: true
                         Accessible.name: qsTr("Close behavior")
                         model: [qsTr("Minimize to tray"), qsTr("Close window"), qsTr("Quit")]
                         currentIndex: root.vm.closeBehavior === "MinimizeToTray" ? 0 : root.vm.closeBehavior === "CloseWindow" ? 1 : 2
@@ -61,6 +84,7 @@ Item {
                 SettingRow {
                     label: qsTr("Import behavior")
                     AppComboBox {
+                        Layout.fillWidth: true
                         Accessible.name: qsTr("Import behavior")
                         model: [qsTr("Reference original"), qsTr("Copy into managed storage")]
                         currentIndex: root.vm.importBehavior === "ReferenceOriginal" ? 0 : 1
@@ -75,6 +99,7 @@ Item {
                 SettingRow {
                     label: qsTr("Theme")
                     AppComboBox {
+                        Layout.fillWidth: true
                         Accessible.name: qsTr("Theme")
                         model: [qsTr("System"), qsTr("Light"), qsTr("Dark")]
                         currentIndex: root.vm.theme === "System" ? 0 : root.vm.theme === "Light" ? 1 : 2
@@ -84,6 +109,7 @@ Item {
                 SettingRow {
                     label: qsTr("Text size")
                     Slider {
+                        Layout.fillWidth: true
                         from: 0.8; to: 1.5; stepSize: 0.1; value: root.vm.textScale
                         Accessible.name: qsTr("Text size")
                         onMoved: root.vm.textScale = value
@@ -93,6 +119,7 @@ Item {
                 SettingRow {
                     label: qsTr("Waveform density")
                     AppComboBox {
+                        Layout.fillWidth: true
                         model: [qsTr("Sparse"), qsTr("Balanced"), qsTr("Dense")]
                         currentIndex: root.vm.waveformDensity === "Sparse" ? 0 : root.vm.waveformDensity === "Balanced" ? 1 : 2
                         onActivated: root.vm.waveformDensity = currentIndex === 0 ? "Sparse" : currentIndex === 1 ? "Balanced" : "Dense"
@@ -106,6 +133,7 @@ Item {
                 SettingRow {
                     label: qsTr("Default model")
                     AppComboBox {
+                        Layout.fillWidth: true
                         model: [qsTr("Breeze-ASR-25 Q5"), qsTr("Breeze-ASR-25 Q8")]
                         currentIndex: root.vm.defaultModel === "breeze-asr-25-q5" ? 0 : 1
                         onActivated: root.vm.defaultModel = currentIndex === 0 ? "breeze-asr-25-q5" : "breeze-asr-25-q8"
@@ -113,17 +141,18 @@ Item {
                 }
                 SettingRow {
                     label: qsTr("Language")
-                    AppComboBox { model: [qsTr("Chinese (zh)"), qsTr("Automatic")]; currentIndex: root.vm.transcriptionLanguage === "zh" ? 0 : 1; onActivated: root.vm.transcriptionLanguage = currentIndex === 0 ? "zh" : "auto" }
+                    AppComboBox { Layout.fillWidth: true; model: [qsTr("Chinese (zh)"), qsTr("Automatic")]; currentIndex: root.vm.transcriptionLanguage === "zh" ? 0 : 1; onActivated: root.vm.transcriptionLanguage = currentIndex === 0 ? "zh" : "auto" }
                 }
                 SettingRow {
                     label: qsTr("Preset")
-                    AppComboBox { model: [qsTr("Fast"), qsTr("Balanced"), qsTr("Accurate")]; currentIndex: root.vm.preset === "Fast" ? 0 : root.vm.preset === "Balanced" ? 1 : 2; onActivated: root.vm.preset = currentIndex === 0 ? "Fast" : currentIndex === 1 ? "Balanced" : "Accurate" }
+                    AppComboBox { Layout.fillWidth: true; model: [qsTr("Fast"), qsTr("Balanced"), qsTr("Accurate")]; currentIndex: root.vm.preset === "Fast" ? 0 : root.vm.preset === "Balanced" ? 1 : 2; onActivated: root.vm.preset = currentIndex === 0 ? "Fast" : currentIndex === 1 ? "Balanced" : "Accurate" }
                 }
                 SettingRow { label: qsTr("Silero VAD"); description: qsTr("Finds speech boundaries before long recordings are divided into resumable units."); Toggle { checked: root.vm.vadEnabled; onToggled: root.vm.vadEnabled = checked } }
                 SettingRow {
                     label: qsTr("Initial prompt")
                     description: qsTr("Uses the selected glossary profile, project context, and the previous chunk within the model token budget.")
                     AppComboBox {
+                        Layout.fillWidth: true
                         model: [qsTr("Glossary and context"), qsTr("Disabled")]
                         currentIndex: root.vm.initialPromptBehavior === "Disabled" ? 1 : 0
                         onActivated: root.vm.initialPromptBehavior = currentIndex === 1 ? "Disabled" : "GlossaryAndContext"
@@ -131,17 +160,17 @@ Item {
                 }
                 SettingRow {
                     label: qsTr("Backend")
-                    AppComboBox { model: ["Auto", "CPU", "Metal", "Vulkan", "CUDA"]; currentIndex: model.indexOf(root.vm.backend); onActivated: root.vm.backend = model[currentIndex] }
+                    AppComboBox { Layout.fillWidth: true; model: ["Auto", "CPU", "Metal", "Vulkan", "CUDA"]; currentIndex: model.indexOf(root.vm.backend); onActivated: root.vm.backend = model[currentIndex] }
                 }
                 SettingRow { label: qsTr("Flash attention"); Toggle { checked: root.vm.flashAttention; onToggled: root.vm.flashAttention = checked } }
                 SettingRow { label: qsTr("Token timestamps"); Toggle { checked: root.vm.tokenTimestamps; onToggled: root.vm.tokenTimestamps = checked } }
                 SettingRow {
                     label: qsTr("Worker threads")
-                    SpinBox { from: 1; to: 64; value: root.vm.threadCount; editable: true; Accessible.name: qsTr("Worker threads"); onValueModified: root.vm.threadCount = value }
+                    SpinBox { Layout.fillWidth: true; from: 1; to: 64; value: root.vm.threadCount; editable: true; Accessible.name: qsTr("Worker threads"); onValueModified: root.vm.threadCount = value }
                 }
                 SettingRow {
                     label: qsTr("Low-confidence threshold")
-                    Slider { from: 0; to: 1; stepSize: 0.05; value: root.vm.lowConfidenceThreshold; Accessible.name: qsTr("Low-confidence threshold"); onMoved: root.vm.lowConfidenceThreshold = value }
+                    Slider { Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.05; value: root.vm.lowConfidenceThreshold; Accessible.name: qsTr("Low-confidence threshold"); onMoved: root.vm.lowConfidenceThreshold = value }
                 }
             }
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: SemanticTokens.border }
@@ -151,6 +180,7 @@ Item {
                 SettingRow {
                     label: qsTr("Microphone")
                     AppComboBox {
+                        Layout.fillWidth: true
                         model: root.vm.microphoneDevices
                         textRole: "description"
                         valueRole: "id"
@@ -162,6 +192,7 @@ Item {
                 SettingRow {
                     label: qsTr("Playback device")
                     AppComboBox {
+                        Layout.fillWidth: true
                         model: root.vm.playbackDevices
                         textRole: "description"
                         valueRole: "id"
@@ -170,7 +201,7 @@ Item {
                         onActivated: root.vm.playbackDevice = currentValue
                     }
                 }
-                SettingRow { label: qsTr("Recording format"); AppComboBox { model: [qsTr("PCM WAV")]; Accessible.name: qsTr("Recording format") } }
+                SettingRow { label: qsTr("Recording format"); AppComboBox { Layout.fillWidth: true; model: [qsTr("PCM WAV")]; Accessible.name: qsTr("Recording format") } }
                 SettingRow {
                     label: qsTr("Transcribe new recordings automatically")
                     description: qsTr("Starts a queued transcription after microphone recording stops.")
@@ -189,7 +220,7 @@ Item {
                 SettingRow { label: qsTr("Export directory"); description: root.vm.exportPath; AppButton { text: qsTr("Choose"); onClicked: exportFolderDialog.open() } }
                 SettingRow {
                     label: qsTr("Managed media")
-                    AppComboBox { model: [qsTr("Reference original"), qsTr("Copy managed media")]; currentIndex: root.vm.managedMediaPolicy === "ReferenceOriginal" ? 0 : 1; onActivated: root.vm.managedMediaPolicy = currentIndex === 0 ? "ReferenceOriginal" : "CopyManaged" }
+                    AppComboBox { Layout.fillWidth: true; model: [qsTr("Reference original"), qsTr("Copy managed media")]; currentIndex: root.vm.managedMediaPolicy === "ReferenceOriginal" ? 0 : 1; onActivated: root.vm.managedMediaPolicy = currentIndex === 0 ? "ReferenceOriginal" : "CopyManaged" }
                 }
                 SettingRow { label: qsTr("Cache"); AppButton { text: qsTr("Clear Cache"); onClicked: root.vm.clearCache() } }
                 SettingRow { label: qsTr("Database backup"); AppButton { text: qsTr("Back Up Now"); onClicked: root.vm.backupDatabase() } }
@@ -251,6 +282,7 @@ Item {
                 }
             }
             Item { Layout.preferredHeight: SemanticTokens.spacingLg }
+        }
         }
     }
     FolderDialog {

@@ -5,8 +5,11 @@ set(BREEZEDESK_QML_SINGLETONS
 )
 set_source_files_properties(${BREEZEDESK_QML_SINGLETONS} PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
-set(BREEZEDESK_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk.svg)
-set_source_files_properties(${BREEZEDESK_ICON} PROPERTIES QT_RESOURCE_ALIAS icons/breezedesk.svg)
+set(BREEZEDESK_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk.png)
+set(BREEZEDESK_MENUBAR_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-menubar.png)
+set_source_files_properties(${BREEZEDESK_ICON} PROPERTIES QT_RESOURCE_ALIAS icons/breezedesk.png)
+set_source_files_properties(${BREEZEDESK_MENUBAR_ICON} PROPERTIES
+    QT_RESOURCE_ALIAS icons/breezedesk-menubar.png)
 set(BREEZEDESK_LUCIDE_ICON_NAMES
     library list-ordered trash-2 box book-open settings
     play pause file-input mic rotate-ccw rotate-cw)
@@ -67,5 +70,6 @@ qt_add_qml_module(breezedesk_ui
         pages/TrashPage.qml
     RESOURCES
         ${BREEZEDESK_ICON}
+        ${BREEZEDESK_MENUBAR_ICON}
         ${BREEZEDESK_LUCIDE_ICONS}
 )

@@ -9,12 +9,14 @@
 #include "breezedesk/ui/ApplicationViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
 
+#include <QColor>
 #include <QDataStream>
 #include <QDirIterator>
 #include <QFile>
 #include <QGuiApplication>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QQuickItem>
 #include <QQuickWindow>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -22,6 +24,7 @@
 #include <QtTest>
 
 #include <atomic>
+#include <tuple>
 #include <utility>
 
 namespace {
@@ -198,6 +201,8 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString()));
         auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
         QVERIFY(vm);
+        QCOMPARE(vm->settings()->theme(), QStringLiteral("Light"));
+        QCOMPARE(root->property("color").value<QColor>(), QColor(QStringLiteral("#FAFAFB")));
         for (const QString& page :
              {QStringLiteral("Queue"), QStringLiteral("Trash"), QStringLiteral("Models"),
               QStringLiteral("Glossary"), QStringLiteral("Settings"), QStringLiteral("Library")}) {
@@ -211,6 +216,302 @@ class tst_QmlSmoke final : public QObject {
         vm->settings()->setLanguage(QStringLiteral("en"));
         vm->settings()->setLanguage(QStringLiteral("zh_TW"));
         QCoreApplication::processEvents();
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void settingsLayoutStaysWithinViewport() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
+        auto* settingsScroll = root->findChild<QQuickItem*>(QStringLiteral("settingsScroll"));
+        auto* settingsViewport = root->findChild<QQuickItem*>(QStringLiteral("settingsViewport"));
+        auto* settingsContent = root->findChild<QQuickItem*>(QStringLiteral("settingsContent"));
+        QVERIFY(window);
+        QVERIFY(vm);
+        QVERIFY(settingsScroll);
+        QVERIFY(settingsViewport);
+        QVERIFY(settingsContent);
+
+        vm->navigate(QStringLiteral("Settings"));
+
+        const auto verifyWidth = [&](int width) {
+            window->setWidth(width);
+            window->setHeight(720);
+            QCoreApplication::processEvents();
+
+            QVERIFY(settingsScroll->width() > 0.0);
+            QVERIFY(settingsViewport->width() > 0.0);
+            QVERIFY(settingsContent->width() > 0.0);
+            QVERIFY(settingsContent->width() <= 924.5);
+
+            const qreal leftInset = settingsContent->x();
+            const qreal rightInset = settingsViewport->width() - settingsContent->x()
+                                     - settingsContent->width();
+            QVERIFY(leftInset >= 23.5);
+            QVERIFY(rightInset >= 23.5);
+            QVERIFY(qAbs(leftInset - rightInset) <= 1.0);
+        };
+
+        verifyWidth(980);
+        const qreal narrowContentWidth = settingsContent->width();
+        verifyWidth(1280);
+        QVERIFY(settingsContent->width() > narrowContentWidth);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void mainShellKeepsSidebarAndPagesWithinViewport() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
+        auto* sidebar = root->findChild<QQuickItem*>(QStringLiteral("mainSidebar"));
+        auto* brandRow = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandRow"));
+        auto* brandText = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandText"));
+        auto* pages = root->findChild<QQuickItem*>(QStringLiteral("pageStack"));
+        QVERIFY(window);
+        QVERIFY(vm);
+        QVERIFY(sidebar);
+        QVERIFY(brandRow);
+        QVERIFY(brandText);
+        QVERIFY(pages);
+
+        vm->settings()->setTextScale(1.5);
+        vm->settings()->setCompactMode(false);
+
+        const auto verifyWidth = [&](int width, qreal expectedSidebarWidth) {
+            window->setWidth(width);
+            window->setHeight(720);
+            QCoreApplication::processEvents();
+
+            QCOMPARE(sidebar->x(), 0.0);
+            QTRY_COMPARE_WITH_TIMEOUT(sidebar->width(), expectedSidebarWidth, 1'000);
+            QCOMPARE(pages->x(), sidebar->width());
+            QCOMPARE(pages->width(), window->width() - sidebar->width());
+            QCOMPARE(pages->x() + pages->width(), window->width());
+            QVERIFY(brandText->width() > 0.0);
+            QVERIFY(brandText->x() >= 0.0);
+            QVERIFY(brandText->x() + brandText->width() <= brandRow->width() + 0.5);
+            QVERIFY(brandText->property("paintedWidth").toReal() <= brandText->width() + 0.5);
+            QTRY_VERIFY_WITH_TIMEOUT(brandText->property("paintedHeight").toReal()
+                                         <= brandText->height() + 0.5,
+                                     1'000);
+        };
+
+        verifyWidth(980, 216.0);
+        verifyWidth(1280, 216.0);
+        vm->settings()->setCompactMode(true);
+        verifyWidth(980, 188.0);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void minimumWidthTextScaleRoundTripKeepsLayoutResponsive() {
+        int geometryChanges = 0;
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
+        auto* pages = root->findChild<QQuickItem*>(QStringLiteral("pageStack"));
+        auto* settingsContent = root->findChild<QQuickItem*>(QStringLiteral("settingsContent"));
+        QVERIFY(window);
+        QVERIFY(vm);
+        QVERIFY(pages);
+        QVERIFY(settingsContent);
+
+        vm->settings()->setCompactMode(false);
+        window->setWidth(980);
+        window->setHeight(720);
+        vm->navigate(QStringLiteral("Settings"));
+        QCoreApplication::processEvents();
+
+        const auto items = root->findChildren<QQuickItem*>();
+        for (QQuickItem* item : items) {
+            const auto countChange = [&geometryChanges] { ++geometryChanges; };
+            connect(item, &QQuickItem::widthChanged, root.data(), countChange);
+            connect(item, &QQuickItem::heightChanged, root.data(), countChange);
+            connect(item, &QQuickItem::implicitWidthChanged, root.data(), countChange);
+            connect(item, &QQuickItem::implicitHeightChanged, root.data(), countChange);
+        }
+
+        const auto processTransition = [&geometryChanges] {
+            geometryChanges = 0;
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 250);
+            return geometryChanges;
+        };
+        constexpr int maximumExpectedGeometryChanges = 5'000;
+
+        vm->settings()->setTextScale(1.5);
+        const int enlargedChanges = processTransition();
+        QVERIFY2(enlargedChanges < maximumExpectedGeometryChanges,
+                 qPrintable(QStringLiteral("Text scale 1.5 did not settle (%1 geometry changes).")
+                                .arg(enlargedChanges)));
+
+        vm->settings()->setTextScale(1.0);
+        const int restoredChanges = processTransition();
+        QVERIFY2(restoredChanges < maximumExpectedGeometryChanges,
+                 qPrintable(QStringLiteral("Text scale 1.0 did not settle (%1 geometry changes).")
+                                .arg(restoredChanges)));
+
+        vm->navigate(QStringLiteral("Library"));
+        const int navigationChanges = processTransition();
+        QVERIFY2(navigationChanges < maximumExpectedGeometryChanges,
+                 qPrintable(QStringLiteral("Library navigation did not settle (%1 geometry changes).")
+                                .arg(navigationChanges)));
+        QCOMPARE(vm->currentPage(), QStringLiteral("Library"));
+        QVERIFY(settingsContent->width() > 0.0);
+        QCOMPARE(pages->x() + pages->width(), window->width());
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void responsivePageHeadersStayWithinViewport() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
+        QVERIFY(window);
+        QVERIFY(vm);
+
+        vm->settings()->setLanguage(QStringLiteral("zh_TW"));
+        vm->settings()->setTextScale(1.5);
+
+        const auto verifyContained = [](QQuickItem* parent, QQuickItem* child,
+                                        const QString& context) {
+            QVERIFY(parent);
+            QVERIFY(child);
+            const auto isContained = [parent, child] {
+                const QPointF origin = child->mapToItem(parent, QPointF{});
+                return origin.x() >= -0.5
+                       && origin.x() + child->width() <= parent->width() + 0.5;
+            };
+            const auto failureMessage = [parent, child, &context] {
+                const QPointF origin = child->mapToItem(parent, QPointF{});
+                return QStringLiteral("%1: action x=%2, width=%3, right=%4, page width=%5")
+                    .arg(context)
+                    .arg(origin.x())
+                    .arg(child->width())
+                    .arg(origin.x() + child->width())
+                    .arg(parent->width());
+            };
+            QTRY_VERIFY2_WITH_TIMEOUT(isContained(), qPrintable(failureMessage()), 1'000);
+            QVERIFY(child->width() > 0.0);
+            QVERIFY(child->height() > 0.0);
+        };
+
+        const QList<std::tuple<QString, QString, QString>> pages{
+            {QStringLiteral("Library"), QStringLiteral("libraryPage"),
+             QStringLiteral("libraryHeaderActions")},
+            {QStringLiteral("Queue"), QStringLiteral("queuePage"),
+             QStringLiteral("queueHeaderActions")},
+            {QStringLiteral("Models"), QStringLiteral("modelsPage"),
+             QStringLiteral("modelsHeaderActions")},
+            {QStringLiteral("Glossary"), QStringLiteral("glossaryPage"),
+             QStringLiteral("glossaryHeaderActions")},
+        };
+
+        for (const int width : {980, 1280}) {
+            window->setWidth(width);
+            window->setHeight(720);
+            for (const auto& [pageName, pageObjectName, actionsObjectName] : pages) {
+                vm->navigate(pageName);
+                QCoreApplication::processEvents();
+                auto* page = root->findChild<QQuickItem*>(pageObjectName);
+                auto* actions = root->findChild<QQuickItem*>(actionsObjectName);
+                verifyContained(page, actions,
+                                QStringLiteral("%1 at %2 px").arg(pageName).arg(width));
+            }
+        }
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void recordingControlsStayWithinViewport() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
+        auto* page = root->findChild<QQuickItem*>(QStringLiteral("recordingPage"));
+        auto* inspector = root->findChild<QQuickItem*>(QStringLiteral("recordingInspector"));
+        auto* inspectorButton =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingInspectorButton"));
+        auto* mainPane = root->findChild<QQuickItem*>(QStringLiteral("recordingMainPane"));
+        auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
+        auto* timeline = root->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackTimeline"));
+        auto* positionSlider =
+            root->findChild<QQuickItem*>(QStringLiteral("playbackPositionSlider"));
+        auto* options = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportOptions"));
+        auto* transcriptToolbar =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
+        QVERIFY(window);
+        QVERIFY(vm);
+        QVERIFY(page);
+        QVERIFY(inspector);
+        QVERIFY(inspectorButton);
+        QVERIFY(mainPane);
+        QVERIFY(transport);
+        QVERIFY(timeline);
+        QVERIFY(positionSlider);
+        QVERIFY(options);
+        QVERIFY(transcriptToolbar);
+
+        vm->settings()->setTextScale(1.5);
+        vm->navigate(QStringLiteral("Recording"));
+
+        const auto verifyWidth = [&](int width, bool compactInspector) {
+            window->setWidth(width);
+            window->setHeight(720);
+            QCoreApplication::processEvents();
+
+            QCOMPARE(inspector->isVisible(), !compactInspector);
+            QCOMPARE(inspectorButton->isVisible(), compactInspector);
+            QVERIFY(mainPane->width() > 0.0);
+            QVERIFY(transport->width() <= mainPane->width() + 0.5);
+            QVERIFY(timeline->width() > 0.0);
+            QVERIFY(timeline->width() <= transport->width() + 0.5);
+            QVERIFY(positionSlider->width() >= 160.0);
+            QVERIFY(options->width() <= transport->width() + 0.5);
+            QVERIFY(transcriptToolbar->width() <= mainPane->width() + 0.5);
+
+            const QPointF paneOrigin = mainPane->mapToItem(page, QPointF{});
+            QVERIFY(paneOrigin.x() >= -0.5);
+            QVERIFY(paneOrigin.x() + mainPane->width() <= page->width() + 0.5);
+        };
+
+        verifyWidth(980, true);
+        verifyWidth(1280, false);
+
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));

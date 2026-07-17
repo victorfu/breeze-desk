@@ -183,10 +183,10 @@ printf '%s\n' "$ffmpeg_configuration" > "$license_dir/FFmpeg-BUILD_CONFIGURATION
 iconset="$stage_dir/AppIcon.iconset"
 cmake -E make_directory "$iconset"
 for size in 16 32 128 256 512; do
-  magick -background transparent "$project_dir/resources/icons/breezedesk.svg" \
+  magick -background transparent "$project_dir/resources/icons/breezedesk.png" \
     -resize "${size}x${size}" "$iconset/icon_${size}x${size}.png"
   double_size=$((size * 2))
-  magick -background transparent "$project_dir/resources/icons/breezedesk.svg" \
+  magick -background transparent "$project_dir/resources/icons/breezedesk.png" \
     -resize "${double_size}x${double_size}" "$iconset/icon_${size}x${size}@2x.png"
 done
 iconutil -c icns "$iconset" -o "$app_resources/AppIcon.icns"

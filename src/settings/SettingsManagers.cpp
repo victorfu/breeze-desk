@@ -113,8 +113,8 @@ void GeneralSettingsManager::setStartTranscriptionAfterImport(bool v) {
 AppearanceSettingsManager::AppearanceSettingsManager(SettingsStore& s)
     : SettingsManagerBase(s, QStringLiteral("appearance")) {}
 ThemeMode AppearanceSettingsManager::theme() const {
-    return enumValue(themes(), read(QStringLiteral("theme"), QStringLiteral("system")).toString(),
-                     ThemeMode::System);
+    return enumValue(themes(), read(QStringLiteral("theme"), QStringLiteral("light")).toString(),
+                     ThemeMode::Light);
 }
 void AppearanceSettingsManager::setTheme(ThemeMode v) {
     write(QStringLiteral("theme"), themeModeName(v));

@@ -6,15 +6,27 @@ Item {
     id: root
     required property var vm
     objectName: "queuePage"
+    readonly property int headerStackWidth: 760
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: SemanticTokens.spacingLg
         spacing: SemanticTokens.spacingMd
-        RowLayout {
+        GridLayout {
+            id: queueHeader
+            objectName: "queueHeader"
             Layout.fillWidth: true
+            columns: stacked ? 1 : 2
+            columnSpacing: SemanticTokens.spacingMd
+            rowSpacing: SemanticTokens.spacingSm
+            readonly property bool stacked: width < root.headerStackWidth * DesignSystem.textScale
             ColumnLayout {
+                id: titleBlock
+                Layout.row: 0
+                Layout.column: 0
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 Text {
+                    Layout.fillWidth: true
                     text: qsTr("Job Queue")
                     color: SemanticTokens.text
                     font.family: SemanticTokens.fontFamily
@@ -22,18 +34,35 @@ Item {
                     font.weight: Font.DemiBold
                 }
                 Text {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     text: qsTr("One transcription runs at a time; completed chunks are saved immediately.")
                     color: SemanticTokens.textMuted
+                    wrapMode: Text.WordWrap
                     font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
             }
-            Toggle {
-                text: qsTr("Pause after current job")
-                checked: root.vm.pauseAfterCurrent
-                onToggled: root.vm.pauseAfterCurrent = checked
+            RowLayout {
+                id: headerActions
+                objectName: "queueHeaderActions"
+                Layout.row: queueHeader.stacked ? 1 : 0
+                Layout.column: queueHeader.stacked ? 0 : 1
+                Layout.fillWidth: queueHeader.stacked
+                Layout.minimumWidth: 0
+                spacing: SemanticTokens.spacingSm
+                Toggle {
+                    objectName: "queuePauseAfterCurrentToggle"
+                    text: qsTr("Pause after current job")
+                    checked: root.vm.pauseAfterCurrent
+                    onToggled: root.vm.pauseAfterCurrent = checked
+                }
+                AppButton {
+                    objectName: "queueClearCompletedButton"
+                    text: qsTr("Clear Completed")
+                    onClicked: root.vm.clearCompleted()
+                }
             }
-            AppButton { text: qsTr("Clear Completed"); onClicked: root.vm.clearCompleted() }
         }
         EmptyState {
             Layout.fillWidth: true

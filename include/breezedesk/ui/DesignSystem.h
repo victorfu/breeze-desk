@@ -39,7 +39,7 @@ class DesignSystem final : public QObject {
   private:
     void updateSystemColorScheme();
 
-    Theme m_theme{Theme::System};
+    Theme m_theme{Theme::Light};
     bool m_systemDark{false};
     qreal m_textScale{1.0};
     bool m_compact{false};

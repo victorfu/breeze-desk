@@ -89,7 +89,7 @@ findstr /C:"--enable-gpl" /C:"--enable-nonfree" "%FFMPEG_BUILDCONF%" >nul && (
 
 set "ICON_PATH=%PROJECT_ROOT%\build\package-icon\breezedesk.ico"
 cmake -E make_directory "%PROJECT_ROOT%\build\package-icon" || exit /b 1
-magick.exe -background transparent "%PROJECT_ROOT%\resources\icons\breezedesk.svg" -define icon:auto-resize=256,128,64,48,32,16 "%ICON_PATH%" || exit /b 1
+magick.exe -background transparent "%PROJECT_ROOT%\resources\icons\breezedesk.png" -define icon:auto-resize=256,128,64,48,32,16 "%ICON_PATH%" || exit /b 1
 if not exist "%ICON_PATH%" (
   echo ImageMagick did not create the Windows app icon. 1>&2
   exit /b 1

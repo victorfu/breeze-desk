@@ -444,9 +444,14 @@ int main(int argc, char* argv[]) {
         return 11;
     }
 
-    const QIcon applicationIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.svg"));
+    const QIcon applicationIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.png"));
     application.setWindowIcon(applicationIcon);
-    QSystemTrayIcon tray(applicationIcon);
+#ifdef Q_OS_MACOS
+    const QIcon trayIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar.png"));
+#else
+    const QIcon trayIcon(applicationIcon);
+#endif
+    QSystemTrayIcon tray(trayIcon);
     QMenu trayMenu;
     QAction showAction(QObject::tr("Show %1").arg(productName), &trayMenu);
     QAction importAction(QObject::tr("Import Files"), &trayMenu);

@@ -167,7 +167,7 @@ class SettingsViewModel final : public QObject {
 
     SettingsManagerDependencies m_managers;
     QString m_language{"zh_TW"};
-    QString m_theme{"System"};
+    QString m_theme{"Light"};
     QString m_closeBehavior{"MinimizeToTray"};
     bool m_minimizeToTray{true};
     bool m_launchAtStartup{false};

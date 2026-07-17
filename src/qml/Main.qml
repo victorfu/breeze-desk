@@ -116,10 +116,16 @@ ApplicationWindow {
     }
 
     RowLayout {
+        id: shellLayout
+        objectName: "shellLayout"
         anchors.fill: parent
         spacing: 0
         Rectangle {
+            id: sidebar
+            objectName: "mainSidebar"
+            Layout.minimumWidth: ComponentTokens.sidebarWidth
             Layout.preferredWidth: ComponentTokens.sidebarWidth
+            Layout.maximumWidth: ComponentTokens.sidebarWidth
             Layout.fillHeight: true
             color: SemanticTokens.surface
             border.color: SemanticTokens.border
@@ -128,20 +134,28 @@ ApplicationWindow {
                 anchors.margins: SemanticTokens.spacingMd
                 spacing: SemanticTokens.spacingXs
                 RowLayout {
+                    id: brandRow
+                    objectName: "sidebarBrandRow"
                     Layout.fillWidth: true
                     Layout.bottomMargin: SemanticTokens.spacingLg
                     Image {
-                        source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk.svg"
+                        source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk.png"
                         sourceSize.width: 34
                         sourceSize.height: 34
                         Accessible.name: qsTr("%1 logo").arg(window.vm.displayName)
                     }
                     Text {
+                        id: brandText
+                        objectName: "sidebarBrandText"
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         text: window.vm.displayName
                         color: SemanticTokens.text
+                        elide: Text.ElideRight
+                        maximumLineCount: 1
+                        wrapMode: Text.NoWrap
                         font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.headingSize
+                        font.pixelSize: SemanticTokens.bodySize
                         font.weight: Font.DemiBold
                     }
                 }
@@ -168,8 +182,10 @@ ApplicationWindow {
         StackLayout {
             id: pages
             objectName: "pageStack"
+            Layout.minimumWidth: 0
             Layout.fillWidth: true
             Layout.fillHeight: true
+            clip: true
             currentIndex: window.vm.currentPage === "Queue" ? 1
                         : window.vm.currentPage === "Trash" ? 2
                         : window.vm.currentPage === "Models" ? 3
