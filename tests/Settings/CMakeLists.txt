@@ -1,0 +1,5 @@
+qt_add_executable(tst_Settings tst_Settings.cpp)
+target_link_libraries(tst_Settings PRIVATE breezedesk_settings Qt6::Test)
+breezedesk_enable_strict_warnings(tst_Settings)
+add_test(NAME Settings.ManagersAndMigration COMMAND tst_Settings)
+set_tests_properties(Settings.ManagersAndMigration PROPERTIES LABELS "Settings;Unit")

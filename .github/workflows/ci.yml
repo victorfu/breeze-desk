@@ -1,0 +1,160 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: 6.10.1
+  WHISPER_CPP_REF: f049fff95a089aa9969deb009cdd4892b3e74916
+  CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+  SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install formatter
+        run: sudo apt-get update && sudo apt-get install --yes clang-format-18
+      - name: Check clang-format
+        shell: bash
+        run: git ls-files -z 'include/*.h' 'include/**/*.h' 'src/*.cpp' 'src/**/*.cpp' 'src/**/*.mm' 'tests/*.cpp' 'tests/**/*.cpp' | xargs -0 --no-run-if-empty clang-format-18 --dry-run --Werror
+
+  configure-check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - name: Configure without network dependencies
+        run: >-
+          cmake -S . -B build/configure-check -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DBREEZEDESK_ENABLE_WHISPER=OFF
+          -DBREEZEDESK_BUILD_TESTS=OFF
+          -DBREEZEDESK_WARNINGS_AS_ERRORS=ON
+
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            qt_arch: clang_64
+            backend: CPU
+          - os: windows-2022
+            qt_arch: win64_msvc2022_64
+            backend: VULKAN
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: ${{ matrix.qt_arch }}
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Install macOS compiler cache
+        if: runner.os == 'macOS'
+        run: brew install ccache
+      - name: Install Windows compiler cache and Vulkan SDK
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install sccache --yes --no-progress
+          choco install vulkan-sdk --version=1.4.341 --yes --no-progress
+          $Sdk = Get-ChildItem C:\VulkanSDK -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $Sdk) { throw 'Chocolatey did not install the Vulkan SDK under C:\VulkanSDK.' }
+          "VULKAN_SDK=$($Sdk.FullName)" | Out-File $env:GITHUB_ENV -Append
+          "$($Sdk.FullName)\Bin" | Out-File $env:GITHUB_PATH -Append
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cache/whisper.cpp
+            .cache/ccache
+            .cache/sccache
+          key: native-${{ runner.os }}-${{ matrix.backend }}-${{ env.WHISPER_CPP_REF }}-${{ hashFiles('CMakeLists.txt', 'cmake/**', 'src/**/CMakeLists.txt') }}
+          restore-keys: native-${{ runner.os }}-${{ matrix.backend }}-${{ env.WHISPER_CPP_REF }}-
+      - name: Prepare pinned whisper.cpp source
+        shell: bash
+        run: |
+          if [[ ! -d .cache/whisper.cpp/.git ]]; then
+            rm -rf .cache/whisper.cpp
+            git init .cache/whisper.cpp
+            git -C .cache/whisper.cpp remote add origin https://github.com/ggml-org/whisper.cpp.git
+          fi
+          if [[ "$(git -C .cache/whisper.cpp rev-parse HEAD 2>/dev/null || true)" != "$WHISPER_CPP_REF" ]]; then
+            git -C .cache/whisper.cpp fetch --depth 1 origin "$WHISPER_CPP_REF"
+            git -C .cache/whisper.cpp checkout --detach "$WHISPER_CPP_REF"
+          fi
+          test "$(git -C .cache/whisper.cpp rev-parse HEAD)" = "$WHISPER_CPP_REF"
+      - name: Configure
+        run: >-
+          cmake -S . -B build/ci -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DBREEZEDESK_ENABLE_WHISPER=ON
+          -DBREEZEDESK_BUILD_TESTS=ON
+          -DBREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS=OFF
+          -DBREEZEDESK_WINDOWS_BACKEND=${{ matrix.backend }}
+          -DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=${{ github.workspace }}/.cache/whisper.cpp
+      - name: Build
+        run: cmake --build build/ci --parallel
+      - name: Test
+        run: ctest --test-dir build/ci --output-on-failure --no-tests=error
+      - name: Configure CPU fallback worker
+        if: runner.os == 'Windows'
+        run: >-
+          cmake -S . -B build/ci-cpu -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBREEZEDESK_ENABLE_WHISPER=ON
+          -DBREEZEDESK_BUILD_TESTS=OFF
+          -DBREEZEDESK_WINDOWS_BACKEND=CPU
+          -DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=${{ github.workspace }}/.cache/whisper.cpp
+      - name: Build CPU fallback worker
+        if: runner.os == 'Windows'
+        run: cmake --build build/ci-cpu --target breezedesk-asr-worker --parallel
+      - name: Upload CTest diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-${{ runner.os }}-${{ matrix.backend }}
+          path: build/ci/Testing/Temporary
+
+  qml-smoke:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - name: Configure QML smoke tests
+        run: >-
+          cmake -S . -B build/qml -G Ninja
+          -DCMAKE_BUILD_TYPE=Debug
+          -DBREEZEDESK_ENABLE_WHISPER=OFF
+          -DBREEZEDESK_BUILD_TESTS=ON
+      - name: Build QML smoke tests
+        run: cmake --build build/qml --target tst_QmlSmoke --parallel
+      - name: Load every registered QML page offscreen
+        env:
+          QT_QPA_PLATFORM: offscreen
+          QT_QUICK_CONTROLS_STYLE: Basic
+        run: ctest --test-dir build/qml -L Qml --output-on-failure --no-tests=error

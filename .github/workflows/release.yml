@@ -1,0 +1,353 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  QT_VERSION: 6.10.1
+  WHISPER_CPP_REF: f049fff95a089aa9969deb009cdd4892b3e74916
+  CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+  SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      product_name: ${{ steps.version.outputs.product_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: version
+        shell: bash
+        run: |
+          mkdir -p build
+          cmake -DBREEZEDESK_SOURCE_DIR="$GITHUB_WORKSPACE" -DBREEZEDESK_VERSION_OUTPUT="$GITHUB_WORKSPACE/build/project-version.txt" -P cmake/ReadProjectVersion.cmake
+          cmake -DBREEZEDESK_SOURCE_DIR="$GITHUB_WORKSPACE" -DBREEZEDESK_IDENTITY_OUTPUT_DIR="$GITHUB_WORKSPACE/build/project-identity" -P cmake/ReadProjectIdentity.cmake
+          version="$(tr -d '\r\n' < build/project-version.txt)"
+          product_name="$(tr -d '\r\n' < build/project-identity/product-name.txt)"
+          if [[ "v$version" != "$GITHUB_REF_NAME" ]]; then
+            echo "Release tag '$GITHUB_REF_NAME' must equal CMake project version 'v$version'." >&2
+            exit 1
+          fi
+          python3 scripts/extract-changelog_entry.py "$version" > release-notes.md
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "product_name=$product_name" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-notes
+          path: release-notes.md
+
+  macos:
+    needs: validate
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - name: Validate signing and update credentials
+        env:
+          P12: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          SPARKLE_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+          UPDATE_FEED_BASE_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}
+        shell: bash
+        run: |
+          missing=()
+          for name in P12 P12_PASSWORD CODESIGN_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD SPARKLE_PRIVATE_KEY SPARKLE_PUBLIC_KEY UPDATE_FEED_BASE_URL; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} )); then
+            echo "Signed direct-download release cannot proceed. Missing: ${missing[*]}" >&2
+            echo "Local unsigned packaging remains available through packaging/macos/package.sh." >&2
+            exit 1
+          fi
+      - uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      - name: Store notarization credentials in an ephemeral profile
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: >-
+          xcrun notarytool store-credentials breezedesk-ci
+          --apple-id "$APPLE_ID"
+          --team-id "$APPLE_TEAM_ID"
+          --password "$APPLE_APP_PASSWORD"
+      - run: brew install ccache imagemagick
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cache/whisper.cpp
+            .cache/ccache
+            build/ffmpeg-8.1.2-macos-arm64/install
+            build/ffmpeg-8.1.2-macos-arm64/ffmpeg-8.1.2.tar.xz
+            build/sparkle-2.9.2/install
+            build/sparkle-2.9.2/Sparkle-2.9.2.tar.xz
+          key: release-macos-${{ env.WHISPER_CPP_REF }}-ffmpeg-8.1.2-sparkle-2.9.2
+      - name: Prepare pinned whisper.cpp source
+        shell: bash
+        run: |
+          if [[ ! -d .cache/whisper.cpp/.git ]]; then
+            rm -rf .cache/whisper.cpp
+            git init .cache/whisper.cpp
+            git -C .cache/whisper.cpp remote add origin https://github.com/ggml-org/whisper.cpp.git
+          fi
+          if [[ "$(git -C .cache/whisper.cpp rev-parse HEAD 2>/dev/null || true)" != "$WHISPER_CPP_REF" ]]; then
+            git -C .cache/whisper.cpp fetch --depth 1 origin "$WHISPER_CPP_REF"
+            git -C .cache/whisper.cpp checkout --detach "$WHISPER_CPP_REF"
+          fi
+          test "$(git -C .cache/whisper.cpp rev-parse HEAD)" = "$WHISPER_CPP_REF"
+      - name: Prepare pinned LGPL FFmpeg and Sparkle
+        shell: bash
+        run: |
+          echo "BREEZEDESK_FFMPEG_DIR=$(packaging/macos/build-ffmpeg-lgpl.sh)" >> "$GITHUB_ENV"
+          sparkle_dir="$(packaging/macos/fetch-sparkle.sh)"
+          echo "BREEZEDESK_SPARKLE_FRAMEWORK_DIR=$sparkle_dir" >> "$GITHUB_ENV"
+          echo "BREEZEDESK_SPARKLE_SIGN_UPDATE=$sparkle_dir/bin/sign_update" >> "$GITHUB_ENV"
+      - name: Build, deploy, sign, notarize, and verify DMG
+        env:
+          BREEZEDESK_WHISPER_CPP_SOURCE_DIR: ${{ github.workspace }}/.cache/whisper.cpp
+          BREEZEDESK_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+          BREEZEDESK_NOTARY_PROFILE: breezedesk-ci
+          BREEZEDESK_PACKAGE_UPDATES: '1'
+          BREEZEDESK_APPCAST_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}/appcast-macos.xml
+          BREEZEDESK_EDDSA_PUBLIC_KEY: ${{ vars.SPARKLE_PUBLIC_KEY }}
+        run: packaging/macos/package.sh
+      - name: Sign the update archive with Sparkle EdDSA
+        env:
+          BREEZEDESK_SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+        run: packaging/macos/sign-sparkle-update.sh "dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-macOS-arm64.dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: |
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-macOS-arm64.dmg
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-macOS-arm64.dmg.sha256
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-macOS-arm64.dmg.edSignature
+
+  windows-universal:
+    needs: validate
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Install release tools and Vulkan SDK
+        shell: pwsh
+        run: |
+          choco install ninja nsis sccache imagemagick --yes --no-progress
+          choco install vulkan-sdk --version=1.4.341 --yes --no-progress
+          & C:\msys64\usr\bin\bash.exe -lc 'pacman -Sy --needed --noconfirm make nasm diffutils mingw-w64-x86_64-gcc'
+          if ($LASTEXITCODE -ne 0) { throw 'MSYS2 build-tool installation failed.' }
+          $Sdk = Get-ChildItem C:\VulkanSDK -Directory | Sort-Object Name -Descending | Select-Object -First 1
+          if (-not $Sdk) { throw 'Chocolatey did not install the Vulkan SDK under C:\VulkanSDK.' }
+          "VULKAN_SDK=$($Sdk.FullName)" | Out-File $env:GITHUB_ENV -Append
+          "$($Sdk.FullName)\Bin" | Out-File $env:GITHUB_PATH -Append
+      - name: Validate signing and update credentials
+        shell: pwsh
+        env:
+          PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          MSIX_PUBLISHER: ${{ vars.WINDOWS_MSIX_PUBLISHER }}
+          UPDATE_FEED_BASE_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}
+          WINSPARKLE_PUBLIC_KEY: ${{ vars.WINSPARKLE_PUBLIC_KEY }}
+          WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
+        run: |
+          $Missing = @()
+          foreach ($Name in @('PFX', 'PFX_PASSWORD', 'MSIX_PUBLISHER', 'UPDATE_FEED_BASE_URL', 'WINSPARKLE_PUBLIC_KEY', 'WINSPARKLE_PRIVATE_KEY')) {
+            $Value = [Environment]::GetEnvironmentVariable($Name)
+            if ([string]::IsNullOrWhiteSpace($Value)) { $Missing += $Name }
+          }
+          if ($Missing.Count) {
+            throw "Signed release cannot proceed. Missing: $($Missing -join ', '). Local unsigned package.bat builds remain available."
+          }
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cache/whisper.cpp
+            .cache/sccache
+            build/ffmpeg-8.1.2-windows-x64/install
+            build/ffmpeg-8.1.2-windows-x64/ffmpeg-8.1.2.tar.xz
+            build/winsparkle-0.9.3/install
+            build/winsparkle-0.9.3/WinSparkle-0.9.3.zip
+          key: release-windows-${{ env.WHISPER_CPP_REF }}-ffmpeg-8.1.2-winsparkle-0.9.3
+      - name: Prepare pinned whisper.cpp source
+        shell: bash
+        run: |
+          if [[ ! -d .cache/whisper.cpp/.git ]]; then
+            rm -rf .cache/whisper.cpp
+            git init .cache/whisper.cpp
+            git -C .cache/whisper.cpp remote add origin https://github.com/ggml-org/whisper.cpp.git
+          fi
+          if [[ "$(git -C .cache/whisper.cpp rev-parse HEAD 2>/dev/null || true)" != "$WHISPER_CPP_REF" ]]; then
+            git -C .cache/whisper.cpp fetch --depth 1 origin "$WHISPER_CPP_REF"
+            git -C .cache/whisper.cpp checkout --detach "$WHISPER_CPP_REF"
+          fi
+          test "$(git -C .cache/whisper.cpp rev-parse HEAD)" = "$WHISPER_CPP_REF"
+      - name: Decode Authenticode certificate
+        shell: pwsh
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+        run: |
+          $Path = Join-Path $env:RUNNER_TEMP 'breezedesk-release.pfx'
+          [IO.File]::WriteAllBytes($Path, [Convert]::FromBase64String($env:WINDOWS_PFX_BASE64))
+          "BREEZEDESK_SIGNTOOL_CERT=$Path" | Out-File $env:GITHUB_ENV -Append
+      - name: Prepare pinned LGPL FFmpeg and WinSparkle
+        shell: pwsh
+        run: |
+          $Ffmpeg = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
+          $WinSparkle = packaging/windows/fetch-winsparkle.ps1 | Select-Object -Last 1
+          "BREEZEDESK_FFMPEG_DIR=$Ffmpeg" | Out-File $env:GITHUB_ENV -Append
+          "BREEZEDESK_WINSPARKLE_DIR=$WinSparkle" | Out-File $env:GITHUB_ENV -Append
+          "BREEZEDESK_WINSPARKLE_TOOL=$WinSparkle\winsparkle-tool.exe" | Out-File $env:GITHUB_ENV -Append
+      - name: Build and package Universal installer and MSIX
+        shell: cmd
+        env:
+          BREEZEDESK_WHISPER_CPP_SOURCE_DIR: ${{ github.workspace }}/.cache/whisper.cpp
+          BREEZEDESK_SIGNTOOL_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          BREEZEDESK_MSIX_PUBLISHER: ${{ vars.WINDOWS_MSIX_PUBLISHER }}
+          BREEZEDESK_PACKAGE_UPDATES: '1'
+          BREEZEDESK_APPCAST_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}/appcast-windows-universal.xml
+          BREEZEDESK_EDDSA_PUBLIC_KEY: ${{ vars.WINSPARKLE_PUBLIC_KEY }}
+        run: packaging\windows\package.bat Universal --msix
+      - name: Sign Universal update enclosure with WinSparkle EdDSA
+        shell: pwsh
+        env:
+          BREEZEDESK_WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
+        run: packaging/windows/sign-winsparkle-update.ps1 "dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-Universal-Setup.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-universal
+          path: |
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-Universal-Setup.exe
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-Universal-Setup.exe.sha256
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-Universal-Setup.exe.edSignature
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix.sha256
+
+  windows-cuda:
+    if: ${{ vars.RUN_WINDOWS_CUDA_PACKAGE == 'true' }}
+    needs: validate
+    runs-on: [self-hosted, Windows, X64, CUDA]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          modules: qtmultimedia qtshadertools
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Verify self-hosted release prerequisites
+        shell: pwsh
+        env:
+          PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+          PFX_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          UPDATE_FEED_BASE_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}
+          WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
+          WINSPARKLE_PUBLIC_KEY: ${{ vars.WINSPARKLE_PUBLIC_KEY }}
+        run: |
+          foreach ($Command in @('cmake.exe', 'ninja.exe', 'makensis.exe', 'magick.exe', 'nvcc.exe', 'windeployqt.exe', 'dumpbin.exe', 'signtool.exe')) {
+            if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) { throw "CUDA release runner is missing $Command." }
+          }
+          if (-not (Test-Path 'C:\msys64\usr\bin\bash.exe')) {
+            throw 'CUDA release runner is missing MSYS2 at C:\msys64.'
+          }
+          if (-not $env:PFX -or -not $env:PFX_PASSWORD -or -not $env:UPDATE_FEED_BASE_URL -or -not $env:WINSPARKLE_PRIVATE_KEY -or -not $env:WINSPARKLE_PUBLIC_KEY) {
+            throw 'CUDA release requires Windows signing credentials and WinSparkle update keys.'
+          }
+      - name: Prepare dependencies and certificate
+        shell: pwsh
+        env:
+          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
+        run: |
+          $Path = Join-Path $env:RUNNER_TEMP 'breezedesk-release.pfx'
+          [IO.File]::WriteAllBytes($Path, [Convert]::FromBase64String($env:WINDOWS_PFX_BASE64))
+          "BREEZEDESK_SIGNTOOL_CERT=$Path" | Out-File $env:GITHUB_ENV -Append
+          $Ffmpeg = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
+          $WinSparkle = packaging/windows/fetch-winsparkle.ps1 | Select-Object -Last 1
+          "BREEZEDESK_FFMPEG_DIR=$Ffmpeg" | Out-File $env:GITHUB_ENV -Append
+          "BREEZEDESK_WINSPARKLE_DIR=$WinSparkle" | Out-File $env:GITHUB_ENV -Append
+          "BREEZEDESK_WINSPARKLE_TOOL=$WinSparkle\winsparkle-tool.exe" | Out-File $env:GITHUB_ENV -Append
+      - name: Build and package CUDA installer
+        shell: cmd
+        env:
+          BREEZEDESK_SIGNTOOL_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          BREEZEDESK_PACKAGE_UPDATES: '1'
+          BREEZEDESK_APPCAST_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}/appcast-windows-cuda.xml
+          BREEZEDESK_EDDSA_PUBLIC_KEY: ${{ vars.WINSPARKLE_PUBLIC_KEY }}
+        run: packaging\windows\package.bat CUDA
+      - name: Sign CUDA update enclosure with WinSparkle EdDSA
+        shell: pwsh
+        env:
+          BREEZEDESK_WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
+        run: packaging/windows/sign-winsparkle-update.ps1 "dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-cuda
+          path: |
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe.sha256
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe.edSignature
+
+  publish:
+    if: >-
+      always() &&
+      needs.validate.result == 'success' &&
+      needs.macos.result == 'success' &&
+      needs.windows-universal.result == 'success' &&
+      (needs.windows-cuda.result == 'success' || needs.windows-cuda.result == 'skipped')
+    needs: [validate, macos, windows-universal, windows-cuda]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded
+      - name: Assemble release artifacts and update feeds
+        shell: bash
+        env:
+          VERSION: ${{ needs.validate.outputs.version }}
+          PRODUCT_NAME: ${{ needs.validate.outputs.product_name }}
+        run: |
+          mkdir -p release-assets
+          find downloaded -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msix' -o -name '*.edSignature' \) -exec cp {} release-assets/ \;
+          mapfile -d '' artifacts < <(find release-assets -maxdepth 1 -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.msix' \) -print0 | sort -z)
+          if (( ${#artifacts[@]} < 3 )); then
+            echo "Expected macOS DMG, Windows Universal installer, and MSIX artifacts." >&2
+            exit 1
+          fi
+          python3 scripts/generate-release-metadata.py \
+            --version "$VERSION" \
+            --product-name "$PRODUCT_NAME" \
+            --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}" \
+            --output-directory release-assets \
+            --release-notes downloaded/release-notes/release-notes.md \
+            --require-update-signatures \
+            "${artifacts[@]}"
+      - uses: softprops/action-gh-release@v2
+        with:
+          body_path: downloaded/release-notes/release-notes.md
+          files: release-assets/*
+          fail_on_unmatched_files: true

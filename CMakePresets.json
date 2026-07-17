@@ -1,0 +1,52 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": { "major": 3, "minor": 24, "patch": 0 },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_UNITY_BUILD": "OFF",
+        "BREEZEDESK_WARNINGS_AS_ERRORS": "ON"
+      }
+    },
+    {
+      "name": "debug",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+    },
+    {
+      "name": "release",
+      "inherits": "base",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BREEZEDESK_BUILD_TESTS": "OFF" }
+    },
+    {
+      "name": "windows-universal",
+      "inherits": "release",
+      "cacheVariables": { "BREEZEDESK_WINDOWS_BACKEND": "VULKAN" }
+    },
+    {
+      "name": "windows-cuda",
+      "inherits": "release",
+      "cacheVariables": { "BREEZEDESK_WINDOWS_BACKEND": "CUDA" }
+    },
+    {
+      "name": "windows-cpu",
+      "inherits": "release",
+      "cacheVariables": { "BREEZEDESK_WINDOWS_BACKEND": "CPU" }
+    }
+  ],
+  "buildPresets": [
+    { "name": "debug", "configurePreset": "debug" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "windows-universal", "configurePreset": "windows-universal" },
+    { "name": "windows-cuda", "configurePreset": "windows-cuda" },
+    { "name": "windows-cpu", "configurePreset": "windows-cpu" }
+  ],
+  "testPresets": [
+    { "name": "debug", "configurePreset": "debug", "output": { "outputOnFailure": true } }
+  ]
+}

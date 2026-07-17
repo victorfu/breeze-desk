@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key><string>en</string>
+  <key>CFBundleDisplayName</key><string>${BREEZEDESK_OUTPUT_NAME}</string>
+  <key>CFBundleExecutable</key><string>${BREEZEDESK_OUTPUT_NAME}</string>
+  <key>CFBundleIdentifier</key><string>${BREEZEDESK_BUNDLE_ID}</string>
+  <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+  <key>CFBundleName</key><string>${BREEZEDESK_OUTPUT_NAME}</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>CFBundleShortVersionString</key><string>${PROJECT_VERSION}</string>
+  <key>CFBundleVersion</key><string>${PROJECT_VERSION}</string>
+  <key>LSMinimumSystemVersion</key><string>${CMAKE_OSX_DEPLOYMENT_TARGET}</string>
+  <key>LSApplicationCategoryType</key><string>public.app-category.productivity</string>
+  <key>NSHighResolutionCapable</key><true/>
+  <key>NSMicrophoneUsageDescription</key><string>${BREEZEDESK_PRODUCT_NAME} uses the microphone only when you start a local recording.</string>
+${BREEZEDESK_SPARKLE_INFO_PLIST_KEYS}
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>Media</string>
+      <key>CFBundleTypeRole</key><string>Viewer</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array><string>public.audio</string><string>public.movie</string></array>
+    </dict>
+  </array>
+</dict>
+</plist>

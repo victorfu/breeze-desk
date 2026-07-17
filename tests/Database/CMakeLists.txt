@@ -1,0 +1,5 @@
+qt_add_executable(tst_Database tst_Database.cpp)
+target_link_libraries(tst_Database PRIVATE breezedesk_database Qt6::Test Qt6::Sql)
+breezedesk_enable_strict_warnings(tst_Database)
+add_test(NAME Database.Repository COMMAND tst_Database)
+set_tests_properties(Database.Repository PROPERTIES LABELS "Database;Unit")

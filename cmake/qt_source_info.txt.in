@@ -1,0 +1,12 @@
+Qt @Qt6_VERSION@
+
+@BREEZEDESK_PRODUCT_NAME@ dynamically links the Qt libraries deployed beside this binary distribution.
+The corresponding complete Qt source archive is available from:
+
+https://download.qt.io/archive/qt/@BREEZEDESK_QT_SERIES@/@Qt6_VERSION@/single/qt-everywhere-src-@Qt6_VERSION@.tar.xz
+
+Qt source repositories and release tags:
+
+https://code.qt.io/cgit/qt/
+
+Applicable terms are included beside this file as LGPL-3.0-only.txt and GPL-3.0-only.txt.

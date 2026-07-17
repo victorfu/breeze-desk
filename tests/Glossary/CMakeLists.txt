@@ -1,0 +1,5 @@
+qt_add_executable(tst_Glossary tst_Glossary.cpp)
+target_link_libraries(tst_Glossary PRIVATE breezedesk_glossary Qt6::Test Qt6::Sql)
+breezedesk_enable_strict_warnings(tst_Glossary)
+add_test(NAME Glossary.RepositoryPromptAudit COMMAND tst_Glossary)
+set_tests_properties(Glossary.RepositoryPromptAudit PROPERTIES LABELS "Glossary;Unit")

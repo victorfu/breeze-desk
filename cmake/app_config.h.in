@@ -1,0 +1,28 @@
+#pragma once
+
+namespace BreezeDesk::AppConfig {
+
+inline constexpr auto ProductName = "@BREEZEDESK_PRODUCT_NAME@";
+inline constexpr auto OrganizationName = "@BREEZEDESK_ORGANIZATION_NAME@";
+inline constexpr auto OrganizationDomain = "@BREEZEDESK_ORGANIZATION_DOMAIN@";
+inline constexpr auto ReleaseExecutableName = "@BREEZEDESK_RELEASE_EXECUTABLE_NAME@";
+inline constexpr auto DebugExecutableName = "@BREEZEDESK_DEBUG_EXECUTABLE_NAME@";
+inline constexpr auto WorkerExecutableName = "@BREEZEDESK_WORKER_EXECUTABLE_NAME@";
+inline constexpr auto CliExecutableName = "@BREEZEDESK_CLI_EXECUTABLE_NAME@";
+inline constexpr auto ReleaseBundleId = "@BREEZEDESK_RELEASE_BUNDLE_ID@";
+inline constexpr auto DebugBundleId = "@BREEZEDESK_DEBUG_BUNDLE_ID@";
+inline constexpr auto WindowsProductId = "@BREEZEDESK_WINDOWS_PRODUCT_ID@";
+inline constexpr auto ReleaseDataDirectoryName = "@BREEZEDESK_RELEASE_DATA_DIRECTORY_NAME@";
+inline constexpr auto DebugDataDirectoryName = "@BREEZEDESK_DEBUG_DATA_DIRECTORY_NAME@";
+
+#if defined(NDEBUG)
+inline constexpr auto DisplayName = ProductName;
+inline constexpr auto BundleId = ReleaseBundleId;
+inline constexpr auto DataDirectoryName = ReleaseDataDirectoryName;
+#else
+inline constexpr auto DisplayName = DebugExecutableName;
+inline constexpr auto BundleId = DebugBundleId;
+inline constexpr auto DataDirectoryName = DebugDataDirectoryName;
+#endif
+
+} // namespace BreezeDesk::AppConfig

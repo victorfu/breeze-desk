@@ -1,0 +1,5 @@
+qt_add_executable(tst_Models tst_Models.cpp ${PROJECT_SOURCE_DIR}/resources/resources.qrc)
+target_link_libraries(tst_Models PRIVATE breezedesk_models Qt6::Test Qt6::Network)
+breezedesk_enable_strict_warnings(tst_Models)
+add_test(NAME Models.ManifestDownload COMMAND tst_Models)
+set_tests_properties(Models.ManifestDownload PROPERTIES LABELS "Models;Unit")

@@ -1,0 +1,17 @@
+name: Bug report
+description: Report a reproducible application problem without attaching private audio or transcripts.
+body:
+  - type: textarea
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Sanitized diagnostics
+      description: Do not include audio, transcripts, glossary entries, or personal paths.

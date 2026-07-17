@@ -1,0 +1,12 @@
+add_executable(normalization_process_helper normalization_process_helper.cpp)
+target_link_libraries(normalization_process_helper PRIVATE Qt6::Core)
+breezedesk_enable_strict_warnings(normalization_process_helper)
+
+qt_add_executable(tst_Audio tst_Audio.cpp)
+target_link_libraries(tst_Audio PRIVATE breezedesk_audio Qt6::Test)
+target_compile_definitions(tst_Audio PRIVATE
+    BREEZEDESK_NORMALIZATION_HELPER_PATH="$<TARGET_FILE:normalization_process_helper>")
+add_dependencies(tst_Audio normalization_process_helper)
+breezedesk_enable_strict_warnings(tst_Audio)
+add_test(NAME Audio.MetadataWaveform COMMAND tst_Audio)
+set_tests_properties(Audio.MetadataWaveform PROPERTIES LABELS "Audio;Unit")

@@ -1,0 +1,16 @@
+#pragma once
+
+#include <QLoggingCategory>
+
+namespace BreezeDesk {
+
+Q_DECLARE_LOGGING_CATEGORY(logApplication)
+Q_DECLARE_LOGGING_CATEGORY(logAsr)
+Q_DECLARE_LOGGING_CATEGORY(logAudio)
+Q_DECLARE_LOGGING_CATEGORY(logCli)
+Q_DECLARE_LOGGING_CATEGORY(logDatabase)
+Q_DECLARE_LOGGING_CATEGORY(logIpc)
+Q_DECLARE_LOGGING_CATEGORY(logModels)
+Q_DECLARE_LOGGING_CATEGORY(logWorker)
+
+} // namespace BreezeDesk

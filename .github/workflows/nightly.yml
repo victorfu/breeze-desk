@@ -1,0 +1,115 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '30 18 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: 6.10.1
+  WHISPER_CPP_REF: f049fff95a089aa9969deb009cdd4892b3e74916
+  CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
+
+jobs:
+  dependency-and-long-form:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - name: Verify immutable dependency and model metadata
+        shell: bash
+        run: |
+          test "$(python3 -c 'import json; print(json.load(open("resources/models/models.json"))["schemaVersion"])')" = "1"
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          manifest = json.loads(Path("resources/models/models.json").read_text(encoding="utf-8"))
+          assert len(manifest["models"]) >= 3
+          for model in manifest["models"]:
+              assert model["fileSize"] > 0
+              assert re.fullmatch(r"[0-9a-f]{64}", model["sha256"])
+              assert re.fullmatch(r"[0-9a-f]{40}", model["sourceRevision"])
+              assert model["downloadUrl"].startswith("https://")
+          PY
+          grep -F 'f049fff95a089aa9969deb009cdd4892b3e74916' CMakeLists.txt
+      - name: Configure synthetic long-form tests without model downloads
+        run: >-
+          cmake -S . -B build/long-form -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBREEZEDESK_ENABLE_WHISPER=OFF
+          -DBREEZEDESK_BUILD_TESTS=ON
+      - name: Build and run four-hour planner pipeline
+        run: |
+          cmake --build build/long-form --target tst_asr_core --parallel
+          ctest --test-dir build/long-form -R '^Asr.Core$' --output-on-failure --no-tests=error
+
+  tiny-model-integration:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          modules: qtmultimedia qtshadertools
+          cache: true
+      - run: brew install ccache
+      - uses: actions/cache@v4
+        with:
+          path: |
+            .cache/whisper.cpp
+            .cache/ccache
+            build/nightly/test-models
+          key: nightly-macos-${{ env.WHISPER_CPP_REF }}-tiny-en-q5-1
+      - name: Prepare pinned whisper.cpp source
+        shell: bash
+        run: |
+          if [[ ! -d .cache/whisper.cpp/.git ]]; then
+            rm -rf .cache/whisper.cpp
+            git init .cache/whisper.cpp
+            git -C .cache/whisper.cpp remote add origin https://github.com/ggml-org/whisper.cpp.git
+          fi
+          if [[ "$(git -C .cache/whisper.cpp rev-parse HEAD 2>/dev/null || true)" != "$WHISPER_CPP_REF" ]]; then
+            git -C .cache/whisper.cpp fetch --depth 1 origin "$WHISPER_CPP_REF"
+            git -C .cache/whisper.cpp checkout --detach "$WHISPER_CPP_REF"
+          fi
+          test "$(git -C .cache/whisper.cpp rev-parse HEAD)" = "$WHISPER_CPP_REF"
+      - name: Download checksum-pinned tiny integration model
+        run: scripts/download-test-model.sh "$GITHUB_WORKSPACE/build/nightly/test-models"
+      - name: Configure and build native worker integration
+        run: >-
+          cmake -S . -B build/nightly -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DBREEZEDESK_ENABLE_WHISPER=ON
+          -DBREEZEDESK_BUILD_TESTS=ON
+          -DBREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS=ON
+          -DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=${{ github.workspace }}/.cache/whisper.cpp
+      - run: cmake --build build/nightly --target tst_asr_model_integration --parallel
+      - name: Exercise load, progress, partial segments, and cancellation
+        run: ctest --test-dir build/nightly -R '^Asr.ModelIntegration$' --output-on-failure --no-tests=error
+
+  breeze-model-smoke:
+    if: ${{ vars.RUN_BREEZE_MODEL_SMOKE == 'true' }}
+    runs-on: [self-hosted, macOS, ARM64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify manually provisioned fixtures
+        shell: bash
+        run: |
+          [[ -f "${BREEZEDESK_BREEZE_MODEL_PATH:-}" ]] || { echo "BREEZEDESK_BREEZE_MODEL_PATH is missing" >&2; exit 1; }
+          [[ -f "${BREEZEDESK_LONG_AUDIO_FIXTURE:-}" ]] || { echo "BREEZEDESK_LONG_AUDIO_FIXTURE is missing" >&2; exit 1; }
+      - name: Run real Breeze Q5 long-audio smoke test
+        run: scripts/run-breeze-model-smoke.sh

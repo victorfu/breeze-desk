@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/models">
+    <file alias="models.json">models/models.json</file>
+  </qresource>
+</RCC>
