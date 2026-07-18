@@ -31,14 +31,17 @@ Rectangle {
     signal reviewedRequested(int index, bool reviewed)
     signal glossaryReplacementRequested(int index, int replacementIndex, bool applied)
 
-    readonly property int contentPadding: SemanticTokens.spacingSm
+    readonly property int contentPadding: SemanticTokens.spacingXs
+    readonly property int timeColumnWidth: Math.max(
+                                               80,
+                                               Math.ceil(SemanticTokens.captionSize * 5.8
+                                                         + SemanticTokens.spacingSm))
 
     objectName: "segmentEditor"
-    implicitHeight: Math.max(64, body.implicitHeight + contentPadding * 2)
-    color: selected ? SemanticTokens.accentMuted : SemanticTokens.surface
-    radius: SemanticTokens.radiusMd
-    border.width: selected ? ComponentTokens.focusWidth : 1
-    border.color: selected ? SemanticTokens.accent : SemanticTokens.border
+    implicitHeight: Math.max(48, body.implicitHeight + contentPadding * 2)
+    color: selected ? SemanticTokens.accentMuted : "transparent"
+    radius: 0
+    border.width: 0
     Accessible.name: qsTr("Transcript segment from %1 to %2").arg(startCode.text).arg(endCode.text)
     Accessible.description: lowConfidence
                             ? qsTr("Low-confidence transcript segment")
@@ -46,58 +49,6 @@ Rectangle {
     Accessible.role: Accessible.ListItem
     Accessible.selected: selected
     Accessible.onPressAction: root.selectedRequested(root.modelIndex)
-
-    component CompactCheckBox: T.CheckBox {
-        id: checkBox
-
-        implicitWidth: contentItem.implicitWidth
-        implicitHeight: 30
-        spacing: SemanticTokens.spacingXs
-        font.family: SemanticTokens.fontFamily
-        font.pixelSize: SemanticTokens.captionSize
-        Accessible.name: text
-
-        TapHandler {
-            acceptedButtons: Qt.LeftButton
-            margin: Math.max(0, (ComponentTokens.clickTarget - checkBox.height) / 2)
-            onTapped: function(eventPoint) {
-                if (checkBox.enabled && !checkBox.contains(eventPoint.position)) {
-                    root.selectedRequested(root.modelIndex)
-                    checkBox.toggle()
-                }
-            }
-        }
-
-        indicator: Rectangle {
-            x: 0
-            anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: 16
-            implicitHeight: 16
-            radius: SemanticTokens.radiusSm
-            color: checkBox.checked ? SemanticTokens.accent : "transparent"
-            border.width: checkBox.activeFocus ? ComponentTokens.focusWidth : 1
-            border.color: checkBox.activeFocus ? SemanticTokens.focusRing
-                                               : (checkBox.checked ? SemanticTokens.accent
-                                                                   : SemanticTokens.borderStrong)
-
-            Rectangle {
-                anchors.centerIn: parent
-                width: 7
-                height: 7
-                radius: 1
-                visible: checkBox.checked
-                color: SemanticTokens.textOnAccent
-            }
-        }
-
-        contentItem: Text {
-            leftPadding: checkBox.indicator.width + checkBox.spacing
-            text: checkBox.text
-            color: checkBox.enabled ? SemanticTokens.text : SemanticTokens.textMuted
-            font: checkBox.font
-            verticalAlignment: Text.AlignVCenter
-        }
-    }
 
     MouseArea {
         anchors.fill: parent
@@ -124,11 +75,10 @@ Rectangle {
                 id: timeColumn
 
                 objectName: "segmentTimeColumn"
-                readonly property real requiredWidth: Math.max(66, startCode.implicitWidth,
-                                                               endCode.implicitWidth)
                 Layout.alignment: Qt.AlignTop
-                Layout.preferredWidth: requiredWidth
-                Layout.minimumWidth: requiredWidth
+                Layout.preferredWidth: root.timeColumnWidth
+                Layout.minimumWidth: root.timeColumnWidth
+                Layout.maximumWidth: root.timeColumnWidth
                 spacing: 0
 
                 TimeCode {
@@ -136,6 +86,8 @@ Rectangle {
                     objectName: "segmentStartTimeCode"
 
                     Layout.fillWidth: true
+                    padding: 2
+                    implicitHeight: Math.max(22, contentItem.implicitHeight + topPadding + bottomPadding)
                     milliseconds: root.startMs
                     onSeekRequested: function(position) {
                         root.selectedRequested(root.modelIndex)
@@ -148,6 +100,8 @@ Rectangle {
                     objectName: "segmentEndTimeCode"
 
                     Layout.fillWidth: true
+                    padding: 2
+                    implicitHeight: Math.max(22, contentItem.implicitHeight + topPadding + bottomPadding)
                     milliseconds: root.endMs
                     onSeekRequested: function(position) {
                         root.selectedRequested(root.modelIndex)
@@ -224,19 +178,6 @@ Rectangle {
                         visible: root.glossaryReplacement
                         text: qsTr("Glossary")
                         tone: "success"
-                    }
-                    Item {
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
-                    }
-                    CompactCheckBox {
-                        objectName: "segmentReviewedControl"
-                        text: qsTr("Reviewed")
-                        checked: root.reviewed
-                        enabled: !root.editingLocked
-                        onPressed: root.selectedRequested(root.modelIndex)
-                        onActiveFocusChanged: if (activeFocus) root.selectedRequested(root.modelIndex)
-                        onToggled: root.reviewedRequested(root.modelIndex, checked)
                     }
                 }
             }
@@ -328,5 +269,16 @@ Rectangle {
                 }
             }
         }
+    }
+
+    Rectangle {
+        id: separator
+
+        objectName: "segmentSeparator"
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        height: 1
+        color: root.selected ? SemanticTokens.accent : SemanticTokens.border
     }
 }

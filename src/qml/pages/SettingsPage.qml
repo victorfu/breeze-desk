@@ -122,7 +122,7 @@ Item {
                 }
                 SettingRow {
                     label: qsTr("Text size")
-                    Slider {
+                    AppSlider {
                         Layout.fillWidth: true
                         from: 0.8; to: 1.5; stepSize: 0.1; value: root.vm.textScale
                         Accessible.name: qsTr("Text size")
@@ -174,7 +174,12 @@ Item {
                 }
                 SettingRow {
                     label: qsTr("Backend")
-                    AppComboBox { Layout.fillWidth: true; model: ["Auto", "CPU", "Metal", "Vulkan", "CUDA"]; currentIndex: model.indexOf(root.vm.backend); onActivated: root.vm.backend = model[currentIndex] }
+                    AppComboBox {
+                        Layout.fillWidth: true
+                        model: [qsTr("Automatic"), "CPU", "Metal", "Vulkan", "CUDA"]
+                        currentIndex: ["Auto", "CPU", "Metal", "Vulkan", "CUDA"].indexOf(root.vm.backend)
+                        onActivated: root.vm.backend = ["Auto", "CPU", "Metal", "Vulkan", "CUDA"][currentIndex]
+                    }
                 }
                 SettingRow { label: qsTr("Flash attention"); Toggle { checked: root.vm.flashAttention; onToggled: root.vm.flashAttention = checked } }
                 SettingRow { label: qsTr("Token timestamps"); Toggle { checked: root.vm.tokenTimestamps; onToggled: root.vm.tokenTimestamps = checked } }
@@ -184,7 +189,7 @@ Item {
                 }
                 SettingRow {
                     label: qsTr("Low-confidence threshold")
-                    Slider { Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.05; value: root.vm.lowConfidenceThreshold; Accessible.name: qsTr("Low-confidence threshold"); onMoved: root.vm.lowConfidenceThreshold = value }
+                    AppSlider { Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.05; value: root.vm.lowConfidenceThreshold; Accessible.name: qsTr("Low-confidence threshold"); onMoved: root.vm.lowConfidenceThreshold = value }
                 }
             }
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: SemanticTokens.border }

@@ -34,6 +34,7 @@
 #include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLocale>
 #include <QMenu>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -241,6 +242,7 @@ int main(int argc, char* argv[]) {
         application.removeTranslator(&uiTranslator);
         const QString locale =
             language == QLatin1String("zh_TW") ? QStringLiteral("zh_TW") : QStringLiteral("en");
+        QLocale::setDefault(QLocale(locale));
         if (uiTranslator.load(QStringLiteral(":/i18n/breezedesk_%1.qm").arg(locale))) {
             application.installTranslator(&uiTranslator);
         }
@@ -799,6 +801,17 @@ int main(int argc, char* argv[]) {
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::activeCountChanged, &queueAction,
                      updateTrayQueue);
     updateTrayQueue();
+    const auto retranslateTrayMenu = [&showAction, &importAction, &recordAction, &pauseAction, &quitAction,
+                                      &productName, updateTrayQueue] {
+        showAction.setText(QObject::tr("Show %1").arg(productName));
+        importAction.setText(QObject::tr("Import Files"));
+        recordAction.setText(QObject::tr("Start Recording"));
+        pauseAction.setText(QObject::tr("Pause after current job"));
+        quitAction.setText(QObject::tr("Quit"));
+        updateTrayQueue();
+    };
+    QObject::connect(viewModel->settings(), &BreezeDesk::SettingsViewModel::languageChanged, &trayMenu,
+                     retranslateTrayMenu);
     QObject::connect(&quitAction, &QAction::triggered, &application, [&engine, showWindow] {
         showWindow();
         if (!engine.rootObjects().isEmpty()) {

@@ -36,6 +36,5 @@ T.MenuItem {
     background: Rectangle {
         radius: SemanticTokens.radiusSm
         color: control.down || control.highlighted ? SemanticTokens.accentMuted : "transparent"
-        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
     }
 }

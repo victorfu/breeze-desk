@@ -29,11 +29,13 @@ Rectangle {
     signal defaultRequested(string id)
     signal licenseRequested(url url)
     signal sourceRequested(url url)
+    readonly property string displayedModelState: UiText.modelState(modelState)
+    readonly property string displayedDescription: UiText.modelDescription(modelId, description)
     implicitHeight: card.implicitHeight + SemanticTokens.spacingLg * 2
     color: SemanticTokens.surface
     radius: ComponentTokens.cardRadius
     border.color: SemanticTokens.border
-    Accessible.name: displayName + ", " + modelState
+    Accessible.name: displayName + ", " + displayedModelState
     ColumnLayout {
         id: card
         anchors.fill: parent
@@ -57,7 +59,7 @@ Rectangle {
                 }
                 Text {
                     Layout.fillWidth: true
-                    text: root.description
+                    text: root.displayedDescription
                     color: SemanticTokens.textMuted
                     wrapMode: Text.Wrap
                     font.family: SemanticTokens.fontFamily
@@ -106,7 +108,7 @@ Rectangle {
                      || root.modelState === "Paused" || root.modelState === "Verifying"
                      || root.modelState === "Testing"
             value: root.progress
-            statusText: root.modelState
+            statusText: root.displayedModelState
         }
         RowLayout {
             Layout.fillWidth: true

@@ -667,7 +667,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: SemanticTokens.spacingMd
-                    Slider {
+                    AppSlider {
                         id: priority
                         Layout.fillWidth: true
                         from: 0

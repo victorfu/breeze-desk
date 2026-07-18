@@ -21,9 +21,10 @@ ItemDelegate {
     signal relinkRequested(string id)
     signal editTagsRequested(string id, var tags)
     signal reviewRequested(string id, bool reviewed)
-    implicitHeight: 116
-    padding: SemanticTokens.spacingMd
-    Accessible.name: title + ", " + status
+    readonly property string displayedStatus: UiText.recordingStatus(status)
+    implicitHeight: Math.max(72, contentItem.implicitHeight + topPadding + bottomPadding)
+    padding: SemanticTokens.spacingSm
+    Accessible.name: title + ", " + displayedStatus
     Accessible.description: qsTr("Open recording details")
     onClicked: openRequested(recordingId)
     background: Rectangle {
@@ -32,24 +33,37 @@ ItemDelegate {
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
         border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
     }
-    contentItem: RowLayout {
-        spacing: SemanticTokens.spacingMd
+    contentItem: Item {
+        id: cardContent
+
+        implicitHeight: Math.max(details.implicitHeight, actionRow.implicitHeight)
+
         Rectangle {
-            Layout.preferredWidth: 42
-            Layout.preferredHeight: 42
+            id: mediaMarker
+            anchors.left: parent.left
+            anchors.top: parent.top
+            width: 36
+            height: 36
             radius: SemanticTokens.radiusMd
             color: SemanticTokens.accentMuted
             Rectangle {
                 anchors.centerIn: parent
-                width: 18
+                width: 16
                 height: 3
                 radius: 2
                 color: SemanticTokens.accentStrong
             }
         }
+
         ColumnLayout {
-            Layout.fillWidth: true
+            id: details
+            anchors.left: mediaMarker.right
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.leftMargin: SemanticTokens.spacingSm
+            anchors.rightMargin: actionRow.implicitWidth + SemanticTokens.spacingSm
             spacing: SemanticTokens.spacingXs
+
             Text {
                 Layout.fillWidth: true
                 text: control.title
@@ -59,10 +73,21 @@ ItemDelegate {
                 font.pixelSize: SemanticTokens.bodySize
                 font.weight: Font.DemiBold
             }
-            RowLayout {
-                spacing: SemanticTokens.spacingSm
-                TimeCode { milliseconds: control.durationMs; enabled: false }
-                StatusBadge { text: control.status; tone: control.status === "Completed" ? "success" : "neutral" }
+
+            Flow {
+                id: metadata
+                Layout.fillWidth: true
+                Layout.preferredHeight: implicitHeight
+                spacing: SemanticTokens.spacingXs
+
+                TimeCode {
+                    milliseconds: control.durationMs
+                    enabled: false
+                }
+                StatusBadge {
+                    text: control.displayedStatus
+                    tone: control.status === "Completed" ? "success" : "neutral"
+                }
                 StatusBadge {
                     text: control.reviewState.toLowerCase() === "reviewed"
                           ? qsTr("Reviewed") : qsTr("Unreviewed")
@@ -71,17 +96,23 @@ ItemDelegate {
                 Text {
                     visible: control.modelName.length > 0
                     text: control.modelName
+                    height: metadataRowHeight
+                    verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
                     font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
+                    readonly property real metadataRowHeight: 28
                 }
                 Text {
-                    text: Qt.locale().toString(control.createdAt, Locale.ShortFormat)
+                    text: UiText.shortDateTime(control.createdAt)
+                    height: 28
+                    verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
                     font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
             }
+
             Text {
                 Layout.fillWidth: true
                 visible: control.tags.length > 0
@@ -92,21 +123,31 @@ ItemDelegate {
                 font.pixelSize: SemanticTokens.captionSize
                 Accessible.name: qsTr("Tags: %1").arg(text)
             }
+
             AppProgressBar {
                 Layout.fillWidth: true
                 visible: control.progress > 0 && control.progress < 1
                 value: control.progress
             }
         }
+
         RowLayout {
+            id: actionRow
             objectName: "recordingActionRow"
-            Layout.alignment: Qt.AlignVCenter
-            spacing: SemanticTokens.spacingXs
-            AppButton {
+            anchors.right: parent.right
+            anchors.top: parent.top
+            spacing: 0
+
+            IconButton {
                 id: actionsButton
                 objectName: "recordingActionsButton"
-                text: qsTr("Actions")
-                Accessible.name: qsTr("Actions for %1").arg(control.title)
+                accessibleName: qsTr("Actions for %1").arg(control.title)
+                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/ellipsis.svg"
+
+                ToolTip.visible: hovered
+                ToolTip.text: accessibleName
+                ToolTip.delay: 500
+
                 onClicked: actionsMenu.popup(
                                actionsButton,
                                actionsButton.width - actionsMenu.implicitWidth,
@@ -118,6 +159,7 @@ ItemDelegate {
                 onClicked: control.trashRequested(control.recordingId)
             }
         }
+
         AppMenu {
             id: actionsMenu
             AppMenuItem {

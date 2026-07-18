@@ -2,6 +2,7 @@ set(BREEZEDESK_QML_SINGLETONS
     tokens/PrimitiveTokens.qml
     tokens/SemanticTokens.qml
     tokens/ComponentTokens.qml
+    helpers/UiText.qml
 )
 set_source_files_properties(${BREEZEDESK_QML_SINGLETONS} PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
@@ -13,7 +14,7 @@ set_source_files_properties(${BREEZEDESK_MENUBAR_ICON} PROPERTIES
 set(BREEZEDESK_LUCIDE_ICON_NAMES
     library list-ordered trash-2 box book-open settings
     play pause file-input mic rotate-ccw rotate-cw
-    chevron-up chevron-down undo-2 redo-2 save)
+    chevron-up chevron-down undo-2 redo-2 save ellipsis)
 set(BREEZEDESK_LUCIDE_ICONS)
 foreach(icon_name IN LISTS BREEZEDESK_LUCIDE_ICON_NAMES)
     set(icon_path "${PROJECT_SOURCE_DIR}/resources/icons/lucide/${icon_name}.svg")
@@ -41,12 +42,14 @@ qt_add_qml_module(breezedesk_ui
         controls/AppComboBox.qml
         controls/AppProgressBar.qml
         controls/AppSearchField.qml
+        controls/AppSlider.qml
         controls/AppTextField.qml
         controls/ComboBox.qml
         controls/IconButton.qml
         controls/RemoveButton.qml
         controls/ProgressBar.qml
         controls/SearchField.qml
+        controls/Slider.qml
         controls/ShortcutRegistry.qml
         controls/TextField.qml
         controls/Toggle.qml

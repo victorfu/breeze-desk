@@ -25,7 +25,10 @@ T.Button {
         RowLayout {
             id: buttonContents
             anchors.fill: parent
-            spacing: icon.visible ? control.contentSpacing : 0
+            // Keep spacing between the icon and label only.  Applying RowLayout
+            // spacing to the centering fillers also makes compact icon-only
+            // buttons wider than their content area and clips the icon.
+            spacing: 0
             Item {
                 visible: control.contentAlignment === Qt.AlignHCenter
                 Layout.fillWidth: true
@@ -43,10 +46,13 @@ T.Button {
                 color: control.primary ? SemanticTokens.textOnAccent : SemanticTokens.text
             }
             Text {
+                id: label
+                visible: text.length > 0
                 Layout.alignment: Qt.AlignVCenter
                 Layout.fillWidth: control.contentAlignment !== Qt.AlignHCenter
                 Layout.minimumWidth: 0
                 Layout.preferredWidth: implicitWidth
+                Layout.leftMargin: icon.visible ? control.contentSpacing : 0
                 text: control.text
                 color: control.primary ? SemanticTokens.textOnAccent : SemanticTokens.text
                 font: control.font

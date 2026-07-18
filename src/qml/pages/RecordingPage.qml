@@ -11,6 +11,7 @@ Item {
     readonly property var detail: vm.recordingDetail
     readonly property var transcript: vm.transcript
     readonly property var player: vm.player
+    readonly property string displayedRecordingStatus: UiText.recordingStatus(detail.status)
     readonly property bool compactInspector: width < 1040
     readonly property bool narrowTools: recordingMainPane.width < 680 * DesignSystem.textScale
     readonly property bool narrowTimeline: recordingMainPane.width < 440 * DesignSystem.textScale
@@ -39,7 +40,7 @@ Item {
                     Layout.fillWidth: true
                     Text { text: qsTr("Status"); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize }
                     Item { Layout.fillWidth: true }
-                    Text { text: root.detail.status; color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize; elide: Text.ElideRight; Layout.maximumWidth: 170 }
+                    Text { text: root.displayedRecordingStatus; color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize; elide: Text.ElideRight; Layout.maximumWidth: 170 }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -111,7 +112,7 @@ Item {
                     font.weight: Font.DemiBold
                 }
                 RowLayout {
-                    StatusBadge { text: root.detail.status; tone: "neutral" }
+                    StatusBadge { text: root.displayedRecordingStatus; tone: "neutral" }
                     Text { text: root.detail.sourcePath; color: SemanticTokens.textMuted; elide: Text.ElideMiddle; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize; Layout.maximumWidth: 520 }
                 }
             }
@@ -202,7 +203,10 @@ Item {
                                     onClicked: root.player.skipBackward()
                                 }
                                 AppButton {
+                                    objectName: "recordingPlayPauseButton"
                                     implicitWidth: ComponentTokens.clickTarget
+                                    implicitHeight: ComponentTokens.clickTarget
+                                    iconSize: 20
                                     iconSource: root.player.playing
                                                 ? "qrc:/qt/qml/BreezeDesk/icons/lucide/pause.svg"
                                                 : "qrc:/qt/qml/BreezeDesk/icons/lucide/play.svg"
@@ -223,7 +227,7 @@ Item {
                             }
 
                             TimeCode { milliseconds: root.player.position; enabled: false }
-                            Slider {
+                            AppSlider {
                                 objectName: "playbackPositionSlider"
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 160
@@ -245,6 +249,7 @@ Item {
                             rowSpacing: SemanticTokens.spacingXs
 
                             AppComboBox {
+                                objectName: "playbackRateComboBox"
                                 Layout.fillWidth: root.narrowTransportOptions
                                 Layout.preferredWidth: 86
                                 Accessible.name: qsTr("Playback rate")
@@ -258,7 +263,7 @@ Item {
                                 checked: root.player.muted
                                 onToggled: root.player.muted = checked
                             }
-                            Slider {
+                            AppSlider {
                                 objectName: "volumeSlider"
                                 Layout.fillWidth: root.narrowTransportOptions
                                 Layout.preferredWidth: 92
@@ -392,7 +397,7 @@ Item {
                     Layout.fillHeight: true
                     visible: root.transcript.visibleSegmentCount > 0
                     model: root.transcript.segments
-                    spacing: SemanticTokens.spacingXs
+                    spacing: 0
                     clip: true
                     reuseItems: true
                     cacheBuffer: height

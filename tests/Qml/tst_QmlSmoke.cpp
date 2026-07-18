@@ -24,6 +24,7 @@
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTemporaryFile>
+#include <QTranslator>
 #include <QtTest>
 
 #include <atomic>
@@ -238,6 +239,55 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 
+    void dynamicPresentationTextRetranslates() {
+        QTranslator translator;
+        QVERIFY2(translator.load(QStringLiteral(":/i18n-test/breezedesk_zh_TW.qm")),
+                 "The embedded Traditional Chinese catalog could not be loaded.");
+        QVERIFY(QCoreApplication::installTranslator(&translator));
+
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import BreezeDesk
+
+            QtObject {
+                property string importedStatus: UiText.recordingStatus("Imported")
+                property string cancelledState: UiText.jobState("Cancelled")
+                property string preparingStage: UiText.jobStage("Preparing")
+                property string downloadingState: UiText.modelState("Downloading")
+                property string builtInModelDescription:
+                    UiText.modelDescription("breeze-asr-25-q5", "")
+                property string technicalName: UiText.modelState("Metal")
+                property string localizedDateTime:
+                    UiText.shortDateTime(new Date(2026, 6, 17, 23, 13))
+            }
+        )",
+                          QUrl(QStringLiteral("inline:DynamicPresentationTextTest.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+
+        QCOMPARE(root->property("importedStatus").toString(), QStringLiteral("已匯入"));
+        QCOMPARE(root->property("cancelledState").toString(), QStringLiteral("已取消"));
+        QCOMPARE(root->property("preparingStage").toString(), QStringLiteral("準備中"));
+        QCOMPARE(root->property("downloadingState").toString(), QStringLiteral("下載中"));
+        QCOMPARE(root->property("builtInModelDescription").toString(),
+                 QStringLiteral("建議用於 Apple Silicon 與 8 GB 記憶體系統的離線模型。"));
+        QCOMPARE(root->property("technicalName").toString(), QStringLiteral("Metal"));
+        QVERIFY(!root->property("localizedDateTime").toString().contains(QStringLiteral("PM")));
+        QVERIFY(!root->property("localizedDateTime").toString().contains(QStringLiteral("AM")));
+
+        QVERIFY(QCoreApplication::removeTranslator(&translator));
+        engine.retranslate();
+        QCOMPARE(root->property("importedStatus").toString(), QStringLiteral("Imported"));
+        QCOMPARE(root->property("cancelledState").toString(), QStringLiteral("Cancelled"));
+        QCOMPARE(root->property("downloadingState").toString(), QStringLiteral("Downloading"));
+        QVERIFY(root->property("localizedDateTime").toString().contains(QStringLiteral("PM")));
+    }
+
     void primaryButtonIconUsesAccentForeground() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
@@ -325,6 +375,8 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
 
         auto* removeButton = root->findChild<QQuickItem*>(QStringLiteral("sharedRemoveButton"));
+        auto* recordingCard =
+            root->findChild<QQuickItem*>(QStringLiteral("fixtureRecordingCard"));
         auto* recordingActionRow =
             root->findChild<QQuickItem*>(QStringLiteral("recordingActionRow"));
         auto* recordingActions =
@@ -332,12 +384,23 @@ class tst_QmlSmoke final : public QObject {
         auto* recordingTrash = root->findChild<QQuickItem*>(QStringLiteral("recordingTrashButton"));
         auto* openMenuItem = root->findChild<QObject*>(QStringLiteral("recordingOpenMenuItem"));
         QVERIFY(removeButton);
+        QVERIFY(recordingCard);
         QVERIFY(recordingActionRow);
         QVERIFY(recordingActions);
         QVERIFY(recordingTrash);
         QVERIFY(openMenuItem);
 
         QCoreApplication::processEvents();
+        QVERIFY2(recordingCard->height() <= 88.0,
+                 "A library recording row should remain compact at the default text scale.");
+        const QRectF actionRowRect = recordingActionRow->mapRectToItem(
+            recordingCard,
+            QRectF(0.0, 0.0, recordingActionRow->width(), recordingActionRow->height()));
+        const qreal cardPadding = recordingCard->property("padding").toReal();
+        QVERIFY2(actionRowRect.top() <= cardPadding + 0.5,
+                 "Recording action icons must be aligned to the card's top edge.");
+        QVERIFY2(recordingCard->width() - actionRowRect.right() <= cardPadding + 0.5,
+                 "Recording action icons must be aligned to the card's right edge.");
         const qreal actionsCenterY =
             recordingActions
                 ->mapToItem(recordingActionRow,
@@ -354,13 +417,23 @@ class tst_QmlSmoke final : public QObject {
                  "The recording Actions and Trash controls must share one horizontal row.");
 
         const QUrl expectedIcon(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"));
+        const QUrl expectedActionsIcon(
+            QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/ellipsis.svg"));
         QCOMPARE(removeButton->property("iconSource").toUrl(), expectedIcon);
         QCOMPARE(recordingTrash->property("iconSource").toUrl(), expectedIcon);
+        QCOMPARE(recordingActions->property("iconSource").toUrl(), expectedActionsIcon);
+        QVERIFY(recordingActions->property("text").toString().isEmpty());
+        QVERIFY(recordingActions->width() <= 40.0);
+        QVERIFY(recordingTrash->width() <= 40.0);
         QCOMPARE(removeButton->property("iconColor").value<QColor>(), QColor(QStringLiteral("#C83D4B")));
         QCOMPARE(removeButton->property("accessibleName").toString(), QStringLiteral("Remove fixture"));
         QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(removeButton);
         QVERIFY(interface);
         QCOMPARE(interface->text(QAccessible::Name), QStringLiteral("Remove fixture"));
+        QAccessibleInterface* actionsInterface = QAccessible::queryAccessibleInterface(recordingActions);
+        QVERIFY(actionsInterface);
+        QCOMPARE(actionsInterface->text(QAccessible::Name),
+                 QStringLiteral("Actions for Fixture recording"));
 
         QVERIFY(QMetaObject::invokeMethod(openMenuItem, "triggered", Qt::DirectConnection));
         QCOMPARE(root->property("openRequests").toInt(), 1);
@@ -925,7 +998,12 @@ class tst_QmlSmoke final : public QObject {
         auto* waveform = root->findChild<QQuickItem*>(QStringLiteral("recordingWaveformCard"));
         auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
         auto* timeline = root->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackTimeline"));
+        auto* playPauseButton =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingPlayPauseButton"));
+        auto* playPauseIcon =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingPlayPauseButtonIcon"));
         auto* positionSlider = root->findChild<QQuickItem*>(QStringLiteral("playbackPositionSlider"));
+        auto* rateCombo = root->findChild<QQuickItem*>(QStringLiteral("playbackRateComboBox"));
         auto* options = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportOptions"));
         auto* transcriptToolbar = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
         QVERIFY(window);
@@ -939,9 +1017,16 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(waveform);
         QVERIFY(transport);
         QVERIFY(timeline);
+        QVERIFY(playPauseButton);
+        QVERIFY(playPauseIcon);
         QVERIFY(positionSlider);
+        QVERIFY(rateCombo);
         QVERIFY(options);
         QVERIFY(transcriptToolbar);
+
+        auto* rateIndicator =
+            qobject_cast<QQuickItem*>(rateCombo->property("indicator").value<QObject*>());
+        QVERIFY(rateIndicator);
 
         vm->settings()->setCompactMode(true);
         vm->settings()->setCompactMode(false);
@@ -986,6 +1071,30 @@ class tst_QmlSmoke final : public QObject {
                                     .arg(inspector->width())
                                     .arg(inspector->property("visible").toBool())));
             QVERIFY(positionSlider->width() >= 160.0);
+            const QPointF rateIndicatorOrigin = rateIndicator->mapToItem(rateCombo, QPointF{});
+            QVERIFY(rateIndicatorOrigin.x() >= -0.5 && rateIndicatorOrigin.y() >= -0.5);
+            QVERIFY(rateIndicatorOrigin.x() + rateIndicator->width()
+                    <= rateCombo->width() + 0.5);
+            QVERIFY(rateIndicatorOrigin.y() + rateIndicator->height()
+                    <= rateCombo->height() + 0.5);
+            QCOMPARE(playPauseButton->width(), 40.0);
+            QCOMPARE(playPauseButton->height(), 40.0);
+            QCOMPARE(playPauseIcon->width(), 20.0);
+            QCOMPARE(playPauseIcon->height(), 20.0);
+            const QPointF playIconOrigin = playPauseIcon->mapToItem(playPauseButton, QPointF{});
+            QVERIFY2(playIconOrigin.x() >= -0.5 && playIconOrigin.y() >= -0.5
+                         && playIconOrigin.x() + playPauseIcon->width()
+                                <= playPauseButton->width() + 0.5
+                         && playIconOrigin.y() + playPauseIcon->height()
+                                <= playPauseButton->height() + 0.5,
+                     qPrintable(QStringLiteral("Play/pause icon is clipped: button=%1x%2, "
+                                               "icon=(%3,%4) %5x%6")
+                                    .arg(playPauseButton->width())
+                                    .arg(playPauseButton->height())
+                                    .arg(playIconOrigin.x())
+                                    .arg(playIconOrigin.y())
+                                    .arg(playPauseIcon->width())
+                                    .arg(playPauseIcon->height())));
             QVERIFY(options->width() <= transport->width() + 0.5);
             QVERIFY(transcriptToolbar->width() <= mainPane->width() + 0.5);
             QVERIFY(waveform->height() <= 68.0);
@@ -999,6 +1108,43 @@ class tst_QmlSmoke final : public QObject {
 
         verifyWidth(980, true);
         verifyWidth(1280, false);
+        QCOMPARE(playPauseButton->property("text").toString(), QString());
+        QCOMPARE(playPauseIcon->property("source").toUrl(),
+                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/play.svg")));
+
+        const QSharedPointer<QQuickItemGrabResult> playIconGrab = playPauseIcon->grabToImage();
+        QVERIFY(playIconGrab);
+        QSignalSpy playIconReadySpy(playIconGrab.data(), &QQuickItemGrabResult::ready);
+        if (playIconGrab->image().isNull()) {
+            QVERIFY2(playIconReadySpy.wait(1'000),
+                     "Timed out while rendering the play button icon.");
+        }
+        const QImage playIconImage =
+            playIconGrab->image().convertToFormat(QImage::Format_RGBA8888);
+        QVERIFY(!playIconImage.isNull());
+        QRect paintedBounds;
+        int paintedPixelCount = 0;
+        for (int y = 0; y < playIconImage.height(); ++y) {
+            for (int x = 0; x < playIconImage.width(); ++x) {
+                if (playIconImage.pixelColor(x, y).alpha() <= 32) {
+                    continue;
+                }
+                paintedBounds |= QRect(x, y, 1, 1);
+                ++paintedPixelCount;
+            }
+        }
+        QVERIFY2(paintedPixelCount > 4, "The play button icon did not render.");
+        QVERIFY2(paintedBounds.left() > 0 && paintedBounds.top() > 0
+                     && paintedBounds.right() < playIconImage.width() - 1
+                     && paintedBounds.bottom() < playIconImage.height() - 1,
+                 qPrintable(QStringLiteral("The play icon touches its raster edge: image=%1x%2, "
+                                           "painted=(%3,%4) %5x%6")
+                                .arg(playIconImage.width())
+                                .arg(playIconImage.height())
+                                .arg(paintedBounds.x())
+                                .arg(paintedBounds.y())
+                                .arg(paintedBounds.width())
+                                .arg(paintedBounds.height())));
         vm->settings()->setTextScale(0.9);
         vm->settings()->setTextScale(1.0);
         QCoreApplication::processEvents();
@@ -1107,9 +1253,21 @@ class tst_QmlSmoke final : public QObject {
             const auto editors = visualDescendantsNamed(list, QStringLiteral("segmentEditor"));
             QVERIFY2(!editors.isEmpty(), "The transcript viewport did not instantiate segment delegates.");
             int fullyVisibleEditors = 0;
+            qreal timeColumnWidth = -1.0;
             for (QQuickItem* editor : editors) {
                 const QPointF origin = editor->mapToItem(list, QPointF{});
                 verifyContainedHorizontally(list, editor, QStringLiteral("transcript segment"));
+                QCOMPARE(editor->property("radius").toReal(), 0.0);
+                QVERIFY(visualDescendantsNamed(editor,
+                                               QStringLiteral("segmentReviewedControl")).isEmpty());
+                auto* timeColumn =
+                    visualDescendantsNamed(editor, QStringLiteral("segmentTimeColumn")).value(0);
+                QVERIFY(timeColumn);
+                if (timeColumnWidth < 0.0) {
+                    timeColumnWidth = timeColumn->width();
+                } else {
+                    QVERIFY(qAbs(timeColumn->width() - timeColumnWidth) <= 0.5);
+                }
                 if (origin.y() >= -0.5 && origin.y() + editor->height() <= list->height() + 0.5) {
                     ++fullyVisibleEditors;
                     QVERIFY2(editor->height() <= 76.0,
@@ -1125,14 +1283,16 @@ class tst_QmlSmoke final : public QObject {
 
             auto* editor = editors.constFirst();
             auto* textEditor = visualDescendantsNamed(editor, QStringLiteral("segmentTextEditor")).value(0);
-            auto* reviewedControl =
-                visualDescendantsNamed(editor, QStringLiteral("segmentReviewedControl")).value(0);
+            auto* separator =
+                visualDescendantsNamed(editor, QStringLiteral("segmentSeparator")).value(0);
             QVERIFY(textEditor);
-            QVERIFY(reviewedControl);
+            QVERIFY(separator);
+            QVERIFY(visualDescendantsNamed(editor,
+                                           QStringLiteral("segmentReviewedControl")).isEmpty());
             verifyContainedHorizontally(editor, textEditor, QStringLiteral("segment text editor"));
-            verifyContainedHorizontally(editor, reviewedControl, QStringLiteral("segment reviewed control"));
+            verifyContainedHorizontally(editor, separator, QStringLiteral("segment separator"));
 
-            for (QQuickItem* accessibleItem : {editor, textEditor, reviewedControl}) {
+            for (QQuickItem* accessibleItem : {editor, textEditor}) {
                 QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(accessibleItem);
                 QVERIFY2(interface, qPrintable(accessibleItem->objectName() +
                                                QStringLiteral(" has no accessibility interface.")));
@@ -1219,8 +1379,8 @@ class tst_QmlSmoke final : public QObject {
         auto* timeColumn = visualDescendantsNamed(segment, QStringLiteral("segmentTimeColumn")).value(0);
         auto* textEditor = visualDescendantsNamed(segment, QStringLiteral("segmentTextEditor")).value(0);
         auto* statusRow = visualDescendantsNamed(segment, QStringLiteral("segmentStatusRow")).value(0);
-        auto* reviewedControl =
-            visualDescendantsNamed(segment, QStringLiteral("segmentReviewedControl")).value(0);
+        auto* separator =
+            visualDescendantsNamed(segment, QStringLiteral("segmentSeparator")).value(0);
         auto* actionsRow = visualDescendantsNamed(segment, QStringLiteral("segmentActionsRow")).value(0);
         auto* deleteButton = visualDescendantsNamed(segment, QStringLiteral("segmentDeleteButton")).value(0);
         auto* startTimeCode =
@@ -1230,7 +1390,9 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(timeColumn);
         QVERIFY(textEditor);
         QVERIFY(statusRow);
-        QVERIFY(reviewedControl);
+        QVERIFY(separator);
+        QVERIFY(visualDescendantsNamed(segment,
+                                       QStringLiteral("segmentReviewedControl")).isEmpty());
         QVERIFY(actionsRow);
         QVERIFY(deleteButton);
         QVERIFY(startTimeCode);
@@ -1248,7 +1410,7 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(actionsRow->isVisible());
 
             for (QQuickItem* item :
-                 {timeColumn, textEditor, statusRow, reviewedControl, actionsRow, deleteButton}) {
+                 {timeColumn, textEditor, statusRow, separator, actionsRow, deleteButton}) {
                 const QPointF origin = item->mapToItem(segment, QPointF{});
                 const bool contained = origin.x() >= -0.5 && origin.y() >= -0.5 &&
                                        origin.x() + item->width() <= segment->width() + 0.5 &&
@@ -1298,7 +1460,7 @@ class tst_QmlSmoke final : public QObject {
         host->setProperty("uiScale", 1.0);
         QCoreApplication::processEvents();
 
-        for (QQuickItem* accessibleItem : {segment, textEditor, reviewedControl, deleteButton}) {
+        for (QQuickItem* accessibleItem : {segment, textEditor, deleteButton}) {
             QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(accessibleItem);
             QVERIFY2(interface, qPrintable(accessibleItem->objectName() +
                                            QStringLiteral(" has no accessibility interface.")));
@@ -1351,12 +1513,19 @@ class tst_QmlSmoke final : public QObject {
                     width: 220
                     model: ["Newest", "Oldest"]
                 }
+                AppSlider {
+                    objectName: "semanticSlider"
+                    x: 24
+                    y: 80
+                    width: 220
+                    value: 0.5
+                }
                 AppMenu {
                     id: menu
                     objectName: "popupStyleMenu"
-                    AppMenuItem { text: "Rename" }
+                    AppMenuItem { objectName: "firstPopupMenuItem"; text: "Rename" }
                     AppMenuSeparator { }
-                    AppMenuItem { text: "Edit tags" }
+                    AppMenuItem { objectName: "secondPopupMenuItem"; text: "Edit tags" }
                 }
                 AppDialog {
                     id: dialog
@@ -1374,9 +1543,11 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
 
         auto* combo = root->findChild<QObject*>(QStringLiteral("popupStyleCombo"));
+        auto* slider = root->findChild<QQuickItem*>(QStringLiteral("semanticSlider"));
         auto* menu = root->findChild<QObject*>(QStringLiteral("popupStyleMenu"));
         auto* dialog = root->findChild<QObject*>(QStringLiteral("popupStyleDialog"));
         QVERIFY(combo);
+        QVERIFY(slider);
         QVERIFY(menu);
         QVERIFY(dialog);
 
@@ -1384,12 +1555,60 @@ class tst_QmlSmoke final : public QObject {
         tokenProbe.setData(R"(
             import QtQuick
             import BreezeDesk
-            QtObject { property color surfaceRaised: SemanticTokens.surfaceRaised }
+            QtObject {
+                property color surfaceRaised: SemanticTokens.surfaceRaised
+                property color accentMuted: SemanticTokens.accentMuted
+                property color accent: SemanticTokens.accent
+                property color borderStrong: SemanticTokens.borderStrong
+            }
         )",
                            QUrl(QStringLiteral("inline:SharedPopupTokenProbe.qml")));
         QScopedPointer<QObject> tokens(tokenProbe.create());
         QVERIFY2(tokens, qPrintable(tokenProbe.errorString()));
         const QColor expectedSurface = tokens->property("surfaceRaised").value<QColor>();
+        const QColor expectedHighlight = tokens->property("accentMuted").value<QColor>();
+        const QColor expectedAccent = tokens->property("accent").value<QColor>();
+        const QColor expectedTrack = tokens->property("borderStrong").value<QColor>();
+
+        auto* comboIndicator =
+            qobject_cast<QQuickItem*>(combo->property("indicator").value<QObject*>());
+        QVERIFY(comboIndicator);
+        QCOMPARE(comboIndicator->objectName(), QStringLiteral("appComboBoxIndicator"));
+        QCOMPARE(comboIndicator->width(), 16.0);
+        QCOMPARE(comboIndicator->height(), 16.0);
+        QCOMPARE(comboIndicator->property("source").toUrl(),
+                 QUrl(QStringLiteral(
+                     "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg")));
+        const QPointF indicatorOrigin =
+            comboIndicator->mapToItem(qobject_cast<QQuickItem*>(combo), QPointF{});
+        QVERIFY(indicatorOrigin.x() >= -0.5 && indicatorOrigin.y() >= -0.5);
+        QVERIFY(indicatorOrigin.x() + comboIndicator->width()
+                <= qobject_cast<QQuickItem*>(combo)->width() + 0.5);
+        QVERIFY(indicatorOrigin.y() + comboIndicator->height()
+                <= qobject_cast<QQuickItem*>(combo)->height() + 0.5);
+
+        auto* sliderTrack =
+            qobject_cast<QQuickItem*>(slider->property("background").value<QObject*>());
+        auto* sliderHandle =
+            qobject_cast<QQuickItem*>(slider->property("handle").value<QObject*>());
+        QVERIFY(sliderTrack);
+        QVERIFY(sliderHandle);
+        auto* sliderProgress =
+            sliderTrack->findChild<QQuickItem*>(QStringLiteral("appSliderProgress"));
+        QVERIFY(sliderProgress);
+        QCOMPARE(sliderTrack->objectName(), QStringLiteral("appSliderTrack"));
+        QCOMPARE(sliderHandle->objectName(), QStringLiteral("appSliderHandle"));
+        QCOMPARE(sliderTrack->height(), 6.0);
+        QCOMPARE(sliderHandle->width(), 20.0);
+        QCOMPARE(sliderHandle->height(), 20.0);
+        QCOMPARE(sliderTrack->property("color").value<QColor>(), expectedTrack);
+        QCOMPARE(sliderProgress->property("color").value<QColor>(), expectedAccent);
+        QCOMPARE(sliderHandle->property("color").value<QColor>(), expectedSurface);
+        QVERIFY(qAbs(sliderProgress->width() - sliderTrack->width() / 2.0) <= 0.5);
+        const QPointF handleOrigin = sliderHandle->mapToItem(slider, QPointF{});
+        QVERIFY(handleOrigin.x() >= -0.5 && handleOrigin.y() >= -0.5);
+        QVERIFY(handleOrigin.x() + sliderHandle->width() <= slider->width() + 0.5);
+        QVERIFY(handleOrigin.y() + sliderHandle->height() <= slider->height() + 0.5);
 
         QVERIFY(QMetaObject::invokeMethod(dialog, "open", Qt::DirectConnection));
         QCoreApplication::processEvents();
@@ -1405,16 +1624,50 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(comboPopup);
         QVERIFY(QMetaObject::invokeMethod(comboPopup, "open", Qt::DirectConnection));
         QCoreApplication::processEvents();
+        QCOMPARE(comboIndicator->property("source").toUrl(),
+                 QUrl(QStringLiteral(
+                     "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg")));
         auto* comboSurface = comboPopup->findChild<QQuickItem*>(QStringLiteral("appComboBoxPopupSurface"));
         QVERIFY(comboSurface);
         QCOMPARE(comboSurface->property("color").value<QColor>(), expectedSurface);
         QVERIFY(QMetaObject::invokeMethod(comboPopup, "close", Qt::DirectConnection));
+        QCoreApplication::processEvents();
+        QCOMPARE(comboIndicator->property("source").toUrl(),
+                 QUrl(QStringLiteral(
+                     "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg")));
 
         QVERIFY(QMetaObject::invokeMethod(menu, "open", Qt::DirectConnection));
         QCoreApplication::processEvents();
         auto* menuSurface = menu->findChild<QQuickItem*>(QStringLiteral("appMenuSurface"));
+        auto* firstMenuItem = root->findChild<QQuickItem*>(QStringLiteral("firstPopupMenuItem"));
+        auto* secondMenuItem = root->findChild<QQuickItem*>(QStringLiteral("secondPopupMenuItem"));
         QVERIFY(menuSurface);
+        QVERIFY(firstMenuItem);
+        QVERIFY(secondMenuItem);
         QCOMPARE(menuSurface->property("color").value<QColor>(), expectedSurface);
+
+        auto* firstBackground =
+            qobject_cast<QQuickItem*>(firstMenuItem->property("background").value<QObject*>());
+        auto* secondBackground =
+            qobject_cast<QQuickItem*>(secondMenuItem->property("background").value<QObject*>());
+        QVERIFY(firstBackground);
+        QVERIFY(secondBackground);
+
+        const auto movePointerTo = [](QQuickItem* item) {
+            const QPointF center =
+                item->mapToScene(QPointF(item->width() / 2.0, item->height() / 2.0));
+            QTest::mouseMove(item->window(), center.toPoint());
+        };
+        movePointerTo(firstMenuItem);
+        QTRY_VERIFY_WITH_TIMEOUT(firstMenuItem->property("highlighted").toBool(), 1'000);
+        QTest::qWait(150);
+        QCOMPARE(firstBackground->property("color").value<QColor>(), expectedHighlight);
+
+        movePointerTo(secondMenuItem);
+        QTRY_VERIFY_WITH_TIMEOUT(secondMenuItem->property("highlighted").toBool(), 1'000);
+        QTest::qWait(20);
+        QCOMPARE(firstBackground->property("color").value<QColor>().alpha(), 0);
+        QCOMPARE(secondBackground->property("color").value<QColor>(), expectedHighlight);
         QVERIFY(QMetaObject::invokeMethod(menu, "close", Qt::DirectConnection));
 
         const auto failures =

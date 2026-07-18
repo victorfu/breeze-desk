@@ -21,14 +21,17 @@ T.ComboBox {
         elide: Text.ElideRight
     }
 
-    indicator: Text {
-        x: control.width - width - SemanticTokens.spacingMd
-        y: (control.height - height) / 2
-        text: control.popup.visible ? "⌃" : "⌄"
+    indicator: AppIcon {
+        objectName: "appComboBoxIndicator"
+        x: control.width - width - SemanticTokens.spacingSm
+        y: Math.round((control.height - height) / 2)
+        width: 16
+        height: 16
+        iconSize: 16
+        source: control.popup.visible
+                ? "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg"
+                : "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg"
         color: control.enabled ? SemanticTokens.textMuted : SemanticTokens.borderStrong
-        font.family: SemanticTokens.fontFamily
-        font.pixelSize: SemanticTokens.bodySize
-        verticalAlignment: Text.AlignVCenter
     }
 
     background: Rectangle {

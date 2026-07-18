@@ -17,20 +17,21 @@ Rectangle {
     signal retryRequested(string id)
     signal resumeRequested(string id)
     signal removeRequested(string id)
+    readonly property string displayedJobState: UiText.jobState(jobState)
 
     function userFacingStatus() {
         if (root.errorMessage === "This build does not include whisper.cpp"
                 || root.errorMessage === "whisper.cpp is disabled in this build") {
             return qsTr("Speech recognition is unavailable in this build. Use a build that includes whisper.cpp, then retry this job.")
         }
-        return root.errorMessage.length > 0 ? root.errorMessage : root.stage
+        return root.errorMessage.length > 0 ? root.errorMessage : UiText.jobStage(root.stage)
     }
 
     implicitHeight: content.implicitHeight + SemanticTokens.spacingLg * 2
     color: SemanticTokens.surface
     radius: ComponentTokens.cardRadius
     border.color: SemanticTokens.border
-    Accessible.name: title + ", " + jobState + ", " + Math.round(progress * 100) + "%"
+    Accessible.name: title + ", " + displayedJobState + ", " + Math.round(progress * 100) + "%"
     Accessible.description: userFacingStatus()
     ColumnLayout {
         id: content
@@ -49,7 +50,7 @@ Rectangle {
                 font.weight: Font.DemiBold
             }
             StatusBadge {
-                text: root.jobState
+                text: root.displayedJobState
                 tone: root.jobState === "Failed" ? "danger" : root.jobState === "Completed" ? "success" : "accent"
             }
         }
