@@ -68,8 +68,8 @@ T.ComboBox {
 
         background: Rectangle {
             radius: SemanticTokens.radiusSm
-            color: option.down || option.highlighted ? SemanticTokens.accentMuted : "transparent"
-            Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
+            color: option.down || option.highlighted || option.hovered
+                   ? SemanticTokens.accentMuted : "transparent"
         }
     }
 
