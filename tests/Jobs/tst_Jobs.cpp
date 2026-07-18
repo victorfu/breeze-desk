@@ -23,8 +23,8 @@ class JobsTest final : public QObject {
     void stateMachineRejectsInvalidTransitions();
     void progressNeverMovesBackwards();
     void queuePersistsChunksAndRecoversInterruption();
-    void clearingCompletedQueuePreservesJobHistory();
-    void removingTerminalJobHidesItFromQueueButPreservesHistory();
+    void clearingCompletedQueuePermanentlyDeletesJobs();
+    void removingTerminalJobPermanentlyDeletesIt();
     void runtimeDiagnosticsArePersisted();
     void revisionHistoryPreservesAttemptsAndFallsBack();
     void executionLeaseSerializesWorkersAndCompletesAtomically();
@@ -102,7 +102,7 @@ void JobsTest::queuePersistsChunksAndRecoversInterruption() {
     QCOMPARE(repository.findById(id.value()).value()->state, JobState::Queued);
 }
 
-void JobsTest::clearingCompletedQueuePreservesJobHistory() {
+void JobsTest::clearingCompletedQueuePermanentlyDeletesJobs() {
     QTemporaryDir directory;
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(database.initialize());
@@ -121,14 +121,27 @@ void JobsTest::clearingCompletedQueuePreservesJobHistory() {
     QVERIFY(repository.transition(job.id, JobState::Transcribing));
     QVERIFY(repository.transition(job.id, JobState::Finalizing));
     QVERIFY(repository.transition(job.id, JobState::Completed));
+
+    TranscriptionJob hiddenJob;
+    hiddenJob.id = QStringLiteral("legacy-hidden-job");
+    hiddenJob.recordingId = recording.id;
+    hiddenJob.queueHidden = true;
+    QVERIFY(repository.create(hiddenJob));
+    QVERIFY(repository.transition(hiddenJob.id, JobState::Preparing));
+    QVERIFY(repository.transition(hiddenJob.id, JobState::LoadingModel));
+    QVERIFY(repository.transition(hiddenJob.id, JobState::Transcribing));
+    QVERIFY(repository.transition(hiddenJob.id, JobState::Finalizing));
+    QVERIFY(repository.transition(hiddenJob.id, JobState::Completed));
+
     auto cleared = repository.clearCompleted();
     QVERIFY(cleared);
     QCOMPARE(cleared.value(), 1);
     QCOMPARE(repository.list(true).value().size(), 0);
-    QVERIFY(repository.findById(job.id).value().has_value());
+    QVERIFY(!repository.findById(job.id).value().has_value());
+    QVERIFY(repository.findById(hiddenJob.id).value().has_value());
 }
 
-void JobsTest::removingTerminalJobHidesItFromQueueButPreservesHistory() {
+void JobsTest::removingTerminalJobPermanentlyDeletesIt() {
     QTemporaryDir directory;
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(database.initialize());
@@ -150,7 +163,8 @@ void JobsTest::removingTerminalJobHidesItFromQueueButPreservesHistory() {
 
     QVERIFY(queue.remove(failedJob.id));
     QCOMPARE(repository.list(true).value().size(), 0);
-    QVERIFY(repository.findById(failedJob.id).value().has_value());
+    QVERIFY(!repository.findById(failedJob.id).value().has_value());
+    QVERIFY(recordings.findById(recording.id).value().has_value());
 
     TranscriptionJob queuedJob;
     queuedJob.id = QStringLiteral("queued-job");
@@ -460,7 +474,6 @@ void JobsTest::retryAndResumeResetExecutionStateOnTheSameRevision() {
     QVERIFY(repository.updateProgress(job.id, JobStage::Transcribing, 0.75, 2));
     QVERIFY(repository.transition(job.id, JobState::Failed, QStringLiteral("WorkerFailed"),
                                   QStringLiteral("failure")));
-    QVERIFY(repository.removeFromQueue(job.id));
     QVERIFY(repository.transition(job.id, JobState::Queued));
     auto retried = repository.findById(job.id);
     QVERIFY(retried && retried.value().has_value());
@@ -469,7 +482,7 @@ void JobsTest::retryAndResumeResetExecutionStateOnTheSameRevision() {
     QCOMPARE(retried.value()->stage, JobStage::Preparing);
     QCOMPARE(retried.value()->progress, 0.0);
     QCOMPARE(retried.value()->lastCompletedChunk, 2);
-    QVERIFY(retried.value()->queueHidden);
+    QVERIFY(!retried.value()->queueHidden);
     QVERIFY(!retried.value()->startedAt.isValid());
     QVERIFY(repository.transition(job.id, JobState::Preparing));
     QVERIFY(repository.updateProgress(job.id, JobStage::Preparing, 0.1, 2));

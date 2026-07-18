@@ -55,8 +55,7 @@ QHash<int, QByteArray> TranscriptRevisionModel::roleNames() const {
 }
 
 void TranscriptRevisionModel::replaceRevisions(QList<TranscriptRevisionSummary> revisions,
-                                                const QString& selectedJobId,
-                                                const QString& activeJobId) {
+                                               const QString& selectedJobId, const QString& activeJobId) {
     std::stable_sort(revisions.begin(), revisions.end(),
                      [](const TranscriptRevisionSummary& left, const TranscriptRevisionSummary& right) {
                          if (left.job.revisionNumber != right.job.revisionNumber) {
@@ -119,8 +118,7 @@ bool TranscriptRevisionModel::hasRevisionNewerThan(const QString& jobId) const {
 
 std::optional<TranscriptRevisionSummary> TranscriptRevisionModel::revision(const QString& jobId) const {
     const int row = indexOf(jobId);
-    return row < 0 ? std::nullopt
-                   : std::optional<TranscriptRevisionSummary>{m_revisions.at(row)};
+    return row < 0 ? std::nullopt : std::optional<TranscriptRevisionSummary>{m_revisions.at(row)};
 }
 
 QVariantMap TranscriptRevisionModel::revisionMap(const QString& jobId) const {

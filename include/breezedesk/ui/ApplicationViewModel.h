@@ -93,6 +93,7 @@ class ApplicationViewModel : public QObject {
     Q_INVOKABLE void deleteTranscriptRevision(const QString& jobId);
     void reloadTranscriptForJob(const QString& recordingId, const QString& jobId, bool editingLocked);
     void finishLiveTranscriptRevision(const QString& recordingId, const QString& jobId, bool succeeded);
+    void refreshAfterTranscriptRemoval(const QString& removedJobId = {});
     void installJobRepository(IJobRepository* repository);
     void setManagedMediaCopyEnabled(bool enabled);
     void setPlatformService(IPlatformService* platform) noexcept;

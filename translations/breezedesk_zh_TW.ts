@@ -1270,21 +1270,13 @@
     </message>
     <message>
         <location filename="../src/qml/components/JobProgress.qml" line="373"/>
-        <source>Hide from queue</source>
-        <translation>從佇列隱藏</translation>
+        <source>Remove</source>
+        <translation>移除</translation>
     </message>
     <message>
         <location filename="../src/qml/components/JobProgress.qml" line="374"/>
-        <source>Hide %1 from queue</source>
-        <translation>從佇列隱藏「%1」</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">移除</translation>
-    </message>
-    <message>
-        <source>Remove %1 from queue</source>
-        <translation type="vanished">從佇列移除 %1</translation>
+        <source>Remove %1 permanently</source>
+        <translation>永久移除「%1」</translation>
     </message>
 </context>
 <context>
@@ -1922,14 +1914,39 @@
         <translation>目前工作完成後暫停</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="62"/>
-        <source>Hide finished</source>
-        <translation>隱藏已結束工作</translation>
+        <location filename="../src/qml/pages/QueuePage.qml" line="45"/>
+        <source>Remove finished</source>
+        <translation>移除已結束工作</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="63"/>
-        <source>Hide completed and cancelled jobs from queue</source>
-        <translation>從佇列隱藏已完成與已取消的工作</translation>
+        <location filename="../src/qml/pages/QueuePage.qml" line="46"/>
+        <source>Permanently remove completed and cancelled jobs</source>
+        <translation>永久移除已完成與已取消的工作</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="88"/>
+        <source>Remove %1 permanently?</source>
+        <translation>要永久移除「%1」嗎？</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="89"/>
+        <source>Remove this job permanently?</source>
+        <translation>要永久移除此工作嗎？</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="90"/>
+        <source>Its transcript version, partial results, and activity history will be deleted. This cannot be undone.</source>
+        <translation>這會刪除其逐字稿版本、部分結果與活動記錄，且無法復原。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="104"/>
+        <source>Remove finished jobs permanently?</source>
+        <translation>要永久移除已結束的工作嗎？</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="105"/>
+        <source>Completed and cancelled transcript versions and their activity history will be deleted. This cannot be undone.</source>
+        <translation>已完成與已取消工作的逐字稿版本及活動記錄都會被刪除，且無法復原。</translation>
     </message>
     <message>
         <source>Clear Completed</source>

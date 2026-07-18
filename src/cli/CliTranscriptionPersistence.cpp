@@ -475,8 +475,7 @@ Result<void> CliTranscriptionPersistence::complete() {
                                           chunksResult.value().constLast().ordinal);
     if (!progress)
         return progress;
-    auto completed =
-        m_jobs.completeAndActivate(m_identity.recordingId, m_identity.jobId, m_ownerToken);
+    auto completed = m_jobs.completeAndActivate(m_identity.recordingId, m_identity.jobId, m_ownerToken);
     if (!completed)
         return completed;
     releaseExecutionLease();
@@ -584,13 +583,12 @@ Result<void> CliTranscriptionPersistence::waitForExecutionClaim(const QString& j
 
         if (!notified || notificationTimer.elapsed() >= 30'000) {
             if (m_waitNotification) {
-                const QString activeSuffix = claim.value().activeJobId.isEmpty()
-                                                 ? QString{}
-                                                 : QStringLiteral(" (%1)").arg(
-                                                       claim.value().activeJobId.left(8));
+                const QString activeSuffix =
+                    claim.value().activeJobId.isEmpty()
+                        ? QString{}
+                        : QStringLiteral(" (%1)").arg(claim.value().activeJobId.left(8));
                 m_waitNotification(
-                    QStringLiteral("Waiting for another transcription to finish%1…")
-                        .arg(activeSuffix));
+                    QStringLiteral("Waiting for another transcription to finish%1…").arg(activeSuffix));
             }
             notified = true;
             notificationTimer.restart();

@@ -30,8 +30,7 @@ class JobListModel final : public QAbstractListModel {
         LatestPartialTextRole,
         EventTimelineRole,
         CanMoveUpRole,
-        CanMoveDownRole,
-        CanHideRole
+        CanMoveDownRole
     };
     Q_ENUM(Role)
 
@@ -61,8 +60,8 @@ class JobListModel final : public QAbstractListModel {
     bool cancel(const QString& id);
     bool retry(const QString& id);
     bool resume(const QString& id);
-    bool hide(const QString& id);
     bool remove(const QString& id);
+    [[nodiscard]] bool canRemove(const QString& id) const;
     bool moveQueued(const QString& id, int destination);
     void clearCompleted();
     [[nodiscard]] int activeCount() const;
@@ -74,8 +73,7 @@ class JobListModel final : public QAbstractListModel {
     void updateTelemetry(const QString& id, int currentChunk, int totalChunks,
                          const QString& latestPartialText);
     void appendEvent(const QString& id, const QString& title, const QString& detail = {},
-                     const QString& severity = QStringLiteral("info"),
-                     const QDateTime& occurredAt = {});
+                     const QString& severity = QStringLiteral("info"), const QDateTime& occurredAt = {});
 
   signals:
     void runningJobIdChanged();

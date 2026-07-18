@@ -1,5 +1,6 @@
 set(BREEZEDESK_UI_HEADERS
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/ApplicationViewModel.h
+    ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/BrandIcons.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/DesignSystem.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/DiagnosticsViewModel.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/GlossaryViewModel.h
@@ -22,6 +23,7 @@ set(BREEZEDESK_UI_HEADERS
 add_library(breezedesk_ui STATIC
     ${BREEZEDESK_UI_HEADERS}
     ApplicationViewModel.cpp
+    BrandIcons.cpp
     DesignSystem.cpp
     DiagnosticsViewModel.cpp
     GlossaryViewModel.cpp

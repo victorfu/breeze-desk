@@ -13,6 +13,7 @@
 #include <QUuid>
 
 #include <algorithm>
+#include <utility>
 
 namespace BreezeDesk {
 namespace {
@@ -1376,7 +1377,7 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
     return Result<int>::success(affected);
 }
 
-Result<void> SqliteJobRepository::removeFromQueue(const QString& id) {
+Result<void> SqliteJobRepository::deleteTerminalJob(const QString& id) {
     const auto current = findById(id);
     if (!current)
         return Result<void>::failure(current.error());
@@ -1388,33 +1389,45 @@ Result<void> SqliteJobRepository::removeFromQueue(const QString& id) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidStateTransition,
             QStringLiteral(
-                "Only completed, cancelled, failed, or interrupted jobs can be removed from the queue.")));
+                "Only completed, cancelled, failed, or interrupted jobs can be permanently deleted.")));
     }
 
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral("UPDATE transcription_jobs SET queue_hidden=1 WHERE id=?"));
-    query.addBindValue(id);
-    if (!query.exec()) {
-        return Result<void>::failure(
-            queryError(QStringLiteral("The job could not be removed from the queue."), query));
-    }
-    return Result<void>::success();
+    const auto deleted = deleteRevision(current.value()->recordingId, id);
+    return deleted ? Result<void>::success() : Result<void>::failure(deleted.error());
 }
 
 Result<int> SqliteJobRepository::clearCompleted() {
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<int>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    if (!query.exec(QStringLiteral("UPDATE transcription_jobs SET queue_hidden=1 WHERE queue_hidden=0 "
-                                   "AND state IN ('Completed','Cancelled')"))) {
-        return Result<int>::failure(
-            queryError(QStringLiteral("Completed jobs could not be cleared."), query));
-    }
-    return Result<int>::success(query.numRowsAffected());
+    int removedCount = 0;
+    const auto removed = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        QSqlQuery recordings(database);
+        if (!recordings.exec(QStringLiteral("SELECT DISTINCT recording_id FROM transcription_jobs "
+                                            "WHERE queue_hidden=0 AND state IN ('Completed','Cancelled')"))) {
+            return Result<void>::failure(queryError(
+                QStringLiteral("Recordings affected by completed jobs could not be loaded."), recordings));
+        }
+        QStringList recordingIds;
+        while (recordings.next()) {
+            recordingIds.append(recordings.value(0).toString());
+        }
+
+        QSqlQuery remove(database);
+        if (!remove.exec(QStringLiteral("DELETE FROM transcription_jobs WHERE queue_hidden=0 "
+                                        "AND state IN ('Completed','Cancelled')"))) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("Completed jobs could not be removed."), remove));
+        }
+        removedCount = remove.numRowsAffected();
+
+        DatabaseSearchService search(m_databaseManager);
+        for (const QString& recordingId : std::as_const(recordingIds)) {
+            const auto rebuilt = search.rebuildRecording(database, recordingId);
+            if (!rebuilt) {
+                return rebuilt;
+            }
+        }
+        return Result<void>::success();
+    });
+    return removed ? Result<int>::success(removedCount) : Result<int>::failure(removed.error());
 }
 
 } // namespace BreezeDesk

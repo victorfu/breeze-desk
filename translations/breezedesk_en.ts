@@ -1275,21 +1275,13 @@
     </message>
     <message>
         <location filename="../src/qml/components/JobProgress.qml" line="373"/>
-        <source>Hide from queue</source>
-        <translation>Hide from queue</translation>
+        <source>Remove</source>
+        <translation>Remove</translation>
     </message>
     <message>
         <location filename="../src/qml/components/JobProgress.qml" line="374"/>
-        <source>Hide %1 from queue</source>
-        <translation>Hide %1 from queue</translation>
-    </message>
-    <message>
-        <source>Remove</source>
-        <translation type="vanished">Remove</translation>
-    </message>
-    <message>
-        <source>Remove %1 from queue</source>
-        <translation type="vanished">Remove %1 from queue</translation>
+        <source>Remove %1 permanently</source>
+        <translation>Remove %1 permanently</translation>
     </message>
 </context>
 <context>
@@ -1928,14 +1920,39 @@
         <translation>Pause after current job</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="62"/>
-        <source>Hide finished</source>
-        <translation>Hide finished</translation>
+        <location filename="../src/qml/pages/QueuePage.qml" line="45"/>
+        <source>Remove finished</source>
+        <translation>Remove finished</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="63"/>
-        <source>Hide completed and cancelled jobs from queue</source>
-        <translation>Hide completed and cancelled jobs from queue</translation>
+        <location filename="../src/qml/pages/QueuePage.qml" line="46"/>
+        <source>Permanently remove completed and cancelled jobs</source>
+        <translation>Permanently remove completed and cancelled jobs</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="88"/>
+        <source>Remove %1 permanently?</source>
+        <translation>Remove %1 permanently?</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="89"/>
+        <source>Remove this job permanently?</source>
+        <translation>Remove this job permanently?</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="90"/>
+        <source>Its transcript version, partial results, and activity history will be deleted. This cannot be undone.</source>
+        <translation>Its transcript version, partial results, and activity history will be deleted. This cannot be undone.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="104"/>
+        <source>Remove finished jobs permanently?</source>
+        <translation>Remove finished jobs permanently?</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="105"/>
+        <source>Completed and cancelled transcript versions and their activity history will be deleted. This cannot be undone.</source>
+        <translation>Completed and cancelled transcript versions and their activity history will be deleted. This cannot be undone.</translation>
     </message>
     <message>
         <source>Clear Completed</source>

@@ -16,8 +16,7 @@ Result<QString> JobQueue::enqueue(TranscriptionJob job) {
     job.stage = JobStage::Preparing;
     job.progress = 0.0;
     const auto result = m_repository.createQueued(std::move(job));
-    return result ? Result<QString>::success(result.value().id)
-                  : Result<QString>::failure(result.error());
+    return result ? Result<QString>::success(result.value().id) : Result<QString>::failure(result.error());
 }
 
 Result<void> JobQueue::cancel(const QString& jobId) {
@@ -52,8 +51,7 @@ Result<QString> JobQueue::retry(const QString& jobId) {
                                         QStringLiteral("Only failed or cancelled jobs can be retried.")));
     }
     const auto transition = m_repository.transition(jobId, JobState::Queued);
-    return transition ? Result<QString>::success(jobId)
-                      : Result<QString>::failure(transition.error());
+    return transition ? Result<QString>::success(jobId) : Result<QString>::failure(transition.error());
 }
 
 Result<void> JobQueue::resume(const QString& jobId) {
@@ -72,7 +70,7 @@ Result<void> JobQueue::reorder(const QStringList& orderedJobIds) {
 }
 
 Result<void> JobQueue::remove(const QString& jobId) {
-    return m_repository.removeFromQueue(jobId);
+    return m_repository.deleteTerminalJob(jobId);
 }
 
 Result<int> JobQueue::clearCompleted() {

@@ -53,7 +53,6 @@ QVariant JobListModel::data(const QModelIndex& index, const int role) const {
     case CanResumeRole:
         return job.state == QLatin1String("Interrupted");
     case CanRemoveRole:
-    case CanHideRole:
         return terminal;
     case IsRunningNowRole:
         return !m_runningJobId.isEmpty() && job.id == m_runningJobId;
@@ -97,8 +96,7 @@ QHash<int, QByteArray> JobListModel::roleNames() const {
             {LatestPartialTextRole, "latestPartialText"},
             {EventTimelineRole, "eventTimeline"},
             {CanMoveUpRole, "canMoveUp"},
-            {CanMoveDownRole, "canMoveDown"},
-            {CanHideRole, "canHide"}};
+            {CanMoveDownRole, "canMoveDown"}};
 }
 
 QString JobListModel::enqueue(const QString& recordingId, const QString& title) {
@@ -202,9 +200,9 @@ bool JobListModel::resume(const QString& id) {
     return true;
 }
 
-bool JobListModel::hide(const QString& id) {
+bool JobListModel::remove(const QString& id) {
     const int row = indexOf(id);
-    if (row < 0 || !data(index(row), CanHideRole).toBool()) {
+    if (row < 0 || !data(index(row), CanRemoveRole).toBool()) {
         return false;
     }
     beginRemoveRows({}, row, row);
@@ -214,8 +212,9 @@ bool JobListModel::hide(const QString& id) {
     return true;
 }
 
-bool JobListModel::remove(const QString& id) {
-    return hide(id);
+bool JobListModel::canRemove(const QString& id) const {
+    const int row = indexOf(id);
+    return row >= 0 && data(index(row), CanRemoveRole).toBool();
 }
 
 bool JobListModel::moveQueued(const QString& id, const int destination) {
@@ -316,7 +315,8 @@ void JobListModel::updateTelemetry(const QString& id, const int currentChunk, co
     }
     Job& job = m_jobs[row];
     const int boundedTotal = qMax(0, totalChunks);
-    const int boundedCurrent = boundedTotal > 0 ? qBound(0, currentChunk, boundedTotal) : qMax(0, currentChunk);
+    const int boundedCurrent =
+        boundedTotal > 0 ? qBound(0, currentChunk, boundedTotal) : qMax(0, currentChunk);
     if (job.currentChunk == boundedCurrent && job.totalChunks == boundedTotal &&
         job.latestPartialText == latestPartialText) {
         return;
@@ -374,8 +374,8 @@ bool JobListModel::canMoveQueued(const int row, const int delta) const {
     return position >= 0 && position + delta >= 0 && position + delta < queuedCount();
 }
 
-void JobListModel::appendEvent(Job& job, const QString& title, const QString& detail,
-                               const QString& severity, const QDateTime& occurredAt) {
+void JobListModel::appendEvent(Job& job, const QString& title, const QString& detail, const QString& severity,
+                               const QDateTime& occurredAt) {
     QVariantMap event;
     event.insert(QStringLiteral("timestamp"),
                  occurredAt.isValid() ? occurredAt : QDateTime::currentDateTimeUtc());

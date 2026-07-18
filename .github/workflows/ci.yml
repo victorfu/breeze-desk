@@ -172,7 +172,7 @@ jobs:
           -DBREEZEDESK_ENABLE_WHISPER=OFF
           -DBREEZEDESK_BUILD_TESTS=ON
       - name: Build QML smoke tests
-        run: cmake --build build/qml --target tst_QmlSmoke --parallel
+        run: cmake --build build/qml --target tst_QmlSmoke tst_JobQueueViewModel --parallel
       - name: Load every registered QML page offscreen
         env:
           QT_QPA_PLATFORM: offscreen

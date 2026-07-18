@@ -5,10 +5,8 @@
 
 namespace BreezeDesk {
 
-TranscriptRevisionViewModel::TranscriptRevisionViewModel(QObject* parent)
-    : QObject(parent), m_model(this) {
-    connect(&m_model, &QAbstractItemModel::modelReset, this,
-            &TranscriptRevisionViewModel::revisionsChanged);
+TranscriptRevisionViewModel::TranscriptRevisionViewModel(QObject* parent) : QObject(parent), m_model(this) {
+    connect(&m_model, &QAbstractItemModel::modelReset, this, &TranscriptRevisionViewModel::revisionsChanged);
 }
 
 QAbstractItemModel* TranscriptRevisionViewModel::revisions() noexcept {

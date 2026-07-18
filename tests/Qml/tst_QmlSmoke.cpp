@@ -9,6 +9,7 @@
 #include "breezedesk/transcript/ITranscriptRepository.h"
 #include "breezedesk/transcript/SqliteTranscriptRepository.h"
 #include "breezedesk/ui/ApplicationViewModel.h"
+#include "breezedesk/ui/BrandIcons.h"
 #include "breezedesk/ui/GlossaryViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
 
@@ -189,6 +190,43 @@ class tst_QmlSmoke final : public QObject {
 
     void cleanup() { qmlMessages.clear(); }
 
+    void brandIconsRenderAtNativeWindowsSizes() {
+        const QList<QIcon> icons{BreezeDesk::brandSymbolIcon(), BreezeDesk::windowsTrayIcon()};
+        const QList<QSize> expectedSizes = BreezeDesk::nativeBrandIconSizes();
+
+        for (const QIcon& icon : icons) {
+            QVERIFY(!icon.isNull());
+            for (const QSize& expectedSize : expectedSizes) {
+                const QImage image =
+                    icon.pixmap(expectedSize).toImage().convertToFormat(QImage::Format_RGBA8888);
+                QCOMPARE(image.size(), expectedSize);
+
+                int opaquePixels = 0;
+                int whitePixels = 0;
+                int greenPixels = 0;
+                for (int y = 0; y < image.height(); ++y) {
+                    for (int x = 0; x < image.width(); ++x) {
+                        const QColor pixel = image.pixelColor(x, y);
+                        if (pixel.alpha() < 180) {
+                            continue;
+                        }
+                        ++opaquePixels;
+                        if (pixel.red() > 225 && pixel.green() > 225 && pixel.blue() > 225) {
+                            ++whitePixels;
+                        }
+                        if (pixel.green() > pixel.red() + 30 && pixel.green() > pixel.blue() + 20) {
+                            ++greenPixels;
+                        }
+                    }
+                }
+                const int pixelCount = expectedSize.width() * expectedSize.height();
+                QVERIFY(opaquePixels > pixelCount / 2);
+                QVERIFY(whitePixels > pixelCount / 10);
+                QVERIFY(greenPixels > pixelCount / 4);
+            }
+        }
+    }
+
     void loadsMainAndEveryPage() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
@@ -340,27 +378,25 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(downloadButton->property("visible").toBool());
         QVERIFY(downloadButton->property("enabled").toBool());
 
-        for (const QString& busyState : {QStringLiteral("Requested"), QStringLiteral("Downloading"),
-                                         QStringLiteral("Verifying")}) {
+        for (const QString& busyState :
+             {QStringLiteral("Requested"), QStringLiteral("Downloading"), QStringLiteral("Verifying")}) {
             QVERIFY(root->setProperty("fixtureState", busyState));
             QCoreApplication::processEvents();
             QVERIFY2(!downloadButton->property("visible").toBool(),
-                     qPrintable(QStringLiteral("Download action stayed visible in state %1")
-                                    .arg(busyState)));
+                     qPrintable(QStringLiteral("Download action stayed visible in state %1").arg(busyState)));
             QVERIFY2(!downloadButton->property("enabled").toBool(),
-                     qPrintable(QStringLiteral("Download action stayed enabled in state %1")
-                                    .arg(busyState)));
+                     qPrintable(QStringLiteral("Download action stayed enabled in state %1").arg(busyState)));
         }
 
-        for (const QString& availableState : {QStringLiteral("Paused"), QStringLiteral("Failed"),
-                                              QStringLiteral("Cancelled")}) {
+        for (const QString& availableState :
+             {QStringLiteral("Paused"), QStringLiteral("Failed"), QStringLiteral("Cancelled")}) {
             QVERIFY(root->setProperty("fixtureState", availableState));
             QCoreApplication::processEvents();
             QVERIFY(downloadButton->property("visible").toBool());
             QVERIFY(downloadButton->property("enabled").toBool());
-            QCOMPARE(downloadButton->property("text").toString(),
-                     availableState == QLatin1String("Paused") ? QStringLiteral("Resume")
-                                                                : QStringLiteral("Download"));
+            QCOMPARE(downloadButton->property("text").toString(), availableState == QLatin1String("Paused")
+                                                                      ? QStringLiteral("Resume")
+                                                                      : QStringLiteral("Download"));
         }
     }
 
@@ -452,12 +488,9 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
 
         auto* removeButton = root->findChild<QQuickItem*>(QStringLiteral("sharedRemoveButton"));
-        auto* recordingCard =
-            root->findChild<QQuickItem*>(QStringLiteral("fixtureRecordingCard"));
-        auto* recordingActionRow =
-            root->findChild<QQuickItem*>(QStringLiteral("recordingActionRow"));
-        auto* recordingActions =
-            root->findChild<QQuickItem*>(QStringLiteral("recordingActionsButton"));
+        auto* recordingCard = root->findChild<QQuickItem*>(QStringLiteral("fixtureRecordingCard"));
+        auto* recordingActionRow = root->findChild<QQuickItem*>(QStringLiteral("recordingActionRow"));
+        auto* recordingActions = root->findChild<QQuickItem*>(QStringLiteral("recordingActionsButton"));
         auto* recordingTrash = root->findChild<QQuickItem*>(QStringLiteral("recordingTrashButton"));
         auto* openMenuItem = root->findChild<QObject*>(QStringLiteral("recordingOpenMenuItem"));
         QVERIFY(removeButton);
@@ -471,8 +504,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(recordingCard->height() <= 88.0,
                  "A library recording row should remain compact at the default text scale.");
         const QRectF actionRowRect = recordingActionRow->mapRectToItem(
-            recordingCard,
-            QRectF(0.0, 0.0, recordingActionRow->width(), recordingActionRow->height()));
+            recordingCard, QRectF(0.0, 0.0, recordingActionRow->width(), recordingActionRow->height()));
         const qreal cardPadding = recordingCard->property("padding").toReal();
         QCOMPARE(cardPadding, root->property("expectedCardPadding").toReal());
         QVERIFY2(actionRowRect.top() <= cardPadding + 0.5,
@@ -482,21 +514,18 @@ class tst_QmlSmoke final : public QObject {
         const qreal actionsCenterY =
             recordingActions
                 ->mapToItem(recordingActionRow,
-                            QPointF(recordingActions->width() / 2.0,
-                                    recordingActions->height() / 2.0))
+                            QPointF(recordingActions->width() / 2.0, recordingActions->height() / 2.0))
                 .y();
         const qreal trashCenterY =
             recordingTrash
                 ->mapToItem(recordingActionRow,
-                            QPointF(recordingTrash->width() / 2.0,
-                                    recordingTrash->height() / 2.0))
+                            QPointF(recordingTrash->width() / 2.0, recordingTrash->height() / 2.0))
                 .y();
         QVERIFY2(qAbs(actionsCenterY - trashCenterY) <= 0.5,
                  "The recording Actions and Trash controls must share one horizontal row.");
 
         const QUrl expectedIcon(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"));
-        const QUrl expectedActionsIcon(
-            QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/ellipsis.svg"));
+        const QUrl expectedActionsIcon(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/ellipsis.svg"));
         QCOMPARE(removeButton->property("iconSource").toUrl(), expectedIcon);
         QCOMPARE(recordingTrash->property("iconSource").toUrl(), expectedIcon);
         QCOMPARE(recordingActions->property("iconSource").toUrl(), expectedActionsIcon);
@@ -510,8 +539,7 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(interface->text(QAccessible::Name), QStringLiteral("Remove fixture"));
         QAccessibleInterface* actionsInterface = QAccessible::queryAccessibleInterface(recordingActions);
         QVERIFY(actionsInterface);
-        QCOMPARE(actionsInterface->text(QAccessible::Name),
-                 QStringLiteral("Actions for Fixture recording"));
+        QCOMPARE(actionsInterface->text(QAccessible::Name), QStringLiteral("Actions for Fixture recording"));
 
         QVERIFY(QMetaObject::invokeMethod(openMenuItem, "triggered", Qt::DirectConnection));
         QCOMPARE(root->property("openRequests").toInt(), 1);
@@ -580,14 +608,22 @@ class tst_QmlSmoke final : public QObject {
         auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
         auto* sidebar = root->findChild<QQuickItem*>(QStringLiteral("mainSidebar"));
         auto* brandRow = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandRow"));
+        auto* brandLogo = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandLogo"));
         auto* brandText = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandText"));
         auto* pages = root->findChild<QQuickItem*>(QStringLiteral("pageStack"));
         QVERIFY(window);
         QVERIFY(vm);
         QVERIFY(sidebar);
         QVERIFY(brandRow);
+        QVERIFY(brandLogo);
         QVERIFY(brandText);
         QVERIFY(pages);
+
+        QCOMPARE(brandLogo->property("source").toUrl(),
+                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/breezedesk-symbol.svg")));
+        QTRY_COMPARE_WITH_TIMEOUT(brandLogo->property("status").toInt(), 1, 1'000);
+        QCOMPARE(brandLogo->width(), 32.0);
+        QCOMPARE(brandLogo->height(), 32.0);
 
         vm->settings()->setTextScale(1.5);
         vm->settings()->setCompactMode(false);
@@ -798,11 +834,9 @@ class tst_QmlSmoke final : public QObject {
                             verifyInside(button, label, button->property("text").toString());
                             labelPositions.append(childOrigin(footer, label).x());
                             QTRY_VERIFY_WITH_TIMEOUT(
-                                label->property("paintedWidth").toReal() <= label->width() + 0.5,
-                                1'000);
+                                label->property("paintedWidth").toReal() <= label->width() + 0.5, 1'000);
                             QTRY_VERIFY_WITH_TIMEOUT(
-                                label->property("paintedHeight").toReal() <= label->height() + 0.5,
-                                1'000);
+                                label->property("paintedHeight").toReal() <= label->height() + 0.5, 1'000);
                         }
                         QCOMPARE(labelPositions.size(), 3);
                         QVERIFY(qAbs(labelPositions.at(0) - labelPositions.at(1)) <= 0.5);
@@ -1076,10 +1110,8 @@ class tst_QmlSmoke final : public QObject {
         auto* waveform = root->findChild<QQuickItem*>(QStringLiteral("recordingWaveformCard"));
         auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
         auto* timeline = root->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackTimeline"));
-        auto* playPauseButton =
-            root->findChild<QQuickItem*>(QStringLiteral("recordingPlayPauseButton"));
-        auto* playPauseIcon =
-            root->findChild<QQuickItem*>(QStringLiteral("recordingPlayPauseButtonIcon"));
+        auto* playPauseButton = root->findChild<QQuickItem*>(QStringLiteral("recordingPlayPauseButton"));
+        auto* playPauseIcon = root->findChild<QQuickItem*>(QStringLiteral("recordingPlayPauseButtonIcon"));
         auto* positionSlider = root->findChild<QQuickItem*>(QStringLiteral("playbackPositionSlider"));
         auto* rateCombo = root->findChild<QQuickItem*>(QStringLiteral("playbackRateComboBox"));
         auto* options = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportOptions"));
@@ -1102,8 +1134,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(options);
         QVERIFY(transcriptToolbar);
 
-        auto* rateIndicator =
-            qobject_cast<QQuickItem*>(rateCombo->property("indicator").value<QObject*>());
+        auto* rateIndicator = qobject_cast<QQuickItem*>(rateCombo->property("indicator").value<QObject*>());
         QVERIFY(rateIndicator);
 
         vm->settings()->setCompactMode(true);
@@ -1117,8 +1148,7 @@ class tst_QmlSmoke final : public QObject {
             window->setWidth(width);
             window->setHeight(720);
             QCOMPARE(vm->currentPage(), QStringLiteral("Recording"));
-            QTRY_COMPARE_WITH_TIMEOUT(page->property("compactInspector").toBool(), compactInspector,
-                                      1'000);
+            QTRY_COMPARE_WITH_TIMEOUT(page->property("compactInspector").toBool(), compactInspector, 1'000);
             QTRY_VERIFY_WITH_TIMEOUT(qAbs(workspace->width() - page->width()) <= 0.5, 1'000);
             QTRY_VERIFY_WITH_TIMEOUT(inspector->isVisible() == !compactInspector, 1'000);
             QTRY_VERIFY_WITH_TIMEOUT(mainPane->width() > 700.0, 1'000);
@@ -1126,7 +1156,7 @@ class tst_QmlSmoke final : public QObject {
             QTRY_VERIFY_WITH_TIMEOUT(timeline->width() <= transport->width() + 0.5, 1'000);
             QVERIFY2(inspector->isVisible() == !compactInspector,
                      qPrintable(QStringLiteral("Inspector visibility mismatch at %1 px: page=%2, "
-                                                       "compact=%3, inspector=%4/%5")
+                                               "compact=%3, inspector=%4/%5")
                                     .arg(width)
                                     .arg(page->width())
                                     .arg(page->property("compactInspector").toBool())
@@ -1139,7 +1169,7 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(timeline->width() > 0.0);
             QVERIFY2(timeline->width() <= transport->width() + 0.5,
                      qPrintable(QStringLiteral("Playback timeline exceeds transport at %1 px: %2 of %3 px "
-                                                       "(main pane %4, workspace %5, page %6, inspector %7/%8)")
+                                               "(main pane %4, workspace %5, page %6, inspector %7/%8)")
                                     .arg(width)
                                     .arg(timeline->width())
                                     .arg(transport->width())
@@ -1151,20 +1181,16 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(positionSlider->width() >= 160.0);
             const QPointF rateIndicatorOrigin = rateIndicator->mapToItem(rateCombo, QPointF{});
             QVERIFY(rateIndicatorOrigin.x() >= -0.5 && rateIndicatorOrigin.y() >= -0.5);
-            QVERIFY(rateIndicatorOrigin.x() + rateIndicator->width()
-                    <= rateCombo->width() + 0.5);
-            QVERIFY(rateIndicatorOrigin.y() + rateIndicator->height()
-                    <= rateCombo->height() + 0.5);
+            QVERIFY(rateIndicatorOrigin.x() + rateIndicator->width() <= rateCombo->width() + 0.5);
+            QVERIFY(rateIndicatorOrigin.y() + rateIndicator->height() <= rateCombo->height() + 0.5);
             QCOMPARE(playPauseButton->width(), 40.0);
             QCOMPARE(playPauseButton->height(), 40.0);
             QCOMPARE(playPauseIcon->width(), 20.0);
             QCOMPARE(playPauseIcon->height(), 20.0);
             const QPointF playIconOrigin = playPauseIcon->mapToItem(playPauseButton, QPointF{});
-            QVERIFY2(playIconOrigin.x() >= -0.5 && playIconOrigin.y() >= -0.5
-                         && playIconOrigin.x() + playPauseIcon->width()
-                                <= playPauseButton->width() + 0.5
-                         && playIconOrigin.y() + playPauseIcon->height()
-                                <= playPauseButton->height() + 0.5,
+            QVERIFY2(playIconOrigin.x() >= -0.5 && playIconOrigin.y() >= -0.5 &&
+                         playIconOrigin.x() + playPauseIcon->width() <= playPauseButton->width() + 0.5 &&
+                         playIconOrigin.y() + playPauseIcon->height() <= playPauseButton->height() + 0.5,
                      qPrintable(QStringLiteral("Play/pause icon is clipped: button=%1x%2, "
                                                "icon=(%3,%4) %5x%6")
                                     .arg(playPauseButton->width())
@@ -1194,11 +1220,9 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(playIconGrab);
         QSignalSpy playIconReadySpy(playIconGrab.data(), &QQuickItemGrabResult::ready);
         if (playIconGrab->image().isNull()) {
-            QVERIFY2(playIconReadySpy.wait(1'000),
-                     "Timed out while rendering the play button icon.");
+            QVERIFY2(playIconReadySpy.wait(1'000), "Timed out while rendering the play button icon.");
         }
-        const QImage playIconImage =
-            playIconGrab->image().convertToFormat(QImage::Format_RGBA8888);
+        const QImage playIconImage = playIconGrab->image().convertToFormat(QImage::Format_RGBA8888);
         QVERIFY(!playIconImage.isNull());
         QRect paintedBounds;
         int paintedPixelCount = 0;
@@ -1212,9 +1236,9 @@ class tst_QmlSmoke final : public QObject {
             }
         }
         QVERIFY2(paintedPixelCount > 4, "The play button icon did not render.");
-        QVERIFY2(paintedBounds.left() > 0 && paintedBounds.top() > 0
-                     && paintedBounds.right() < playIconImage.width() - 1
-                     && paintedBounds.bottom() < playIconImage.height() - 1,
+        QVERIFY2(paintedBounds.left() > 0 && paintedBounds.top() > 0 &&
+                     paintedBounds.right() < playIconImage.width() - 1 &&
+                     paintedBounds.bottom() < playIconImage.height() - 1,
                  qPrintable(QStringLiteral("The play icon touches its raster edge: image=%1x%2, "
                                            "painted=(%3,%4) %5x%6")
                                 .arg(playIconImage.width())
@@ -1247,8 +1271,7 @@ class tst_QmlSmoke final : public QObject {
         auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
         auto* toolbar = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
         auto* list = root->findChild<QQuickItem*>(QStringLiteral("segmentList"));
-        auto* noMatchesState =
-            root->findChild<QQuickItem*>(QStringLiteral("recordingNoMatchesState"));
+        auto* noMatchesState = root->findChild<QQuickItem*>(QStringLiteral("recordingNoMatchesState"));
         QVERIFY(window);
         QVERIFY(vm);
         QVERIFY(page);
@@ -1300,8 +1323,7 @@ class tst_QmlSmoke final : public QObject {
             QCoreApplication::processEvents();
             QTRY_VERIFY_WITH_TIMEOUT(list->height() > 0.0, 1'000);
 
-            QTRY_COMPARE_WITH_TIMEOUT(page->property("compactInspector").toBool(), compactInspector,
-                                      1'000);
+            QTRY_COMPARE_WITH_TIMEOUT(page->property("compactInspector").toBool(), compactInspector, 1'000);
             verifyContainedHorizontally(page, mainPane,
                                         QStringLiteral("recording main pane at %1 px").arg(width));
             for (QQuickItem* item : {waveform, transport, toolbar, list}) {
@@ -1325,8 +1347,7 @@ class tst_QmlSmoke final : public QObject {
                                     .arg(mainPane->height())));
             QVERIFY(waveform->height() <= 68.0);
             QVERIFY(transport->height() <= 104.0);
-            QTRY_VERIFY_WITH_TIMEOUT(toolbar->height() <= (compactInspector ? 96.0 : 56.0),
-                                     1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(toolbar->height() <= (compactInspector ? 96.0 : 56.0), 1'000);
 
             const auto editors = visualDescendantsNamed(list, QStringLiteral("segmentEditor"));
             QVERIFY2(!editors.isEmpty(), "The transcript viewport did not instantiate segment delegates.");
@@ -1336,8 +1357,7 @@ class tst_QmlSmoke final : public QObject {
                 const QPointF origin = editor->mapToItem(list, QPointF{});
                 verifyContainedHorizontally(list, editor, QStringLiteral("transcript segment"));
                 QCOMPARE(editor->property("radius").toReal(), 0.0);
-                QVERIFY(visualDescendantsNamed(editor,
-                                               QStringLiteral("segmentReviewedControl")).isEmpty());
+                QVERIFY(visualDescendantsNamed(editor, QStringLiteral("segmentReviewedControl")).isEmpty());
                 auto* timeColumn =
                     visualDescendantsNamed(editor, QStringLiteral("segmentTimeColumn")).value(0);
                 QVERIFY(timeColumn);
@@ -1361,12 +1381,10 @@ class tst_QmlSmoke final : public QObject {
 
             auto* editor = editors.constFirst();
             auto* textEditor = visualDescendantsNamed(editor, QStringLiteral("segmentTextEditor")).value(0);
-            auto* separator =
-                visualDescendantsNamed(editor, QStringLiteral("segmentSeparator")).value(0);
+            auto* separator = visualDescendantsNamed(editor, QStringLiteral("segmentSeparator")).value(0);
             QVERIFY(textEditor);
             QVERIFY(separator);
-            QVERIFY(visualDescendantsNamed(editor,
-                                           QStringLiteral("segmentReviewedControl")).isEmpty());
+            QVERIFY(visualDescendantsNamed(editor, QStringLiteral("segmentReviewedControl")).isEmpty());
             verifyContainedHorizontally(editor, textEditor, QStringLiteral("segment text editor"));
             verifyContainedHorizontally(editor, separator, QStringLiteral("segment separator"));
 
@@ -1395,8 +1413,7 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(vm->transcript()->selectedIndex(), -1);
         QCOMPARE(vm->transcript()->activePlaybackIndex(), -1);
         vm->transcript()->setSearchText(QString{});
-        QTRY_COMPARE_WITH_TIMEOUT(vm->transcript()->visibleSegmentCount(), segmentFixtureCount,
-                                  1'000);
+        QTRY_COMPARE_WITH_TIMEOUT(vm->transcript()->visibleSegmentCount(), segmentFixtureCount, 1'000);
         QCOMPARE(vm->transcript()->selectedIndex(), 5);
         QCOMPARE(vm->transcript()->activePlaybackIndex(), 5);
 
@@ -1457,20 +1474,17 @@ class tst_QmlSmoke final : public QObject {
         auto* timeColumn = visualDescendantsNamed(segment, QStringLiteral("segmentTimeColumn")).value(0);
         auto* textEditor = visualDescendantsNamed(segment, QStringLiteral("segmentTextEditor")).value(0);
         auto* statusRow = visualDescendantsNamed(segment, QStringLiteral("segmentStatusRow")).value(0);
-        auto* separator =
-            visualDescendantsNamed(segment, QStringLiteral("segmentSeparator")).value(0);
+        auto* separator = visualDescendantsNamed(segment, QStringLiteral("segmentSeparator")).value(0);
         auto* actionsRow = visualDescendantsNamed(segment, QStringLiteral("segmentActionsRow")).value(0);
         auto* deleteButton = visualDescendantsNamed(segment, QStringLiteral("segmentDeleteButton")).value(0);
         auto* startTimeCode =
             visualDescendantsNamed(segment, QStringLiteral("segmentStartTimeCode")).value(0);
-        auto* endTimeCode =
-            visualDescendantsNamed(segment, QStringLiteral("segmentEndTimeCode")).value(0);
+        auto* endTimeCode = visualDescendantsNamed(segment, QStringLiteral("segmentEndTimeCode")).value(0);
         QVERIFY(timeColumn);
         QVERIFY(textEditor);
         QVERIFY(statusRow);
         QVERIFY(separator);
-        QVERIFY(visualDescendantsNamed(segment,
-                                       QStringLiteral("segmentReviewedControl")).isEmpty());
+        QVERIFY(visualDescendantsNamed(segment, QStringLiteral("segmentReviewedControl")).isEmpty());
         QVERIFY(actionsRow);
         QVERIFY(deleteButton);
         QVERIFY(startTimeCode);
@@ -1489,11 +1503,9 @@ class tst_QmlSmoke final : public QObject {
 
             const QPointF selectedTextOrigin = textEditor->mapToItem(segment, QPointF{});
             const QPointF selectedActionsOrigin = actionsRow->mapToItem(segment, QPointF{});
-            QVERIFY2(selectedActionsOrigin.x() >=
-                         selectedTextOrigin.x() + textEditor->width() - 0.5,
-                     qPrintable(QStringLiteral(
-                                    "Segment actions must sit to the right of the transcript text "
-                                    "at %1 px: actions x=%2, text right=%3")
+            QVERIFY2(selectedActionsOrigin.x() >= selectedTextOrigin.x() + textEditor->width() - 0.5,
+                     qPrintable(QStringLiteral("Segment actions must sit to the right of the transcript text "
+                                               "at %1 px: actions x=%2, text right=%3")
                                     .arg(width)
                                     .arg(selectedActionsOrigin.x())
                                     .arg(selectedTextOrigin.x() + textEditor->width())));
@@ -1543,8 +1555,8 @@ class tst_QmlSmoke final : public QObject {
                     .arg(timeCode->implicitHeight())
                     .arg(contentItem->implicitHeight());
             };
-            QTRY_VERIFY2_WITH_TIMEOUT(timeCode->height() + 0.5 >= requiredHeight,
-                                      qPrintable(heightMessage()), 1'000);
+            QTRY_VERIFY2_WITH_TIMEOUT(timeCode->height() + 0.5 >= requiredHeight, qPrintable(heightMessage()),
+                                      1'000);
         }
         host->setProperty("uiScale", 1.0);
         QCoreApplication::processEvents();
@@ -1659,31 +1671,26 @@ class tst_QmlSmoke final : public QObject {
         const QColor expectedAccent = tokens->property("accent").value<QColor>();
         const QColor expectedTrack = tokens->property("borderStrong").value<QColor>();
 
-        auto* comboIndicator =
-            qobject_cast<QQuickItem*>(combo->property("indicator").value<QObject*>());
+        auto* comboIndicator = qobject_cast<QQuickItem*>(combo->property("indicator").value<QObject*>());
         QVERIFY(comboIndicator);
         QCOMPARE(comboIndicator->objectName(), QStringLiteral("appComboBoxIndicator"));
         QCOMPARE(comboIndicator->width(), 16.0);
         QCOMPARE(comboIndicator->height(), 16.0);
         QCOMPARE(comboIndicator->property("source").toUrl(),
-                 QUrl(QStringLiteral(
-                     "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg")));
+                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg")));
         const QPointF indicatorOrigin =
             comboIndicator->mapToItem(qobject_cast<QQuickItem*>(combo), QPointF{});
         QVERIFY(indicatorOrigin.x() >= -0.5 && indicatorOrigin.y() >= -0.5);
-        QVERIFY(indicatorOrigin.x() + comboIndicator->width()
-                <= qobject_cast<QQuickItem*>(combo)->width() + 0.5);
-        QVERIFY(indicatorOrigin.y() + comboIndicator->height()
-                <= qobject_cast<QQuickItem*>(combo)->height() + 0.5);
+        QVERIFY(indicatorOrigin.x() + comboIndicator->width() <=
+                qobject_cast<QQuickItem*>(combo)->width() + 0.5);
+        QVERIFY(indicatorOrigin.y() + comboIndicator->height() <=
+                qobject_cast<QQuickItem*>(combo)->height() + 0.5);
 
-        auto* sliderTrack =
-            qobject_cast<QQuickItem*>(slider->property("background").value<QObject*>());
-        auto* sliderHandle =
-            qobject_cast<QQuickItem*>(slider->property("handle").value<QObject*>());
+        auto* sliderTrack = qobject_cast<QQuickItem*>(slider->property("background").value<QObject*>());
+        auto* sliderHandle = qobject_cast<QQuickItem*>(slider->property("handle").value<QObject*>());
         QVERIFY(sliderTrack);
         QVERIFY(sliderHandle);
-        auto* sliderProgress =
-            sliderTrack->findChild<QQuickItem*>(QStringLiteral("appSliderProgress"));
+        auto* sliderProgress = sliderTrack->findChild<QQuickItem*>(QStringLiteral("appSliderProgress"));
         QVERIFY(sliderProgress);
         QCOMPARE(sliderTrack->objectName(), QStringLiteral("appSliderTrack"));
         QCOMPARE(sliderHandle->objectName(), QStringLiteral("appSliderHandle"));
@@ -1714,16 +1721,14 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(QMetaObject::invokeMethod(comboPopup, "open", Qt::DirectConnection));
         QCoreApplication::processEvents();
         QCOMPARE(comboIndicator->property("source").toUrl(),
-                 QUrl(QStringLiteral(
-                     "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg")));
+                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg")));
         auto* comboSurface = comboPopup->findChild<QQuickItem*>(QStringLiteral("appComboBoxPopupSurface"));
         QVERIFY(comboSurface);
         QCOMPARE(comboSurface->property("color").value<QColor>(), expectedSurface);
         QVERIFY(QMetaObject::invokeMethod(comboPopup, "close", Qt::DirectConnection));
         QCoreApplication::processEvents();
         QCOMPARE(comboIndicator->property("source").toUrl(),
-                 QUrl(QStringLiteral(
-                     "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg")));
+                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg")));
 
         QVERIFY(QMetaObject::invokeMethod(menu, "open", Qt::DirectConnection));
         QCoreApplication::processEvents();
@@ -1743,8 +1748,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(secondBackground);
 
         const auto movePointerTo = [](QQuickItem* item) {
-            const QPointF center =
-                item->mapToScene(QPointF(item->width() / 2.0, item->height() / 2.0));
+            const QPointF center = item->mapToScene(QPointF(item->width() / 2.0, item->height() / 2.0));
             QTest::mouseMove(item->window(), center.toPoint());
         };
         movePointerTo(firstMenuItem);
@@ -1805,14 +1809,15 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 1);
         QCOMPARE(vm.currentPage(), QStringLiteral("Queue"));
         const QModelIndex queuedJob = vm.jobQueue()->jobs()->index(0, 0);
-        QCOMPARE(vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::IdRole).toString(),
-                 jobId);
+        QCOMPARE(vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::IdRole).toString(), jobId);
         vm.jobQueue()->updateJob(jobId, id, QStringLiteral("Fixture job"), QStringLiteral("Failed"),
                                  QStringLiteral("Transcribing"), 0.2, QStringLiteral("Fixture failure"));
         QVERIFY(vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::CanRemoveRole).toBool());
         QSignalSpy removeRequested(vm.jobQueue(), &BreezeDesk::JobQueueViewModel::removeRequested);
         vm.jobQueue()->remove(jobId);
         QCOMPARE(removeRequested.count(), 1);
+        QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 1);
+        vm.jobQueue()->confirmRemoved(jobId);
         QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 0);
         vm.library()->moveToTrash(id);
         QCOMPARE(vm.library()->trash()->rowCount(), 1);
@@ -2177,8 +2182,7 @@ class tst_QmlSmoke final : public QObject {
         completedSegment.startMs = 0;
         completedSegment.endMs = 1'000;
         completedSegment.originalText = QStringLiteral("Completed revision");
-        QVERIFY(transcriptRepository.replaceRevision(recording.id, completedJob.id,
-                                                     {completedSegment}));
+        QVERIFY(transcriptRepository.replaceRevision(recording.id, completedJob.id, {completedSegment}));
         QVERIFY(jobRepository.completeAndActivate(recording.id, completedJob.id));
 
         BreezeDesk::TranscriptionJob liveJob;
@@ -2247,6 +2251,47 @@ class tst_QmlSmoke final : public QObject {
         vm.selectTranscriptRevision(liveJob.id);
         QCOMPARE(vm.transcriptRevisions()->selectedJobId(), liveJob.id);
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Newer live partial revision"));
+
+        vm.transcript()->editText(0, QStringLiteral("Dirty failed revision"));
+        QVERIFY(vm.transcript()->dirty());
+        vm.navigate(QStringLiteral("Queue"));
+        QVERIFY(jobRepository.deleteTerminalJob(liveJob.id));
+        vm.refreshAfterTranscriptRemoval(liveJob.id);
+        QCOMPARE(vm.currentPage(), QStringLiteral("Queue"));
+        QCOMPARE(vm.transcriptRevisions()->count(), 0);
+        QVERIFY(vm.transcriptRevisions()->selectedJobId().isEmpty());
+        QCOMPARE(vm.transcript()->segmentCount(), 0);
+        QVERIFY(!vm.transcript()->dirty());
+
+        BreezeDesk::TranscriptionJob bulkJob;
+        bulkJob.id = QStringLiteral("bulk-completed-revision");
+        bulkJob.recordingId = recording.id;
+        QVERIFY(jobRepository.createQueued(bulkJob));
+        QVERIFY(jobRepository.transition(bulkJob.id, BreezeDesk::JobState::Preparing));
+        QVERIFY(jobRepository.transition(bulkJob.id, BreezeDesk::JobState::LoadingModel));
+        QVERIFY(jobRepository.transition(bulkJob.id, BreezeDesk::JobState::Transcribing));
+        QVERIFY(jobRepository.transition(bulkJob.id, BreezeDesk::JobState::Finalizing));
+
+        BreezeDesk::TranscriptSegment bulkSegment = completedSegment;
+        bulkSegment.id = QStringLiteral("bulk-completed-segment");
+        bulkSegment.jobId = bulkJob.id;
+        bulkSegment.originalText = QStringLiteral("Bulk completed revision");
+        QVERIFY(transcriptRepository.replaceRevision(recording.id, bulkJob.id, {bulkSegment}));
+        QVERIFY(jobRepository.completeAndActivate(recording.id, bulkJob.id));
+
+        vm.openRecording(recording.id);
+        QCOMPARE(vm.transcriptRevisions()->selectedJobId(), bulkJob.id);
+        vm.transcript()->editText(0, QStringLiteral("Dirty bulk revision"));
+        QVERIFY(vm.transcript()->dirty());
+        vm.navigate(QStringLiteral("Queue"));
+        const auto cleared = jobRepository.clearCompleted();
+        QVERIFY(cleared);
+        QCOMPARE(cleared.value(), 1);
+        vm.refreshAfterTranscriptRemoval();
+        QCOMPARE(vm.currentPage(), QStringLiteral("Queue"));
+        QCOMPARE(vm.transcriptRevisions()->count(), 0);
+        QCOMPARE(vm.transcript()->segmentCount(), 0);
+        QVERIFY(!vm.transcript()->dirty());
     }
 
     void diagnosticsUsesCentralizedStoragePaths() {
@@ -2607,8 +2652,8 @@ class tst_QmlSmoke final : public QObject {
         BreezeDesk::SqliteGlossaryRepository repository(database);
         BreezeDesk::GlossaryViewModel glossaryViewModel;
         glossaryViewModel.installRepository(&repository);
-        const QString profileId = glossaryViewModel.createProfile(
-            QStringLiteral("Product"), QString(), QString());
+        const QString profileId =
+            glossaryViewModel.createProfile(QStringLiteral("Product"), QString(), QString());
         QVERIFY(!profileId.isEmpty());
         glossaryViewModel.setProperty("selectedProfileId", profileId);
 
@@ -2641,8 +2686,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
 
         auto* deleteButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryDeleteProfileButton"));
-        QObject* confirmDialog =
-            root->findChild<QObject*>(QStringLiteral("glossaryDeleteProfileDialog"));
+        QObject* confirmDialog = root->findChild<QObject*>(QStringLiteral("glossaryDeleteProfileDialog"));
         QVERIFY(deleteButton);
         QVERIFY(confirmDialog);
         QVERIFY(deleteButton->property("enabled").toBool());
@@ -2711,8 +2755,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(!toggle->property("visible").toBool(),
                  "Without settings the auto-transcribe toggle must stay hidden.");
 
-        QVERIFY(root->setProperty("settingsVm",
-                                  QVariant::fromValue<QObject*>(appViewModel.settings())));
+        QVERIFY(root->setProperty("settingsVm", QVariant::fromValue<QObject*>(appViewModel.settings())));
         QTRY_VERIFY_WITH_TIMEOUT(toggle->property("visible").toBool(), 1'000);
         QVERIFY(!toggle->property("checked").toBool());
 

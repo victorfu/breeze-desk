@@ -31,12 +31,14 @@ class JobQueueViewModel final : public QObject {
     Q_INVOKABLE void cancel(const QString& jobId);
     Q_INVOKABLE void retry(const QString& jobId);
     Q_INVOKABLE void resume(const QString& jobId);
-    Q_INVOKABLE void hide(const QString& jobId);
     Q_INVOKABLE void remove(const QString& jobId);
     Q_INVOKABLE void reorder(const QString& jobId, int destination);
     Q_INVOKABLE void moveUp(const QString& jobId);
     Q_INVOKABLE void moveDown(const QString& jobId);
     Q_INVOKABLE void clearCompleted();
+
+    void confirmRemoved(const QString& jobId);
+    void confirmCompletedRemoved();
 
     void updateJob(const QString& id, const QString& recordingId, const QString& title, const QString& state,
                    const QString& stage, qreal progress, const QString& error = {});
@@ -47,8 +49,7 @@ class JobQueueViewModel final : public QObject {
     void updateJobTelemetry(const QString& jobId, int currentChunk, int totalChunks,
                             const QString& latestPartialText);
     void appendJobEvent(const QString& jobId, const QString& title, const QString& detail = {},
-                        const QString& severity = QStringLiteral("info"),
-                        const QDateTime& occurredAt = {});
+                        const QString& severity = QStringLiteral("info"), const QDateTime& occurredAt = {});
 
   signals:
     void pauseAfterCurrentChanged();

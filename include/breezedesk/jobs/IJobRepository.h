@@ -52,7 +52,7 @@ class IJobRepository {
     [[nodiscard]] virtual Result<void> updateChunk(const JobChunk& chunk) = 0;
     [[nodiscard]] virtual Result<void> reorder(const QStringList& orderedJobIds) = 0;
     [[nodiscard]] virtual Result<int> markRunningJobsInterrupted(const QString& reason) = 0;
-    [[nodiscard]] virtual Result<void> removeFromQueue(const QString& id) = 0;
+    [[nodiscard]] virtual Result<void> deleteTerminalJob(const QString& id) = 0;
     [[nodiscard]] virtual Result<int> clearCompleted() = 0;
 };
 

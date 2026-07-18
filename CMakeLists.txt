@@ -1,5 +1,11 @@
 cmake_minimum_required(VERSION 3.24)
 
+# Let compiler-cache integrations select an MSVC debug-information format
+# without CMake injecting the legacy shared program database flags.
+if(POLICY CMP0141)
+    cmake_policy(SET CMP0141 NEW)
+endif()
+
 # CMake uses this value while enabling the compiler, so it must be established
 # before project(). It is ignored by generators that do not target Apple
 # platforms and remains overridable with -DCMAKE_OSX_DEPLOYMENT_TARGET=... .
@@ -47,7 +53,12 @@ set(BREEZEDESK_WINDOWS_BACKEND "CPU" CACHE STRING "Windows worker backend: VULKA
 set_property(CACHE BREEZEDESK_WINDOWS_BACKEND PROPERTY STRINGS VULKAN CUDA CPU)
 set(BREEZEDESK_APPCAST_URL "" CACHE STRING "Sparkle/WinSparkle appcast URL")
 set(BREEZEDESK_EDDSA_PUBLIC_KEY "" CACHE STRING "Sparkle EdDSA public key")
-set(BREEZEDESK_WINDOWS_ICON_PATH "" CACHE FILEPATH "Optional Windows ICO generated from the canonical app icon")
+set(_breezedesk_default_windows_icon "")
+if(WIN32)
+    set(_breezedesk_default_windows_icon "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/breezedesk.ico")
+endif()
+set(BREEZEDESK_WINDOWS_ICON_PATH "${_breezedesk_default_windows_icon}" CACHE FILEPATH
+    "Windows multi-resolution ICO generated from the small-size brand assets")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(BreezeDeskCompilerCache)

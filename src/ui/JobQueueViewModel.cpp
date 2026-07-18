@@ -14,8 +14,7 @@ JobQueueViewModel::JobQueueViewModel(QObject* parent) : QObject(parent) {
         emit emptyChanged();
     });
     connect(&m_jobs, &QAbstractItemModel::dataChanged, this, &JobQueueViewModel::activeCountChanged);
-    connect(&m_jobs, &JobListModel::runningJobIdChanged, this,
-            &JobQueueViewModel::runningJobIdChanged);
+    connect(&m_jobs, &JobListModel::runningJobIdChanged, this, &JobQueueViewModel::runningJobIdChanged);
 }
 
 QAbstractItemModel* JobQueueViewModel::jobs() noexcept {
@@ -67,15 +66,10 @@ void JobQueueViewModel::resume(const QString& jobId) {
     }
 }
 
-void JobQueueViewModel::hide(const QString& jobId) {
-    if (m_jobs.hide(jobId)) {
-        // The persistence layer retains the durable job and only hides its queue row.
+void JobQueueViewModel::remove(const QString& jobId) {
+    if (m_jobs.canRemove(jobId)) {
         emit removeRequested(jobId);
     }
-}
-
-void JobQueueViewModel::remove(const QString& jobId) {
-    hide(jobId);
 }
 
 void JobQueueViewModel::reorder(const QString& jobId, int destination) {
@@ -99,8 +93,15 @@ void JobQueueViewModel::moveDown(const QString& jobId) {
 }
 
 void JobQueueViewModel::clearCompleted() {
-    m_jobs.clearCompleted();
     emit clearCompletedRequested();
+}
+
+void JobQueueViewModel::confirmRemoved(const QString& jobId) {
+    m_jobs.remove(jobId);
+}
+
+void JobQueueViewModel::confirmCompletedRemoved() {
+    m_jobs.clearCompleted();
 }
 
 void JobQueueViewModel::updateJob(const QString& id, const QString& recordingId, const QString& title,
@@ -126,9 +127,8 @@ void JobQueueViewModel::updateJobTelemetry(const QString& jobId, const int curre
     m_jobs.updateTelemetry(jobId, currentChunk, totalChunks, latestPartialText);
 }
 
-void JobQueueViewModel::appendJobEvent(const QString& jobId, const QString& title,
-                                       const QString& detail, const QString& severity,
-                                       const QDateTime& occurredAt) {
+void JobQueueViewModel::appendJobEvent(const QString& jobId, const QString& title, const QString& detail,
+                                       const QString& severity, const QDateTime& occurredAt) {
     m_jobs.appendEvent(jobId, title, detail, severity, occurredAt);
 }
 

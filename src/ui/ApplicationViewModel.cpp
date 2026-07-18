@@ -50,11 +50,17 @@ struct FolderScanResult {
 bool isInsideDirectory(const QString& filePath, const QString& directoryPath) {
     const QFileInfo fileInfo(filePath);
     const QFileInfo directoryInfo(directoryPath);
-    const QString file =
-        fileInfo.canonicalFilePath().isEmpty() ? fileInfo.absoluteFilePath() : fileInfo.canonicalFilePath();
-    const QString directory = directoryInfo.canonicalFilePath().isEmpty() ? directoryInfo.absoluteFilePath()
-                                                                          : directoryInfo.canonicalFilePath();
-    return file.startsWith(QDir::cleanPath(directory) + QDir::separator());
+    const QString file = QDir::fromNativeSeparators(QDir::cleanPath(
+        fileInfo.canonicalFilePath().isEmpty() ? fileInfo.absoluteFilePath() : fileInfo.canonicalFilePath()));
+    const QString directory = QDir::fromNativeSeparators(
+        QDir::cleanPath(directoryInfo.canonicalFilePath().isEmpty() ? directoryInfo.absoluteFilePath()
+                                                                    : directoryInfo.canonicalFilePath()));
+#ifdef Q_OS_WIN
+    constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseInsensitive;
+#else
+    constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseSensitive;
+#endif
+    return file.startsWith(directory + QLatin1Char('/'), PathCaseSensitivity);
 }
 
 ManagedCopyResult copyManagedMedia(const QUrl& originalUrl, const QString& destinationPath,
@@ -167,9 +173,8 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
 ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingRepository,
                                            ITranscriptRepository* transcriptRepository, QObject* parent)
     : QObject(parent), m_library(recordingRepository, this), m_recordingDetail(this), m_transcript(this),
-      m_transcriptRevisions(this), m_jobQueue(this), m_player(this), m_modelManager(this),
-      m_glossary(this), m_settings(this), m_diagnostics(this),
-      m_transcriptRepository(transcriptRepository) {
+      m_transcriptRevisions(this), m_jobQueue(this), m_player(this), m_modelManager(this), m_glossary(this),
+      m_settings(this), m_diagnostics(this), m_transcriptRepository(transcriptRepository) {
     m_transcriptAutosaveTimer.setSingleShot(true);
     m_transcriptAutosaveTimer.setInterval(750);
     connect(&m_library, &LibraryViewModel::recordingActivated, this, &ApplicationViewModel::openRecording);
@@ -810,8 +815,7 @@ void ApplicationViewModel::reloadTranscriptForJob(const QString& recordingId, co
     }
 
     m_transcriptRevisions.noteLiveRevision(jobId);
-    if (m_transcriptRevisions.selectionPinned() &&
-        m_transcriptRevisions.selectedJobId() != jobId) {
+    if (m_transcriptRevisions.selectionPinned() && m_transcriptRevisions.selectedJobId() != jobId) {
         return;
     }
     if (jobId == m_activeTranscriptJobId && m_transcript.dirty()) {
@@ -822,14 +826,13 @@ void ApplicationViewModel::reloadTranscriptForJob(const QString& recordingId, co
     (void)showTranscriptRevision(jobId, editingLocked, false);
 }
 
-void ApplicationViewModel::finishLiveTranscriptRevision(const QString& recordingId,
-                                                        const QString& jobId,
+void ApplicationViewModel::finishLiveTranscriptRevision(const QString& recordingId, const QString& jobId,
                                                         const bool succeeded) {
     if (recordingId != m_activeRecordingId || jobId.isEmpty()) {
         return;
     }
-    const bool pinnedOlderRevision = m_transcriptRevisions.selectionPinned() &&
-                                     m_transcriptRevisions.selectedJobId() != jobId;
+    const bool pinnedOlderRevision =
+        m_transcriptRevisions.selectionPinned() && m_transcriptRevisions.selectedJobId() != jobId;
     const QString selectedJobId = m_transcriptRevisions.finishLiveRevision(jobId, succeeded);
     if (pinnedOlderRevision) {
         return;
@@ -914,6 +917,44 @@ void ApplicationViewModel::deleteTranscriptRevision(const QString& jobId) {
         }
     }
     showToast(tr("Transcript version deleted."));
+}
+
+void ApplicationViewModel::refreshAfterTranscriptRemoval(const QString& removedJobId) {
+    const QString previousSelection = m_activeTranscriptJobId;
+    bool selectionRemoved = !previousSelection.isEmpty() && previousSelection == removedJobId;
+    if (selectionRemoved) {
+        m_transcriptAutosaveTimer.stop();
+        m_transcript.markSaved();
+    }
+
+    m_library.refresh();
+    if (m_activeRecordingId.isEmpty()) {
+        return;
+    }
+    m_recordingDetail.setDetails(m_library.details(m_activeRecordingId));
+    const bool revisionsRefreshed = m_transcriptRevisions.refresh();
+
+    if (!revisionsRefreshed && !selectionRemoved) {
+        return;
+    }
+    if (revisionsRefreshed && !selectionRemoved && !previousSelection.isEmpty() &&
+        !m_transcriptRevisions.contains(previousSelection)) {
+        selectionRemoved = true;
+        m_transcriptAutosaveTimer.stop();
+        m_transcript.markSaved();
+    }
+    if (!selectionRemoved) {
+        return;
+    }
+
+    m_activeTranscriptJobId = m_transcriptRevisions.followLive();
+    if (m_activeTranscriptJobId.isEmpty()) {
+        m_transcript.setEditingLocked(false);
+        m_transcript.replaceSegments({});
+        return;
+    }
+    m_transcript.setEditingLocked(m_transcriptRevisions.selectedRevisionIsRunning());
+    reloadActiveTranscript();
 }
 
 void ApplicationViewModel::installJobRepository(IJobRepository* repository) {

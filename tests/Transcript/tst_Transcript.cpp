@@ -238,9 +238,8 @@ void TranscriptTest::viewModelPreservesMetadataAndControlsGlossaryAudit() {
     QCOMPARE(filteredViewModel.activePlaybackIndex(), 0);
     QCOMPARE(filteredModel->roleNames().value(TranscriptFilterProxyModel::ProxyRowRole),
              QByteArrayLiteral("proxyRow"));
-    QCOMPARE(filteredModel->data(filteredModel->index(0, 0), TranscriptFilterProxyModel::ProxyRowRole)
-                 .toInt(),
-             0);
+    QCOMPARE(
+        filteredModel->data(filteredModel->index(0, 0), TranscriptFilterProxyModel::ProxyRowRole).toInt(), 0);
     filteredViewModel.editText(0, QStringLiteral("Edited filtered result"));
     QCOMPARE(filteredViewModel.snapshot().at(0).editedText, filteredOut.editedText);
     QCOMPARE(filteredViewModel.snapshot().at(1).editedText, QStringLiteral("Edited filtered result"));

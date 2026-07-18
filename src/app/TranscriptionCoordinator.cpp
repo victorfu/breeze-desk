@@ -312,12 +312,10 @@ TranscriptionCoordinator::TranscriptionCoordinator(IRecordingRepository& recordi
     connect(&m_worker, &WorkerProcessManager::workerInterrupted, this,
             &TranscriptionCoordinator::interruptActiveJob);
     m_leaseHeartbeatTimer.setInterval(2'000);
-    connect(&m_leaseHeartbeatTimer, &QTimer::timeout, this,
-            &TranscriptionCoordinator::renewActiveLease);
+    connect(&m_leaseHeartbeatTimer, &QTimer::timeout, this, &TranscriptionCoordinator::renewActiveLease);
     m_leaseRetryTimer.setSingleShot(true);
     m_leaseRetryTimer.setInterval(1'000);
-    connect(&m_leaseRetryTimer, &QTimer::timeout, this,
-            &TranscriptionCoordinator::scheduleNext);
+    connect(&m_leaseRetryTimer, &QTimer::timeout, this, &TranscriptionCoordinator::scheduleNext);
 }
 
 TranscriptionCoordinator::~TranscriptionCoordinator() {
@@ -496,10 +494,12 @@ void TranscriptionCoordinator::resume(const QString& jobId) {
 }
 
 void TranscriptionCoordinator::remove(const QString& jobId) {
-    const auto result = m_jobs.removeFromQueue(jobId);
+    const auto result = m_jobs.deleteTerminalJob(jobId);
     if (!result) {
         emit errorOccurred(result.error().message);
+        return;
     }
+    emit jobRemoved(jobId);
 }
 
 void TranscriptionCoordinator::reorder(const QString& jobId, int destination) {
@@ -530,7 +530,9 @@ void TranscriptionCoordinator::clearCompleted() {
     const auto result = m_jobs.clearCompleted();
     if (!result) {
         emit errorOccurred(result.error().message);
+        return;
     }
+    emit completedJobsRemoved();
 }
 
 void TranscriptionCoordinator::setPauseAfterCurrent(bool enabled) {
@@ -634,8 +636,7 @@ void TranscriptionCoordinator::releaseActiveLease() {
     const auto released = m_jobs.releaseLease(m_activeJob.id, m_ownerToken);
     // Terminal transitions and expired-lease takeover both clear the lease atomically.
     // Treat an already-cleared lease as successful cleanup.
-    if (!released && released.error().code != ErrorCode::InvalidStateTransition &&
-        !m_shuttingDown) {
+    if (!released && released.error().code != ErrorCode::InvalidStateTransition && !m_shuttingDown) {
         emit errorOccurred(released.error().message);
     }
 }
@@ -845,8 +846,7 @@ void TranscriptionCoordinator::prepareChunks() {
     }
     m_chunks = existing.value();
     if (!m_chunks.isEmpty()) {
-        emit jobTelemetryChanged(m_activeJob.id, 0, static_cast<int>(m_chunks.size()),
-                                 m_latestPartialText);
+        emit jobTelemetryChanged(m_activeJob.id, 0, static_cast<int>(m_chunks.size()), m_latestPartialText);
         beginWaitingForModel();
         return;
     }
@@ -899,8 +899,7 @@ bool TranscriptionCoordinator::saveChunkPlan(QList<JobChunk> chunks, QString* er
         return false;
     }
     m_chunks = std::move(chunks);
-    emit jobTelemetryChanged(m_activeJob.id, 0, static_cast<int>(m_chunks.size()),
-                             m_latestPartialText);
+    emit jobTelemetryChanged(m_activeJob.id, 0, static_cast<int>(m_chunks.size()), m_latestPartialText);
     return true;
 }
 
@@ -1109,8 +1108,8 @@ void TranscriptionCoordinator::startNextChunk() {
         return;
     }
     publishEvents(m_activeJob.id);
-    emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1,
-                             static_cast<int>(m_chunks.size()), m_latestPartialText);
+    emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1, static_cast<int>(m_chunks.size()),
+                             m_latestPartialText);
     m_currentSegments.clear();
     const auto existingSegments = m_transcripts.segmentsForJob(m_activeJob.id, true);
     m_nextOrdinal = existingSegments ? static_cast<int>(existingSegments.value().size()) : 0;
@@ -1455,8 +1454,8 @@ void TranscriptionCoordinator::persistPartialSegments() {
     m_activeRevisionPublished = true;
     if (!m_currentSegments.isEmpty()) {
         m_latestPartialText = m_currentSegments.constLast().displayText().simplified();
-        emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1,
-                                 static_cast<int>(m_chunks.size()), m_latestPartialText);
+        emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1, static_cast<int>(m_chunks.size()),
+                                 m_latestPartialText);
     }
     emit transcriptChanged(m_activeJob.recordingId, m_activeJob.id, true);
 }
@@ -1510,8 +1509,8 @@ bool TranscriptionCoordinator::finalizeCurrentChunk(QString* error) {
     const double completed = static_cast<double>(m_currentChunkIndex + 1) /
                              static_cast<double>(std::max(1, static_cast<int>(m_chunks.size())));
     advanceProgress(JobStage::Transcribing, completed, m_activeJob.lastCompletedChunk);
-    emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1,
-                             static_cast<int>(m_chunks.size()), m_latestPartialText);
+    emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1, static_cast<int>(m_chunks.size()),
+                             m_latestPartialText);
     emit transcriptChanged(m_activeJob.recordingId, m_activeJob.id, true);
     return true;
 }

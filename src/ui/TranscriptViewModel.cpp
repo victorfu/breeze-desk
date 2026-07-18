@@ -72,8 +72,7 @@ TranscriptViewModel::TranscriptViewModel(QObject* parent) : QObject(parent), m_p
     connect(&m_proxy, &QAbstractItemModel::rowsInserted, this, proxyRowsChanged);
     connect(&m_proxy, &QAbstractItemModel::rowsRemoved, this, proxyRowsChanged);
     connect(&m_proxy, &QAbstractItemModel::modelReset, this, proxyRowsChanged);
-    connect(&m_proxy, &QAbstractItemModel::layoutChanged, this,
-            [this] { remapTrackedRows(); });
+    connect(&m_proxy, &QAbstractItemModel::layoutChanged, this, [this] { remapTrackedRows(); });
 }
 
 QAbstractItemModel* TranscriptViewModel::segments() noexcept {
@@ -259,8 +258,8 @@ void TranscriptViewModel::updatePlaybackPosition(qint64 positionMs) {
             break;
         }
     }
-    m_activePlaybackSourceIndex = sourceRow >= 0 ? QPersistentModelIndex(m_source.index(sourceRow))
-                                                : QPersistentModelIndex{};
+    m_activePlaybackSourceIndex =
+        sourceRow >= 0 ? QPersistentModelIndex(m_source.index(sourceRow)) : QPersistentModelIndex{};
     remapTrackedRows();
 }
 
@@ -296,9 +295,8 @@ QList<TranscriptSegmentModel::Segment> TranscriptViewModel::snapshot() const {
 
 void TranscriptViewModel::setSelectedIndex(int index) {
     const QModelIndex proxyIndex = m_proxy.index(index, 0);
-    m_selectedSourceIndex = proxyIndex.isValid()
-                                ? QPersistentModelIndex(m_proxy.mapToSource(proxyIndex))
-                                : QPersistentModelIndex{};
+    m_selectedSourceIndex = proxyIndex.isValid() ? QPersistentModelIndex(m_proxy.mapToSource(proxyIndex))
+                                                 : QPersistentModelIndex{};
     const int normalizedIndex = proxyIndex.isValid() ? index : -1;
     if (m_selectedIndex == normalizedIndex) {
         return;
@@ -351,17 +349,15 @@ void TranscriptViewModel::afterMutation(bool changed) {
 }
 
 void TranscriptViewModel::remapTrackedRows() {
-    const int remappedSelected = m_selectedSourceIndex.isValid()
-                                     ? m_proxy.mapFromSource(m_selectedSourceIndex).row()
-                                     : -1;
+    const int remappedSelected =
+        m_selectedSourceIndex.isValid() ? m_proxy.mapFromSource(m_selectedSourceIndex).row() : -1;
     if (m_selectedIndex != remappedSelected) {
         m_selectedIndex = remappedSelected;
         emit selectedIndexChanged();
     }
 
-    const int remappedActive = m_activePlaybackSourceIndex.isValid()
-                                   ? m_proxy.mapFromSource(m_activePlaybackSourceIndex).row()
-                                   : -1;
+    const int remappedActive =
+        m_activePlaybackSourceIndex.isValid() ? m_proxy.mapFromSource(m_activePlaybackSourceIndex).row() : -1;
     if (m_activePlaybackIndex != remappedActive) {
         m_activePlaybackIndex = remappedActive;
         emit activePlaybackIndexChanged();

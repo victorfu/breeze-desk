@@ -21,6 +21,7 @@
 #include "breezedesk/settings/SettingsStore.h"
 #include "breezedesk/transcript/SqliteTranscriptRepository.h"
 #include "breezedesk/ui/ApplicationViewModel.h"
+#include "breezedesk/ui/BrandIcons.h"
 #include "breezedesk/ui/UiRegistration.h"
 #include "breezedesk/update/UpdateCoordinator.h"
 #include "breezedesk/version.h"
@@ -57,6 +58,7 @@ constexpr int CliSourceMissingExitCode = 3;
 constexpr int CliMediaFailureExitCode = 5;
 constexpr int CliDatabaseFailureExitCode = 8;
 constexpr int ForwardedImportTimeoutMs = 10 * 60 * 1'000;
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -290,10 +292,19 @@ int main(int argc, char* argv[]) {
                      &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::resume);
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::removeRequested,
                      &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::remove);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::jobRemoved,
+                     viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::confirmRemoved);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::jobRemoved,
+                     viewModel.get(), &BreezeDesk::ApplicationViewModel::refreshAfterTranscriptRemoval);
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::reorderRequested,
                      &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::reorder);
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::clearCompletedRequested,
                      &transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::clearCompleted);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::completedJobsRemoved,
+                     viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::confirmCompletedRemoved);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::completedJobsRemoved,
+                     viewModel.get(),
+                     [viewModel = viewModel.get()] { viewModel->refreshAfterTranscriptRemoval(); });
     QObject::connect(viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::pauseAfterCurrentChanged,
                      &transcriptionCoordinator, [viewModel = viewModel.get(), &transcriptionCoordinator] {
                          transcriptionCoordinator.setPauseAfterCurrent(
@@ -318,9 +329,8 @@ int main(int argc, char* argv[]) {
                                                    const bool editingLocked) {
                          viewModel->reloadTranscriptForJob(recordingId, jobId, editingLocked);
                      });
-    QObject::connect(&transcriptionCoordinator,
-                     &BreezeDesk::TranscriptionCoordinator::liveRevisionFinished, viewModel.get(),
-                     &BreezeDesk::ApplicationViewModel::finishLiveTranscriptRevision);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::liveRevisionFinished,
+                     viewModel.get(), &BreezeDesk::ApplicationViewModel::finishLiveTranscriptRevision);
     QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::libraryChanged,
                      viewModel.get(), [viewModel = viewModel.get()] {
                          const QString activeRecording = viewModel->activeRecordingId();
@@ -458,10 +468,16 @@ int main(int argc, char* argv[]) {
         return 11;
     }
 
+#ifdef Q_OS_WIN
+    const QIcon applicationIcon = BreezeDesk::brandSymbolIcon();
+#else
     const QIcon applicationIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.png"));
+#endif
     application.setWindowIcon(applicationIcon);
 #ifdef Q_OS_MACOS
     const QIcon trayIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar.png"));
+#elif defined(Q_OS_WIN)
+    const QIcon trayIcon = BreezeDesk::windowsTrayIcon();
 #else
     const QIcon trayIcon(applicationIcon);
 #endif

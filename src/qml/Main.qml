@@ -177,16 +177,17 @@ ApplicationWindow {
                     Layout.bottomMargin: SemanticTokens.spacingLg
                     Item {
                         id: brandLogo
-                        Layout.minimumWidth: 34
-                        Layout.preferredWidth: 34
-                        Layout.maximumWidth: 34
-                        Layout.minimumHeight: 34
-                        Layout.preferredHeight: 34
-                        Layout.maximumHeight: 34
+                        Layout.minimumWidth: 32
+                        Layout.preferredWidth: 32
+                        Layout.maximumWidth: 32
+                        Layout.minimumHeight: 32
+                        Layout.preferredHeight: 32
+                        Layout.maximumHeight: 32
 
                         Image {
+                            objectName: "sidebarBrandLogo"
                             anchors.fill: parent
-                            source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk.png"
+                            source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk-symbol.svg"
                             sourceSize.width: Math.ceil(width * Math.max(1, Screen.devicePixelRatio))
                             sourceSize.height: Math.ceil(height * Math.max(1, Screen.devicePixelRatio))
                             fillMode: Image.PreserveAspectFit

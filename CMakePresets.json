@@ -11,6 +11,7 @@
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "CMAKE_UNITY_BUILD": "OFF",
         "BREEZEDESK_ENABLE_WHISPER": "ON",
+        "BREEZEDESK_WINDOWS_ICON_PATH": "${sourceDir}/resources/icons/breezedesk.ico",
         "BREEZEDESK_WINDOWS_BACKEND": "CPU",
         "BREEZEDESK_WARNINGS_AS_ERRORS": "ON"
       }

@@ -681,9 +681,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             session.error().code == ErrorCode::JobCancelled) {
             result.exitCode = CliExitCode::Cancelled;
         } else {
-            result.exitCode = session.error().domain == ErrorDomain::Database
-                                  ? CliExitCode::DatabaseFailure
-                                  : CliExitCode::InvalidArguments;
+            result.exitCode = session.error().domain == ErrorDomain::Database ? CliExitCode::DatabaseFailure
+                                                                              : CliExitCode::InvalidArguments;
         }
         result.error = session.error().diagnosticString();
         return result;
@@ -716,21 +715,18 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                          }
                          const auto renewed = persistence.renewExecutionLease();
                          if (!renewed && leaseFailure.isEmpty()) {
-                             leaseFailure = QStringLiteral(
-                                 "The global transcription lease was lost: %1")
+                             leaseFailure = QStringLiteral("The global transcription lease was lost: %1")
                                                 .arg(renewed.error().diagnosticString());
                              g_interrupted = 1;
                          }
                      });
     leaseHeartbeat.start();
     const auto interruptionReason = [&leaseFailure] {
-        return leaseFailure.isEmpty()
-                   ? QStringLiteral("Transcription was interrupted by the user.")
-                   : leaseFailure;
+        return leaseFailure.isEmpty() ? QStringLiteral("Transcription was interrupted by the user.")
+                                      : leaseFailure;
     };
     const auto interruptionCode = [&leaseFailure] {
-        return leaseFailure.isEmpty() ? QStringLiteral("JobCancelled")
-                                      : QStringLiteral("ExecutionLeaseLost");
+        return leaseFailure.isEmpty() ? QStringLiteral("JobCancelled") : QStringLiteral("ExecutionLeaseLost");
     };
     const auto interruptionExitCode = [&leaseFailure] {
         return leaseFailure.isEmpty() ? CliExitCode::Cancelled : CliExitCode::DatabaseFailure;
@@ -787,8 +783,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             return makeResult(CliExitCode::DatabaseFailure, {}, checkpointError);
         }
         if (!normalized) {
-            const QString reason =
-                g_interrupted != 0 ? interruptionReason() : operation->error();
+            const QString reason = g_interrupted != 0 ? interruptionReason() : operation->error();
             if (g_interrupted != 0) {
                 interruptSession(reason, interruptionCode());
                 return makeResult(interruptionExitCode(), {}, reason);

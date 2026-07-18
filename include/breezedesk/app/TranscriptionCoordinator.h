@@ -4,8 +4,8 @@
 #include "breezedesk/jobs/TranscriptionJob.h"
 #include "breezedesk/transcript/TranscriptSegment.h"
 
-#include <QObject>
 #include <QHash>
+#include <QObject>
 #include <QPointer>
 #include <QTimer>
 
@@ -61,6 +61,8 @@ class TranscriptionCoordinator final : public QObject {
                              const QString& latestPartialText);
     void jobEventPublished(const QString& jobId, const QString& title, const QString& detail,
                            const QString& severity, const QDateTime& occurredAt);
+    void jobRemoved(const QString& jobId);
+    void completedJobsRemoved();
     void libraryChanged();
     void errorOccurred(const QString& message);
 

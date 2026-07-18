@@ -22,7 +22,7 @@ Rectangle {
     required property var eventTimeline
     required property bool canMoveUp
     required property bool canMoveDown
-    required property bool canHide
+    required property bool canRemove
 
     signal cancelRequested(string id)
     signal retryRequested(string id)
@@ -30,7 +30,7 @@ Rectangle {
     signal moveUpRequested(string id)
     signal moveDownRequested(string id)
     signal reorderRequested(string id, int destination)
-    signal hideRequested(string id)
+    signal removeRequested(string id)
 
     property bool timelineExpanded: false
     readonly property string displayedJobState: UiText.jobState(jobState)
@@ -301,7 +301,7 @@ Rectangle {
         RowLayout {
             Layout.fillWidth: true
             visible: root.jobState === "Queued" || root.canCancel || root.canRetry
-                     || root.canResume || root.canHide
+                     || root.canResume || root.canRemove
             spacing: SemanticTokens.spacingXs
 
             RowLayout {
@@ -368,11 +368,12 @@ Rectangle {
                 onClicked: root.resumeRequested(root.jobId)
             }
             AppButton {
-                objectName: "jobHideButton"
-                visible: root.canHide
-                text: qsTr("Hide from queue")
-                accessibleName: qsTr("Hide %1 from queue").arg(root.title)
-                onClicked: root.hideRequested(root.jobId)
+                objectName: "jobRemoveButton"
+                visible: root.canRemove
+                text: qsTr("Remove")
+                accessibleName: qsTr("Remove %1 permanently").arg(root.title)
+                danger: true
+                onClicked: root.removeRequested(root.jobId)
             }
         }
     }

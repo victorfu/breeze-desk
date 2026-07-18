@@ -90,7 +90,7 @@ findstr /C:"--enable-gpl" /C:"--enable-nonfree" "%FFMPEG_BUILDCONF%" >nul && (
 
 set "ICON_PATH=%PROJECT_ROOT%\build\package-icon\breezedesk.ico"
 cmake -E make_directory "%PROJECT_ROOT%\build\package-icon" || exit /b 1
-magick.exe -background transparent "%PROJECT_ROOT%\resources\icons\breezedesk.png" -define icon:auto-resize=256,128,64,48,32,16 "%ICON_PATH%" || exit /b 1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\generate-icon.ps1" -OutputFile "%ICON_PATH%" || exit /b 1
 if not exist "%ICON_PATH%" (
   echo ImageMagick did not create the Windows app icon. 1>&2
   exit /b 1
@@ -187,6 +187,14 @@ if /I "%PACKAGE_VARIANT%"=="CUDA" (
 windeployqt --release --force --compiler-runtime --qmldir "%PROJECT_ROOT%\src\qml" --translations en,zh_TW "%STAGE_DIR%\bin\%APP_EXE%" "%STAGE_DIR%\bin\%CLI_EXE%" "%STAGE_DIR%\bin\%WORKER_EXE%" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-%BACKEND_SLUG%.exe" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-cpu.exe" || exit /b 1
 if not exist "%STAGE_DIR%\bin\Qt6Network.dll" (
   echo Qt deployment did not produce Qt6Network.dll required by the ASR workers. 1>&2
+  exit /b 1
+)
+if not exist "%STAGE_DIR%\bin\iconengines\qsvgicon.dll" (
+  echo Qt deployment did not produce the SVG icon engine required by the Windows tray icon. 1>&2
+  exit /b 1
+)
+if not exist "%STAGE_DIR%\bin\imageformats\qsvg.dll" (
+  echo Qt deployment did not produce the SVG image plugin required by the in-app logo. 1>&2
   exit /b 1
 )
 call :sign_if_requested "%STAGE_DIR%" || exit /b 1

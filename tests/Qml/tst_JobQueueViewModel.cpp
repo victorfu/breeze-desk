@@ -2,10 +2,10 @@
 #include "breezedesk/ui/JobQueueViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
 
-#include <QQuickItem>
-#include <QQuickWindow>
 #include <QQmlComponent>
 #include <QQmlEngine>
+#include <QQuickItem>
+#include <QQuickWindow>
 #include <QSignalSpy>
 #include <QtTest>
 
@@ -38,7 +38,8 @@ class JobQueueViewModelTest final : public QObject {
     void initTestCase();
     void exposesRunningQueueTelemetryAndTimeline();
     void reordersOnlyQueuedJobsUsingQueuedPositions();
-    void clearFinishedAndHideMatchPersistenceSemantics();
+    void removeFinishedWaitsForPersistenceConfirmation();
+    void queuePageConfirmsPermanentRemoval();
     void enhancedJobCardRendersAndExposesAccessibleActions();
     void queuedCardCanBeDragReordered();
 };
@@ -127,7 +128,7 @@ void JobQueueViewModelTest::reordersOnlyQueuedJobsUsingQueuedPositions() {
     QCOMPARE(reordered.count(), 2); // Already last among queued jobs.
 }
 
-void JobQueueViewModelTest::clearFinishedAndHideMatchPersistenceSemantics() {
+void JobQueueViewModelTest::removeFinishedWaitsForPersistenceConfirmation() {
     JobQueueViewModel viewModel;
     JobListModel* model = jobModel(viewModel);
     QVERIFY(model);
@@ -150,22 +151,91 @@ void JobQueueViewModelTest::clearFinishedAndHideMatchPersistenceSemantics() {
     QSignalSpy clearRequested(&viewModel, &JobQueueViewModel::clearCompletedRequested);
     viewModel.clearCompleted();
     QCOMPARE(clearRequested.count(), 1);
+    QCOMPARE(model->rowCount(), 4);
+    viewModel.confirmCompletedRemoved();
     QCOMPARE(model->rowCount(), 2);
     QCOMPARE(rowForId(model, completed), -1);
     QCOMPARE(rowForId(model, cancelled), -1);
     QVERIFY(rowForId(model, failed) >= 0);
     QVERIFY(rowForId(model, interrupted) >= 0);
 
-    QSignalSpy hidden(&viewModel, &JobQueueViewModel::removeRequested);
-    viewModel.hide(failed);
-    QCOMPARE(hidden.count(), 1);
-    QCOMPARE(hidden.constFirst().constFirst().toString(), failed);
+    QSignalSpy removed(&viewModel, &JobQueueViewModel::removeRequested);
+    viewModel.remove(failed);
+    QCOMPARE(removed.count(), 1);
+    QCOMPARE(removed.constFirst().constFirst().toString(), failed);
+    QVERIFY(rowForId(model, failed) >= 0);
+    viewModel.confirmRemoved(failed);
     QCOMPARE(rowForId(model, failed), -1);
 
-    viewModel.hide(interrupted);
-    QCOMPARE(hidden.count(), 2);
-    QCOMPARE(hidden.at(1).constFirst().toString(), interrupted);
+    viewModel.remove(interrupted);
+    QCOMPARE(removed.count(), 2);
+    QCOMPARE(removed.at(1).constFirst().toString(), interrupted);
+    QVERIFY(rowForId(model, interrupted) >= 0);
+    viewModel.confirmRemoved(interrupted);
     QCOMPARE(rowForId(model, interrupted), -1);
+}
+
+void JobQueueViewModelTest::queuePageConfirmsPermanentRemoval() {
+    JobQueueViewModel viewModel;
+    const QString failed = viewModel.enqueue(QStringLiteral("recording"), QStringLiteral("Failed fixture"));
+    viewModel.updateJob(failed, QStringLiteral("recording"), QStringLiteral("Failed fixture"),
+                        QStringLiteral("Failed"), QStringLiteral("Transcribing"), 0.4,
+                        QStringLiteral("Fixture failure"));
+    QSignalSpy removed(&viewModel, &JobQueueViewModel::removeRequested);
+    QSignalSpy clearRequested(&viewModel, &JobQueueViewModel::clearCompletedRequested);
+
+    QQmlEngine engine;
+    engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+    QQmlComponent component(&engine);
+    component.setData(R"(
+        import QtQuick
+        import QtQuick.Controls
+        import BreezeDesk
+
+        ApplicationWindow {
+            required property var queueVm
+            width: 800
+            height: 600
+            visible: true
+
+            QueuePage {
+                anchors.fill: parent
+                vm: queueVm
+            }
+        }
+    )",
+                      QUrl(QStringLiteral("inline:QueuePermanentRemovalTest.qml")));
+    QTRY_VERIFY(component.status() != QQmlComponent::Loading);
+    QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+    QScopedPointer<QObject> root(component.createWithInitialProperties(
+        {{QStringLiteral("queueVm"), QVariant::fromValue<QObject*>(&viewModel)}}));
+    QVERIFY2(root, qPrintable(component.errorString()));
+
+    QObject* queuePage = root->findChild<QObject*>(QStringLiteral("queuePage"));
+    QObject* confirmation = root->findChild<QObject*>(QStringLiteral("queueRemoveJobDialog"));
+    QObject* finishedConfirmation = root->findChild<QObject*>(QStringLiteral("queueRemoveFinishedDialog"));
+    QVERIFY(queuePage);
+    QVERIFY(confirmation);
+    QVERIFY(finishedConfirmation);
+    const QVariant jobIdArgument = failed;
+    const QVariant titleArgument = QStringLiteral("Failed fixture");
+    QVERIFY(QMetaObject::invokeMethod(queuePage, "requestJobRemoval", Qt::DirectConnection,
+                                      Q_ARG(QVariant, jobIdArgument), Q_ARG(QVariant, titleArgument)));
+    QTRY_VERIFY(confirmation->property("visible").toBool());
+    QVERIFY(confirmation->property("destructive").toBool());
+    QCOMPARE(removed.count(), 0);
+
+    QVERIFY(QMetaObject::invokeMethod(confirmation, "accept"));
+    QTRY_COMPARE(removed.count(), 1);
+    QCOMPARE(removed.constFirst().constFirst().toString(), failed);
+    QCOMPARE(viewModel.jobs()->rowCount(), 1); // Persistence has not confirmed deletion yet.
+
+    QVERIFY(QMetaObject::invokeMethod(finishedConfirmation, "open"));
+    QTRY_VERIFY(finishedConfirmation->property("visible").toBool());
+    QVERIFY(finishedConfirmation->property("destructive").toBool());
+    QCOMPARE(clearRequested.count(), 0);
+    QVERIFY(QMetaObject::invokeMethod(finishedConfirmation, "accept"));
+    QTRY_COMPARE(clearRequested.count(), 1);
 }
 
 void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() {
@@ -184,6 +254,8 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
             visible: true
             property int moveUpRequests: 0
             property int moveDownRequests: 0
+            property int removeRequests: 0
+            property string removedJobId: ""
 
             JobProgress {
                 id: queued
@@ -208,9 +280,39 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
                 eventTimeline: [{ timestamp: new Date(0), title: "Queued", detail: "Preparing", severity: "info" }]
                 canMoveUp: true
                 canMoveDown: true
-                canHide: false
+                canRemove: false
                 onMoveUpRequested: moveUpRequests += 1
                 onMoveDownRequested: moveDownRequests += 1
+            }
+
+            JobProgress {
+                objectName: "failedJobCard"
+                anchors.top: queued.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                jobId: "failed-job"
+                title: "Failed fixture"
+                jobState: "Failed"
+                stage: "Transcribing"
+                progress: 0.4
+                errorMessage: "Fixture failure"
+                canCancel: false
+                canRetry: true
+                canResume: false
+                isRunningNow: false
+                queuePosition: -1
+                waitingAhead: -1
+                currentChunk: 2
+                totalChunks: 5
+                latestPartialText: ""
+                eventTimeline: []
+                canMoveUp: false
+                canMoveDown: false
+                canRemove: true
+                onRemoveRequested: function(id) {
+                    removeRequests += 1
+                    removedJobId = id
+                }
             }
         }
     )",
@@ -230,6 +332,10 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
     auto* dragHandle = card->findChild<QQuickItem*>(QStringLiteral("jobDragHandle"));
     auto* moveUp = card->findChild<QQuickItem*>(QStringLiteral("jobMoveUpButton"));
     auto* moveDown = card->findChild<QQuickItem*>(QStringLiteral("jobMoveDownButton"));
+    auto* failedCard = root->findChild<QQuickItem*>(QStringLiteral("failedJobCard"));
+    auto* removeButton = failedCard == nullptr
+                             ? nullptr
+                             : failedCard->findChild<QQuickItem*>(QStringLiteral("jobRemoveButton"));
     QVERIFY(queueMetadata);
     QVERIFY(chunkStatus);
     QVERIFY(partialText);
@@ -239,6 +345,10 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
     QVERIFY(dragHandle->isVisible());
     QVERIFY(moveUp);
     QVERIFY(moveDown);
+    QVERIFY(failedCard);
+    QVERIFY(removeButton);
+    QVERIFY(removeButton->isVisible());
+    QVERIFY(removeButton->property("accessibleName").toString().contains(QStringLiteral("Remove")));
     QVERIFY(queueMetadata->property("text").toString().contains(QStringLiteral("2")));
     QVERIFY(chunkStatus->property("text").toString().contains(QStringLiteral("2")));
     QCOMPARE(partialText->property("text").toString(), QStringLiteral("Latest partial words"));
@@ -250,6 +360,9 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
     QVERIFY(QMetaObject::invokeMethod(moveDown, "clicked", Qt::DirectConnection));
     QCOMPARE(root->property("moveUpRequests").toInt(), 1);
     QCOMPARE(root->property("moveDownRequests").toInt(), 1);
+    QVERIFY(QMetaObject::invokeMethod(removeButton, "clicked", Qt::DirectConnection));
+    QCOMPARE(root->property("removeRequests").toInt(), 1);
+    QCOMPARE(root->property("removedJobId").toString(), QStringLiteral("failed-job"));
 }
 
 void JobQueueViewModelTest::queuedCardCanBeDragReordered() {
@@ -294,7 +407,7 @@ void JobQueueViewModelTest::queuedCardCanBeDragReordered() {
                     eventTimeline: []
                     canMoveUp: false
                     canMoveDown: true
-                    canHide: false
+                    canRemove: false
                     onReorderRequested: function(id, destination) {
                         reorderRequests += 1
                         requestedDestination = destination
@@ -322,7 +435,7 @@ void JobQueueViewModelTest::queuedCardCanBeDragReordered() {
                     eventTimeline: []
                     canMoveUp: true
                     canMoveDown: false
-                    canHide: false
+                    canRemove: false
                 }
             }
         }
@@ -336,18 +449,16 @@ void JobQueueViewModelTest::queuedCardCanBeDragReordered() {
     auto* window = qobject_cast<QQuickWindow*>(root.get());
     auto* firstCard = root->findChild<QQuickItem*>(QStringLiteral("firstQueuedCard"));
     auto* secondCard = root->findChild<QQuickItem*>(QStringLiteral("secondQueuedCard"));
-    auto* dragHandle = firstCard == nullptr
-                           ? nullptr
-                           : firstCard->findChild<QQuickItem*>(QStringLiteral("jobDragHandle"));
+    auto* dragHandle =
+        firstCard == nullptr ? nullptr : firstCard->findChild<QQuickItem*>(QStringLiteral("jobDragHandle"));
     QVERIFY(window);
     QVERIFY(firstCard);
     QVERIFY(secondCard);
     QVERIFY(dragHandle);
     QTRY_VERIFY(window->isExposed());
 
-    const QPoint start = dragHandle
-                             ->mapToScene(QPointF(dragHandle->width() / 2, dragHandle->height() / 2))
-                             .toPoint();
+    const QPoint start =
+        dragHandle->mapToScene(QPointF(dragHandle->width() / 2, dragHandle->height() / 2)).toPoint();
     const QPoint target =
         secondCard->mapToScene(QPointF(secondCard->width() / 2, secondCard->height() / 2)).toPoint();
     QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, start);

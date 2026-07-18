@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>BreezeDesk</title>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#206338"/>
+  <circle cx="17" cy="23" r="7" fill="#ffffff"/>
+  <circle cx="47" cy="23" r="7" fill="#ffffff"/>
+  <path d="M32 9C22 9 16 16 16 27v12c0 10 6 16 16 16s16-6 16-16V27C48 16 42 9 32 9Z"
+        fill="#ffffff"/>
+  <ellipse cx="25" cy="29" rx="2.4" ry="3.2" fill="#206338"/>
+  <ellipse cx="39" cy="29" rx="2.4" ry="3.2" fill="#206338"/>
+  <path d="M27.8 35.2C29 33.7 30.4 33 32 33s3 .7 4.2 2.2c-.2 2.4-1.7 4.1-4.2 4.8-2.5-.7-4-2.4-4.2-4.8Z"
+        fill="#206338"/>
+  <path d="M32 39.5v1.2m0 0c-1 2.8-4.4 4.2-6.7 1.2m6.7-1.2c1 2.8 4.4 4.2 6.7 1.2"
+        fill="none" stroke="#206338" stroke-width="2.5" stroke-linecap="round"
+        stroke-linejoin="round"/>
+</svg>
