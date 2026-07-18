@@ -808,7 +808,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="92"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="93"/>
         <source>%n term(s)</source>
         <translation>
             <numerusform>%n term(s)</numerusform>
@@ -816,7 +816,7 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="114"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="115"/>
         <source>Duplicate</source>
         <translation>Duplicate</translation>
     </message>
@@ -825,211 +825,211 @@
         <translation type="vanished">Delete</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="124"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="125"/>
         <source>Delete glossary profile</source>
         <translation>Delete glossary profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="140"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="141"/>
         <source>Import</source>
         <translation>Import</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="149"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="150"/>
         <source>Export JSON</source>
         <translation>Export JSON</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="158"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="159"/>
         <source>Export CSV</source>
         <translation>Export CSV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="187"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="188"/>
         <source>Terms</source>
         <translation>Terms</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="196"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="595"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="197"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="596"/>
         <source>Explicit aliases can be applied conservatively and remain auditable.</source>
         <translation>Explicit aliases can be applied conservatively and remain auditable.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="223"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="713"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="224"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="714"/>
         <source>Add Term</source>
         <translation>Add Term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="234"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="235"/>
         <source>Create a glossary profile</source>
         <translation>Create a glossary profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="235"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="399"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="236"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="400"/>
         <source>Profiles keep project context and important names scoped to a meeting or recording.</source>
         <translation>Profiles keep project context and important names scoped to a meeting or recording.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="236"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="514"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="237"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="515"/>
         <source>New Profile</source>
         <translation>New Profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="276"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="277"/>
         <source>Aliases: %1</source>
         <translation>Aliases: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="276"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="277"/>
         <source>No aliases</source>
         <translation>No aliases</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="283"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="683"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="284"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="684"/>
         <source>Priority %1</source>
         <translation>Priority %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="284"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="285"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="287"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="288"/>
         <source>Delete glossary term %1</source>
         <translation>Delete glossary term %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="296"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="297"/>
         <source>Prompt Preview</source>
         <translation>Prompt Preview</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="306"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="307"/>
         <source>No enabled terms are selected for this prompt.</source>
         <translation>No enabled terms are selected for this prompt.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="314"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="315"/>
         <source>Estimated tokens: %1 / %2</source>
         <translation>Estimated tokens: %1 / %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="325"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="326"/>
         <source>New Glossary Profile</source>
         <translation>New Glossary Profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="428"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="438"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="429"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="439"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="440"/>
         <source>Profile name</source>
         <translation>Profile name</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="449"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="459"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="450"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="460"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="461"/>
         <source>Description</source>
         <translation>Description</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="470"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="480"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="471"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="481"/>
         <source>Project context</source>
         <translation>Project context</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="481"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="482"/>
         <source>Project or meeting context</source>
         <translation>Project or meeting context</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="509"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="709"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="510"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="710"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="525"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="526"/>
         <source>Add Glossary Term</source>
         <translation>Add Glossary Term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="622"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="631"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="623"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="632"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="633"/>
         <source>Canonical term</source>
         <translation>Canonical term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="642"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="651"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="643"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="652"/>
         <source>Aliases</source>
         <translation>Aliases</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="652"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="653"/>
         <source>Aliases separated by commas</source>
         <translation>Aliases separated by commas</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="662"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="663"/>
         <source>Priority</source>
         <translation>Priority</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="678"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="679"/>
         <source>Term priority</source>
         <translation>Term priority</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="723"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="724"/>
         <source>Import Glossary</source>
         <translation>Import Glossary</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="725"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="726"/>
         <source>Glossary files (*.json *.csv)</source>
         <translation>Glossary files (*.json *.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="725"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="726"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="730"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="731"/>
         <source>Export Glossary as JSON</source>
         <translation>Export Glossary as JSON</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="732"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="733"/>
         <source>JSON file (*.json)</source>
         <translation>JSON file (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="738"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="739"/>
         <source>Export Glossary Terms as CSV</source>
         <translation>Export Glossary Terms as CSV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="740"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="741"/>
         <source>CSV file (*.csv)</source>
         <translation>CSV file (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="747"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="748"/>
         <source>Delete glossary profile permanently?</source>
         <translation>Delete glossary profile permanently?</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="754"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="755"/>
         <source>This deletes the profile and all of its terms. This cannot be undone.</source>
         <translation>This deletes the profile and all of its terms. This cannot be undone.</translation>
     </message>
@@ -1259,132 +1259,132 @@
         <translation type="vanished">BreezeDesk logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="182"/>
+        <location filename="../src/qml/Main.qml" line="194"/>
         <source>%1 logo</source>
         <translation>%1 logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="204"/>
+        <location filename="../src/qml/Main.qml" line="217"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="205"/>
+        <location filename="../src/qml/Main.qml" line="218"/>
         <source>Queue</source>
         <translation>Queue</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="206"/>
+        <location filename="../src/qml/Main.qml" line="219"/>
         <source>Trash</source>
         <translation>Trash</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="207"/>
+        <location filename="../src/qml/Main.qml" line="220"/>
         <source>Models</source>
         <translation>Models</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="208"/>
+        <location filename="../src/qml/Main.qml" line="221"/>
         <source>Glossary</source>
         <translation>Glossary</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="230"/>
+        <location filename="../src/qml/Main.qml" line="243"/>
         <source>Import Media</source>
         <translation>Import Media</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="244"/>
+        <location filename="../src/qml/Main.qml" line="257"/>
         <source>Start Recording</source>
         <translation>Start Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="251"/>
+        <location filename="../src/qml/Main.qml" line="264"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="291"/>
+        <location filename="../src/qml/Main.qml" line="304"/>
         <source>Import Audio or Video</source>
         <translation>Import Audio or Video</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="294"/>
+        <location filename="../src/qml/Main.qml" line="307"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="295"/>
+        <location filename="../src/qml/Main.qml" line="308"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="303"/>
+        <location filename="../src/qml/Main.qml" line="316"/>
         <source>Import Media Folder</source>
         <translation>Import Media Folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="309"/>
+        <location filename="../src/qml/Main.qml" line="322"/>
         <source>Export Transcript</source>
         <translation>Export Transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="312"/>
+        <location filename="../src/qml/Main.qml" line="325"/>
         <source>Plain text (*.txt)</source>
         <translation>Plain text (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="313"/>
+        <location filename="../src/qml/Main.qml" line="326"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="314"/>
+        <location filename="../src/qml/Main.qml" line="327"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip subtitles (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="315"/>
+        <location filename="../src/qml/Main.qml" line="328"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT subtitles (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="316"/>
+        <location filename="../src/qml/Main.qml" line="329"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="317"/>
+        <location filename="../src/qml/Main.qml" line="330"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="327"/>
+        <location filename="../src/qml/Main.qml" line="340"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>Import a whisper.cpp GGML model</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="329"/>
+        <location filename="../src/qml/Main.qml" line="342"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML model (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="361"/>
+        <location filename="../src/qml/Main.qml" line="374"/>
         <source>Transcription is still running</source>
         <translation>Transcription is still running</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="369"/>
+        <location filename="../src/qml/Main.qml" line="382"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="378"/>
+        <location filename="../src/qml/Main.qml" line="391"/>
         <source>Continue in Background</source>
         <translation>Continue in Background</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="379"/>
+        <location filename="../src/qml/Main.qml" line="392"/>
         <source>Quit and Resume Later</source>
         <translation>Quit and Resume Later</translation>
     </message>
@@ -2184,26 +2184,34 @@
         <translation>Glossary</translation>
     </message>
     <message>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="202"/>
+        <source>Merge with Previous</source>
+        <translation>Merge with Previous</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="208"/>
+        <source>Merge with Next</source>
+        <translation>Merge with Next</translation>
+    </message>
+    <message>
         <source>Reviewed</source>
         <translation type="vanished">Reviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="204"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="196"/>
         <source>Split</source>
         <translation>Split</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="209"/>
         <source>Merge Prev</source>
-        <translation>Merge Prev</translation>
+        <translation type="vanished">Merge Prev</translation>
+    </message>
+    <message>
+        <source>Merge Next</source>
+        <translation type="vanished">Merge Next</translation>
     </message>
     <message>
         <location filename="../src/qml/components/SegmentEditor.qml" line="214"/>
-        <source>Merge Next</source>
-        <translation>Merge Next</translation>
-    </message>
-    <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="220"/>
         <source>Delete segment</source>
         <translation>Delete segment</translation>
     </message>
@@ -2212,32 +2220,32 @@
         <translation type="vanished">Delete</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="233"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="228"/>
         <source>Glossary replacements</source>
         <translation>Glossary replacements</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="253"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="248"/>
         <source>%1 → %2</source>
         <translation>%1 → %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="261"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="256"/>
         <source>Applied</source>
         <translation>Applied</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="261"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="256"/>
         <source>Reverted</source>
         <translation>Reverted</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="265"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="260"/>
         <source>Undo</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="265"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="260"/>
         <source>Apply</source>
         <translation>Apply</translation>
     </message>
@@ -2749,12 +2757,16 @@
         <translation>Recordings moved here can be restored until permanently deleted.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="63"/>
-        <source>Restore</source>
-        <translation>Restore</translation>
+        <location filename="../src/qml/pages/TrashPage.qml" line="66"/>
+        <source>Restore %1</source>
+        <translation>Restore %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="66"/>
+        <source>Restore</source>
+        <translation type="vanished">Restore</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/TrashPage.qml" line="71"/>
         <source>Delete %1 permanently</source>
         <translation>Delete %1 permanently</translation>
     </message>
@@ -2763,12 +2775,12 @@
         <translation type="vanished">Delete Permanently</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="75"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="80"/>
         <source>Delete recording permanently?</source>
         <translation>Delete recording permanently?</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="82"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="87"/>
         <source>The transcript, managed media copy, and cache will be deleted. Your original source file stays untouched.</source>
         <translation>The transcript, managed media copy, and cache will be deleted. Your original source file stays untouched.</translation>
     </message>

@@ -78,7 +78,7 @@ T.Button {
                ? (control.down || control.hovered ? SemanticTokens.dangerStrong : SemanticTokens.danger)
                : control.primary
                  ? (control.down || control.hovered ? SemanticTokens.accentStrong : SemanticTokens.accent)
-                 : (control.down || control.hovered ? SemanticTokens.surfaceMuted : SemanticTokens.surface)
+                 : (control.down || control.hovered ? SemanticTokens.surfaceHover : SemanticTokens.surface)
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
         border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
         opacity: control.enabled ? 1.0 : 0.5

@@ -175,11 +175,24 @@ ApplicationWindow {
                     objectName: "sidebarBrandRow"
                     Layout.fillWidth: true
                     Layout.bottomMargin: SemanticTokens.spacingLg
-                    Image {
-                        source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk.png"
-                        sourceSize.width: 34
-                        sourceSize.height: 34
-                        Accessible.name: qsTr("%1 logo").arg(window.vm.displayName)
+                    Item {
+                        id: brandLogo
+                        Layout.minimumWidth: 34
+                        Layout.preferredWidth: 34
+                        Layout.maximumWidth: 34
+                        Layout.minimumHeight: 34
+                        Layout.preferredHeight: 34
+                        Layout.maximumHeight: 34
+
+                        Image {
+                            anchors.fill: parent
+                            source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk.png"
+                            sourceSize.width: Math.ceil(width * Math.max(1, Screen.devicePixelRatio))
+                            sourceSize.height: Math.ceil(height * Math.max(1, Screen.devicePixelRatio))
+                            fillMode: Image.PreserveAspectFit
+                            smooth: true
+                            Accessible.name: qsTr("%1 logo").arg(window.vm.displayName)
+                        }
                     }
                     Text {
                         id: brandText

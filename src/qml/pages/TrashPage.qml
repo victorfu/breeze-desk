@@ -60,7 +60,12 @@ Item {
                         font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.bodySize
                     }
-                    AppButton { text: qsTr("Restore"); onClicked: root.vm.restore(recordingId) }
+                    IconButton {
+                        objectName: "trashRestoreButton"
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/archive-restore.svg"
+                        accessibleName: qsTr("Restore %1").arg(title)
+                        onClicked: root.vm.restore(recordingId)
+                    }
                     RemoveButton {
                         objectName: "trashDeletePermanentlyButton"
                         accessibleName: qsTr("Delete %1 permanently").arg(title)

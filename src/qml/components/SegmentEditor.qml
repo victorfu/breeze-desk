@@ -182,44 +182,39 @@ Rectangle {
                     }
                 }
             }
-        }
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 1
-            visible: root.selected
-            color: SemanticTokens.border
-        }
+            Row {
+                id: actionsRow
 
-        Flow {
-            id: actionsRow
+                objectName: "segmentActionsRow"
+                Layout.alignment: Qt.AlignTop
+                visible: root.selected
+                spacing: 0
 
-            objectName: "segmentActionsRow"
-            Layout.fillWidth: true
-            Layout.preferredHeight: visible ? ComponentTokens.controlHeight : 0
-            visible: root.selected
-            spacing: SemanticTokens.spacingXs
-
-            AppButton {
-                text: qsTr("Split")
-                enabled: !root.editingLocked
-                onClicked: root.splitRequested(root.modelIndex)
-            }
-            AppButton {
-                text: qsTr("Merge Prev")
-                enabled: !root.editingLocked
-                onClicked: root.mergePreviousRequested(root.modelIndex)
-            }
-            AppButton {
-                text: qsTr("Merge Next")
-                enabled: !root.editingLocked
-                onClicked: root.mergeNextRequested(root.modelIndex)
-            }
-            RemoveButton {
-                objectName: "segmentDeleteButton"
-                accessibleName: qsTr("Delete segment")
-                enabled: !root.editingLocked
-                onClicked: root.deleteRequested(root.modelIndex)
+                IconButton {
+                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/scissors.svg"
+                    accessibleName: qsTr("Split")
+                    enabled: !root.editingLocked
+                    onClicked: root.splitRequested(root.modelIndex)
+                }
+                IconButton {
+                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-up-to-line.svg"
+                    accessibleName: qsTr("Merge with Previous")
+                    enabled: !root.editingLocked
+                    onClicked: root.mergePreviousRequested(root.modelIndex)
+                }
+                IconButton {
+                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-down-to-line.svg"
+                    accessibleName: qsTr("Merge with Next")
+                    enabled: !root.editingLocked
+                    onClicked: root.mergeNextRequested(root.modelIndex)
+                }
+                RemoveButton {
+                    objectName: "segmentDeleteButton"
+                    accessibleName: qsTr("Delete segment")
+                    enabled: !root.editingLocked
+                    onClicked: root.deleteRequested(root.modelIndex)
+                }
             }
         }
 

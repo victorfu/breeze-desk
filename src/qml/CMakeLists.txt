@@ -15,7 +15,8 @@ set(BREEZEDESK_LUCIDE_ICON_NAMES
     library list-ordered trash-2 box book-open settings
     play pause file-input mic rotate-ccw rotate-cw
     chevron-up chevron-down undo-2 redo-2 save ellipsis
-    check info circle-check circle-alert copy)
+    check info circle-check circle-alert copy
+    scissors arrow-up-to-line arrow-down-to-line archive-restore)
 set(BREEZEDESK_LUCIDE_ICONS)
 foreach(icon_name IN LISTS BREEZEDESK_LUCIDE_ICON_NAMES)
     set(icon_path "${PROJECT_SOURCE_DIR}/resources/icons/lucide/${icon_name}.svg")

@@ -5,6 +5,7 @@ QtObject {
     readonly property color window: DesignSystem.dark ? PrimitiveTokens.gray900 : PrimitiveTokens.gray25
     readonly property color surface: DesignSystem.dark ? PrimitiveTokens.gray800 : PrimitiveTokens.white
     readonly property color surfaceMuted: DesignSystem.dark ? PrimitiveTokens.gray900 : PrimitiveTokens.gray50
+    readonly property color surfaceHover: DesignSystem.dark ? "#343B48" : PrimitiveTokens.gray100
     readonly property color surfaceRaised: DesignSystem.dark ? "#303641" : PrimitiveTokens.white
     readonly property color border: DesignSystem.dark ? "#434A58" : PrimitiveTokens.gray200
     readonly property color borderStrong: DesignSystem.dark ? PrimitiveTokens.gray600 : PrimitiveTokens.gray400
@@ -21,6 +22,10 @@ QtObject {
     readonly property color waveform: DesignSystem.dark ? PrimitiveTokens.blue300 : PrimitiveTokens.blue500
     readonly property color playhead: PrimitiveTokens.red500
     readonly property color selection: DesignSystem.dark ? "#664B70E2" : "#334B70E2"
+    readonly property color hoverTint: DesignSystem.dark ? "#1AFFFFFF" : "#14111318"
+    readonly property color pressedTint: DesignSystem.dark ? "#29FFFFFF" : "#21111318"
+    readonly property color dangerHoverTint: "#1FC83D4B"
+    readonly property color dangerPressedTint: "#33C83D4B"
     readonly property color focusRing: DesignSystem.dark ? PrimitiveTokens.blue300 : PrimitiveTokens.blue600
     readonly property color shadow: PrimitiveTokens.black
 

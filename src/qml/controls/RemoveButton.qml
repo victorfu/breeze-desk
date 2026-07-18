@@ -7,4 +7,6 @@ IconButton {
 
     iconSource: removeIconSource
     iconColor: control.enabled ? SemanticTokens.danger : SemanticTokens.textMuted
+    hoverTintColor: SemanticTokens.dangerHoverTint
+    pressedTintColor: SemanticTokens.dangerPressedTint
 }

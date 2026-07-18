@@ -6,6 +6,8 @@ T.Button {
     required property string accessibleName
     property url iconSource
     property color iconColor: control.enabled ? SemanticTokens.text : SemanticTokens.textMuted
+    property color hoverTintColor: SemanticTokens.hoverTint
+    property color pressedTintColor: SemanticTokens.pressedTint
     property string toolTipText: accessibleName
     implicitWidth: ComponentTokens.clickTarget
     implicitHeight: ComponentTokens.clickTarget
@@ -22,7 +24,8 @@ T.Button {
     }
     background: Rectangle {
         radius: SemanticTokens.radiusSm
-        color: control.down || control.hovered ? SemanticTokens.surfaceMuted : "transparent"
+        color: control.down ? control.pressedTintColor
+             : control.hovered ? control.hoverTintColor : "transparent"
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 0
         border.color: SemanticTokens.focusRing
         Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }

@@ -18,7 +18,7 @@ Button {
     background: Rectangle {
         radius: SemanticTokens.radiusSm
         color: control.selected ? SemanticTokens.accentMuted
-                                : (control.hovered ? SemanticTokens.surfaceMuted : "transparent")
+                                : (control.hovered ? SemanticTokens.surfaceHover : "transparent")
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 0
         border.color: SemanticTokens.focusRing
     }

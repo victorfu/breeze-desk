@@ -75,7 +75,8 @@ Item {
                         onClicked: root.vm.selectedProfileId = profileId
                         background: Rectangle {
                             radius: SemanticTokens.radiusSm
-                            color: parent.highlighted ? SemanticTokens.accentMuted : "transparent"
+                            color: parent.highlighted ? SemanticTokens.accentMuted
+                                 : parent.hovered ? SemanticTokens.hoverTint : "transparent"
                             border.width: parent.activeFocus ? ComponentTokens.focusWidth : 0
                             border.color: SemanticTokens.focusRing
                         }

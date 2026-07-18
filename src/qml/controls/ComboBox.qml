@@ -36,7 +36,8 @@ T.ComboBox {
 
     background: Rectangle {
         objectName: "appComboBoxSurface"
-        color: control.down || control.popup.visible ? SemanticTokens.surfaceMuted : SemanticTokens.surface
+        color: control.down || control.popup.visible ? SemanticTokens.surfaceMuted
+             : control.hovered ? SemanticTokens.surfaceHover : SemanticTokens.surface
         radius: SemanticTokens.radiusSm
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
         border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border

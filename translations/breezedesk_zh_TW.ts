@@ -804,14 +804,14 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="92"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="93"/>
         <source>%n term(s)</source>
         <translation>
             <numerusform>%n 個詞條</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="114"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="115"/>
         <source>Duplicate</source>
         <translation>建立副本</translation>
     </message>
@@ -820,211 +820,211 @@
         <translation type="vanished">刪除</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="124"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="125"/>
         <source>Delete glossary profile</source>
         <translation>刪除專有名詞設定檔</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="140"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="141"/>
         <source>Import</source>
         <translation>匯入</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="149"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="150"/>
         <source>Export JSON</source>
         <translation>匯出 JSON</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="158"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="159"/>
         <source>Export CSV</source>
         <translation>匯出 CSV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="187"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="188"/>
         <source>Terms</source>
         <translation>詞條</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="196"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="595"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="197"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="596"/>
         <source>Explicit aliases can be applied conservatively and remain auditable.</source>
         <translation>明確的別名可保守套用，且每項變更都能追蹤。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="223"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="713"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="224"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="714"/>
         <source>Add Term</source>
         <translation>新增詞條</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="234"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="235"/>
         <source>Create a glossary profile</source>
         <translation>建立專有名詞設定檔</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="235"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="399"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="236"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="400"/>
         <source>Profiles keep project context and important names scoped to a meeting or recording.</source>
         <translation>設定檔可將專案情境與重要名稱限定在特定會議或錄音中使用。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="236"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="514"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="237"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="515"/>
         <source>New Profile</source>
         <translation>新增設定檔</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="276"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="277"/>
         <source>Aliases: %1</source>
         <translation>別名：%1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="276"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="277"/>
         <source>No aliases</source>
         <translation>沒有別名</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="283"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="683"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="284"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="684"/>
         <source>Priority %1</source>
         <translation>優先級 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="284"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="285"/>
         <source>Enabled</source>
         <translation>已啟用</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="287"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="288"/>
         <source>Delete glossary term %1</source>
         <translation>刪除專有名詞 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="296"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="297"/>
         <source>Prompt Preview</source>
         <translation>提示詞預覽</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="306"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="307"/>
         <source>No enabled terms are selected for this prompt.</source>
         <translation>目前沒有為此提示詞選取已啟用的詞條。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="314"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="315"/>
         <source>Estimated tokens: %1 / %2</source>
         <translation>預估 Token 數：%1 / %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="325"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="326"/>
         <source>New Glossary Profile</source>
         <translation>新增專有名詞設定檔</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="428"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="438"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="429"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="439"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="440"/>
         <source>Profile name</source>
         <translation>設定檔名稱</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="449"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="459"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="450"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="460"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="461"/>
         <source>Description</source>
         <translation>說明</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="470"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="480"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="471"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="481"/>
         <source>Project context</source>
         <translation>專案情境</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="481"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="482"/>
         <source>Project or meeting context</source>
         <translation>專案或會議情境</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="509"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="709"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="510"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="710"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="525"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="526"/>
         <source>Add Glossary Term</source>
         <translation>新增專有名詞詞條</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="622"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="631"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="623"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="632"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="633"/>
         <source>Canonical term</source>
         <translation>標準詞條</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="642"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="651"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="643"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="652"/>
         <source>Aliases</source>
         <translation>別名</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="652"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="653"/>
         <source>Aliases separated by commas</source>
         <translation>以逗號分隔別名</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="662"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="663"/>
         <source>Priority</source>
         <translation>優先級</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="678"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="679"/>
         <source>Term priority</source>
         <translation>詞條優先級</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="723"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="724"/>
         <source>Import Glossary</source>
         <translation>匯入專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="725"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="726"/>
         <source>Glossary files (*.json *.csv)</source>
         <translation>專有名詞檔案 (*.json *.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="725"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="726"/>
         <source>All files (*)</source>
         <translation>所有檔案 (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="730"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="731"/>
         <source>Export Glossary as JSON</source>
         <translation>將專有名詞匯出為 JSON</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="732"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="733"/>
         <source>JSON file (*.json)</source>
         <translation>JSON 檔案 (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="738"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="739"/>
         <source>Export Glossary Terms as CSV</source>
         <translation>將專有名詞詞條匯出為 CSV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="740"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="741"/>
         <source>CSV file (*.csv)</source>
         <translation>CSV 檔案 (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="747"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="748"/>
         <source>Delete glossary profile permanently?</source>
         <translation>要永久刪除專有名詞設定檔嗎？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="754"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="755"/>
         <source>This deletes the profile and all of its terms. This cannot be undone.</source>
         <translation>這會刪除此設定檔與其中的所有詞條，且無法復原。</translation>
     </message>
@@ -1254,132 +1254,132 @@
         <translation type="vanished">BreezeDesk 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="182"/>
+        <location filename="../src/qml/Main.qml" line="194"/>
         <source>%1 logo</source>
         <translation>%1 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="204"/>
+        <location filename="../src/qml/Main.qml" line="217"/>
         <source>Library</source>
         <translation>錄音庫</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="205"/>
+        <location filename="../src/qml/Main.qml" line="218"/>
         <source>Queue</source>
         <translation>佇列</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="206"/>
+        <location filename="../src/qml/Main.qml" line="219"/>
         <source>Trash</source>
         <translation>垃圾桶</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="207"/>
+        <location filename="../src/qml/Main.qml" line="220"/>
         <source>Models</source>
         <translation>模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="208"/>
+        <location filename="../src/qml/Main.qml" line="221"/>
         <source>Glossary</source>
         <translation>專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="230"/>
+        <location filename="../src/qml/Main.qml" line="243"/>
         <source>Import Media</source>
         <translation>匯入媒體</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="244"/>
+        <location filename="../src/qml/Main.qml" line="257"/>
         <source>Start Recording</source>
         <translation>開始錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="251"/>
+        <location filename="../src/qml/Main.qml" line="264"/>
         <source>Settings</source>
         <translation>設定</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="291"/>
+        <location filename="../src/qml/Main.qml" line="304"/>
         <source>Import Audio or Video</source>
         <translation>匯入音訊或影片</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="294"/>
+        <location filename="../src/qml/Main.qml" line="307"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>媒體檔案 (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="295"/>
+        <location filename="../src/qml/Main.qml" line="308"/>
         <source>All files (*)</source>
         <translation>所有檔案 (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="303"/>
+        <location filename="../src/qml/Main.qml" line="316"/>
         <source>Import Media Folder</source>
         <translation>匯入媒體資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="309"/>
+        <location filename="../src/qml/Main.qml" line="322"/>
         <source>Export Transcript</source>
         <translation>匯出逐字稿</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="312"/>
+        <location filename="../src/qml/Main.qml" line="325"/>
         <source>Plain text (*.txt)</source>
         <translation>純文字 (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="313"/>
+        <location filename="../src/qml/Main.qml" line="326"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="314"/>
+        <location filename="../src/qml/Main.qml" line="327"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip 字幕 (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="315"/>
+        <location filename="../src/qml/Main.qml" line="328"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT 字幕 (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="316"/>
+        <location filename="../src/qml/Main.qml" line="329"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="317"/>
+        <location filename="../src/qml/Main.qml" line="330"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="327"/>
+        <location filename="../src/qml/Main.qml" line="340"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>匯入 whisper.cpp GGML 模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="329"/>
+        <location filename="../src/qml/Main.qml" line="342"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML 模型 (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="361"/>
+        <location filename="../src/qml/Main.qml" line="374"/>
         <source>Transcription is still running</source>
         <translation>轉錄仍在進行中</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="369"/>
+        <location filename="../src/qml/Main.qml" line="382"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>已完成的分段都已安全儲存。現在結束會將目前工作標記為中斷，之後可繼續執行。</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="378"/>
+        <location filename="../src/qml/Main.qml" line="391"/>
         <source>Continue in Background</source>
         <translation>在背景繼續</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="379"/>
+        <location filename="../src/qml/Main.qml" line="392"/>
         <source>Quit and Resume Later</source>
         <translation>結束並於稍後繼續</translation>
     </message>
@@ -2177,26 +2177,34 @@
         <translation>專有名詞</translation>
     </message>
     <message>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="202"/>
+        <source>Merge with Previous</source>
+        <translation>與上一段合併</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="208"/>
+        <source>Merge with Next</source>
+        <translation>與下一段合併</translation>
+    </message>
+    <message>
         <source>Reviewed</source>
         <translation type="vanished">已檢閱</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="204"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="196"/>
         <source>Split</source>
         <translation>分割</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="209"/>
         <source>Merge Prev</source>
-        <translation>與上一段合併</translation>
+        <translation type="vanished">與上一段合併</translation>
+    </message>
+    <message>
+        <source>Merge Next</source>
+        <translation type="vanished">與下一段合併</translation>
     </message>
     <message>
         <location filename="../src/qml/components/SegmentEditor.qml" line="214"/>
-        <source>Merge Next</source>
-        <translation>與下一段合併</translation>
-    </message>
-    <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="220"/>
         <source>Delete segment</source>
         <translation>刪除逐字稿段落</translation>
     </message>
@@ -2205,32 +2213,32 @@
         <translation type="vanished">刪除</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="233"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="228"/>
         <source>Glossary replacements</source>
         <translation>專有名詞替換</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="253"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="248"/>
         <source>%1 → %2</source>
         <translation>%1 → %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="261"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="256"/>
         <source>Applied</source>
         <translation>已套用</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="261"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="256"/>
         <source>Reverted</source>
         <translation>已撤銷</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="265"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="260"/>
         <source>Undo</source>
         <translation>撤銷</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="265"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="260"/>
         <source>Apply</source>
         <translation>套用</translation>
     </message>
@@ -2742,12 +2750,16 @@
         <translation>移到這裡的錄音在永久刪除前都可以還原。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="63"/>
-        <source>Restore</source>
-        <translation>還原</translation>
+        <location filename="../src/qml/pages/TrashPage.qml" line="66"/>
+        <source>Restore %1</source>
+        <translation>復原 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="66"/>
+        <source>Restore</source>
+        <translation type="vanished">還原</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/TrashPage.qml" line="71"/>
         <source>Delete %1 permanently</source>
         <translation>永久刪除 %1</translation>
     </message>
@@ -2756,12 +2768,12 @@
         <translation type="vanished">永久刪除</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="75"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="80"/>
         <source>Delete recording permanently?</source>
         <translation>要永久刪除錄音嗎？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="82"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="87"/>
         <source>The transcript, managed media copy, and cache will be deleted. Your original source file stays untouched.</source>
         <translation>將刪除逐字稿、管理的媒體副本與快取；您的原始來源檔案不會受到影響。</translation>
     </message>

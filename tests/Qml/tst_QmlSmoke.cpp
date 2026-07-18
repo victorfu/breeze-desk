@@ -1404,12 +1404,23 @@ class tst_QmlSmoke final : public QObject {
             window->setWidth(width);
             QCoreApplication::processEvents();
             QTRY_VERIFY_WITH_TIMEOUT(segment->height() > 0.0, 1'000);
-            QVERIFY2(segment->height() >= 100.0 && segment->height() <= 128.0,
+            QVERIFY2(segment->height() >= 48.0 && segment->height() <= 88.0,
                      qPrintable(QStringLiteral("Selected segment has unexpected height at %1 px: %2")
                                     .arg(width)
                                     .arg(segment->height())));
             QVERIFY(statusRow->isVisible());
             QVERIFY(actionsRow->isVisible());
+
+            const QPointF selectedTextOrigin = textEditor->mapToItem(segment, QPointF{});
+            const QPointF selectedActionsOrigin = actionsRow->mapToItem(segment, QPointF{});
+            QVERIFY2(selectedActionsOrigin.x() >=
+                         selectedTextOrigin.x() + textEditor->width() - 0.5,
+                     qPrintable(QStringLiteral(
+                                    "Segment actions must sit to the right of the transcript text "
+                                    "at %1 px: actions x=%2, text right=%3")
+                                    .arg(width)
+                                    .arg(selectedActionsOrigin.x())
+                                    .arg(selectedTextOrigin.x() + textEditor->width())));
 
             for (QQuickItem* item :
                  {timeColumn, textEditor, statusRow, separator, actionsRow, deleteButton}) {
