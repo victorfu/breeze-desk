@@ -174,6 +174,7 @@ int main(int argc, char* argv[]) {
     QQmlApplicationEngine engine;
     std::unique_ptr<BreezeDesk::ApplicationViewModel> viewModel(
         BreezeDesk::createApplicationViewModel(&recordingRepository, &transcriptRepository, &engine));
+    viewModel->installJobRepository(&jobRepository);
     viewModel->setPlatformService(platform.get());
     viewModel->settings()->installManagers({&generalSettings, &appearanceSettings, &transcriptionSettings,
                                             &audioSettings, &modelSettings, &storageSettings,
@@ -305,12 +306,21 @@ int main(int argc, char* argv[]) {
                                       const QString& error) {
             viewModel->jobQueue()->updateJob(jobId, recordingId, title, state, stage, progress, error);
         });
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::runningJobChanged,
+                     viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::setRunningJobId);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::jobTelemetryChanged,
+                     viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::updateJobTelemetry);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::jobEventPublished,
+                     viewModel->jobQueue(), &BreezeDesk::JobQueueViewModel::appendJobEvent);
     QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::transcriptChanged,
                      viewModel.get(),
                      [viewModel = viewModel.get()](const QString& recordingId, const QString& jobId,
                                                    const bool editingLocked) {
                          viewModel->reloadTranscriptForJob(recordingId, jobId, editingLocked);
                      });
+    QObject::connect(&transcriptionCoordinator,
+                     &BreezeDesk::TranscriptionCoordinator::liveRevisionFinished, viewModel.get(),
+                     &BreezeDesk::ApplicationViewModel::finishLiveTranscriptRevision);
     QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::libraryChanged,
                      viewModel.get(), [viewModel = viewModel.get()] {
                          const QString activeRecording = viewModel->activeRecordingId();

@@ -4,6 +4,7 @@
 #include <QTimer>
 #include <QUrl>
 #include <QVariantList>
+#include <QVariantMap>
 
 #include <atomic>
 #include <memory>
@@ -16,12 +17,14 @@
 #include "breezedesk/ui/PlayerViewModel.h"
 #include "breezedesk/ui/RecordingDetailViewModel.h"
 #include "breezedesk/ui/SettingsViewModel.h"
+#include "breezedesk/ui/TranscriptRevisionViewModel.h"
 #include "breezedesk/ui/TranscriptViewModel.h"
 
 namespace BreezeDesk {
 
 class IRecordingRepository;
 class ITranscriptRepository;
+class IJobRepository;
 class IPlatformService;
 
 class ApplicationViewModel : public QObject {
@@ -29,6 +32,7 @@ class ApplicationViewModel : public QObject {
     Q_PROPERTY(LibraryViewModel* library READ library CONSTANT)
     Q_PROPERTY(RecordingDetailViewModel* recordingDetail READ recordingDetail CONSTANT)
     Q_PROPERTY(TranscriptViewModel* transcript READ transcript CONSTANT)
+    Q_PROPERTY(TranscriptRevisionViewModel* transcriptRevisions READ transcriptRevisions CONSTANT)
     Q_PROPERTY(JobQueueViewModel* jobQueue READ jobQueue CONSTANT)
     Q_PROPERTY(PlayerViewModel* player READ player CONSTANT)
     Q_PROPERTY(ModelManagerViewModel* modelManager READ modelManager CONSTANT)
@@ -53,6 +57,7 @@ class ApplicationViewModel : public QObject {
     [[nodiscard]] LibraryViewModel* library() noexcept;
     [[nodiscard]] RecordingDetailViewModel* recordingDetail() noexcept;
     [[nodiscard]] TranscriptViewModel* transcript() noexcept;
+    [[nodiscard]] TranscriptRevisionViewModel* transcriptRevisions() noexcept;
     [[nodiscard]] JobQueueViewModel* jobQueue() noexcept;
     [[nodiscard]] PlayerViewModel* player() noexcept;
     [[nodiscard]] ModelManagerViewModel* modelManager() noexcept;
@@ -82,7 +87,13 @@ class ApplicationViewModel : public QObject {
     Q_INVOKABLE void showToast(const QString& message);
     Q_INVOKABLE void copyToClipboard(const QString& text) const;
     Q_INVOKABLE void reloadActiveTranscript();
+    Q_INVOKABLE void selectTranscriptRevision(const QString& jobId);
+    Q_INVOKABLE void followLiveTranscript();
+    Q_INVOKABLE QVariantMap transcriptRevisionDetails(const QString& jobId) const;
+    Q_INVOKABLE void deleteTranscriptRevision(const QString& jobId);
     void reloadTranscriptForJob(const QString& recordingId, const QString& jobId, bool editingLocked);
+    void finishLiveTranscriptRevision(const QString& recordingId, const QString& jobId, bool succeeded);
+    void installJobRepository(IJobRepository* repository);
     void setManagedMediaCopyEnabled(bool enabled);
     void setPlatformService(IPlatformService* platform) noexcept;
 
@@ -98,6 +109,7 @@ class ApplicationViewModel : public QObject {
 
   private:
     [[nodiscard]] bool saveActiveTranscript();
+    bool showTranscriptRevision(const QString& jobId, bool editingLocked, bool pinSelection);
     int importUrlsInternal(const QVariantList& urls, quint64 folderOperation);
     void processFolderImportBatch();
     void completeFolderImportItems(quint64 operation, int processed, int succeeded);
@@ -106,6 +118,7 @@ class ApplicationViewModel : public QObject {
     LibraryViewModel m_library;
     RecordingDetailViewModel m_recordingDetail;
     TranscriptViewModel m_transcript;
+    TranscriptRevisionViewModel m_transcriptRevisions;
     JobQueueViewModel m_jobQueue;
     PlayerViewModel m_player;
     ModelManagerViewModel m_modelManager;
@@ -117,6 +130,7 @@ class ApplicationViewModel : public QObject {
     QString m_activeTranscriptJobId;
     QString m_toastMessage;
     ITranscriptRepository* m_transcriptRepository{nullptr};
+    IJobRepository* m_jobRepository{nullptr};
     QTimer m_transcriptAutosaveTimer;
     QTimer m_folderImportBatchTimer;
     bool m_managedMediaCopyEnabled{false};

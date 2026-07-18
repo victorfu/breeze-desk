@@ -4,17 +4,17 @@
 <context>
     <name>BreezeDesk::ApplicationViewModel</name>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="225"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="229"/>
         <source>The transcript could not be saved before transcription resumed.</source>
         <translation>The transcript could not be saved before transcription resumed.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="410"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="417"/>
         <source>Imported a managed media copy.</source>
         <translation>Imported a managed media copy.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="427"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="434"/>
         <source>Imported %n media file(s).</source>
         <translation>
             <numerusform>Imported %n media file(s).</numerusform>
@@ -22,7 +22,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="431"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="438"/>
         <source>Copying %n media file(s) into managed storage…</source>
         <translation>
             <numerusform>Copying %n media file(s) into managed storage…</numerusform>
@@ -30,27 +30,27 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="439"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="446"/>
         <source>A folder import is already running.</source>
         <translation>A folder import is already running.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="444"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="451"/>
         <source>Choose a readable local folder.</source>
         <translation>Choose a readable local folder.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="478"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="485"/>
         <source>The folder does not contain supported audio or video files.</source>
         <translation>The folder does not contain supported audio or video files.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="568"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="575"/>
         <source>Folder import cancelled.</source>
         <translation>Folder import cancelled.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="572"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="579"/>
         <source>Imported %n media file(s) from the folder.</source>
         <translation>
             <numerusform>Imported %n media file from the folder.</numerusform>
@@ -58,77 +58,93 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="574"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="581"/>
         <source>Imported %1 media file(s); %2 could not be imported.</source>
         <translation>Imported %1 media file(s); %2 could not be imported.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="584"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="591"/>
         <source>File manager integration is unavailable.</source>
         <translation>File manager integration is unavailable.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="592"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="599"/>
         <source>The recording source is missing. Relink it to continue.</source>
         <translation>The recording source is missing. Relink it to continue.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="597"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="604"/>
         <source>The recording could not be revealed in the file manager.</source>
         <translation>The recording could not be revealed in the file manager.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="615"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="625"/>
         <source>The selected recording is no longer available.</source>
         <translation>The selected recording is no longer available.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="636"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="646"/>
         <source>The waveform preview could not be loaded: %1</source>
         <translation>The waveform preview could not be loaded: %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="651"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="667"/>
         <source>Choose an imported recording first.</source>
         <translation>Choose an imported recording first.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="656"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="675"/>
         <source>Transcription added to the queue.</source>
         <translation>Transcription added to the queue.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="663"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="682"/>
         <source>Open a recording before exporting.</source>
         <translation>Open a recording before exporting.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="673"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="692"/>
         <source>Transcribe and open a recording before exporting.</source>
         <translation>Transcribe and open a recording before exporting.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="677"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="696"/>
         <source>Choose a local destination for the export.</source>
         <translation>Choose a local destination for the export.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="690"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="709"/>
         <source>The selected export format is not supported.</source>
         <translation>The selected export format is not supported.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="721"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="740"/>
         <source>Transcript exported to %1</source>
         <translation>Transcript exported to %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="797"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="818"/>
         <source>Save or discard the current transcript edits before refreshing live results.</source>
         <translation>Save or discard the current transcript edits before refreshing live results.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="809"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="851"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="882"/>
+        <source>The selected transcript version is no longer available.</source>
+        <translation>The selected transcript version is no longer available.</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="886"/>
+        <source>A transcript version can only be deleted after it has stopped running.</source>
+        <translation>A transcript version can only be deleted after it has stopped running.</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="916"/>
+        <source>Transcript version deleted.</source>
+        <translation>Transcript version deleted.</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="955"/>
         <source>The transcript could not be saved because its recording is unavailable.</source>
         <translation>The transcript could not be saved because its recording is unavailable.</translation>
     </message>
@@ -523,6 +539,22 @@
     </message>
 </context>
 <context>
+    <name>BreezeDesk::TranscriptRevisionModel</name>
+    <message>
+        <location filename="../src/ui/TranscriptRevisionModel.cpp" line="188"/>
+        <source>Version %1 · %2</source>
+        <translation>Version %1 · %2</translation>
+    </message>
+</context>
+<context>
+    <name>BreezeDesk::TranscriptRevisionViewModel</name>
+    <message>
+        <location filename="../src/ui/TranscriptRevisionViewModel.cpp" line="188"/>
+        <source>Choose a transcript version to delete.</source>
+        <translation>Choose a transcript version to delete.</translation>
+    </message>
+</context>
+<context>
     <name>BreezeDesk::TranscriptViewModel</name>
     <message>
         <location filename="../src/ui/TranscriptViewModel.cpp" line="127"/>
@@ -553,179 +585,283 @@
         <translation type="vanished">BreezeDesk closed while this job was running.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="326"/>
         <source>%1 was not shut down while this job was running.</source>
-        <translation>%1 was not shut down while this job was running.</translation>
+        <translation type="vanished">%1 was not shut down while this job was running.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="365"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="368"/>
         <source>%1 closed while this job was running.</source>
         <translation>%1 closed while this job was running.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="370"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="373"/>
         <source>A recording and job ID are required.</source>
         <translation>A recording and job ID are required.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="375"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="594"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="644"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1212"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="378"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="659"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="709"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1284"/>
         <source>The recording no longer exists.</source>
         <translation>The recording no longer exists.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="407"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="410"/>
         <source>The selected glossary profile no longer exists.</source>
         <translation>The selected glossary profile no longer exists.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="444"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="449"/>
         <source>The job no longer exists.</source>
         <translation>The job no longer exists.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="604"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="618"/>
+        <source>This transcription lost the global execution lease and was stopped.</source>
+        <translation>This transcription lost the global execution lease and was stopped.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="669"/>
         <source>The source media file is missing.</source>
         <translation>The source media file is missing.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="638"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="703"/>
         <source>The media does not contain supported audio.</source>
         <translation>The media does not contain supported audio.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="670"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="735"/>
         <source>ffmpeg is not available.</source>
         <translation>ffmpeg is not available.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="703"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="768"/>
         <source>Audio normalization failed.</source>
         <translation>Audio normalization failed.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="745"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="810"/>
         <source>The audio waveform could not be generated.</source>
         <translation>The audio waveform could not be generated.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="752"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="817"/>
         <source>The normalized recording could not be saved.</source>
         <translation>The normalized recording could not be saved.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="790"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="857"/>
         <source>The recording duration is invalid.</source>
         <translation>The recording duration is invalid.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="807"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="874"/>
         <source>Install the Silero VAD model before transcribing long recordings with VAD.</source>
         <translation>Install the Silero VAD model before transcribing long recordings with VAD.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="823"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="890"/>
         <source>Speech analysis did not produce a transcription chunk plan.</source>
         <translation>Speech analysis did not produce a transcription chunk plan.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="870"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="939"/>
         <source>The ASR worker did not become ready.</source>
         <translation>The ASR worker did not become ready.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="885"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="954"/>
         <source>The ASR worker capability request could not be sent.</source>
         <translation>The ASR worker capability request could not be sent.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="894"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="963"/>
         <source>The ASR worker did not report its runtime capabilities.</source>
         <translation>The ASR worker did not report its runtime capabilities.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="910"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="979"/>
         <source>Speech recognition is unavailable because this ASR worker does not include whisper.cpp. Reinstall the application or use a build configured with whisper.cpp.</source>
         <translation>Speech recognition is unavailable because this ASR worker does not include whisper.cpp. Reinstall the application or use a build configured with whisper.cpp.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="933"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1051"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1002"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1123"/>
         <source>The Silero VAD model is no longer installed.</source>
         <translation>The Silero VAD model is no longer installed.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="939"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1058"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1008"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1130"/>
         <source>The Silero VAD model does not have a trusted checksum.</source>
         <translation>The Silero VAD model does not have a trusted checksum.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="961"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1030"/>
         <source>The speech-analysis request could not be sent to the ASR worker.</source>
         <translation>The speech-analysis request could not be sent to the ASR worker.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="969"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1038"/>
         <source>Install the selected ASR model before starting transcription.</source>
         <translation>Install the selected ASR model before starting transcription.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="977"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1046"/>
         <source>The selected ASR model does not have a trusted checksum.</source>
         <translation>The selected ASR model does not have a trusted checksum.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1014"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1083"/>
         <source>The model-load request could not be sent to the ASR worker.</source>
         <translation>The model-load request could not be sent to the ASR worker.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1116"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1188"/>
         <source>The transcription request could not be sent to the ASR worker.</source>
         <translation>The transcription request could not be sent to the ASR worker.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1153"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1225"/>
         <source>The ASR worker rejected the request.</source>
         <translation>The ASR worker rejected the request.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1163"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1235"/>
         <source>The ASR worker returned an invalid capability response.</source>
         <translation>The ASR worker returned an invalid capability response.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1169"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1241"/>
         <source>The ASR worker capability response is missing runtime availability.</source>
         <translation>The ASR worker capability response is missing runtime availability.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1184"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1256"/>
         <source>The ASR worker cancelled the active operation.</source>
         <translation>The ASR worker cancelled the active operation.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1308"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1380"/>
         <source>The ASR worker returned a segment outside the active chunk.</source>
         <translation>The ASR worker returned a segment outside the active chunk.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1321"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1393"/>
         <source>The ASR worker returned an empty segment time range.</source>
         <translation>The ASR worker returned an empty segment time range.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1510"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1589"/>
         <source>Transcription was cancelled.</source>
         <translation>Transcription was cancelled.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1596"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1686"/>
         <source>The loaded ASR runtime did not report its backend and version.</source>
         <translation>The loaded ASR runtime did not report its backend and version.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1735"/>
+        <source>Added to queue</source>
+        <translation>Added to queue</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1737"/>
+        <source>Started processing</source>
+        <translation>Started processing</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1739"/>
+        <source>Stage changed</source>
+        <translation>Stage changed</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1741"/>
+        <source>Transcription unit started</source>
+        <translation>Transcription unit started</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1743"/>
+        <source>Transcription unit completed</source>
+        <translation>Transcription unit completed</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1745"/>
+        <source>Transcription unit failed</source>
+        <translation>Transcription unit failed</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1747"/>
+        <source>Transcription unit cancelled</source>
+        <translation>Transcription unit cancelled</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1749"/>
+        <source>Transcription unit interrupted</source>
+        <translation>Transcription unit interrupted</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1751"/>
+        <source>Transcription unit reset</source>
+        <translation>Transcription unit reset</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1753"/>
+        <source>Transcription completed</source>
+        <translation>Transcription completed</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1755"/>
+        <source>Transcription cancelled</source>
+        <translation>Transcription cancelled</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1757"/>
+        <source>Transcription failed</source>
+        <translation>Transcription failed</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1759"/>
+        <source>Transcription interrupted</source>
+        <translation>Transcription interrupted</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1761"/>
+        <source>Retry queued</source>
+        <translation>Retry queued</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1763"/>
+        <source>Resume queued</source>
+        <translation>Resume queued</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1766"/>
+        <source>Previous transcription worker stopped responding</source>
+        <translation>Previous transcription worker stopped responding</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1768"/>
+        <source>Set as latest completed version</source>
+        <translation>Set as latest completed version</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1772"/>
+        <source>Transcription status updated</source>
+        <translation>Transcription status updated</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1778"/>
+        <source>Unit %1 of %2</source>
+        <translation>Unit %1 of %2</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1779"/>
+        <source>Unit %1</source>
+        <translation>Unit %1</translation>
     </message>
 </context>
 <context>
@@ -1037,33 +1173,107 @@
 <context>
     <name>JobProgress</name>
     <message>
-        <location filename="../src/qml/components/JobProgress.qml" line="25"/>
+        <location filename="../src/qml/components/JobProgress.qml" line="42"/>
         <source>Speech recognition is unavailable in this build. Use a build that includes whisper.cpp, then retry this job.</source>
         <translation>Speech recognition is unavailable in this build. Use a build that includes whisper.cpp, then retry this job.</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/JobProgress.qml" line="72"/>
+        <location filename="../src/qml/components/JobProgress.qml" line="50"/>
+        <source>Queue position %1</source>
+        <translation>Queue position %1</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="52"/>
+        <source>Next in queue</source>
+        <translation>Next in queue</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="54"/>
+        <source>1 job ahead</source>
+        <translation>1 job ahead</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="55"/>
+        <source>%1 jobs ahead</source>
+        <translation>%1 jobs ahead</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="62"/>
+        <source>%1 chunks</source>
+        <translation>%1 chunks</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="63"/>
+        <source>Chunk %1 of %2</source>
+        <translation>Chunk %1 of %2</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="151"/>
+        <source>Running now</source>
+        <translation>Running now</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="218"/>
+        <source>Latest partial transcript</source>
+        <translation>Latest partial transcript</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="243"/>
+        <source>Hide activity</source>
+        <translation>Hide activity</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="243"/>
+        <source>Show activity (%1)</source>
+        <translation>Show activity (%1)</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="316"/>
+        <source>Drag %1 to reorder the queue</source>
+        <translation>Drag %1 to reorder the queue</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="340"/>
+        <source>Move %1 up in queue</source>
+        <translation>Move %1 up in queue</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="347"/>
+        <source>Move %1 down in queue</source>
+        <translation>Move %1 down in queue</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="357"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/JobProgress.qml" line="73"/>
+        <location filename="../src/qml/components/JobProgress.qml" line="362"/>
         <source>Retry</source>
         <translation>Retry</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/JobProgress.qml" line="74"/>
+        <location filename="../src/qml/components/JobProgress.qml" line="367"/>
         <source>Resume</source>
         <translation>Resume</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="373"/>
+        <source>Hide from queue</source>
+        <translation>Hide from queue</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/JobProgress.qml" line="374"/>
+        <source>Hide %1 from queue</source>
+        <translation>Hide %1 from queue</translation>
     </message>
     <message>
         <source>Remove</source>
         <translation type="vanished">Remove</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/JobProgress.qml" line="78"/>
         <source>Remove %1 from queue</source>
-        <translation>Remove %1 from queue</translation>
+        <translation type="vanished">Remove %1 from queue</translation>
     </message>
 </context>
 <context>
@@ -1586,22 +1796,22 @@
         <translation type="vanished">BreezeDesk is up to date.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="359"/>
+        <location filename="../src/app/main.cpp" line="369"/>
         <source>%1 %2 is available.</source>
         <translation>%1 %2 is available.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="365"/>
+        <location filename="../src/app/main.cpp" line="375"/>
         <source>%1 is up to date.</source>
         <translation>%1 is up to date.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="400"/>
+        <location filename="../src/app/main.cpp" line="410"/>
         <source>Model test passed using %1 (whisper.cpp %2; loaded in %3 ms).</source>
         <translation>Model test passed using %1 (whisper.cpp %2; loaded in %3 ms).</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="417"/>
+        <location filename="../src/app/main.cpp" line="427"/>
         <source>Model test cancelled.</source>
         <translation>Model test cancelled.</translation>
     </message>
@@ -1610,73 +1820,73 @@
         <translation type="vanished">Show BreezeDesk</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="460"/>
-        <location filename="../src/app/main.cpp" line="806"/>
+        <location filename="../src/app/main.cpp" line="470"/>
+        <location filename="../src/app/main.cpp" line="816"/>
         <source>Show %1</source>
         <translation>Show %1</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="461"/>
-        <location filename="../src/app/main.cpp" line="807"/>
+        <location filename="../src/app/main.cpp" line="471"/>
+        <location filename="../src/app/main.cpp" line="817"/>
         <source>Import Files</source>
         <translation>Import Files</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="462"/>
-        <location filename="../src/app/main.cpp" line="808"/>
+        <location filename="../src/app/main.cpp" line="472"/>
+        <location filename="../src/app/main.cpp" line="818"/>
         <source>Start Recording</source>
         <translation>Start Recording</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="463"/>
-        <location filename="../src/app/main.cpp" line="798"/>
+        <location filename="../src/app/main.cpp" line="473"/>
+        <location filename="../src/app/main.cpp" line="808"/>
         <source>Queue: idle</source>
         <translation>Queue: idle</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="465"/>
-        <location filename="../src/app/main.cpp" line="809"/>
+        <location filename="../src/app/main.cpp" line="475"/>
+        <location filename="../src/app/main.cpp" line="819"/>
         <source>Pause after current job</source>
         <translation>Pause after current job</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="467"/>
-        <location filename="../src/app/main.cpp" line="810"/>
+        <location filename="../src/app/main.cpp" line="477"/>
+        <location filename="../src/app/main.cpp" line="820"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="506"/>
+        <location filename="../src/app/main.cpp" line="516"/>
         <source>A microphone recording is already in progress.</source>
         <translation>A microphone recording is already in progress.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="510"/>
+        <location filename="../src/app/main.cpp" line="520"/>
         <source>Waiting for microphone permission.</source>
         <translation>Waiting for microphone permission.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="518"/>
+        <location filename="../src/app/main.cpp" line="528"/>
         <source>Requesting microphone access…</source>
         <translation>Requesting microphone access…</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="528"/>
+        <location filename="../src/app/main.cpp" line="538"/>
         <source>Microphone permission was not granted.</source>
         <translation>Microphone permission was not granted.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="534"/>
+        <location filename="../src/app/main.cpp" line="544"/>
         <source>The microphone recording could not be started.</source>
         <translation>The microphone recording could not be started.</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="557"/>
+        <location filename="../src/app/main.cpp" line="567"/>
         <source>The recording was saved but could not be opened.</source>
         <translation>The recording was saved but could not be opened.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/main.cpp" line="799"/>
+        <location filename="../src/app/main.cpp" line="809"/>
         <source>Queue: %n active job(s)</source>
         <translation>
             <numerusform>Queue: %n active job(s)</numerusform>
@@ -1703,16 +1913,25 @@
     </message>
     <message>
         <location filename="../src/qml/pages/QueuePage.qml" line="62"/>
-        <source>Clear Completed</source>
-        <translation>Clear Completed</translation>
+        <source>Hide finished</source>
+        <translation>Hide finished</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="72"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="63"/>
+        <source>Hide completed and cancelled jobs from queue</source>
+        <translation>Hide completed and cancelled jobs from queue</translation>
+    </message>
+    <message>
+        <source>Clear Completed</source>
+        <translation type="vanished">Clear Completed</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="73"/>
         <source>The queue is empty</source>
         <translation>The queue is empty</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="73"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="74"/>
         <source>Open a recording from Library and add it to the transcription queue.</source>
         <translation>Open a recording from Library and add it to the transcription queue.</translation>
     </message>
@@ -1889,28 +2108,28 @@
 <context>
     <name>RecordingPage</name>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="131"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="383"/>
         <source>Transcribe</source>
         <translation>Transcribe</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="132"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="384"/>
         <source>Export</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="136"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="530"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="388"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="853"/>
         <source>Details</source>
         <translation>Details</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="137"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="389"/>
         <source>Show recording details</source>
         <translation>Show recording details</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="172"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="424"/>
         <source>Recording waveform</source>
         <translation>Recording waveform</translation>
     </message>
@@ -1919,17 +2138,17 @@
         <translation type="vanished">−5 s</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="213"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="465"/>
         <source>Back 5 seconds</source>
         <translation>Back 5 seconds</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="225"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="477"/>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="225"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="477"/>
         <source>Play</source>
         <translation>Play</translation>
     </message>
@@ -1938,147 +2157,299 @@
         <translation type="vanished">+5 s</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="47"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="48"/>
+        <source>Transcript history</source>
+        <translation>Transcript history</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="49"/>
+        <source>Each transcription creates a separate version. Viewing a version does not replace the latest completed transcript.</source>
+        <translation>Each transcription creates a separate version. Viewing a version does not replace the latest completed transcript.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="62"/>
+        <source>No transcript versions are available yet.</source>
+        <translation>No transcript versions are available yet.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="124"/>
+        <source>Version %1</source>
+        <translation>Version %1</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="138"/>
+        <source>Latest completed</source>
+        <translation>Latest completed</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="143"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="210"/>
+        <source>Viewing</source>
+        <translation>Viewing</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/qml/pages/RecordingPage.qml" line="151"/>
+        <source>%1 · %n segment(s)</source>
+        <translation>
+            <numerusform>%1 · %n segment</numerusform>
+            <numerusform>%1 · %n segments</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="166"/>
+        <source>Language: %1</source>
+        <translation>Language: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="168"/>
+        <source>Preset: %1</source>
+        <translation>Preset: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="198"/>
+        <source>Contains manual edits and partial results</source>
+        <translation>Contains manual edits and partial results</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="199"/>
+        <source>Contains manual edits</source>
+        <translation>Contains manual edits</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="200"/>
+        <source>Contains partial results</source>
+        <translation>Contains partial results</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="210"/>
+        <source>View</source>
+        <translation>View</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="221"/>
+        <source>Delete version %1 permanently</source>
+        <translation>Delete version %1 permanently</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="235"/>
+        <source>Delete transcript version permanently?</source>
+        <translation>Delete transcript version permanently?</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="236"/>
+        <source>Delete version %1 permanently?</source>
+        <translation>Delete version %1 permanently?</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="238"/>
+        <source>This cannot be undone.</source>
+        <translation>This cannot be undone.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="257"/>
+        <source>The transcript segments and processing record for this version will be permanently deleted.</source>
+        <translation>The transcript segments and processing record for this version will be permanently deleted.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="266"/>
+        <source>This version contains manual edits. Those edits will also be lost.</source>
+        <translation>This version contains manual edits. Those edits will also be lost.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="278"/>
+        <source>This is the version you are viewing, and it has unsaved changes. Those changes will be discarded.</source>
+        <translation>This is the version you are viewing, and it has unsaved changes. Those changes will be discarded.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="299"/>
         <source>Duration</source>
         <translation>Duration</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="53"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="305"/>
         <source>Status</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="59"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="311"/>
         <source>Model</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="232"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="484"/>
         <source>Forward 5 seconds</source>
         <translation>Forward 5 seconds</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="245"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="497"/>
         <source>Playback position</source>
         <translation>Playback position</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="263"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="515"/>
         <source>Playback rate</source>
         <translation>Playback rate</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="270"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="522"/>
         <source>Mute</source>
         <translation>Mute</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="282"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="534"/>
         <source>Volume</source>
         <translation>Volume</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="285"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="537"/>
         <source>Loop selection</source>
         <translation>Loop selection</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="298"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="560"/>
+        <source>Version</source>
+        <translation>Version</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="570"/>
+        <source>Transcript version</source>
+        <translation>Transcript version</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="585"/>
+        <source>Following live</source>
+        <translation>Following live</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="597"/>
+        <source>New version available</source>
+        <translation>New version available</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="603"/>
+        <source>Follow latest</source>
+        <translation>Follow latest</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="608"/>
+        <source>History</source>
+        <translation>History</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="617"/>
         <source>Live transcription — editing locked</source>
         <translation>Live transcription — editing locked</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="317"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="636"/>
         <source>Find in transcript</source>
         <translation>Find in transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="320"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="639"/>
         <source>Low confidence</source>
         <translation>Low confidence</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="331"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="650"/>
         <source>Previous</source>
         <translation>Previous</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="338"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="657"/>
         <source>Next</source>
         <translation>Next</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="346"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="665"/>
         <source>Undo</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="353"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="672"/>
         <source>Redo</source>
         <translation>Redo</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="360"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="679"/>
         <source>Copy Transcript</source>
         <translation>Copy Transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="364"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="683"/>
         <source>Transcript copied to clipboard.</source>
         <translation>Transcript copied to clipboard.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="370"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="689"/>
         <source>Save Changes</source>
         <translation>Save Changes</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="370"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="689"/>
         <source>Saved</source>
         <translation>Saved</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="383"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="703"/>
+        <source>No completed transcript yet</source>
+        <translation>No completed transcript yet</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="704"/>
+        <source>This transcript version is empty</source>
+        <translation>This transcript version is empty</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="706"/>
+        <source>Add this recording to the queue. Partial segments will appear here while the new version is transcribed.</source>
+        <translation>Add this recording to the queue. Partial segments will appear here while the new version is transcribed.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="707"/>
+        <source>This version did not produce any transcript segments.</source>
+        <translation>This version did not produce any transcript segments.</translation>
+    </message>
+    <message>
         <source>No transcript yet</source>
-        <translation>No transcript yet</translation>
+        <translation type="vanished">No transcript yet</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="384"/>
         <source>Add this recording to the queue. Partial segments will appear here as each long-form unit completes.</source>
-        <translation>Add this recording to the queue. Partial segments will appear here as each long-form unit completes.</translation>
+        <translation type="vanished">Add this recording to the queue. Partial segments will appear here as each long-form unit completes.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="385"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="708"/>
         <source>Add to Queue</source>
         <translation>Add to Queue</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="394"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="717"/>
         <source>No matching segments</source>
         <translation>No matching segments</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="395"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="718"/>
         <source>Clear the search or low-confidence filter to show the transcript.</source>
         <translation>Clear the search or low-confidence filter to show the transcript.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="396"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="719"/>
         <source>Clear Filters</source>
         <translation>Clear Filters</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="504"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="827"/>
         <source>Close recording details</source>
         <translation>Close recording details</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="538"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="861"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="43"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="295"/>
         <source>Recording</source>
         <translation>Recording</translation>
     </message>
@@ -2095,17 +2466,17 @@
         <translation type="vanished">Model: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="62"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="314"/>
         <source>Not transcribed</source>
         <translation>Not transcribed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="75"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="327"/>
         <source>Transcript</source>
         <translation>Transcript</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/RecordingPage.qml" line="78"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="330"/>
         <source>%n segment(s)</source>
         <translation>
             <numerusform>%n segment(s)</numerusform>
@@ -2113,17 +2484,17 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="80"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="332"/>
         <source>Auto-scroll</source>
         <translation>Auto-scroll</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="85"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="337"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="91"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="343"/>
         <source>Recording notes</source>
         <translation>Recording notes</translation>
     </message>

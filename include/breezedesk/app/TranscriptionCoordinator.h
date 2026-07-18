@@ -5,7 +5,9 @@
 #include "breezedesk/transcript/TranscriptSegment.h"
 
 #include <QObject>
+#include <QHash>
 #include <QPointer>
+#include <QTimer>
 
 #include <atomic>
 #include <memory>
@@ -53,6 +55,12 @@ class TranscriptionCoordinator final : public QObject {
     void jobChanged(const QString& jobId, const QString& recordingId, const QString& title,
                     const QString& state, const QString& stage, double progress, const QString& error);
     void transcriptChanged(const QString& recordingId, const QString& jobId, bool editingLocked);
+    void liveRevisionFinished(const QString& recordingId, const QString& jobId, bool succeeded);
+    void runningJobChanged(const QString& jobId);
+    void jobTelemetryChanged(const QString& jobId, int currentChunk, int totalChunks,
+                             const QString& latestPartialText);
+    void jobEventPublished(const QString& jobId, const QString& title, const QString& detail,
+                           const QString& severity, const QDateTime& occurredAt);
     void libraryChanged();
     void errorOccurred(const QString& message);
 
@@ -61,6 +69,9 @@ class TranscriptionCoordinator final : public QObject {
     enum class RuntimeAvailability { Unknown, Available, Unavailable };
 
     void scheduleNext();
+    void scheduleLeaseRetry();
+    void renewActiveLease();
+    void releaseActiveLease();
     void beginJob(const TranscriptionJob& job);
     void continuePreparingJob();
     void inspectMedia();
@@ -88,6 +99,7 @@ class TranscriptionCoordinator final : public QObject {
     bool persistLoadedRuntimeInfo(QString* error = nullptr);
     void publish(const QString& jobId);
     void publish(const TranscriptionJob& job);
+    void publishEvents(const QString& jobId);
     void advanceProgress(JobStage stage, double fraction, int lastCompletedChunk = -1);
     [[nodiscard]] QString recordingTitle(const QString& recordingId) const;
     [[nodiscard]] bool activeJobMatches(const QString& jobId) const;
@@ -110,6 +122,12 @@ class TranscriptionCoordinator final : public QObject {
     int m_lastNormalizationPercent{-1};
     QString m_activeSourcePath;
     QString m_activeNormalizedPath;
+    QString m_ownerToken;
+    QString m_runningJobId;
+    QString m_latestPartialText;
+    QHash<QString, qint64> m_lastPublishedEventId;
+    QTimer m_leaseHeartbeatTimer;
+    QTimer m_leaseRetryTimer;
     QString m_loadedModelId;
     QString m_loadedModelPath;
     QByteArray m_loadedModelSha256;

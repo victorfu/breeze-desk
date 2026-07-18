@@ -22,6 +22,7 @@ class DatabaseTest final : public QObject {
     void recordingTrashAndSearchWork();
     void migrationBackupAndIntegrityCheckWork();
     void upgradeMigrationCreatesBackup();
+    void revisionMigrationNormalizesLegacyHistory();
     void migrationChecksumMismatchIsRejected();
 };
 
@@ -30,7 +31,7 @@ void DatabaseTest::cleanMigrationConfiguresSQLite() {
     QVERIFY(directory.isValid());
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
-    QCOMPARE(manager.schemaVersion(), 6);
+    QCOMPARE(manager.schemaVersion(), 7);
     auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery foreignKeys(connection.value());
@@ -153,16 +154,109 @@ void DatabaseTest::upgradeMigrationCreatesBackup() {
         QSqlQuery removeVersion(connection.value());
         QSqlQuery removeReviewed(connection.value());
         QVERIFY(removeReviewed.exec(QStringLiteral("ALTER TABLE transcript_segments DROP COLUMN reviewed")));
-        QVERIFY(removeVersion.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6)")));
+        QVERIFY(
+            removeVersion.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7)")));
         QSqlQuery removeIndex(connection.value());
         QVERIFY(removeIndex.exec(QStringLiteral("DROP INDEX idx_recordings_source_path")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 6);
+    QCOMPARE(upgraded.schemaVersion(), 7);
     const QStringList backups =
         QDir(directory.path()).entryList({QStringLiteral("library.sqlite.backup-*")}, QDir::Files);
     QCOMPARE(backups.size(), 1);
+}
+
+void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("library.sqlite"));
+    {
+        DatabaseManager manager({path});
+        QVERIFY(manager.initialize());
+        SqliteRecordingRepository recordings(manager);
+        Recording recording;
+        recording.id = QStringLiteral("rec");
+        recording.title = QStringLiteral("Legacy history");
+        QVERIFY(recordings.create(recording));
+
+        auto connection = manager.connection();
+        QVERIFY(connection);
+        QSqlQuery query(connection.value());
+        QVERIFY(query.exec(QStringLiteral("DROP TRIGGER trg_jobs_active_revision_before_delete")));
+        QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_jobs_recording_revision")));
+        QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_jobs_single_execution")));
+        QVERIFY(query.exec(QStringLiteral("DROP TABLE asr_execution_lease")));
+        QVERIFY(query.exec(QStringLiteral("DROP TABLE transcription_job_events")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version=7")));
+
+        const auto insertJob = [&](const QString& id, const QString& state, const int queuePosition,
+                                   const QString& createdAt) {
+            QSqlQuery insert(connection.value());
+            insert.prepare(QStringLiteral(
+                "INSERT INTO transcription_jobs(id,recording_id,state,stage,progress,queue_position,"
+                "revision_number,created_at) VALUES(?,'rec',?,'Preparing',0,?,9,?)"));
+            insert.addBindValue(id);
+            insert.addBindValue(state);
+            insert.addBindValue(queuePosition);
+            insert.addBindValue(createdAt);
+            return insert.exec();
+        };
+        QVERIFY(insertJob(QStringLiteral("old-completed"), QStringLiteral("Completed"), 7,
+                          QStringLiteral("2026-01-01T00:00:00.000Z")));
+        QVERIFY(insertJob(QStringLiteral("new-completed"), QStringLiteral("Completed"), 7,
+                          QStringLiteral("2026-01-01T00:01:00.000Z")));
+        QVERIFY(insertJob(QStringLiteral("running"), QStringLiteral("Transcribing"), 2,
+                          QStringLiteral("2026-01-01T00:02:00.000Z")));
+        QVERIFY(insertJob(QStringLiteral("queued-a"), QStringLiteral("Queued"), 0,
+                          QStringLiteral("2026-01-01T00:03:00.000Z")));
+        QVERIFY(insertJob(QStringLiteral("queued-b"), QStringLiteral("Queued"), 0,
+                          QStringLiteral("2026-01-01T00:04:00.000Z")));
+        QVERIFY(
+            query.exec(QStringLiteral("UPDATE recordings SET active_job_id='old-completed' WHERE id='rec'")));
+    }
+
+    DatabaseManager upgraded({path});
+    QVERIFY(upgraded.initialize());
+    QCOMPARE(upgraded.schemaVersion(), 7);
+    auto connection = upgraded.connection();
+    QVERIFY(connection);
+    QSqlQuery jobs(connection.value());
+    QVERIFY(jobs.exec(QStringLiteral(
+        "SELECT id,state,revision_number,queue_position FROM transcription_jobs ORDER BY revision_number")));
+    QStringList ids;
+    QList<int> revisions;
+    QMap<QString, QString> states;
+    QMap<QString, int> queuePositions;
+    while (jobs.next()) {
+        const QString id = jobs.value(0).toString();
+        ids.append(id);
+        states.insert(id, jobs.value(1).toString());
+        revisions.append(jobs.value(2).toInt());
+        queuePositions.insert(id, jobs.value(3).toInt());
+    }
+    QCOMPARE(ids, QStringList({QStringLiteral("old-completed"), QStringLiteral("new-completed"),
+                               QStringLiteral("running"), QStringLiteral("queued-a"),
+                               QStringLiteral("queued-b")}));
+    QCOMPARE(revisions, QList<int>({1, 2, 3, 4, 5}));
+    QCOMPARE(states.value(QStringLiteral("running")), QStringLiteral("Interrupted"));
+    QCOMPARE(queuePositions.value(QStringLiteral("queued-a")), 0);
+    QCOMPARE(queuePositions.value(QStringLiteral("queued-b")), 1);
+
+    QSqlQuery active(connection.value());
+    QVERIFY(active.exec(QStringLiteral("SELECT active_job_id FROM recordings WHERE id='rec'")));
+    QVERIFY(active.next());
+    QCOMPARE(active.value(0).toString(), QStringLiteral("new-completed"));
+
+    QSqlQuery events(connection.value());
+    QVERIFY(events.exec(QStringLiteral(
+        "SELECT event_type,COUNT(*) FROM transcription_job_events GROUP BY event_type ORDER BY event_type")));
+    QMap<QString, int> eventCounts;
+    while (events.next()) {
+        eventCounts.insert(events.value(0).toString(), events.value(1).toInt());
+    }
+    QCOMPARE(eventCounts.value(QStringLiteral("enqueued")), 5);
+    QCOMPARE(eventCounts.value(QStringLiteral("completed")), 2);
+    QCOMPARE(eventCounts.value(QStringLiteral("interrupted")), 1);
 }
 
 void DatabaseTest::migrationChecksumMismatchIsRejected() {

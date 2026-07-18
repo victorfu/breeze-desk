@@ -3,9 +3,11 @@
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
 #include "breezedesk/glossary/SqliteGlossaryRepository.h"
+#include "breezedesk/jobs/SqliteJobRepository.h"
 #include "breezedesk/models/ModelManager.h"
 #include "breezedesk/settings/SettingsManagers.h"
 #include "breezedesk/transcript/ITranscriptRepository.h"
+#include "breezedesk/transcript/SqliteTranscriptRepository.h"
 #include "breezedesk/ui/ApplicationViewModel.h"
 #include "breezedesk/ui/GlossaryViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
@@ -206,6 +208,9 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(root->findChild<QObject*>(QStringLiteral("muteToggle")));
         QVERIFY(root->findChild<QObject*>(QStringLiteral("volumeSlider")));
         QVERIFY(root->findChild<QObject*>(QStringLiteral("notesEditor")));
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("transcriptRevisionPicker")));
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("transcriptHistoryButton")));
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("deleteDirtyTranscriptRevisionWarning")));
         const auto failures = qmlMessages.filter(
             QRegularExpression(QStringLiteral("qrc:|ReferenceError|TypeError|Binding loop")));
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
@@ -1712,13 +1717,25 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(!vm.settings()->playbackDevices().isEmpty());
         vm.player()->setOutputDeviceId(QStringLiteral("Default"));
         QCOMPARE(vm.player()->outputDeviceId(), QStringLiteral("Default"));
-        vm.enqueueTranscription(id);
+        const QString toastBeforeRejectedEnqueue = vm.toastMessage();
+        QVERIFY(vm.enqueueTranscription(id).isEmpty());
+        QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 0);
+        QCOMPARE(vm.currentPage(), QStringLiteral("Recording"));
+        QCOMPARE(vm.toastMessage(), toastBeforeRejectedEnqueue);
+        connect(&vm, &BreezeDesk::ApplicationViewModel::transcriptionJobRequested, &vm,
+                [&vm](const QString& jobId, const QString& recordingId) {
+                    vm.jobQueue()->updateJob(jobId, recordingId, QStringLiteral("Fixture job"),
+                                             QStringLiteral("Queued"), QStringLiteral("Preparing"), 0.0);
+                });
+        const QString jobId = vm.enqueueTranscription(id);
+        QVERIFY(!jobId.isEmpty());
+        // Enqueue is persistence-first: this standalone test simulates the coordinator's
+        // durable job confirmation in the signal handler above.
         QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 1);
         QCOMPARE(vm.currentPage(), QStringLiteral("Queue"));
         const QModelIndex queuedJob = vm.jobQueue()->jobs()->index(0, 0);
-        const QString jobId =
-            vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::IdRole).toString();
-        QVERIFY(!jobId.isEmpty());
+        QCOMPARE(vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::IdRole).toString(),
+                 jobId);
         vm.jobQueue()->updateJob(jobId, id, QStringLiteral("Fixture job"), QStringLiteral("Failed"),
                                  QStringLiteral("Transcribing"), 0.2, QStringLiteral("Fixture failure"));
         QVERIFY(vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::CanRemoveRole).toBool());
@@ -2052,6 +2069,113 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Final result"));
         vm.transcript()->editText(0, QStringLiteral("Reviewed final result"));
         QVERIFY(vm.transcript()->dirty());
+    }
+
+    void transcriptHistoryPinsSelectionFallsBackAndDeletesPermanently() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("transcript-history.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteRecordingRepository recordingRepository(database);
+        BreezeDesk::SqliteJobRepository jobRepository(database);
+        BreezeDesk::SqliteTranscriptRepository transcriptRepository(database);
+
+        BreezeDesk::Recording recording;
+        recording.id = QStringLiteral("history-recording");
+        recording.title = QStringLiteral("Transcript history fixture");
+        recording.sourcePath = directory.filePath(QStringLiteral("fixture.wav"));
+        QVERIFY(recordingRepository.create(recording));
+
+        BreezeDesk::TranscriptionJob completedJob;
+        completedJob.id = QStringLiteral("completed-revision");
+        completedJob.recordingId = recording.id;
+        completedJob.modelId = QStringLiteral("fixture-model");
+        completedJob.backend = QStringLiteral("cpu");
+        const auto createdCompleted = jobRepository.createQueued(completedJob);
+        QVERIFY(createdCompleted);
+        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Preparing));
+        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::LoadingModel));
+        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Transcribing));
+        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Finalizing));
+
+        BreezeDesk::TranscriptSegment completedSegment;
+        completedSegment.id = QStringLiteral("completed-segment");
+        completedSegment.recordingId = recording.id;
+        completedSegment.jobId = completedJob.id;
+        completedSegment.startMs = 0;
+        completedSegment.endMs = 1'000;
+        completedSegment.originalText = QStringLiteral("Completed revision");
+        QVERIFY(transcriptRepository.replaceRevision(recording.id, completedJob.id,
+                                                     {completedSegment}));
+        QVERIFY(jobRepository.completeAndActivate(recording.id, completedJob.id));
+
+        BreezeDesk::TranscriptionJob liveJob;
+        liveJob.id = QStringLiteral("live-revision");
+        liveJob.recordingId = recording.id;
+        liveJob.modelId = QStringLiteral("fixture-model");
+        liveJob.backend = QStringLiteral("cpu");
+        const auto createdLive = jobRepository.createQueued(liveJob);
+        QVERIFY(createdLive);
+        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Preparing));
+        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::LoadingModel));
+        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Transcribing));
+
+        BreezeDesk::TranscriptSegment liveSegment = completedSegment;
+        liveSegment.id = QStringLiteral("live-segment");
+        liveSegment.jobId = liveJob.id;
+        liveSegment.originalText = QStringLiteral("Live partial revision");
+        liveSegment.provisional = true;
+        QVERIFY(transcriptRepository.replaceRevision(recording.id, liveJob.id, {liveSegment}));
+
+        BreezeDesk::ApplicationViewModel vm(&recordingRepository, &transcriptRepository);
+        vm.installJobRepository(&jobRepository);
+        vm.openRecording(recording.id);
+        QCOMPARE(vm.transcriptRevisions()->count(), 2);
+        QCOMPARE(vm.transcriptRevisions()->selectedJobId(), completedJob.id);
+        QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Completed revision"));
+
+        vm.reloadTranscriptForJob(recording.id, liveJob.id, true);
+        QCOMPARE(vm.transcriptRevisions()->selectedJobId(), liveJob.id);
+        QVERIFY(vm.transcript()->editingLocked());
+        QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Live partial revision"));
+
+        vm.selectTranscriptRevision(completedJob.id);
+        QVERIFY(vm.transcriptRevisions()->selectionPinned());
+        QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Completed revision"));
+
+        liveSegment.originalText = QStringLiteral("Newer live partial revision");
+        QVERIFY(transcriptRepository.replaceRevision(recording.id, liveJob.id, {liveSegment}));
+        vm.reloadTranscriptForJob(recording.id, liveJob.id, true);
+        QCOMPARE(vm.transcriptRevisions()->selectedJobId(), completedJob.id);
+        QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Completed revision"));
+        QVERIFY(vm.transcriptRevisions()->hasNewerRevision());
+
+        vm.followLiveTranscript();
+        QCOMPARE(vm.transcriptRevisions()->selectedJobId(), liveJob.id);
+        QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Newer live partial revision"));
+        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Failed,
+                                         QStringLiteral("FixtureFailure"),
+                                         QStringLiteral("Fixture failure")));
+        vm.finishLiveTranscriptRevision(recording.id, liveJob.id, false);
+        QCOMPARE(vm.transcriptRevisions()->selectedJobId(), completedJob.id);
+        QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Completed revision"));
+        QVERIFY(!vm.transcript()->editingLocked());
+
+        vm.transcript()->editText(0, QStringLiteral("Unsaved edit to be discarded"));
+        QVERIFY(vm.transcript()->dirty());
+        vm.deleteTranscriptRevision(completedJob.id);
+        QCOMPARE(vm.transcriptRevisions()->count(), 1);
+        QVERIFY(vm.transcriptRevisions()->selectedJobId().isEmpty());
+        QCOMPARE(vm.transcript()->segmentCount(), 0);
+        QVERIFY(!vm.transcript()->dirty());
+
+        vm.openRecording(recording.id);
+        QVERIFY(vm.transcriptRevisions()->selectedJobId().isEmpty());
+        QCOMPARE(vm.transcript()->segmentCount(), 0);
+        vm.selectTranscriptRevision(liveJob.id);
+        QCOMPARE(vm.transcriptRevisions()->selectedJobId(), liveJob.id);
+        QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Newer live partial revision"));
     }
 
     void diagnosticsUsesCentralizedStoragePaths() {

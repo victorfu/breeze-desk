@@ -630,7 +630,9 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         return result;
     }
 
-    CliTranscriptionPersistence persistence(recordings, jobs, transcripts);
+    CliTranscriptionPersistence persistence(
+        recordings, jobs, transcripts, {}, [] { return g_interrupted != 0; },
+        [](const QString& message) { writeError(message); });
     Result<DurableTranscriptionIdentity> session =
         Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("The transcription session was not initialized.")));
@@ -675,8 +677,14 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     }
     if (!session) {
         TranscribeRunResult result;
-        result.exitCode = session.error().domain == ErrorDomain::Database ? CliExitCode::DatabaseFailure
-                                                                          : CliExitCode::InvalidArguments;
+        if (session.error().code == ErrorCode::OperationCancelled ||
+            session.error().code == ErrorCode::JobCancelled) {
+            result.exitCode = CliExitCode::Cancelled;
+        } else {
+            result.exitCode = session.error().domain == ErrorDomain::Database
+                                  ? CliExitCode::DatabaseFailure
+                                  : CliExitCode::InvalidArguments;
+        }
         result.error = session.error().diagnosticString();
         return result;
     }
@@ -697,11 +705,41 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         const auto checkpoint = persistence.interrupt(reason, errorCode);
         Q_UNUSED(checkpoint)
     };
+    QString leaseFailure;
+    QTimer leaseHeartbeat;
+    leaseHeartbeat.setInterval(2'000);
+    QObject::connect(&leaseHeartbeat, &QTimer::timeout, &leaseHeartbeat,
+                     [&persistence, &leaseFailure, &leaseHeartbeat] {
+                         if (!persistence.isActive()) {
+                             leaseHeartbeat.stop();
+                             return;
+                         }
+                         const auto renewed = persistence.renewExecutionLease();
+                         if (!renewed && leaseFailure.isEmpty()) {
+                             leaseFailure = QStringLiteral(
+                                 "The global transcription lease was lost: %1")
+                                                .arg(renewed.error().diagnosticString());
+                             g_interrupted = 1;
+                         }
+                     });
+    leaseHeartbeat.start();
+    const auto interruptionReason = [&leaseFailure] {
+        return leaseFailure.isEmpty()
+                   ? QStringLiteral("Transcription was interrupted by the user.")
+                   : leaseFailure;
+    };
+    const auto interruptionCode = [&leaseFailure] {
+        return leaseFailure.isEmpty() ? QStringLiteral("JobCancelled")
+                                      : QStringLiteral("ExecutionLeaseLost");
+    };
+    const auto interruptionExitCode = [&leaseFailure] {
+        return leaseFailure.isEmpty() ? CliExitCode::Cancelled : CliExitCode::DatabaseFailure;
+    };
 
     if (g_interrupted != 0) {
-        const QString reason = QStringLiteral("Transcription was interrupted by the user.");
-        interruptSession(reason, QStringLiteral("JobCancelled"));
-        return makeResult(CliExitCode::Cancelled, {}, reason);
+        const QString reason = interruptionReason();
+        interruptSession(reason, interruptionCode());
+        return makeResult(interruptionExitCode(), {}, reason);
     }
 
     if (!isReusableNormalizedAudio(pcmPath, metadata.durationMs)) {
@@ -749,12 +787,11 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             return makeResult(CliExitCode::DatabaseFailure, {}, checkpointError);
         }
         if (!normalized) {
-            const QString reason = g_interrupted != 0
-                                       ? QStringLiteral("Transcription was interrupted by the user.")
-                                       : operation->error();
+            const QString reason =
+                g_interrupted != 0 ? interruptionReason() : operation->error();
             if (g_interrupted != 0) {
-                interruptSession(reason, QStringLiteral("JobCancelled"));
-                return makeResult(CliExitCode::Cancelled, {}, reason);
+                interruptSession(reason, interruptionCode());
+                return makeResult(interruptionExitCode(), {}, reason);
             }
             const auto failed = persistence.fail(QStringLiteral("AudioDecodeFailed"), reason);
             Q_UNUSED(failed)
@@ -865,10 +902,10 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     if (!loaded) {
         QString reason = loadError;
         if (g_interrupted != 0) {
-            reason = QStringLiteral("Transcription was interrupted by the user.");
-            interruptSession(reason, QStringLiteral("JobCancelled"));
+            reason = interruptionReason();
+            interruptSession(reason, interruptionCode());
             worker.stop();
-            return makeResult(CliExitCode::Cancelled, {}, reason);
+            return makeResult(interruptionExitCode(), {}, reason);
         }
         if (!workerInterruption.isEmpty() || loadTimedOut) {
             reason = workerInterruption.isEmpty() ? QStringLiteral("Model loading timed out.")
@@ -988,10 +1025,10 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         if (!analysisCompleted) {
             QString reason = analysisError;
             if (g_interrupted != 0) {
-                reason = QStringLiteral("Transcription was interrupted by the user.");
-                interruptSession(reason, QStringLiteral("JobCancelled"));
+                reason = interruptionReason();
+                interruptSession(reason, interruptionCode());
                 worker.stop();
-                return makeResult(CliExitCode::Cancelled, {}, reason);
+                return makeResult(interruptionExitCode(), {}, reason);
             }
             if (!workerInterruption.isEmpty() || analysisTimedOut) {
                 reason = workerInterruption.isEmpty() ? QStringLiteral("Speech analysis timed out.")
@@ -1044,10 +1081,10 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         }
         if (g_interrupted != 0) {
             worker.forceCancelAfterGrace(jobId);
-            const QString reason = QStringLiteral("Transcription was interrupted by the user.");
-            interruptSession(reason, QStringLiteral("JobCancelled"));
+            const QString reason = interruptionReason();
+            interruptSession(reason, interruptionCode());
             worker.stop();
-            return makeResult(CliExitCode::Cancelled, segments, reason);
+            return makeResult(interruptionExitCode(), segments, reason);
         }
         const JobChunk& chunk = chunks.at(chunkIndex);
         const auto chunkStarted = persistence.beginChunk(chunk.ordinal);
@@ -1181,10 +1218,10 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                 return makeResult(CliExitCode::DatabaseFailure, segments, chunkCheckpointError);
             }
             if (g_interrupted != 0) {
-                const QString reason = QStringLiteral("Transcription was interrupted by the user.");
-                interruptSession(reason, QStringLiteral("JobCancelled"));
+                const QString reason = interruptionReason();
+                interruptSession(reason, interruptionCode());
                 worker.stop();
-                return makeResult(CliExitCode::Cancelled, segments, reason);
+                return makeResult(interruptionExitCode(), segments, reason);
             }
             if (!workerInterruption.isEmpty() || chunkTimedOut) {
                 const QString reason =

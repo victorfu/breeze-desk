@@ -5,6 +5,8 @@
 #include "breezedesk/jobs/TranscriptionJob.h"
 #include "breezedesk/transcript/TranscriptSegment.h"
 
+#include <functional>
+
 namespace BreezeDesk {
 
 class IJobRepository;
@@ -27,7 +29,9 @@ struct DurableTranscriptionIdentity {
 class CliTranscriptionPersistence final {
   public:
     CliTranscriptionPersistence(IRecordingRepository& recordings, IJobRepository& jobs,
-                                ITranscriptRepository& transcripts);
+                                ITranscriptRepository& transcripts, QString ownerToken = {},
+                                std::function<bool()> cancellationRequested = {},
+                                std::function<void(const QString&)> waitNotification = {});
 
     [[nodiscard]] Result<DurableTranscriptionIdentity> beginNew(DurableTranscriptionDescriptor descriptor);
     [[nodiscard]] Result<DurableTranscriptionIdentity> resume(const QString& jobId, const QString& sourcePath,
@@ -49,10 +53,12 @@ class CliTranscriptionPersistence final {
                                          const QString& errorCode = QStringLiteral("WorkerCrashed"));
     [[nodiscard]] Result<void> fail(const QString& errorCode, const QString& message);
     [[nodiscard]] Result<void> complete();
+    [[nodiscard]] Result<void> renewExecutionLease();
     [[nodiscard]] Result<QList<TranscriptSegment>> persistedSegments() const;
 
     [[nodiscard]] bool isActive() const noexcept { return m_active; }
     [[nodiscard]] const DurableTranscriptionIdentity& identity() const { return m_identity; }
+    [[nodiscard]] const QString& ownerToken() const noexcept { return m_ownerToken; }
 
   private:
     [[nodiscard]] Result<TranscriptionJob> currentJob() const;
@@ -63,12 +69,17 @@ class CliTranscriptionPersistence final {
                                                            int lastCompletedChunk = -1);
     [[nodiscard]] Result<void> updateRecordingNormalizedPath(const QString& path);
     [[nodiscard]] Result<void> requireActive() const;
+    [[nodiscard]] Result<void> waitForExecutionClaim(const QString& jobId);
+    void releaseExecutionLease();
     void refreshChunk(const JobChunk& chunk);
 
     IRecordingRepository& m_recordings;
     IJobRepository& m_jobs;
     ITranscriptRepository& m_transcripts;
     DurableTranscriptionIdentity m_identity;
+    QString m_ownerToken;
+    std::function<bool()> m_cancellationRequested;
+    std::function<void(const QString&)> m_waitNotification;
     bool m_active = false;
 };
 

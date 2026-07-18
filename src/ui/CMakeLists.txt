@@ -12,6 +12,8 @@ set(BREEZEDESK_UI_HEADERS
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/RecordingListModel.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/SettingsViewModel.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/TranscriptSegmentModel.h
+    ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/TranscriptRevisionModel.h
+    ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/TranscriptRevisionViewModel.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/TranscriptViewModel.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/UiRegistration.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/ui/WaveformItem.h
@@ -32,6 +34,8 @@ add_library(breezedesk_ui STATIC
     RecordingListModel.cpp
     SettingsViewModel.cpp
     TranscriptSegmentModel.cpp
+    TranscriptRevisionModel.cpp
+    TranscriptRevisionViewModel.cpp
     TranscriptViewModel.cpp
     UiRegistration.cpp
     WaveformItem.cpp
@@ -53,6 +57,7 @@ target_link_libraries(breezedesk_ui
         breezedesk_database
     PRIVATE
         breezedesk_audio
+        breezedesk_jobs
         breezedesk_models
         breezedesk_settings
         breezedesk_glossary

@@ -57,9 +57,10 @@ Item {
                     checked: root.vm.pauseAfterCurrent
                     onToggled: root.vm.pauseAfterCurrent = checked
                 }
-                RemoveButton {
+                AppButton {
                     objectName: "queueClearCompletedButton"
-                    accessibleName: qsTr("Clear Completed")
+                    text: qsTr("Hide finished")
+                    accessibleName: qsTr("Hide completed and cancelled jobs from queue")
                     onClicked: root.vm.clearCompleted()
                 }
             }
@@ -81,13 +82,18 @@ Item {
             spacing: SemanticTokens.spacingSm
             clip: true
             reuseItems: true
+            keyNavigationEnabled: true
+            activeFocusOnTab: true
             ScrollBar.vertical: ScrollBar { }
             delegate: JobProgress {
                 width: ListView.view.width
                 onCancelRequested: function(id) { root.vm.cancel(id) }
                 onRetryRequested: function(id) { root.vm.retry(id) }
                 onResumeRequested: function(id) { root.vm.resume(id) }
-                onRemoveRequested: function(id) { root.vm.remove(id) }
+                onMoveUpRequested: function(id) { root.vm.moveUp(id) }
+                onMoveDownRequested: function(id) { root.vm.moveDown(id) }
+                onReorderRequested: function(id, destination) { root.vm.reorder(id, destination) }
+                onHideRequested: function(id) { root.vm.hide(id) }
             }
         }
     }

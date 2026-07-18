@@ -3,6 +3,7 @@
 #include "breezedesk/core/Result.h"
 
 #include <QList>
+#include <QSqlDatabase>
 #include <QString>
 
 namespace BreezeDesk {
@@ -22,6 +23,7 @@ class DatabaseSearchService final {
     explicit DatabaseSearchService(DatabaseManager& databaseManager);
 
     [[nodiscard]] Result<void> rebuildRecording(const QString& recordingId) const;
+    [[nodiscard]] Result<void> rebuildRecording(QSqlDatabase& database, const QString& recordingId) const;
     [[nodiscard]] Result<void> rebuildAll() const;
     [[nodiscard]] Result<QList<SearchResult>> search(const QString& query, int limit = 100,
                                                      int offset = 0) const;

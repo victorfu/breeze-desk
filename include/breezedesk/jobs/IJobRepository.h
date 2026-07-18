@@ -12,8 +12,32 @@ class IJobRepository {
     virtual ~IJobRepository() = default;
 
     [[nodiscard]] virtual Result<void> create(TranscriptionJob job) = 0;
+    [[nodiscard]] virtual Result<TranscriptionJob> createQueued(TranscriptionJob job) = 0;
     [[nodiscard]] virtual Result<std::optional<TranscriptionJob>> findById(const QString& id) const = 0;
     [[nodiscard]] virtual Result<QList<TranscriptionJob>> list(bool includeCompleted = true) const = 0;
+    [[nodiscard]] virtual Result<QList<TranscriptRevisionSummary>>
+    listForRecording(const QString& recordingId) const = 0;
+    [[nodiscard]] virtual Result<std::optional<TranscriptRevisionSummary>>
+    latestForRecording(const QString& recordingId) const = 0;
+    [[nodiscard]] virtual Result<void> setActiveRevision(const QString& recordingId,
+                                                         const QString& jobId) = 0;
+    [[nodiscard]] virtual Result<RevisionDeletionResult> deleteRevision(const QString& recordingId,
+                                                                        const QString& jobId) = 0;
+    [[nodiscard]] virtual Result<std::optional<TranscriptSegment>>
+    latestSegmentForJob(const QString& jobId, bool includeProvisional = true) const = 0;
+    [[nodiscard]] virtual Result<JobEvent> appendEvent(JobEvent event) = 0;
+    [[nodiscard]] virtual Result<QList<JobEvent>> eventsForJob(const QString& jobId, qint64 afterId = 0,
+                                                               int limit = 200) const = 0;
+    [[nodiscard]] virtual Result<JobClaimResult> claimNextQueued(const QString& ownerToken,
+                                                                 qint64 leaseDurationMs = 15'000) = 0;
+    [[nodiscard]] virtual Result<JobClaimResult> claimQueued(const QString& jobId, const QString& ownerToken,
+                                                             qint64 leaseDurationMs = 15'000) = 0;
+    [[nodiscard]] virtual Result<AsrExecutionLease>
+    renewLease(const QString& jobId, const QString& ownerToken, qint64 leaseDurationMs = 15'000) = 0;
+    [[nodiscard]] virtual Result<void> releaseLease(const QString& jobId, const QString& ownerToken) = 0;
+    [[nodiscard]] virtual Result<std::optional<AsrExecutionLease>> activeLease() const = 0;
+    [[nodiscard]] virtual Result<void> completeAndActivate(const QString& recordingId, const QString& jobId,
+                                                           const QString& ownerToken = {}) = 0;
     [[nodiscard]] virtual Result<void> transition(const QString& id, JobState state,
                                                   const QString& errorCode = {},
                                                   const QString& errorMessage = {}) = 0;

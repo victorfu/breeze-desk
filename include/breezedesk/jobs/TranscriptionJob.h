@@ -1,8 +1,12 @@
 #pragma once
 
+#include "breezedesk/transcript/TranscriptSegment.h"
+
 #include <QDateTime>
 #include <QJsonObject>
 #include <QString>
+
+#include <optional>
 
 namespace BreezeDesk {
 
@@ -70,6 +74,7 @@ struct TranscriptionJob {
     QDateTime completedAt;
     QDateTime interruptedAt;
     int lastCompletedChunk = -1;
+    bool queueHidden = false;
 };
 
 struct JobChunk {
@@ -87,6 +92,50 @@ struct JobChunk {
     QString error;
     QString resultHash;
     QJsonObject diagnostics;
+};
+
+struct TranscriptRevisionSummary {
+    TranscriptionJob job;
+    bool active = false;
+    bool queueHidden = false;
+    int segmentCount = 0;
+    bool hasManualEdits = false;
+    bool hasProvisionalSegments = false;
+    std::optional<TranscriptSegment> latestSegment;
+};
+
+struct RevisionDeletionResult {
+    QString deletedJobId;
+    QString activeJobId;
+};
+
+struct JobEvent {
+    qint64 id = 0;
+    QString jobId;
+    QString eventType;
+    QString severity = QStringLiteral("info");
+    std::optional<JobState> state;
+    std::optional<JobStage> stage;
+    std::optional<double> progress;
+    QString code;
+    QString message;
+    QJsonObject payload;
+    QDateTime createdAt;
+};
+
+struct AsrExecutionLease {
+    QString ownerToken;
+    QString jobId;
+    QDateTime acquiredAt;
+    QDateTime heartbeatAt;
+    QDateTime expiresAt;
+};
+
+struct JobClaimResult {
+    bool claimed = false;
+    std::optional<TranscriptionJob> job;
+    std::optional<AsrExecutionLease> lease;
+    QString activeJobId;
 };
 
 } // namespace BreezeDesk

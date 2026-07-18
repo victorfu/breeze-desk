@@ -167,8 +167,9 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
 ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingRepository,
                                            ITranscriptRepository* transcriptRepository, QObject* parent)
     : QObject(parent), m_library(recordingRepository, this), m_recordingDetail(this), m_transcript(this),
-      m_jobQueue(this), m_player(this), m_modelManager(this), m_glossary(this), m_settings(this),
-      m_diagnostics(this), m_transcriptRepository(transcriptRepository) {
+      m_transcriptRevisions(this), m_jobQueue(this), m_player(this), m_modelManager(this),
+      m_glossary(this), m_settings(this), m_diagnostics(this),
+      m_transcriptRepository(transcriptRepository) {
     m_transcriptAutosaveTimer.setSingleShot(true);
     m_transcriptAutosaveTimer.setInterval(750);
     connect(&m_library, &LibraryViewModel::recordingActivated, this, &ApplicationViewModel::openRecording);
@@ -194,6 +195,7 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
                 m_library.setSelectedRecordingId({});
                 m_recordingDetail.clear();
                 m_transcript.replaceSegments({});
+                (void)m_transcriptRevisions.setRecording({}, {});
                 m_player.setWaveformPeaks({});
                 emit activeRecordingChanged();
                 navigate(QStringLiteral("Library"));
@@ -203,6 +205,8 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
             [this] { m_transcript.updatePlaybackPosition(m_player.position()); });
     connect(&m_modelManager, &ModelManagerViewModel::commandRejected, this, &ApplicationViewModel::showToast);
     connect(&m_transcript, &TranscriptViewModel::validationError, this, &ApplicationViewModel::showToast);
+    connect(&m_transcriptRevisions, &TranscriptRevisionViewModel::operationFailed, this,
+            &ApplicationViewModel::showToast);
     connect(&m_transcript, &TranscriptViewModel::saveRequested, this,
             [this] { (void)saveActiveTranscript(); });
     connect(&m_recordingDetail, &RecordingDetailViewModel::notesEdited, this,
@@ -253,6 +257,9 @@ RecordingDetailViewModel* ApplicationViewModel::recordingDetail() noexcept {
 }
 TranscriptViewModel* ApplicationViewModel::transcript() noexcept {
     return &m_transcript;
+}
+TranscriptRevisionViewModel* ApplicationViewModel::transcriptRevisions() noexcept {
+    return &m_transcriptRevisions;
 }
 JobQueueViewModel* ApplicationViewModel::jobQueue() noexcept {
     return &m_jobQueue;
@@ -610,6 +617,9 @@ void ApplicationViewModel::openRecording(const QString& recordingId) {
     if (m_transcript.dirty() && !saveActiveTranscript()) {
         return;
     }
+    const bool reopeningActiveRecording = m_activeRecordingId == recordingId;
+    const QString preferredRevision =
+        reopeningActiveRecording ? m_transcriptRevisions.selectedJobId() : QString{};
     const QVariantMap details = m_library.details(recordingId);
     if (details.isEmpty()) {
         showToast(tr("The selected recording is no longer available."));
@@ -638,8 +648,14 @@ void ApplicationViewModel::openRecording(const QString& recordingId) {
         });
         watcher->setFuture(QtConcurrent::run(loadWaveform, recordingId, waveformPath));
     }
-    m_activeTranscriptJobId = details.value(QStringLiteral("activeJobId")).toString();
-    m_transcript.setEditingLocked(m_jobQueue.isWritingTranscript(m_activeTranscriptJobId));
+    const QString canonicalRevision = details.value(QStringLiteral("activeJobId")).toString();
+    (void)m_transcriptRevisions.setRecording(recordingId, canonicalRevision, preferredRevision,
+                                             reopeningActiveRecording);
+    m_activeTranscriptJobId = m_transcriptRevisions.selectedJobId();
+    const bool revisionRunning = m_transcriptRevisions.contains(m_activeTranscriptJobId)
+                                     ? m_transcriptRevisions.selectedRevisionIsRunning()
+                                     : m_jobQueue.isWritingTranscript(m_activeTranscriptJobId);
+    m_transcript.setEditingLocked(revisionRunning);
     reloadActiveTranscript();
     emit activeRecordingChanged();
     navigate(QStringLiteral("Recording"));
@@ -651,8 +667,11 @@ QString ApplicationViewModel::enqueueTranscription(const QString& recordingId) {
         showToast(tr("Choose an imported recording first."));
         return {};
     }
-    const QString jobId = m_jobQueue.enqueue(recordingId, details.value("title").toString());
+    const QString jobId = m_jobQueue.allocateJobId();
     emit transcriptionJobRequested(jobId, recordingId);
+    if (!m_jobQueue.containsJob(jobId)) {
+        return {};
+    }
     showToast(tr("Transcription added to the queue."));
     navigate(QStringLiteral("Queue"));
     return jobId;
@@ -790,7 +809,9 @@ void ApplicationViewModel::reloadTranscriptForJob(const QString& recordingId, co
         return;
     }
 
-    if (jobId != m_activeTranscriptJobId && m_transcript.dirty() && !saveActiveTranscript()) {
+    m_transcriptRevisions.noteLiveRevision(jobId);
+    if (m_transcriptRevisions.selectionPinned() &&
+        m_transcriptRevisions.selectedJobId() != jobId) {
         return;
     }
     if (jobId == m_activeTranscriptJobId && m_transcript.dirty()) {
@@ -798,9 +819,134 @@ void ApplicationViewModel::reloadTranscriptForJob(const QString& recordingId, co
         return;
     }
 
+    (void)showTranscriptRevision(jobId, editingLocked, false);
+}
+
+void ApplicationViewModel::finishLiveTranscriptRevision(const QString& recordingId,
+                                                        const QString& jobId,
+                                                        const bool succeeded) {
+    if (recordingId != m_activeRecordingId || jobId.isEmpty()) {
+        return;
+    }
+    const bool pinnedOlderRevision = m_transcriptRevisions.selectionPinned() &&
+                                     m_transcriptRevisions.selectedJobId() != jobId;
+    const QString selectedJobId = m_transcriptRevisions.finishLiveRevision(jobId, succeeded);
+    if (pinnedOlderRevision) {
+        return;
+    }
+
+    m_transcriptAutosaveTimer.stop();
+    m_activeTranscriptJobId = selectedJobId;
+    if (selectedJobId.isEmpty()) {
+        m_transcript.setEditingLocked(false);
+        m_transcript.replaceSegments({});
+        return;
+    }
+    m_transcript.setEditingLocked(m_transcriptRevisions.selectedRevisionIsRunning());
+    reloadActiveTranscript();
+}
+
+void ApplicationViewModel::selectTranscriptRevision(const QString& jobId) {
+    if (!m_transcriptRevisions.contains(jobId)) {
+        showToast(tr("The selected transcript version is no longer available."));
+        return;
+    }
+    const bool editingLocked =
+        m_transcriptRevisions.revisionDetails(jobId).value(QStringLiteral("isRunning")).toBool();
+    (void)showTranscriptRevision(jobId, editingLocked, true);
+}
+
+void ApplicationViewModel::followLiveTranscript() {
+    if (m_transcript.dirty() && !saveActiveTranscript()) {
+        return;
+    }
+    m_transcriptAutosaveTimer.stop();
+    const QString jobId = m_transcriptRevisions.followLive();
+    m_activeTranscriptJobId = jobId;
+    if (jobId.isEmpty()) {
+        m_transcript.setEditingLocked(false);
+        m_transcript.replaceSegments({});
+        return;
+    }
+    m_transcript.setEditingLocked(m_transcriptRevisions.selectedRevisionIsRunning());
+    reloadActiveTranscript();
+}
+
+QVariantMap ApplicationViewModel::transcriptRevisionDetails(const QString& jobId) const {
+    return m_transcriptRevisions.revisionDetails(jobId);
+}
+
+void ApplicationViewModel::deleteTranscriptRevision(const QString& jobId) {
+    const QVariantMap details = m_transcriptRevisions.revisionDetails(jobId);
+    if (details.isEmpty()) {
+        showToast(tr("The selected transcript version is no longer available."));
+        return;
+    }
+    if (!details.value(QStringLiteral("canDelete")).toBool()) {
+        showToast(tr("A transcript version can only be deleted after it has stopped running."));
+        return;
+    }
+
+    const bool deletingSelection = m_activeTranscriptJobId == jobId;
+    const bool selectionWasDirty = deletingSelection && m_transcript.dirty();
+    if (deletingSelection) {
+        m_transcriptAutosaveTimer.stop();
+    }
+    const auto deleted = m_transcriptRevisions.deleteRevision(jobId);
+    if (!deleted) {
+        if (selectionWasDirty) {
+            m_transcriptAutosaveTimer.start();
+        }
+        return;
+    }
+
+    m_library.refresh();
+    m_recordingDetail.setDetails(m_library.details(m_activeRecordingId));
+    if (deletingSelection) {
+        m_transcript.markSaved();
+        m_activeTranscriptJobId = m_transcriptRevisions.selectedJobId();
+        if (m_activeTranscriptJobId.isEmpty()) {
+            m_transcript.setEditingLocked(false);
+            m_transcript.replaceSegments({});
+        } else {
+            m_transcript.setEditingLocked(m_transcriptRevisions.selectedRevisionIsRunning());
+            reloadActiveTranscript();
+        }
+    }
+    showToast(tr("Transcript version deleted."));
+}
+
+void ApplicationViewModel::installJobRepository(IJobRepository* repository) {
+    m_jobRepository = repository;
+    m_transcriptRevisions.installRepositories(repository, m_transcriptRepository);
+}
+
+bool ApplicationViewModel::showTranscriptRevision(const QString& jobId, const bool editingLocked,
+                                                  const bool pinSelection) {
+    if (jobId.isEmpty() || (m_jobRepository != nullptr && !m_transcriptRevisions.contains(jobId))) {
+        return false;
+    }
+    if (jobId == m_activeTranscriptJobId) {
+        if (m_transcriptRevisions.contains(jobId)) {
+            (void)m_transcriptRevisions.selectRevision(jobId, pinSelection);
+        }
+        m_transcript.setEditingLocked(editingLocked);
+        if (!m_transcript.dirty()) {
+            reloadActiveTranscript();
+        }
+        return true;
+    }
+    if (m_transcript.dirty() && !saveActiveTranscript()) {
+        return false;
+    }
+    m_transcriptAutosaveTimer.stop();
+    if (m_transcriptRevisions.contains(jobId)) {
+        (void)m_transcriptRevisions.selectRevision(jobId, pinSelection);
+    }
     m_activeTranscriptJobId = jobId;
     m_transcript.setEditingLocked(editingLocked);
     reloadActiveTranscript();
+    return true;
 }
 
 bool ApplicationViewModel::saveActiveTranscript() {

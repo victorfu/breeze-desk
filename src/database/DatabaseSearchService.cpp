@@ -16,54 +16,58 @@ DatabaseSearchService::DatabaseSearchService(DatabaseManager& databaseManager)
     : m_databaseManager(databaseManager) {}
 
 Result<void> DatabaseSearchService::rebuildRecording(const QString& recordingId) const {
-    return m_databaseManager.transaction([&](QSqlDatabase& database) {
-        QSqlQuery source(database);
-        source.prepare(QStringLiteral(
-            "SELECT r.title,r.notes,COALESCE((SELECT group_concat(t.name,' ') FROM tags t "
-            "JOIN recording_tags rt ON rt.tag_id=t.id WHERE rt.recording_id=r.id),''),"
-            "COALESCE((SELECT group_concat(CASE WHEN s.edited_text='' THEN s.original_text ELSE "
-            "s.edited_text END,' ') "
-            "FROM transcript_segments s WHERE s.recording_id=r.id), '') FROM recordings r WHERE r.id=?"));
-        source.addBindValue(recordingId);
-        if (!source.exec())
-            return Result<void>::failure(
-                searchError(QStringLiteral("Search content could not be collected."), source));
-        if (!source.next())
-            return Result<void>::success();
-        const QVariantList values = {recordingId, source.value(0), source.value(1), source.value(2),
-                                     source.value(3)};
-        QSqlQuery fallbackDelete(database);
-        fallbackDelete.prepare(QStringLiteral("DELETE FROM search_index_fallback WHERE recording_id=?"));
-        fallbackDelete.addBindValue(recordingId);
-        if (!fallbackDelete.exec())
-            return Result<void>::failure(searchError(
-                QStringLiteral("The fallback search entry could not be refreshed."), fallbackDelete));
-        QSqlQuery fallbackInsert(database);
-        fallbackInsert.prepare(QStringLiteral(
-            "INSERT INTO search_index_fallback(recording_id,title,notes,tags,transcript) VALUES(?,?,?,?,?)"));
-        for (const QVariant& value : values)
-            fallbackInsert.addBindValue(value);
-        if (!fallbackInsert.exec())
-            return Result<void>::failure(searchError(
-                QStringLiteral("The fallback search entry could not be written."), fallbackInsert));
-        if (m_databaseManager.hasFts5()) {
-            QSqlQuery ftsDelete(database);
-            ftsDelete.prepare(QStringLiteral("DELETE FROM search_index WHERE recording_id=?"));
-            ftsDelete.addBindValue(recordingId);
-            if (!ftsDelete.exec())
-                return Result<void>::failure(
-                    searchError(QStringLiteral("The full-text entry could not be refreshed."), ftsDelete));
-            QSqlQuery ftsInsert(database);
-            ftsInsert.prepare(QStringLiteral(
-                "INSERT INTO search_index(recording_id,title,notes,tags,transcript) VALUES(?,?,?,?,?)"));
-            for (const QVariant& value : values)
-                ftsInsert.addBindValue(value);
-            if (!ftsInsert.exec())
-                return Result<void>::failure(
-                    searchError(QStringLiteral("The full-text entry could not be written."), ftsInsert));
-        }
+    return m_databaseManager.transaction(
+        [&](QSqlDatabase& database) { return rebuildRecording(database, recordingId); });
+}
+
+Result<void> DatabaseSearchService::rebuildRecording(QSqlDatabase& database,
+                                                     const QString& recordingId) const {
+    QSqlQuery source(database);
+    source.prepare(QStringLiteral(
+        "SELECT r.title,r.notes,COALESCE((SELECT group_concat(t.name,' ') FROM tags t "
+        "JOIN recording_tags rt ON rt.tag_id=t.id WHERE rt.recording_id=r.id),''),"
+        "COALESCE((SELECT group_concat(CASE WHEN s.edited_text='' THEN s.original_text ELSE "
+        "s.edited_text END,' ') "
+        "FROM transcript_segments s WHERE s.recording_id=r.id), '') FROM recordings r WHERE r.id=?"));
+    source.addBindValue(recordingId);
+    if (!source.exec())
+        return Result<void>::failure(
+            searchError(QStringLiteral("Search content could not be collected."), source));
+    if (!source.next())
         return Result<void>::success();
-    });
+    const QVariantList values = {recordingId, source.value(0), source.value(1), source.value(2),
+                                 source.value(3)};
+    QSqlQuery fallbackDelete(database);
+    fallbackDelete.prepare(QStringLiteral("DELETE FROM search_index_fallback WHERE recording_id=?"));
+    fallbackDelete.addBindValue(recordingId);
+    if (!fallbackDelete.exec())
+        return Result<void>::failure(
+            searchError(QStringLiteral("The fallback search entry could not be refreshed."), fallbackDelete));
+    QSqlQuery fallbackInsert(database);
+    fallbackInsert.prepare(QStringLiteral(
+        "INSERT INTO search_index_fallback(recording_id,title,notes,tags,transcript) VALUES(?,?,?,?,?)"));
+    for (const QVariant& value : values)
+        fallbackInsert.addBindValue(value);
+    if (!fallbackInsert.exec())
+        return Result<void>::failure(
+            searchError(QStringLiteral("The fallback search entry could not be written."), fallbackInsert));
+    if (m_databaseManager.hasFts5()) {
+        QSqlQuery ftsDelete(database);
+        ftsDelete.prepare(QStringLiteral("DELETE FROM search_index WHERE recording_id=?"));
+        ftsDelete.addBindValue(recordingId);
+        if (!ftsDelete.exec())
+            return Result<void>::failure(
+                searchError(QStringLiteral("The full-text entry could not be refreshed."), ftsDelete));
+        QSqlQuery ftsInsert(database);
+        ftsInsert.prepare(QStringLiteral(
+            "INSERT INTO search_index(recording_id,title,notes,tags,transcript) VALUES(?,?,?,?,?)"));
+        for (const QVariant& value : values)
+            ftsInsert.addBindValue(value);
+        if (!ftsInsert.exec())
+            return Result<void>::failure(
+                searchError(QStringLiteral("The full-text entry could not be written."), ftsInsert));
+    }
+    return Result<void>::success();
 }
 
 Result<void> DatabaseSearchService::rebuildAll() const {

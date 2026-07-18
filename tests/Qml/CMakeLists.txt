@@ -16,3 +16,12 @@ breezedesk_enable_strict_warnings(tst_QmlSmoke)
 add_test(NAME Qml.Smoke COMMAND tst_QmlSmoke)
 set_tests_properties(Qml.Smoke PROPERTIES LABELS "Qml;Unit"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic")
+
+qt_add_executable(tst_JobQueueViewModel
+    tst_JobQueueViewModel.cpp
+    ${PROJECT_SOURCE_DIR}/resources/resources.qrc)
+target_link_libraries(tst_JobQueueViewModel PRIVATE breezedesk_ui Qt6::Test Qt6::Quick Qt6::Qml)
+breezedesk_enable_strict_warnings(tst_JobQueueViewModel)
+add_test(NAME Qml.JobQueueViewModel COMMAND tst_JobQueueViewModel)
+set_tests_properties(Qml.JobQueueViewModel PROPERTIES LABELS "Qml;Unit"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic")

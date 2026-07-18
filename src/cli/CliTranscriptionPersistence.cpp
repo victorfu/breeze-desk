@@ -8,7 +8,9 @@
 
 #include <QByteArrayView>
 #include <QCryptographicHash>
+#include <QElapsedTimer>
 #include <QFileInfo>
+#include <QThread>
 #include <QUuid>
 
 #include <algorithm>
@@ -42,8 +44,15 @@ QString segmentHash(const QList<TranscriptSegment>& segments) {
 
 CliTranscriptionPersistence::CliTranscriptionPersistence(IRecordingRepository& recordings,
                                                          IJobRepository& jobs,
-                                                         ITranscriptRepository& transcripts)
-    : m_recordings(recordings), m_jobs(jobs), m_transcripts(transcripts) {}
+                                                         ITranscriptRepository& transcripts,
+                                                         QString ownerToken,
+                                                         std::function<bool()> cancellationRequested,
+                                                         std::function<void(const QString&)> waitNotification)
+    : m_recordings(recordings), m_jobs(jobs), m_transcripts(transcripts),
+      m_ownerToken(ownerToken.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces)
+                                        : std::move(ownerToken)),
+      m_cancellationRequested(std::move(cancellationRequested)),
+      m_waitNotification(std::move(waitNotification)) {}
 
 Result<DurableTranscriptionIdentity>
 CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor) {
@@ -96,6 +105,7 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
         job.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     job.recordingId = recording.id;
     job.revisionNumber = 0;
+    job.queueHidden = true;
     auto jobIdResult = JobQueue(m_jobs).enqueue(job);
     if (!jobIdResult)
         return Result<DurableTranscriptionIdentity>::failure(jobIdResult.error());
@@ -123,10 +133,10 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
 
     m_identity = {recording.id, job.id, savedChunks.value(), false};
     m_active = true;
-    auto transitionResult = transitionTo(JobState::Preparing);
-    if (!transitionResult) {
+    auto claimResult = waitForExecutionClaim(job.id);
+    if (!claimResult) {
         m_active = false;
-        return Result<DurableTranscriptionIdentity>::failure(transitionResult.error());
+        return Result<DurableTranscriptionIdentity>::failure(claimResult.error());
     }
     auto progressResult = m_jobs.updateProgress(job.id, JobStage::Preparing,
                                                 MonotonicJobProgress::map(JobStage::Preparing, 1.0), -1);
@@ -134,6 +144,7 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
         const auto checkpoint = transitionTo(JobState::Interrupted, QStringLiteral("DatabaseQueryFailed"),
                                              progressResult.error().diagnosticString());
         Q_UNUSED(checkpoint)
+        releaseExecutionLease();
         m_active = false;
         return Result<DurableTranscriptionIdentity>::failure(progressResult.error());
     }
@@ -192,10 +203,10 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         m_active = false;
         return Result<DurableTranscriptionIdentity>::failure(resumeResult.error());
     }
-    auto preparingResult = transitionTo(JobState::Preparing);
-    if (!preparingResult) {
+    auto claimResult = waitForExecutionClaim(jobId);
+    if (!claimResult) {
         m_active = false;
-        return Result<DurableTranscriptionIdentity>::failure(preparingResult.error());
+        return Result<DurableTranscriptionIdentity>::failure(claimResult.error());
     }
     for (JobChunk& saved : m_identity.chunks) {
         if (saved.state == ChunkState::Completed)
@@ -209,6 +220,7 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
             const auto checkpoint = transitionTo(JobState::Interrupted, QStringLiteral("DatabaseQueryFailed"),
                                                  updateResult.error().diagnosticString());
             Q_UNUSED(checkpoint)
+            releaseExecutionLease();
             m_active = false;
             return Result<DurableTranscriptionIdentity>::failure(updateResult.error());
         }
@@ -413,8 +425,10 @@ Result<void> CliTranscriptionPersistence::interrupt(const QString& reason, const
             return updateResult;
     }
     auto result = transitionTo(JobState::Interrupted, errorCode, reason);
-    if (result)
+    if (result) {
+        releaseExecutionLease();
         m_active = false;
+    }
     return result;
 }
 
@@ -432,8 +446,10 @@ Result<void> CliTranscriptionPersistence::fail(const QString& errorCode, const Q
             return updateResult;
     }
     auto result = transitionTo(JobState::Failed, errorCode, message);
-    if (result)
+    if (result) {
+        releaseExecutionLease();
         m_active = false;
+    }
     return result;
 }
 
@@ -459,13 +475,22 @@ Result<void> CliTranscriptionPersistence::complete() {
                                           chunksResult.value().constLast().ordinal);
     if (!progress)
         return progress;
-    auto completed = transitionTo(JobState::Completed);
+    auto completed =
+        m_jobs.completeAndActivate(m_identity.recordingId, m_identity.jobId, m_ownerToken);
     if (!completed)
         return completed;
-    auto activeTranscript = m_recordings.setActiveTranscriptJob(m_identity.recordingId, m_identity.jobId);
-    if (!activeTranscript)
-        return activeTranscript;
+    releaseExecutionLease();
     m_active = false;
+    return Result<void>::success();
+}
+
+Result<void> CliTranscriptionPersistence::renewExecutionLease() {
+    auto activeResult = requireActive();
+    if (!activeResult)
+        return activeResult;
+    const auto renewed = m_jobs.renewLease(m_identity.jobId, m_ownerToken);
+    if (!renewed)
+        return Result<void>::failure(renewed.error());
     return Result<void>::success();
 }
 
@@ -533,6 +558,52 @@ Result<void> CliTranscriptionPersistence::requireActive() const {
         return Result<void>::success();
     return Result<void>::failure(UserFacingError::validation(
         ErrorCode::InvalidStateTransition, QStringLiteral("No durable transcription session is active.")));
+}
+
+Result<void> CliTranscriptionPersistence::waitForExecutionClaim(const QString& jobId) {
+    QElapsedTimer notificationTimer;
+    notificationTimer.start();
+    bool notified = false;
+    while (true) {
+        if (m_cancellationRequested && m_cancellationRequested()) {
+            const auto cancelled = m_jobs.transition(
+                jobId, JobState::Cancelled, QStringLiteral("JobCancelled"),
+                QStringLiteral("Cancelled while waiting for the global transcription slot."));
+            if (!cancelled)
+                return cancelled;
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::OperationCancelled,
+                QStringLiteral("Transcription was cancelled while waiting for another job.")));
+        }
+
+        const auto claim = m_jobs.claimQueued(jobId, m_ownerToken);
+        if (!claim)
+            return Result<void>::failure(claim.error());
+        if (claim.value().claimed)
+            return Result<void>::success();
+
+        if (!notified || notificationTimer.elapsed() >= 30'000) {
+            if (m_waitNotification) {
+                const QString activeSuffix = claim.value().activeJobId.isEmpty()
+                                                 ? QString{}
+                                                 : QStringLiteral(" (%1)").arg(
+                                                       claim.value().activeJobId.left(8));
+                m_waitNotification(
+                    QStringLiteral("Waiting for another transcription to finish%1…")
+                        .arg(activeSuffix));
+            }
+            notified = true;
+            notificationTimer.restart();
+        }
+        QThread::msleep(250);
+    }
+}
+
+void CliTranscriptionPersistence::releaseExecutionLease() {
+    if (m_identity.jobId.isEmpty() || m_ownerToken.isEmpty())
+        return;
+    const auto released = m_jobs.releaseLease(m_identity.jobId, m_ownerToken);
+    Q_UNUSED(released)
 }
 
 void CliTranscriptionPersistence::refreshChunk(const JobChunk& changed) {

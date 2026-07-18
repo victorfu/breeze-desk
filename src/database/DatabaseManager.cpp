@@ -150,6 +150,75 @@ QStringList indexes() {
     };
 }
 
+QStringList revisionHistorySchema() {
+    return {
+        QStringLiteral("UPDATE transcription_jobs AS current SET revision_number=(SELECT COUNT(*) FROM "
+                       "transcription_jobs AS ordered WHERE ordered.recording_id=current.recording_id AND "
+                       "(ordered.created_at<current.created_at OR (ordered.created_at=current.created_at AND "
+                       "ordered.id<=current.id)))"),
+        QStringLiteral(
+            "WITH ranked(id,new_position) AS (SELECT id,ROW_NUMBER() OVER (ORDER BY queue_position,"
+            "created_at,id)-1 FROM transcription_jobs WHERE state='Queued') UPDATE transcription_jobs SET "
+            "queue_position=(SELECT new_position FROM ranked WHERE ranked.id=transcription_jobs.id) WHERE "
+            "id IN (SELECT id FROM ranked)"),
+        QStringLiteral(
+            "UPDATE transcription_jobs SET "
+            "state='Interrupted',interrupted_at=COALESCE(interrupted_at,created_at),"
+            "error_code=CASE WHEN error_code='' THEN 'WorkerCrashed' ELSE error_code END,"
+            "error_message=CASE WHEN error_message='' THEN 'The previous transcription owner is no longer "
+            "active.' ELSE error_message END WHERE state IN ('Preparing','Normalizing','WaitingForModel',"
+            "'LoadingModel','AnalyzingSpeech','Transcribing','Finalizing','Cancelling')"),
+        QStringLiteral(
+            "UPDATE recordings SET active_job_id=(SELECT candidate.id FROM transcription_jobs candidate "
+            "WHERE candidate.recording_id=recordings.id AND candidate.state='Completed' ORDER BY "
+            "candidate.revision_number DESC,candidate.id DESC LIMIT 1)"),
+        QStringLiteral("CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_recording_revision ON "
+                       "transcription_jobs(recording_id,revision_number)"),
+        QStringLiteral(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_jobs_single_execution ON transcription_jobs((1)) WHERE "
+            "state IN ('Preparing','Normalizing','WaitingForModel','LoadingModel','AnalyzingSpeech',"
+            "'Transcribing','Finalizing','Cancelling')"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS transcription_job_events ("
+            "id INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT NOT NULL REFERENCES transcription_jobs(id) "
+            "ON DELETE CASCADE, event_type TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'info', state TEXT, "
+            "stage TEXT, progress REAL CHECK(progress IS NULL OR (progress>=0 AND progress<=1)), "
+            "code TEXT NOT NULL DEFAULT '', message TEXT NOT NULL DEFAULT '', payload_json TEXT NOT NULL "
+            "DEFAULT '{}', created_at TEXT NOT NULL)"),
+        QStringLiteral(
+            "CREATE INDEX IF NOT EXISTS idx_job_events_job_id ON transcription_job_events(job_id,id)"),
+        QStringLiteral(
+            "INSERT INTO "
+            "transcription_job_events(job_id,event_type,severity,state,stage,progress,code,message,"
+            "payload_json,created_at) SELECT "
+            "id,'enqueued','info','Queued','Preparing',0,'','','{}',created_at "
+            "FROM transcription_jobs"),
+        QStringLiteral(
+            "INSERT INTO "
+            "transcription_job_events(job_id,event_type,severity,state,stage,progress,code,message,"
+            "payload_json,created_at) SELECT id,CASE state WHEN 'Completed' THEN 'completed' WHEN "
+            "'Cancelled' "
+            "THEN 'cancelled' WHEN 'Failed' THEN 'failed' ELSE 'interrupted' END,CASE state WHEN 'Failed' "
+            "THEN "
+            "'error' WHEN 'Completed' THEN 'info' ELSE 'warning' "
+            "END,state,stage,progress,error_code,error_message,"
+            "'{}',COALESCE(completed_at,interrupted_at,started_at,created_at) FROM transcription_jobs WHERE "
+            "state IN ('Completed','Cancelled','Failed','Interrupted')"),
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS asr_execution_lease ("
+            "resource TEXT PRIMARY KEY CHECK(resource='asr'), owner_token TEXT NOT NULL, "
+            "job_id TEXT NOT NULL REFERENCES transcription_jobs(id) ON DELETE CASCADE, acquired_at TEXT NOT "
+            "NULL, heartbeat_at TEXT NOT NULL, expires_at TEXT NOT NULL)"),
+        QStringLiteral(
+            "CREATE TRIGGER IF NOT EXISTS trg_jobs_active_revision_before_delete BEFORE DELETE ON "
+            "transcription_jobs WHEN EXISTS(SELECT 1 FROM recordings WHERE active_job_id=OLD.id) BEGIN "
+            "UPDATE recordings SET active_job_id=(SELECT candidate.id FROM transcription_jobs candidate "
+            "WHERE candidate.recording_id=OLD.recording_id AND candidate.id<>OLD.id AND "
+            "candidate.state='Completed' ORDER BY candidate.revision_number DESC,candidate.id DESC LIMIT 1),"
+            "updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE active_job_id=OLD.id; END"),
+    };
+}
+
 QString migrationChecksum(const QStringList& statements) {
     return QString::fromLatin1(
         QCryptographicHash::hash(statements.join(QLatin1Char('\n')).toUtf8(), QCryptographicHash::Sha256)
@@ -292,7 +361,7 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         }
         currentVersion = query.value(0).toInt();
     }
-    constexpr int latestSchemaVersion = 6;
+    constexpr int latestSchemaVersion = 7;
     if (currentVersion > latestSchemaVersion) {
         return Result<void>::failure(
             UserFacingError::database(ErrorCode::DatabaseMigrationFailed,
@@ -320,6 +389,9 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
          {QStringLiteral("segment_review_state"),
           migrationChecksum({QStringLiteral(
               "ALTER TABLE transcript_segments ADD COLUMN reviewed INTEGER NOT NULL DEFAULT 0")})}},
+        {7,
+         {QStringLiteral("revision_history_and_execution_lease"),
+          migrationChecksum(revisionHistorySchema())}},
     };
     QSet<int> appliedVersions;
     QSqlQuery applied(database);
@@ -487,6 +559,13 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
             return result;
         currentVersion = 6;
     }
+    if (currentVersion < 7) {
+        auto result = applyStatements(7, QStringLiteral("revision_history_and_execution_lease"),
+                                      revisionHistorySchema());
+        if (!result)
+            return result;
+        currentVersion = 7;
+    }
     m_schemaVersion = currentVersion;
     return Result<void>::success();
 }
@@ -511,6 +590,37 @@ Result<void> DatabaseManager::transaction(const std::function<Result<void>(QSqlD
         return Result<void>::failure(sqlError(
             ErrorCode::DatabaseQueryFailed,
             QStringLiteral("The database transaction could not be committed."), database.lastError(), true));
+    }
+    return Result<void>::success();
+}
+
+Result<void>
+DatabaseManager::immediateTransaction(const std::function<Result<void>(QSqlDatabase&)>& operation) const {
+    auto connectionResult = connection();
+    if (!connectionResult)
+        return Result<void>::failure(connectionResult.error());
+    QSqlDatabase database = connectionResult.value();
+    QSqlQuery begin(database);
+    if (!begin.exec(QStringLiteral("BEGIN IMMEDIATE"))) {
+        return Result<void>::failure(
+            sqlError(ErrorCode::DatabaseQueryFailed,
+                     QStringLiteral("The immediate database transaction could not be started."),
+                     begin.lastError(), true));
+    }
+    const Result<void> operationResult = operation(database);
+    if (!operationResult) {
+        QSqlQuery rollback(database);
+        rollback.exec(QStringLiteral("ROLLBACK"));
+        return operationResult;
+    }
+    QSqlQuery commit(database);
+    if (!commit.exec(QStringLiteral("COMMIT"))) {
+        QSqlQuery rollback(database);
+        rollback.exec(QStringLiteral("ROLLBACK"));
+        return Result<void>::failure(
+            sqlError(ErrorCode::DatabaseQueryFailed,
+                     QStringLiteral("The immediate database transaction could not be committed."),
+                     commit.lastError(), true));
     }
     return Result<void>::success();
 }

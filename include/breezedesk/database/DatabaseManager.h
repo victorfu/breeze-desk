@@ -29,6 +29,8 @@ class DatabaseManager final {
     [[nodiscard]] Result<void> initialize();
     [[nodiscard]] Result<QSqlDatabase> connection() const;
     [[nodiscard]] Result<void> transaction(const std::function<Result<void>(QSqlDatabase&)>& operation) const;
+    [[nodiscard]] Result<void>
+    immediateTransaction(const std::function<Result<void>(QSqlDatabase&)>& operation) const;
     [[nodiscard]] Result<void> integrityCheck() const;
     [[nodiscard]] Result<QString> createBackup(const QString& destinationPath = {}) const;
 

@@ -40,6 +40,7 @@ class CliTranscriptionPersistenceTest final : public QObject {
   private slots:
     void checkpointsPartialResultsAndResumesOnlyUnfinishedChunks();
     void retriesFailedChunkWithoutRepeatingCompletedChunks();
+    void cancellingLeaseWaitDoesNotInterruptCurrentOwner();
 };
 
 void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnfinishedChunks() {
@@ -199,6 +200,65 @@ void CliTranscriptionPersistenceTest::retriesFailedChunkWithoutRepeatingComplete
     QCOMPARE(resumed.value().chunks.at(1).state, ChunkState::Pending);
     QCOMPARE(resumed.value().chunks.at(0).attempts, 1);
     QCOMPARE(resumed.value().chunks.at(1).attempts, 1);
+}
+
+void CliTranscriptionPersistenceTest::cancellingLeaseWaitDoesNotInterruptCurrentOwner() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("queued.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    Recording recording;
+    recording.id = QStringLiteral("recording-wait");
+    recording.title = QStringLiteral("Lease wait");
+    recording.sourcePath = sourcePath;
+    QVERIFY(recordings.create(recording));
+
+    TranscriptionJob current;
+    current.id = QStringLiteral("current-owner-job");
+    current.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(current));
+    const auto claimed = jobs.claimQueued(current.id, QStringLiteral("gui-owner"));
+    QVERIFY(claimed && claimed.value().claimed);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording = recording;
+    descriptor.job.id = QStringLiteral("waiting-cli-job");
+    descriptor.job.recordingId = recording.id;
+    descriptor.job.modelId = QStringLiteral("breeze-asr-25-q5");
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+
+    int cancellationPolls = 0;
+    QStringList waitMessages;
+    CliTranscriptionPersistence waiting(
+        recordings, jobs, transcripts, QStringLiteral("cli-owner"),
+        [&cancellationPolls] { return cancellationPolls++ > 0; },
+        [&waitMessages](const QString& message) { waitMessages.append(message); });
+    const auto started = waiting.beginNew(descriptor);
+    QVERIFY(!started);
+    QCOMPARE(started.error().code, ErrorCode::OperationCancelled);
+    QCOMPARE(waitMessages.size(), 1);
+
+    const auto currentAfterCancellation = jobs.findById(current.id);
+    QVERIFY(currentAfterCancellation && currentAfterCancellation.value().has_value());
+    QCOMPARE(currentAfterCancellation.value()->state, JobState::Preparing);
+    const auto lease = jobs.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("gui-owner"));
+    QCOMPARE(lease.value()->jobId, current.id);
+
+    const auto cancelledWaiter = jobs.findById(descriptor.job.id);
+    QVERIFY(cancelledWaiter && cancelledWaiter.value().has_value());
+    QCOMPARE(cancelledWaiter.value()->state, JobState::Cancelled);
 }
 
 QTEST_GUILESS_MAIN(CliTranscriptionPersistenceTest)

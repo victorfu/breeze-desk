@@ -5,8 +5,6 @@
 
 #include <QUuid>
 
-#include <limits>
-
 namespace BreezeDesk {
 
 JobQueue::JobQueue(IJobRepository& repository) : m_repository(repository) {}
@@ -17,13 +15,9 @@ Result<QString> JobQueue::enqueue(TranscriptionJob job) {
     job.state = JobState::Queued;
     job.stage = JobStage::Preparing;
     job.progress = 0.0;
-    auto jobsResult = m_repository.list(false);
-    if (!jobsResult)
-        return Result<QString>::failure(jobsResult.error());
-    job.queuePosition =
-        static_cast<int>(qMin<qsizetype>(jobsResult.value().size(), std::numeric_limits<int>::max()));
-    auto result = m_repository.create(job);
-    return result ? Result<QString>::success(job.id) : Result<QString>::failure(result.error());
+    const auto result = m_repository.createQueued(std::move(job));
+    return result ? Result<QString>::success(result.value().id)
+                  : Result<QString>::failure(result.error());
 }
 
 Result<void> JobQueue::cancel(const QString& jobId) {
@@ -51,23 +45,15 @@ Result<QString> JobQueue::retry(const QString& jobId) {
     if (!result.value())
         return Result<QString>::failure(
             UserFacingError::validation(ErrorCode::NotFound, QStringLiteral("The job does not exist.")));
-    TranscriptionJob copy = *result.value();
-    if (copy.state != JobState::Failed && copy.state != JobState::Cancelled) {
+    const JobState state = result.value()->state;
+    if (state != JobState::Failed && state != JobState::Cancelled) {
         return Result<QString>::failure(
             UserFacingError::validation(ErrorCode::InvalidStateTransition,
                                         QStringLiteral("Only failed or cancelled jobs can be retried.")));
     }
-    copy.id.clear();
-    copy.revisionNumber = 0;
-    copy.retryCount += 1;
-    copy.createdAt = {};
-    copy.startedAt = {};
-    copy.completedAt = {};
-    copy.interruptedAt = {};
-    copy.errorCode.clear();
-    copy.errorMessage.clear();
-    copy.lastCompletedChunk = -1;
-    return enqueue(copy);
+    const auto transition = m_repository.transition(jobId, JobState::Queued);
+    return transition ? Result<QString>::success(jobId)
+                      : Result<QString>::failure(transition.error());
 }
 
 Result<void> JobQueue::resume(const QString& jobId) {
