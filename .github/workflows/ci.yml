@@ -127,9 +127,9 @@ jobs:
           $AllowedPath = @($Build, "$env:VULKAN_SDK\Bin", "$env:SystemRoot\System32", $env:SystemRoot)
           $env:PATH = $AllowedPath -join [IO.Path]::PathSeparator
           $env:BREEZEDESK_DATA_ROOT = Join-Path $env:RUNNER_TEMP 'breezedesk-loader-smoke'
-          & "$Build\breezedesk-asr-worker.exe"
-          if ($LASTEXITCODE -ne 2) {
-            throw "ASR worker loader smoke returned $LASTEXITCODE instead of reaching main()."
+          & "$Build\breezedesk-asr-worker.exe" --help
+          if ($LASTEXITCODE -ne 0) {
+            throw "ASR worker loader smoke returned $LASTEXITCODE instead of reaching its help path."
           }
       - name: Test
         run: ctest --test-dir build/ci --output-on-failure --no-tests=error
