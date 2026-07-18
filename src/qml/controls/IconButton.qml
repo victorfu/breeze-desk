@@ -9,6 +9,7 @@ T.Button {
     property color hoverTintColor: SemanticTokens.hoverTint
     property color pressedTintColor: SemanticTokens.pressedTint
     property string toolTipText: accessibleName
+    property int iconSize: 20
     implicitWidth: ComponentTokens.clickTarget
     implicitHeight: ComponentTokens.clickTarget
     hoverEnabled: true
@@ -19,7 +20,7 @@ T.Button {
     T.ToolTip.delay: 500
     contentItem: AppIcon {
         source: control.iconSource
-        iconSize: 20
+        iconSize: control.iconSize
         color: control.iconColor
     }
     background: Rectangle {

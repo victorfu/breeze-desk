@@ -1,7 +1,8 @@
 # BreezeDesk icon assets
 
 - `breezedesk.png` is the detailed, large-format artwork used for marketing and large tiles.
-- `breezedesk-symbol.svg` is the flat brand mark used by the window and the 32 px in-app logo.
+- `breezedesk-sidebar.png` is the app-switcher-matched raster mark optimized for the 32 px in-app logo.
+- `breezedesk-symbol.svg` is the flat brand mark used by Windows window and shell icons.
 - `breezedesk-tray.svg` is optically simplified for 16–28 px Windows system-tray sizes.
 - `breezedesk-menubar.png` remains the macOS menu-bar asset.
 - `breezedesk.ico` contains native 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128,

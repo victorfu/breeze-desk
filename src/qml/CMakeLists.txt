@@ -7,10 +7,13 @@ set(BREEZEDESK_QML_SINGLETONS
 set_source_files_properties(${BREEZEDESK_QML_SINGLETONS} PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
 set(BREEZEDESK_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk.png)
+set(BREEZEDESK_SIDEBAR_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-sidebar.png)
 set(BREEZEDESK_SYMBOL ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-symbol.svg)
 set(BREEZEDESK_TRAY_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-tray.svg)
 set(BREEZEDESK_MENUBAR_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-menubar.png)
 set_source_files_properties(${BREEZEDESK_ICON} PROPERTIES QT_RESOURCE_ALIAS icons/breezedesk.png)
+set_source_files_properties(${BREEZEDESK_SIDEBAR_ICON} PROPERTIES
+    QT_RESOURCE_ALIAS icons/breezedesk-sidebar.png)
 set_source_files_properties(${BREEZEDESK_SYMBOL} PROPERTIES
     QT_RESOURCE_ALIAS icons/breezedesk-symbol.svg)
 set_source_files_properties(${BREEZEDESK_TRAY_ICON} PROPERTIES
@@ -22,7 +25,7 @@ set(BREEZEDESK_LUCIDE_ICON_NAMES
     play pause file-input mic rotate-ccw rotate-cw
     chevron-up chevron-down undo-2 redo-2 save ellipsis
     check info circle-check circle-alert copy
-    scissors arrow-up-to-line arrow-down-to-line archive-restore)
+    scissors arrow-up-to-line arrow-down-to-line archive-restore pencil)
 set(BREEZEDESK_LUCIDE_ICONS)
 foreach(icon_name IN LISTS BREEZEDESK_LUCIDE_ICON_NAMES)
     set(icon_path "${PROJECT_SOURCE_DIR}/resources/icons/lucide/${icon_name}.svg")
@@ -89,6 +92,7 @@ qt_add_qml_module(breezedesk_ui
         pages/TrashPage.qml
     RESOURCES
         ${BREEZEDESK_ICON}
+        ${BREEZEDESK_SIDEBAR_ICON}
         ${BREEZEDESK_SYMBOL}
         ${BREEZEDESK_TRAY_ICON}
         ${BREEZEDESK_MENUBAR_ICON}

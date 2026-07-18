@@ -187,7 +187,7 @@ ApplicationWindow {
                         Image {
                             objectName: "sidebarBrandLogo"
                             anchors.fill: parent
-                            source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk-symbol.svg"
+                            source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png"
                             sourceSize.width: Math.ceil(width * Math.max(1, Screen.devicePixelRatio))
                             sourceSize.height: Math.ceil(height * Math.max(1, Screen.devicePixelRatio))
                             fillMode: Image.PreserveAspectFit

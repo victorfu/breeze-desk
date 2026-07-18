@@ -19,6 +19,7 @@ Rectangle {
     required property bool reviewed
     required property bool editingLocked
     property bool selected: false
+    property bool editing: false
     readonly property int modelIndex: proxyRow
 
     signal selectedRequested(int index)
@@ -32,6 +33,14 @@ Rectangle {
     signal glossaryReplacementRequested(int index, int replacementIndex, bool applied)
 
     readonly property int contentPadding: SemanticTokens.spacingXs
+    readonly property int actionButtonSize: 32
+    readonly property int actionIconSize: 18
+
+    onSelectedChanged: {
+        if (!selected) {
+            editing = false
+        }
+    }
     readonly property int timeColumnWidth: Math.max(
                                                80,
                                                Math.ceil(SemanticTokens.captionSize * 5.8
@@ -128,7 +137,8 @@ Rectangle {
                     topPadding: SemanticTokens.spacingXs
                     bottomPadding: SemanticTokens.spacingXs
                     text: root.editedText
-                    readOnly: root.editingLocked
+                    readOnly: root.editingLocked || !root.editing
+                    activeFocusOnPress: root.editing
                     color: SemanticTokens.text
                     selectionColor: SemanticTokens.accent
                     selectedTextColor: SemanticTokens.textOnAccent
@@ -147,13 +157,26 @@ Rectangle {
                     onActiveFocusChanged: {
                         if (activeFocus) {
                             root.selectedRequested(root.modelIndex)
-                        } else if (text !== root.editedText) {
-                            root.textEdited(root.modelIndex, text)
+                        } else {
+                            if (text !== root.editedText) {
+                                root.textEdited(root.modelIndex, text)
+                            }
+                            root.editing = false
                         }
                     }
                     TapHandler {
                         acceptedButtons: Qt.LeftButton
                         onTapped: root.selectedRequested(root.modelIndex)
+                        onDoubleTapped: {
+                            if (!root.editingLocked) {
+                                root.editing = true
+                                editor.forceActiveFocus()
+                            }
+                        }
+                    }
+                    HoverHandler {
+                        enabled: !root.editing
+                        cursorShape: Qt.PointingHandCursor
                     }
                 }
 
@@ -161,15 +184,11 @@ Rectangle {
                     id: statusRow
 
                     objectName: "segmentStatusRow"
+                    visible: root.edited || root.glossaryReplacement
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: SemanticTokens.spacingXs
 
-                    StatusBadge {
-                        visible: root.lowConfidence
-                        text: qsTr("Low confidence")
-                        tone: "warning"
-                    }
                     StatusBadge {
                         visible: root.edited
                         text: qsTr("Edited")
@@ -186,7 +205,7 @@ Rectangle {
             Loader {
                 id: actionsLoader
 
-                Layout.alignment: Qt.AlignTop
+                Layout.alignment: Qt.AlignVCenter
                 active: root.selected
                 visible: active
 
@@ -195,26 +214,61 @@ Rectangle {
                     spacing: 0
 
                     IconButton {
+                        objectName: "segmentEditButton"
+                        iconSource: root.editing
+                                    ? "qrc:/qt/qml/BreezeDesk/icons/lucide/check.svg"
+                                    : "qrc:/qt/qml/BreezeDesk/icons/lucide/pencil.svg"
+                        accessibleName: root.editing ? qsTr("Done Editing") : qsTr("Edit Text")
+                        iconColor: !enabled ? SemanticTokens.textMuted
+                                 : root.editing ? SemanticTokens.accentStrong
+                                 : SemanticTokens.text
+                        iconSize: root.actionIconSize
+                        implicitWidth: root.actionButtonSize
+                        implicitHeight: root.actionButtonSize
+                        enabled: !root.editingLocked
+                        onClicked: {
+                            if (root.editing) {
+                                root.editing = false
+                                root.forceActiveFocus()
+                            } else {
+                                root.editing = true
+                                editor.forceActiveFocus()
+                            }
+                        }
+                    }
+                    IconButton {
                         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/scissors.svg"
                         accessibleName: qsTr("Split")
+                        iconSize: root.actionIconSize
+                        implicitWidth: root.actionButtonSize
+                        implicitHeight: root.actionButtonSize
                         enabled: !root.editingLocked
                         onClicked: root.splitRequested(root.modelIndex)
                     }
                     IconButton {
                         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-up-to-line.svg"
                         accessibleName: qsTr("Merge with Previous")
+                        iconSize: root.actionIconSize
+                        implicitWidth: root.actionButtonSize
+                        implicitHeight: root.actionButtonSize
                         enabled: !root.editingLocked
                         onClicked: root.mergePreviousRequested(root.modelIndex)
                     }
                     IconButton {
                         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-down-to-line.svg"
                         accessibleName: qsTr("Merge with Next")
+                        iconSize: root.actionIconSize
+                        implicitWidth: root.actionButtonSize
+                        implicitHeight: root.actionButtonSize
                         enabled: !root.editingLocked
                         onClicked: root.mergeNextRequested(root.modelIndex)
                     }
                     RemoveButton {
                         objectName: "segmentDeleteButton"
                         accessibleName: qsTr("Delete segment")
+                        iconSize: root.actionIconSize
+                        implicitWidth: root.actionButtonSize
+                        implicitHeight: root.actionButtonSize
                         enabled: !root.editingLocked
                         onClicked: root.deleteRequested(root.modelIndex)
                     }
@@ -275,6 +329,33 @@ Rectangle {
                 }
             }
         }
+    }
+
+    Item {
+        id: lowConfidenceMarker
+
+        objectName: "segmentLowConfidenceMarker"
+        visible: root.lowConfidence
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        width: 8
+        Accessible.ignored: true
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 3
+            color: SemanticTokens.warning
+        }
+
+        HoverHandler {
+            id: markerHover
+        }
+        T.ToolTip.visible: markerHover.hovered
+        T.ToolTip.text: qsTr("Low confidence")
+        T.ToolTip.delay: 500
     }
 
     Rectangle {

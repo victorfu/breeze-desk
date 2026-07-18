@@ -751,6 +751,7 @@ Item {
                         objectName: "segmentEditor"
                         width: ListView.view.width
                         editingLocked: root.transcript.editingLocked
+                        ListView.onPooled: editing = false
                         selected: root.transcript.selectedIndex === proxyRow
                                   || root.transcript.activePlaybackIndex === proxyRow
                         onSelectedRequested: function(segmentIndex) {

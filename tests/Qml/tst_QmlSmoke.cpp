@@ -620,7 +620,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(pages);
 
         QCOMPARE(brandLogo->property("source").toUrl(),
-                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/breezedesk-symbol.svg")));
+                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png")));
         QTRY_COMPARE_WITH_TIMEOUT(brandLogo->property("status").toInt(), 1, 1'000);
         QCOMPARE(brandLogo->width(), 32.0);
         QCOMPARE(brandLogo->height(), 32.0);
@@ -1474,8 +1474,11 @@ class tst_QmlSmoke final : public QObject {
         auto* timeColumn = visualDescendantsNamed(segment, QStringLiteral("segmentTimeColumn")).value(0);
         auto* textEditor = visualDescendantsNamed(segment, QStringLiteral("segmentTextEditor")).value(0);
         auto* statusRow = visualDescendantsNamed(segment, QStringLiteral("segmentStatusRow")).value(0);
+        auto* lowConfidenceMarker =
+            visualDescendantsNamed(segment, QStringLiteral("segmentLowConfidenceMarker")).value(0);
         auto* separator = visualDescendantsNamed(segment, QStringLiteral("segmentSeparator")).value(0);
         auto* actionsRow = visualDescendantsNamed(segment, QStringLiteral("segmentActionsRow")).value(0);
+        auto* editButton = visualDescendantsNamed(segment, QStringLiteral("segmentEditButton")).value(0);
         auto* deleteButton = visualDescendantsNamed(segment, QStringLiteral("segmentDeleteButton")).value(0);
         auto* startTimeCode =
             visualDescendantsNamed(segment, QStringLiteral("segmentStartTimeCode")).value(0);
@@ -1483,9 +1486,11 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(timeColumn);
         QVERIFY(textEditor);
         QVERIFY(statusRow);
+        QVERIFY(lowConfidenceMarker);
         QVERIFY(separator);
         QVERIFY(visualDescendantsNamed(segment, QStringLiteral("segmentReviewedControl")).isEmpty());
         QVERIFY(actionsRow);
+        QVERIFY(editButton);
         QVERIFY(deleteButton);
         QVERIFY(startTimeCode);
         QVERIFY(endTimeCode);
@@ -1498,11 +1503,26 @@ class tst_QmlSmoke final : public QObject {
                      qPrintable(QStringLiteral("Selected segment has unexpected height at %1 px: %2")
                                     .arg(width)
                                     .arg(segment->height())));
-            QVERIFY(statusRow->isVisible());
+            QVERIFY(lowConfidenceMarker->isVisible());
+            QVERIFY2(!statusRow->isVisible(),
+                     qPrintable(QStringLiteral("Low confidence must not add a badge row at %1 px")
+                                    .arg(width)));
             QVERIFY(actionsRow->isVisible());
+            QVERIFY2(deleteButton->height() <= 32.0,
+                     qPrintable(QStringLiteral("Segment action buttons must stay compact at %1 px: "
+                                               "delete button height=%2")
+                                    .arg(width)
+                                    .arg(deleteButton->height())));
 
             const QPointF selectedTextOrigin = textEditor->mapToItem(segment, QPointF{});
             const QPointF selectedActionsOrigin = actionsRow->mapToItem(segment, QPointF{});
+            const qreal actionsCenterOffset = selectedActionsOrigin.y() + actionsRow->height() / 2.0 -
+                                              segment->height() / 2.0;
+            QVERIFY2(std::abs(actionsCenterOffset) <= 2.0,
+                     qPrintable(QStringLiteral("Segment actions must be vertically centered at %1 px: "
+                                               "offset=%2")
+                                    .arg(width)
+                                    .arg(actionsCenterOffset)));
             QVERIFY2(selectedActionsOrigin.x() >= selectedTextOrigin.x() + textEditor->width() - 0.5,
                      qPrintable(QStringLiteral("Segment actions must sit to the right of the transcript text "
                                                "at %1 px: actions x=%2, text right=%3")
@@ -1511,7 +1531,7 @@ class tst_QmlSmoke final : public QObject {
                                     .arg(selectedTextOrigin.x() + textEditor->width())));
 
             for (QQuickItem* item :
-                 {timeColumn, textEditor, statusRow, separator, actionsRow, deleteButton}) {
+                 {timeColumn, textEditor, lowConfidenceMarker, separator, actionsRow, deleteButton}) {
                 const QPointF origin = item->mapToItem(segment, QPointF{});
                 const bool contained = origin.x() >= -0.5 && origin.y() >= -0.5 &&
                                        origin.x() + item->width() <= segment->width() + 0.5 &&
@@ -1535,6 +1555,14 @@ class tst_QmlSmoke final : public QObject {
         QSignalSpy selectionSpy(segment, SIGNAL(selectedRequested(int)));
         textEditor->forceActiveFocus();
         QTRY_VERIFY_WITH_TIMEOUT(!selectionSpy.isEmpty(), 1'000);
+
+        QVERIFY2(textEditor->property("readOnly").toBool(),
+                 "Selecting a segment must not enter editing mode.");
+        QMetaObject::invokeMethod(editButton, "clicked");
+        QTRY_VERIFY_WITH_TIMEOUT(!textEditor->property("readOnly").toBool(), 1'000);
+        QVERIFY(textEditor->hasActiveFocus());
+        QMetaObject::invokeMethod(editButton, "clicked");
+        QTRY_VERIFY_WITH_TIMEOUT(textEditor->property("readOnly").toBool(), 1'000);
 
         host->setProperty("uiScale", 1.5);
         QTRY_VERIFY_WITH_TIMEOUT(timeColumn->width() >= 90.0, 1'000);
@@ -1561,7 +1589,7 @@ class tst_QmlSmoke final : public QObject {
         host->setProperty("uiScale", 1.0);
         QCoreApplication::processEvents();
 
-        for (QQuickItem* accessibleItem : {segment, textEditor, deleteButton}) {
+        for (QQuickItem* accessibleItem : {segment, textEditor, editButton, deleteButton}) {
             QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(accessibleItem);
             QVERIFY2(interface, qPrintable(accessibleItem->objectName() +
                                            QStringLiteral(" has no accessibility interface.")));
