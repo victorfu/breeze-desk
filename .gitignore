@@ -10,3 +10,4 @@ compile_commands.json
 /translations/*.qm
 __pycache__/
 *.py[cod]
+/tmp
