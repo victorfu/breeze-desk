@@ -80,37 +80,49 @@ ItemDelegate {
                 font.weight: Font.DemiBold
             }
 
-            Flow {
+            RowLayout {
                 id: metadata
                 Layout.fillWidth: true
-                Layout.preferredHeight: implicitHeight
+                Layout.minimumWidth: 0
                 spacing: SemanticTokens.spacingXs
 
                 TimeCode {
+                    Layout.minimumWidth: implicitWidth
                     milliseconds: control.durationMs
                     enabled: false
                 }
                 StatusBadge {
+                    Layout.minimumWidth: implicitWidth
                     text: control.displayedStatus
                     tone: control.status === "Completed" ? "success" : "neutral"
                 }
                 StatusBadge {
+                    Layout.minimumWidth: implicitWidth
                     text: control.reviewState.toLowerCase() === "reviewed"
                           ? qsTr("Reviewed") : qsTr("Unreviewed")
                     tone: control.reviewState.toLowerCase() === "reviewed" ? "success" : "neutral"
                 }
                 Text {
                     visible: control.modelName.length > 0
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: implicitWidth
+                    Layout.preferredHeight: control.metadataRowHeight
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
                     text: control.modelName
-                    height: control.metadataRowHeight
                     verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
                     font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
                 Text {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: implicitWidth
+                    Layout.preferredHeight: control.metadataRowHeight
+                    elide: Text.ElideRight
+                    maximumLineCount: 1
                     text: UiText.shortDateTime(control.createdAt)
-                    height: control.metadataRowHeight
                     verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
                     font.family: SemanticTokens.fontFamily

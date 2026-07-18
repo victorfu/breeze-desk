@@ -923,6 +923,22 @@
 <context>
     <name>GlossaryPage</name>
     <message>
+        <source>No matching terms</source>
+        <translation>沒有符合的詞條</translation>
+    </message>
+    <message>
+        <source>Try a different canonical name or alias.</source>
+        <translation>試試其他標準名稱或別名。</translation>
+    </message>
+    <message>
+        <source>No terms yet</source>
+        <translation>尚未新增詞條</translation>
+    </message>
+    <message>
+        <source>Add canonical names and aliases so transcripts use your preferred spelling.</source>
+        <translation>加入標準名稱與別名，讓逐字稿使用你偏好的寫法。</translation>
+    </message>
+    <message>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="44"/>
         <source>Glossary Profiles</source>
         <translation>專有名詞設定檔</translation>
@@ -3150,6 +3166,14 @@
 </context>
 <context>
     <name>UiText</name>
+    <message>
+        <source>Automatic</source>
+        <translation>自動</translation>
+    </message>
+    <message>
+        <source>Available after model load</source>
+        <translation>載入模型後顯示</translation>
+    </message>
     <message>
         <location filename="../src/qml/helpers/UiText.qml" line="10"/>
         <source>Queued</source>

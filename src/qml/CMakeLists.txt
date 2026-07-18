@@ -45,6 +45,7 @@ qt_add_qml_module(breezedesk_ui
         controls/AppProgressBar.qml
         controls/AppSearchField.qml
         controls/AppSlider.qml
+        controls/AppSpinBox.qml
         controls/AppTextField.qml
         controls/ComboBox.qml
         controls/IconButton.qml
@@ -65,6 +66,7 @@ qt_add_qml_module(breezedesk_ui
         components/InspectorSection.qml
         components/JobProgress.qml
         components/ModelCard.qml
+        components/PageHeader.qml
         components/RecordingCard.qml
         components/SegmentEditor.qml
         components/SettingRow.qml

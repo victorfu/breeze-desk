@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -17,69 +19,33 @@ Item {
         anchors.fill: parent
         anchors.margins: SemanticTokens.spacingLg
         spacing: SemanticTokens.spacingMd
-        GridLayout {
+        PageHeader {
             id: libraryHeader
             objectName: "libraryHeader"
+            actionsObjectName: "libraryHeaderActions"
             Layout.fillWidth: true
-            columns: stacked ? 1 : 2
-            columnSpacing: SemanticTokens.spacingMd
-            rowSpacing: SemanticTokens.spacingSm
-            // Keep the breakpoint independent of the layout's implicit size. Child
-            // widths change when the grid changes columns, so feeding them back into
-            // this decision can make the layout oscillate indefinitely.
-            readonly property bool stacked: width < root.headerStackWidth * DesignSystem.textScale
-            ColumnLayout {
-                id: titleBlock
-                Layout.row: 0
-                Layout.column: 0
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("Library")
-                    color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
-                    font.pixelSize: SemanticTokens.titleSize
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    text: qsTr("Your offline recordings and transcripts")
-                    color: SemanticTokens.textMuted
-                    wrapMode: Text.WordWrap
-                    font.family: SemanticTokens.fontFamily
-                    font.pixelSize: SemanticTokens.bodySize
-                }
-            }
-            RowLayout {
-                id: headerActions
-                objectName: "libraryHeaderActions"
-                Layout.row: libraryHeader.stacked ? 1 : 0
-                Layout.column: libraryHeader.stacked ? 0 : 1
+            stackWidth: root.headerStackWidth
+            title: qsTr("Library")
+            subtitle: qsTr("Your offline recordings and transcripts")
+            AppSearchField {
+                objectName: "librarySearchField"
                 Layout.fillWidth: libraryHeader.stacked
-                Layout.minimumWidth: 0
-                spacing: SemanticTokens.spacingSm
-                AppSearchField {
-                    objectName: "librarySearchField"
-                    Layout.fillWidth: libraryHeader.stacked
-                    Layout.minimumWidth: 160
-                    Layout.preferredWidth: 240
-                    text: root.vm.searchText
-                    onTextEdited: root.vm.searchText = text
-                }
-                AppButton {
-                    objectName: "libraryImportButton"
-                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/file-input.svg"
-                    text: qsTr("Import Files")
-                    primary: true
-                    onClicked: root.importRequested()
-                }
-                AppButton {
-                    objectName: "libraryOpenFolderButton"
-                    text: qsTr("Open Folder")
-                    onClicked: root.folderImportRequested()
-                }
+                Layout.minimumWidth: 160
+                Layout.preferredWidth: 240
+                text: root.vm.searchText
+                onTextEdited: root.vm.searchText = text
+            }
+            AppButton {
+                objectName: "libraryImportButton"
+                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/file-input.svg"
+                text: qsTr("Import Files")
+                primary: true
+                onClicked: root.importRequested()
+            }
+            AppButton {
+                objectName: "libraryOpenFolderButton"
+                text: qsTr("Open Folder")
+                onClicked: root.folderImportRequested()
             }
         }
         GridLayout {
@@ -185,9 +151,13 @@ Item {
             clip: true
             reuseItems: true
             keyNavigationEnabled: true
+            activeFocusOnTab: true
+            Keys.onReturnPressed: if (currentItem) currentItem.clicked()
+            Keys.onEnterPressed: if (currentItem) currentItem.clicked()
             ScrollBar.vertical: ScrollBar { }
             delegate: RecordingCard {
                 width: ListView.view.width
+                highlighted: ListView.isCurrentItem
                 onOpenRequested: function(recordingId) {
                     root.vm.activateRecording(recordingId)
                 }
@@ -236,6 +206,7 @@ Item {
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/library.svg"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.vm.rename(root.pendingRecordingId, renameField.text)
+        onOpened: renameField.forceActiveFocus()
         onClosed: root.pendingRecordingId = ""
         AppTextField {
             id: renameField
@@ -253,6 +224,7 @@ Item {
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.vm.setTagsText(root.pendingRecordingId, tagsField.text)
+        onOpened: tagsField.forceActiveFocus()
         onClosed: root.pendingRecordingId = ""
         ColumnLayout {
             width: parent.width

@@ -7,6 +7,9 @@ T.Dialog {
     property string subtitle: ""
     property url iconSource: ""
     property bool destructive: false
+    property alias surfaceObjectName: surfaceRect.objectName
+    property alias headerObjectName: headerRect.objectName
+    property alias footerObjectName: footerBox.objectName
 
     anchors.centerIn: T.Overlay.overlay
     width: Math.min(ComponentTokens.dialogWidth, T.Overlay.overlay.width - SemanticTokens.spacingXl * 2)
@@ -29,6 +32,7 @@ T.Dialog {
     palette.shadow: SemanticTokens.shadow
 
     background: Rectangle {
+        id: surfaceRect
         objectName: "appDialogSurface"
         color: SemanticTokens.surfaceRaised
         radius: SemanticTokens.radiusLg
@@ -37,6 +41,7 @@ T.Dialog {
     }
 
     header: Rectangle {
+        id: headerRect
         objectName: "appDialogHeader"
         visible: control.title.length > 0
         implicitHeight: visible ? dialogHeaderLayout.implicitHeight + SemanticTokens.spacingLg * 2 : 0
@@ -110,6 +115,7 @@ T.Dialog {
     }
 
     footer: T.DialogButtonBox {
+        id: footerBox
         objectName: "appDialogFooter"
         visible: count > 0
         spacing: SemanticTokens.spacingSm
@@ -139,6 +145,6 @@ T.Dialog {
     }
 
     T.Overlay.modal: Rectangle {
-        color: DesignSystem.dark ? "#88000000" : "#660F172A"
+        color: SemanticTokens.scrim
     }
 }

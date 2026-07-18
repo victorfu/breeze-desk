@@ -15,9 +15,9 @@ Item {
     readonly property string displayedRecordingStatus: UiText.recordingStatus(detail.status)
     readonly property bool compactInspector: width < 1040
     readonly property bool narrowTools: recordingMainPane.width < 680 * DesignSystem.textScale
-    readonly property bool narrowTimeline: recordingMainPane.width < 440 * DesignSystem.textScale
-    readonly property bool narrowTransportOptions: recordingMainPane.width < 440 * DesignSystem.textScale
+    readonly property bool narrowTransport: recordingMainPane.width < 440 * DesignSystem.textScale
     readonly property int compactWaveformHeight: DesignSystem.compact ? 52 : 64
+    readonly property var playbackRates: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
     property bool compactInspectorOpen: false
     property string pendingDeleteRevisionId: ""
     property var pendingDeleteRevision: ({})
@@ -293,12 +293,11 @@ Item {
             InspectorSection {
                 Layout.fillWidth: true
                 title: qsTr("Recording")
-                TimeCode { id: durationCode; visible: false; milliseconds: root.detail.durationMs }
                 RowLayout {
                     Layout.fillWidth: true
                     Text { text: qsTr("Duration"); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize }
                     Item { Layout.fillWidth: true }
-                    Text { text: durationCode.text; color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
+                    Text { text: UiText.timecode(root.detail.durationMs); color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -449,15 +448,15 @@ Item {
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             Layout.maximumWidth: transportCard.width - SemanticTokens.spacingSm * 2
-                            columns: root.narrowTimeline ? 3 : 4
+                            columns: root.narrowTransport ? 3 : 4
                             columnSpacing: SemanticTokens.spacingSm
                             rowSpacing: SemanticTokens.spacingXs
 
                             Row {
                                 id: playbackButtons
                                 objectName: "recordingPlaybackButtons"
-                                Layout.columnSpan: root.narrowTimeline ? 3 : 1
-                                Layout.alignment: root.narrowTimeline ? Qt.AlignHCenter : Qt.AlignVCenter
+                                Layout.columnSpan: root.narrowTransport ? 3 : 1
+                                Layout.alignment: root.narrowTransport ? Qt.AlignHCenter : Qt.AlignVCenter
                                 spacing: SemanticTokens.spacingSm
 
                                 IconButton {
@@ -504,18 +503,19 @@ Item {
                             id: transportOptions
                             objectName: "recordingTransportOptions"
                             Layout.fillWidth: true
-                            columns: root.narrowTransportOptions ? 2 : 4
+                            columns: root.narrowTransport ? 2 : 4
                             columnSpacing: SemanticTokens.spacingSm
                             rowSpacing: SemanticTokens.spacingXs
 
                             AppComboBox {
                                 objectName: "playbackRateComboBox"
-                                Layout.fillWidth: root.narrowTransportOptions
+                                Layout.fillWidth: root.narrowTransport
                                 Layout.preferredWidth: 86
                                 Accessible.name: qsTr("Playback rate")
                                 model: ["0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"]
-                                currentIndex: root.player.playbackRate === 0.5 ? 0 : root.player.playbackRate === 0.75 ? 1 : root.player.playbackRate === 1.25 ? 3 : root.player.playbackRate === 1.5 ? 4 : root.player.playbackRate === 2 ? 5 : 2
-                                onActivated: root.player.playbackRate = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0][currentIndex]
+                                currentIndex: root.playbackRates.indexOf(root.player.playbackRate) >= 0
+                                              ? root.playbackRates.indexOf(root.player.playbackRate) : 2
+                                onActivated: root.player.playbackRate = root.playbackRates[currentIndex]
                             }
                             Toggle {
                                 objectName: "muteToggle"
@@ -525,7 +525,7 @@ Item {
                             }
                             AppSlider {
                                 objectName: "volumeSlider"
-                                Layout.fillWidth: root.narrowTransportOptions
+                                Layout.fillWidth: root.narrowTransport
                                 Layout.preferredWidth: 92
                                 from: 0
                                 to: 1
@@ -819,8 +819,7 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            color: SemanticTokens.window
-            opacity: 0.72
+            color: SemanticTokens.scrim
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor

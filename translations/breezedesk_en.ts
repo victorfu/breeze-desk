@@ -926,6 +926,22 @@
 <context>
     <name>GlossaryPage</name>
     <message>
+        <source>No matching terms</source>
+        <translation>No matching terms</translation>
+    </message>
+    <message>
+        <source>Try a different canonical name or alias.</source>
+        <translation>Try a different canonical name or alias.</translation>
+    </message>
+    <message>
+        <source>No terms yet</source>
+        <translation>No terms yet</translation>
+    </message>
+    <message>
+        <source>Add canonical names and aliases so transcripts use your preferred spelling.</source>
+        <translation>Add canonical names and aliases so transcripts use your preferred spelling.</translation>
+    </message>
+    <message>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="44"/>
         <source>Glossary Profiles</source>
         <translation>Glossary Profiles</translation>
@@ -3158,6 +3174,14 @@
 </context>
 <context>
     <name>UiText</name>
+    <message>
+        <source>Automatic</source>
+        <translation>Automatic</translation>
+    </message>
+    <message>
+        <source>Available after model load</source>
+        <translation>Available after model load</translation>
+    </message>
     <message>
         <location filename="../src/qml/helpers/UiText.qml" line="10"/>
         <source>Queued</source>

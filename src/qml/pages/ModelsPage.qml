@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -9,66 +11,21 @@ Item {
     objectName: "modelsPage"
     readonly property int responsiveStackWidth: 760
 
-    function computeBackendName(backend) {
-        const value = String(backend).trim()
-        return value.toLowerCase() === "auto" ? qsTr("Automatic") : value
-    }
-
-    function activeComputeName(backend) {
-        const value = String(backend).trim()
-        return value.length === 0 || value.toLowerCase() === "not loaded"
-               ? qsTr("Available after model load") : value
-    }
-
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: SemanticTokens.spacingLg
         spacing: SemanticTokens.spacingMd
-        GridLayout {
-            id: modelsHeader
+        PageHeader {
             objectName: "modelsHeader"
+            actionsObjectName: "modelsHeaderActions"
             Layout.fillWidth: true
-            columns: stacked ? 1 : 2
-            columnSpacing: SemanticTokens.spacingMd
-            rowSpacing: SemanticTokens.spacingSm
-            readonly property bool stacked: width < root.responsiveStackWidth
-                                                   * DesignSystem.textScale
-            ColumnLayout {
-                id: titleBlock
-                Layout.row: 0
-                Layout.column: 0
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("Models")
-                    color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
-                    font.pixelSize: SemanticTokens.titleSize
-                    font.weight: Font.DemiBold
-                }
-                Text {
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    text: qsTr("Models are downloaded only when you request them. Checksums are verified before loading.")
-                    color: SemanticTokens.textMuted
-                    wrapMode: Text.WordWrap
-                    font.family: SemanticTokens.fontFamily
-                    font.pixelSize: SemanticTokens.bodySize
-                }
-            }
-            RowLayout {
-                id: headerActions
-                objectName: "modelsHeaderActions"
-                Layout.row: modelsHeader.stacked ? 1 : 0
-                Layout.column: modelsHeader.stacked ? 0 : 1
-                Layout.fillWidth: modelsHeader.stacked
-                Layout.minimumWidth: 0
-                AppButton {
-                    objectName: "modelsImportButton"
-                    text: qsTr("Import GGML Model")
-                    onClicked: root.customImportRequested()
-                }
+            stackWidth: root.responsiveStackWidth
+            title: qsTr("Models")
+            subtitle: qsTr("Models are downloaded only when you request them. Checksums are verified before loading.")
+            AppButton {
+                objectName: "modelsImportButton"
+                text: qsTr("Import GGML Model")
+                onClicked: root.customImportRequested()
             }
         }
         Rectangle {
@@ -94,7 +51,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     text: qsTr("Preferred local compute: %1")
-                              .arg(root.computeBackendName(root.vm.selectedBackend))
+                              .arg(UiText.computeBackendName(root.vm.selectedBackend))
                     color: SemanticTokens.text
                     wrapMode: Text.WordWrap
                     font.family: SemanticTokens.fontFamily
@@ -108,7 +65,7 @@ Item {
                     Layout.fillWidth: backendRow.stacked
                     Layout.minimumWidth: 0
                     text: qsTr("Currently using: %1")
-                              .arg(root.activeComputeName(root.vm.actualBackend))
+                              .arg(UiText.activeComputeName(root.vm.actualBackend))
                     color: SemanticTokens.textMuted
                     wrapMode: Text.WordWrap
                     font.family: SemanticTokens.fontFamily

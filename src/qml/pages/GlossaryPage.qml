@@ -1,3 +1,5 @@
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Dialogs
@@ -26,33 +28,17 @@ Item {
                 anchors.fill: parent
                 anchors.margins: SemanticTokens.spacingMd
                 spacing: SemanticTokens.spacingSm
-                GridLayout {
+                PageHeader {
                     id: profilesHeader
                     objectName: "glossaryProfilesHeader"
                     Layout.fillWidth: true
-                    columns: stacked ? 1 : 2
+                    stackWidth: root.narrowPanelStackWidth
+                    titlePixelSize: SemanticTokens.headingSize
                     columnSpacing: SemanticTokens.spacingSm
                     rowSpacing: SemanticTokens.spacingXs
-                    readonly property bool stacked: width < root.narrowPanelStackWidth
-                                                           * DesignSystem.textScale
-                    Text {
-                        id: profilesTitle
-                        Layout.row: 0
-                        Layout.column: 0
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
-                        text: qsTr("Glossary Profiles")
-                        color: SemanticTokens.text
-                        wrapMode: Text.WordWrap
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.headingSize
-                        font.weight: Font.DemiBold
-                    }
+                    title: qsTr("Glossary Profiles")
                     AppButton {
-                        id: newProfileButton
                         objectName: "glossaryNewProfileButton"
-                        Layout.row: profilesHeader.stacked ? 1 : 0
-                        Layout.column: profilesHeader.stacked ? 0 : 1
                         Layout.fillWidth: profilesHeader.stacked
                         text: qsTr("New")
                         onClicked: profileDialog.open()
@@ -64,7 +50,9 @@ Item {
                     model: root.vm.profiles
                     clip: true
                     spacing: SemanticTokens.spacingXs
+                    keyNavigationEnabled: true
                     delegate: ItemDelegate {
+                        id: profileRow
                         required property string profileId
                         required property string name
                         required property int termCount
@@ -75,22 +63,23 @@ Item {
                         onClicked: root.vm.selectedProfileId = profileId
                         background: Rectangle {
                             radius: SemanticTokens.radiusSm
-                            color: parent.highlighted ? SemanticTokens.accentMuted
-                                 : parent.hovered ? SemanticTokens.hoverTint : "transparent"
-                            border.width: parent.activeFocus ? ComponentTokens.focusWidth : 0
+                            color: profileRow.highlighted ? SemanticTokens.accentMuted
+                                 : profileRow.down ? SemanticTokens.pressedTint
+                                 : profileRow.hovered ? SemanticTokens.hoverTint : "transparent"
+                            border.width: profileRow.activeFocus ? ComponentTokens.focusWidth : 0
                             border.color: SemanticTokens.focusRing
                         }
                         contentItem: Column {
                             Text {
                                 width: parent.width
-                                text: name
+                                text: profileRow.name
                                 color: SemanticTokens.text
                                 elide: Text.ElideRight
                                 font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.bodySize
                             }
                             Text {
-                                text: qsTr("%n term(s)", "", termCount)
+                                text: qsTr("%n term(s)", "", profileRow.termCount)
                                 color: SemanticTokens.textMuted
                                 font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
@@ -167,64 +156,30 @@ Item {
             Layout.fillHeight: true
             Layout.minimumWidth: 0
             spacing: SemanticTokens.spacingMd
-            GridLayout {
+            PageHeader {
                 id: glossaryHeader
                 objectName: "glossaryHeader"
+                actionsObjectName: "glossaryHeaderActions"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                columns: stacked ? 1 : 2
-                columnSpacing: SemanticTokens.spacingMd
-                rowSpacing: SemanticTokens.spacingSm
-                readonly property bool stacked: width < root.termsHeaderStackWidth
-                                                       * DesignSystem.textScale
-                ColumnLayout {
-                    id: termsTitleBlock
-                    Layout.row: 0
-                    Layout.column: 0
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    Text {
-                        Layout.fillWidth: true
-                        text: qsTr("Terms")
-                        color: SemanticTokens.text
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.titleSize
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
-                        text: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
-                        color: SemanticTokens.textMuted
-                        wrapMode: Text.WordWrap
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.bodySize
-                    }
-                }
-                RowLayout {
-                    id: termHeaderActions
-                    objectName: "glossaryHeaderActions"
-                    Layout.row: glossaryHeader.stacked ? 1 : 0
-                    Layout.column: glossaryHeader.stacked ? 0 : 1
+                stackWidth: root.termsHeaderStackWidth
+                title: qsTr("Terms")
+                subtitle: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
+                AppSearchField {
+                    objectName: "glossarySearchField"
                     Layout.fillWidth: glossaryHeader.stacked
-                    Layout.minimumWidth: 0
-                    spacing: SemanticTokens.spacingSm
-                    AppSearchField {
-                        objectName: "glossarySearchField"
-                        Layout.fillWidth: glossaryHeader.stacked
-                        Layout.minimumWidth: 160
-                        Layout.preferredWidth: 230
-                        enabled: root.vm.selectedProfileId.length > 0
-                        text: root.vm.termSearch
-                        onTextEdited: root.vm.termSearch = text
-                    }
-                    AppButton {
-                        objectName: "glossaryAddTermButton"
-                        enabled: root.vm.selectedProfileId.length > 0
-                        text: qsTr("Add Term")
-                        primary: true
-                        onClicked: termDialog.open()
-                    }
+                    Layout.minimumWidth: 160
+                    Layout.preferredWidth: 230
+                    enabled: root.vm.selectedProfileId.length > 0
+                    text: root.vm.termSearch
+                    onTextEdited: root.vm.termSearch = text
+                }
+                AppButton {
+                    objectName: "glossaryAddTermButton"
+                    enabled: root.vm.selectedProfileId.length > 0
+                    text: qsTr("Add Term")
+                    primary: true
+                    onClicked: termDialog.open()
                 }
             }
             EmptyState {
@@ -237,15 +192,29 @@ Item {
                 actionText: qsTr("New Profile")
                 onActionTriggered: profileDialog.open()
             }
-            ListView {
+            EmptyState {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                visible: root.vm.selectedProfileId.length > 0
+                visible: root.vm.selectedProfileId.length > 0 && termsList.count === 0
+                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
+                title: root.vm.termSearch.length > 0 ? qsTr("No matching terms") : qsTr("No terms yet")
+                description: root.vm.termSearch.length > 0
+                             ? qsTr("Try a different canonical name or alias.")
+                             : qsTr("Add canonical names and aliases so transcripts use your preferred spelling.")
+                actionText: root.vm.termSearch.length > 0 ? "" : qsTr("Add Term")
+                onActionTriggered: termDialog.open()
+            }
+            ListView {
+                id: termsList
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                visible: root.vm.selectedProfileId.length > 0 && count > 0
                 model: root.vm.terms
                 spacing: SemanticTokens.spacingSm
                 clip: true
                 reuseItems: true
                 delegate: Rectangle {
+                    id: termCard
                     required property string termId
                     required property string canonicalText
                     required property var aliases
@@ -265,7 +234,7 @@ Item {
                             Layout.minimumWidth: 0
                             Text {
                                 Layout.fillWidth: true
-                                text: canonicalText
+                                text: termCard.canonicalText
                                 color: SemanticTokens.text
                                 elide: Text.ElideRight
                                 font.family: SemanticTokens.fontFamily
@@ -274,19 +243,28 @@ Item {
                             }
                             Text {
                                 Layout.fillWidth: true
-                                text: aliases.length > 0 ? qsTr("Aliases: %1").arg(aliases.join(", ")) : qsTr("No aliases")
+                                text: termCard.aliases.length > 0
+                                      ? qsTr("Aliases: %1").arg(termCard.aliases.join(", "))
+                                      : qsTr("No aliases")
                                 color: SemanticTokens.textMuted
                                 elide: Text.ElideRight
                                 font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                         }
-                        StatusBadge { text: qsTr("Priority %1").arg(priority); tone: priority >= 80 ? "accent" : "neutral" }
-                        Toggle { text: qsTr("Enabled"); checked: termEnabled; onToggled: root.vm.setTermEnabled(termId, checked) }
+                        StatusBadge {
+                            text: qsTr("Priority %1").arg(termCard.priority)
+                            tone: termCard.priority >= 80 ? "accent" : "neutral"
+                        }
+                        Toggle {
+                            text: qsTr("Enabled")
+                            checked: termCard.termEnabled
+                            onToggled: root.vm.setTermEnabled(termCard.termId, checked)
+                        }
                         RemoveButton {
                             objectName: "glossaryDeleteTermButton"
-                            accessibleName: qsTr("Delete glossary term %1").arg(canonicalText)
-                            onClicked: root.vm.deleteTerm(termId)
+                            accessibleName: qsTr("Delete glossary term %1").arg(termCard.canonicalText)
+                            onClicked: root.vm.deleteTerm(termCard.termId)
                         }
                     }
                 }
@@ -323,7 +301,11 @@ Item {
     AppDialog {
         id: profileDialog
         objectName: "glossaryProfileDialog"
+        surfaceObjectName: "glossaryProfileDialogSurface"
+        headerObjectName: "glossaryProfileDialogHeader"
         title: qsTr("New Glossary Profile")
+        subtitle: qsTr("Profiles keep project context and important names scoped to a meeting or recording.")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
         standardButtons: Dialog.NoButton
 
         function clearFields() {
@@ -345,75 +327,6 @@ Item {
 
         onOpened: profileName.forceActiveFocus()
         onClosed: clearFields()
-
-        background: Rectangle {
-            objectName: "glossaryProfileDialogSurface"
-            color: SemanticTokens.surfaceRaised
-            radius: SemanticTokens.radiusLg
-            border.width: 1
-            border.color: SemanticTokens.border
-        }
-
-        header: Rectangle {
-            objectName: "glossaryProfileDialogHeader"
-            implicitHeight: profileHeaderLayout.implicitHeight + SemanticTokens.spacingLg * 2
-            color: SemanticTokens.surfaceRaised
-
-            RowLayout {
-                id: profileHeaderLayout
-                anchors.fill: parent
-                anchors.margins: SemanticTokens.spacingLg
-                spacing: SemanticTokens.spacingMd
-
-                Rectangle {
-                    Layout.preferredWidth: 42
-                    Layout.preferredHeight: 42
-                    Layout.alignment: Qt.AlignTop
-                    color: SemanticTokens.accentMuted
-                    radius: SemanticTokens.radiusMd
-
-                    AppIcon {
-                        anchors.centerIn: parent
-                        source: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
-                        color: SemanticTokens.accent
-                        iconSize: 22
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    spacing: SemanticTokens.spacingXs
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: profileDialog.title
-                        color: SemanticTokens.text
-                        wrapMode: Text.WordWrap
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.headingSize
-                        font.weight: Font.DemiBold
-                        Accessible.role: Accessible.Heading
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: qsTr("Profiles keep project context and important names scoped to a meeting or recording.")
-                        color: SemanticTokens.textMuted
-                        wrapMode: Text.WordWrap
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.captionSize
-                    }
-                }
-            }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 1
-                color: SemanticTokens.border
-            }
-        }
 
         ColumnLayout {
             id: profileDialogContent
@@ -524,6 +437,8 @@ Item {
         id: termDialog
         objectName: "glossaryTermDialog"
         title: qsTr("Add Glossary Term")
+        subtitle: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
         standardButtons: Dialog.NoButton
 
         function clearFields() {
@@ -543,73 +458,6 @@ Item {
 
         onOpened: canonicalText.forceActiveFocus()
         onClosed: clearFields()
-
-        background: Rectangle {
-            color: SemanticTokens.surfaceRaised
-            radius: SemanticTokens.radiusLg
-            border.width: 1
-            border.color: SemanticTokens.border
-        }
-
-        header: Rectangle {
-            implicitHeight: termHeaderLayout.implicitHeight + SemanticTokens.spacingLg * 2
-            color: SemanticTokens.surfaceRaised
-
-            RowLayout {
-                id: termHeaderLayout
-                anchors.fill: parent
-                anchors.margins: SemanticTokens.spacingLg
-                spacing: SemanticTokens.spacingMd
-
-                Rectangle {
-                    Layout.preferredWidth: 42
-                    Layout.preferredHeight: 42
-                    Layout.alignment: Qt.AlignTop
-                    color: SemanticTokens.accentMuted
-                    radius: SemanticTokens.radiusMd
-
-                    AppIcon {
-                        anchors.centerIn: parent
-                        source: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
-                        color: SemanticTokens.accent
-                        iconSize: 22
-                    }
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    spacing: SemanticTokens.spacingXs
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: termDialog.title
-                        color: SemanticTokens.text
-                        wrapMode: Text.WordWrap
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.headingSize
-                        font.weight: Font.DemiBold
-                        Accessible.role: Accessible.Heading
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
-                        color: SemanticTokens.textMuted
-                        wrapMode: Text.WordWrap
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.captionSize
-                    }
-                }
-            }
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 1
-                color: SemanticTokens.border
-            }
-        }
 
         ColumnLayout {
             width: parent.width
