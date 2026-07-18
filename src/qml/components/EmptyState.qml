@@ -6,6 +6,7 @@ Item {
     property string title
     property string description
     property string actionText
+    property url iconSource: ""
     signal actionTriggered
     implicitWidth: 400
     implicitHeight: content.implicitHeight
@@ -21,7 +22,15 @@ Item {
             Layout.preferredHeight: 48
             radius: 24
             color: SemanticTokens.accentMuted
+            AppIcon {
+                visible: String(root.iconSource).length > 0
+                anchors.centerIn: parent
+                source: root.iconSource
+                iconSize: 22
+                color: SemanticTokens.accentStrong
+            }
             Rectangle {
+                visible: String(root.iconSource).length === 0
                 anchors.centerIn: parent
                 width: 18
                 height: 3

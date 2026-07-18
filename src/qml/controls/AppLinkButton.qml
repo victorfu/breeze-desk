@@ -21,6 +21,8 @@ T.Button {
     Accessible.name: accessibleName
     Accessible.role: Accessible.Link
 
+    HoverHandler { cursorShape: Qt.PointingHandCursor }
+
     contentItem: Text {
         text: control.text
         color: !control.enabled ? SemanticTokens.textMuted

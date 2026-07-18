@@ -6,6 +6,7 @@ T.Dialog {
     id: control
     property string subtitle: ""
     property url iconSource: ""
+    property bool destructive: false
 
     anchors.centerIn: T.Overlay.overlay
     width: Math.min(ComponentTokens.dialogWidth, T.Overlay.overlay.width - SemanticTokens.spacingXl * 2)
@@ -116,9 +117,11 @@ T.Dialog {
         alignment: Qt.AlignRight
 
         delegate: AppButton {
-            primary: T.DialogButtonBox.buttonRole === T.DialogButtonBox.AcceptRole
-                     || T.DialogButtonBox.buttonRole === T.DialogButtonBox.YesRole
-                     || T.DialogButtonBox.buttonRole === T.DialogButtonBox.ApplyRole
+            readonly property bool acceptish: T.DialogButtonBox.buttonRole === T.DialogButtonBox.AcceptRole
+                                              || T.DialogButtonBox.buttonRole === T.DialogButtonBox.YesRole
+                                              || T.DialogButtonBox.buttonRole === T.DialogButtonBox.ApplyRole
+            primary: !control.destructive && acceptish
+            danger: control.destructive && acceptish
         }
 
         background: Rectangle {

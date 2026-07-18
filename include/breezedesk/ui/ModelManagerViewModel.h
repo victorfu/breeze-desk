@@ -80,6 +80,7 @@ class ModelListModel final : public QAbstractListModel {
     [[nodiscard]] bool contains(const QString& id) const;
     [[nodiscard]] bool isDefaultCandidate(const QString& id) const;
     [[nodiscard]] bool isLoaded(const QString& id) const;
+    [[nodiscard]] bool isInstalled(const QString& id) const;
 
   private:
     [[nodiscard]] int indexOf(const QString& id) const;
@@ -92,6 +93,7 @@ class ModelManagerViewModel final : public QObject {
     Q_OBJECT
     Q_PROPERTY(QAbstractItemModel* models READ models CONSTANT)
     Q_PROPERTY(QString defaultModelId READ defaultModelId NOTIFY defaultModelChanged)
+    Q_PROPERTY(bool defaultModelReady READ defaultModelReady NOTIFY defaultModelReadyChanged)
     Q_PROPERTY(QString selectedBackend READ selectedBackend NOTIFY backendChanged)
     Q_PROPERTY(QString actualBackend READ actualBackend NOTIFY backendChanged)
     Q_PROPERTY(QString runtimeVersion READ runtimeVersion NOTIFY backendChanged)
@@ -105,6 +107,7 @@ class ModelManagerViewModel final : public QObject {
 
     [[nodiscard]] QAbstractItemModel* models() noexcept;
     [[nodiscard]] QString defaultModelId() const;
+    [[nodiscard]] bool defaultModelReady() const;
     [[nodiscard]] QString selectedBackend() const;
     [[nodiscard]] QString actualBackend() const;
     [[nodiscard]] QString runtimeVersion() const;
@@ -127,6 +130,7 @@ class ModelManagerViewModel final : public QObject {
 
   signals:
     void defaultModelChanged();
+    void defaultModelReadyChanged();
     void backendChanged();
     void downloadRequested(const QString& id);
     void pauseRequested(const QString& id);
@@ -141,11 +145,13 @@ class ModelManagerViewModel final : public QObject {
 
   private:
     void refreshFromService();
+    void refreshDefaultModelReady();
     void attachDownload(ModelDownloadOperation* operation);
     void persistDefaultModel();
 
     ModelListModel m_models;
     QString m_defaultModelId{"breeze-asr-25-q5"};
+    bool m_defaultModelReady{false};
     QString m_selectedBackend{"Auto"};
     QString m_actualBackend{"Not loaded"};
     QString m_runtimeVersion{"Not loaded"};

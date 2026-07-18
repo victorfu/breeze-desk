@@ -4,17 +4,17 @@
 <context>
     <name>BreezeDesk::ApplicationViewModel</name>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="223"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="225"/>
         <source>The transcript could not be saved before transcription resumed.</source>
         <translation>The transcript could not be saved before transcription resumed.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="408"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="410"/>
         <source>Imported a managed media copy.</source>
         <translation>Imported a managed media copy.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="425"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="427"/>
         <source>Imported %n media file(s).</source>
         <translation>
             <numerusform>Imported %n media file(s).</numerusform>
@@ -22,7 +22,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="429"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="431"/>
         <source>Copying %n media file(s) into managed storage…</source>
         <translation>
             <numerusform>Copying %n media file(s) into managed storage…</numerusform>
@@ -30,27 +30,27 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="437"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="439"/>
         <source>A folder import is already running.</source>
         <translation>A folder import is already running.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="442"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="444"/>
         <source>Choose a readable local folder.</source>
         <translation>Choose a readable local folder.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="476"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="478"/>
         <source>The folder does not contain supported audio or video files.</source>
         <translation>The folder does not contain supported audio or video files.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="566"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="568"/>
         <source>Folder import cancelled.</source>
         <translation>Folder import cancelled.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="570"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="572"/>
         <source>Imported %n media file(s) from the folder.</source>
         <translation>
             <numerusform>Imported %n media file from the folder.</numerusform>
@@ -58,77 +58,77 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="572"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="574"/>
         <source>Imported %1 media file(s); %2 could not be imported.</source>
         <translation>Imported %1 media file(s); %2 could not be imported.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="582"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="584"/>
         <source>File manager integration is unavailable.</source>
         <translation>File manager integration is unavailable.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="590"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="592"/>
         <source>The recording source is missing. Relink it to continue.</source>
         <translation>The recording source is missing. Relink it to continue.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="595"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="597"/>
         <source>The recording could not be revealed in the file manager.</source>
         <translation>The recording could not be revealed in the file manager.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="613"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="615"/>
         <source>The selected recording is no longer available.</source>
         <translation>The selected recording is no longer available.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="634"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="636"/>
         <source>The waveform preview could not be loaded: %1</source>
         <translation>The waveform preview could not be loaded: %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="649"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="651"/>
         <source>Choose an imported recording first.</source>
         <translation>Choose an imported recording first.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="654"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="656"/>
         <source>Transcription added to the queue.</source>
         <translation>Transcription added to the queue.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="661"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="663"/>
         <source>Open a recording before exporting.</source>
         <translation>Open a recording before exporting.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="671"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="673"/>
         <source>Transcribe and open a recording before exporting.</source>
         <translation>Transcribe and open a recording before exporting.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="675"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="677"/>
         <source>Choose a local destination for the export.</source>
         <translation>Choose a local destination for the export.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="688"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="690"/>
         <source>The selected export format is not supported.</source>
         <translation>The selected export format is not supported.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="719"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="721"/>
         <source>Transcript exported to %1</source>
         <translation>Transcript exported to %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="789"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="797"/>
         <source>Save or discard the current transcript edits before refreshing live results.</source>
         <translation>Save or discard the current transcript edits before refreshing live results.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="801"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="809"/>
         <source>The transcript could not be saved because its recording is unavailable.</source>
         <translation>The transcript could not be saved because its recording is unavailable.</translation>
     </message>
@@ -357,62 +357,62 @@
 <context>
     <name>BreezeDesk::ModelManagerViewModel</name>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="366"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="396"/>
         <source>This model is not present in the signed model manifest.</source>
         <translation>This model is not present in the signed model manifest.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="405"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="435"/>
         <source>Unload this model before deleting it.</source>
         <translation>Unload this model before deleting it.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="418"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="448"/>
         <source>Model deleted.</source>
         <translation>Model deleted.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="435"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="465"/>
         <source>Model checksum verified.</source>
         <translation>Model checksum verified.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="465"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="495"/>
         <source>Choose an existing local GGML .bin file.</source>
         <translation>Choose an existing local GGML .bin file.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="570"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="600"/>
         <source>Custom whisper.cpp GGML model imported from local storage.</source>
         <translation>Custom whisper.cpp GGML model imported from local storage.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="571"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="601"/>
         <source>Custom</source>
         <translation>Custom</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="573"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="603"/>
         <source>User supplied</source>
         <translation>User supplied</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="479"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="509"/>
         <source>Custom model imported.</source>
         <translation>Custom model imported.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="499"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="529"/>
         <source>Choose a transcription model as the default.</source>
         <translation>Choose a transcription model as the default.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="542"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="572"/>
         <source>Unknown</source>
         <translation>Unknown</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="621"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="651"/>
         <source>Model downloaded and verified.</source>
         <translation>Model downloaded and verified.</translation>
     </message>
@@ -779,14 +779,12 @@
 <context>
     <name>ErrorState</name>
     <message>
-        <location filename="../src/qml/components/ErrorState.qml" line="6"/>
         <source>Something went wrong</source>
-        <translation>Something went wrong</translation>
+        <translation type="vanished">Something went wrong</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/ErrorState.qml" line="8"/>
         <source>Retry</source>
-        <translation>Retry</translation>
+        <translation type="vanished">Retry</translation>
     </message>
 </context>
 <context>
@@ -853,177 +851,187 @@
     </message>
     <message>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="196"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="594"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="595"/>
         <source>Explicit aliases can be applied conservatively and remain auditable.</source>
         <translation>Explicit aliases can be applied conservatively and remain auditable.</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="223"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="712"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="713"/>
         <source>Add Term</source>
         <translation>Add Term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="233"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="234"/>
         <source>Create a glossary profile</source>
         <translation>Create a glossary profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="234"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="398"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="235"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="399"/>
         <source>Profiles keep project context and important names scoped to a meeting or recording.</source>
         <translation>Profiles keep project context and important names scoped to a meeting or recording.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="235"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="513"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="236"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="514"/>
         <source>New Profile</source>
         <translation>New Profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="275"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="276"/>
         <source>Aliases: %1</source>
         <translation>Aliases: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="275"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="276"/>
         <source>No aliases</source>
         <translation>No aliases</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="282"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="682"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="283"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="683"/>
         <source>Priority %1</source>
         <translation>Priority %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="283"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="284"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="286"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="287"/>
         <source>Delete glossary term %1</source>
         <translation>Delete glossary term %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="295"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="296"/>
         <source>Prompt Preview</source>
         <translation>Prompt Preview</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="305"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="306"/>
         <source>No enabled terms are selected for this prompt.</source>
         <translation>No enabled terms are selected for this prompt.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="313"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="314"/>
         <source>Estimated tokens: %1 / %2</source>
         <translation>Estimated tokens: %1 / %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="324"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="325"/>
         <source>New Glossary Profile</source>
         <translation>New Glossary Profile</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="427"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="437"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="428"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="438"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="439"/>
         <source>Profile name</source>
         <translation>Profile name</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="448"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="458"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="449"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="459"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="460"/>
         <source>Description</source>
         <translation>Description</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="469"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="479"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="470"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="480"/>
         <source>Project context</source>
         <translation>Project context</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="480"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="481"/>
         <source>Project or meeting context</source>
         <translation>Project or meeting context</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="508"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="708"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="509"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="709"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="524"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="525"/>
         <source>Add Glossary Term</source>
         <translation>Add Glossary Term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="621"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="630"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="622"/>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="631"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="632"/>
         <source>Canonical term</source>
         <translation>Canonical term</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="641"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="650"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="642"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="651"/>
         <source>Aliases</source>
         <translation>Aliases</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="651"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="652"/>
         <source>Aliases separated by commas</source>
         <translation>Aliases separated by commas</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="661"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="662"/>
         <source>Priority</source>
         <translation>Priority</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="677"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="678"/>
         <source>Term priority</source>
         <translation>Term priority</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="722"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="723"/>
         <source>Import Glossary</source>
         <translation>Import Glossary</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="724"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="725"/>
         <source>Glossary files (*.json *.csv)</source>
         <translation>Glossary files (*.json *.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="724"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="725"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="729"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="730"/>
         <source>Export Glossary as JSON</source>
         <translation>Export Glossary as JSON</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="731"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="732"/>
         <source>JSON file (*.json)</source>
         <translation>JSON file (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="737"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="738"/>
         <source>Export Glossary Terms as CSV</source>
         <translation>Export Glossary Terms as CSV</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="739"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="740"/>
         <source>CSV file (*.csv)</source>
         <translation>CSV file (*.csv)</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="747"/>
+        <source>Delete glossary profile permanently?</source>
+        <translation>Delete glossary profile permanently?</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="754"/>
+        <source>This deletes the profile and all of its terms. This cannot be undone.</source>
+        <translation>This deletes the profile and all of its terms. This cannot be undone.</translation>
     </message>
 </context>
 <context>
@@ -1061,12 +1069,12 @@
 <context>
     <name>LibraryPage</name>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="38"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="39"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="47"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="48"/>
         <source>Your offline recordings and transcripts</source>
         <translation>Your offline recordings and transcripts</translation>
     </message>
@@ -1075,97 +1083,97 @@
         <translation type="vanished">Import Media</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="73"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="74"/>
         <source>Import Files</source>
         <translation>Import Files</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="79"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="80"/>
         <source>Open Folder</source>
         <translation>Open Folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="106"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="107"/>
         <source>Sort recordings</source>
         <translation>Sort recordings</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="107"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="108"/>
         <source>Newest first</source>
         <translation>Newest first</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="107"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="108"/>
         <source>Oldest first</source>
         <translation>Oldest first</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="107"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="108"/>
         <source>Title A–Z</source>
         <translation>Title A–Z</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="107"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="108"/>
         <source>Title Z–A</source>
         <translation>Title Z–A</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="118"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="119"/>
         <source>Filter by review state</source>
         <translation>Filter by review state</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="119"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="120"/>
         <source>All recordings</source>
         <translation>All recordings</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="119"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="120"/>
         <source>Reviewed</source>
         <translation>Reviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="119"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="120"/>
         <source>Unreviewed</source>
         <translation>Unreviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="140"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="141"/>
         <source>Scanning folder</source>
         <translation>Scanning folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="151"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="152"/>
         <source>Importing %1 of %2…</source>
         <translation>Importing %1 of %2…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="154"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="155"/>
         <source>Scanning folder…</source>
         <translation>Scanning folder…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="160"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="161"/>
         <source>Cancel</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="168"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="170"/>
         <source>No matching recordings</source>
         <translation>No matching recordings</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="168"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="170"/>
         <source>Import your first recording</source>
         <translation>Import your first recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="170"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="172"/>
         <source>Try a different title, tag, or note.</source>
         <translation>Try a different title, tag, or note.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="171"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="173"/>
         <source>Audio and video remain on this computer. %1 prepares them for offline transcription.</source>
         <translation>Audio and video remain on this computer. %1 prepares them for offline transcription.</translation>
     </message>
@@ -1174,48 +1182,58 @@
         <translation type="vanished">Audio and video remain on this computer. BreezeDesk prepares them for offline transcription.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="172"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="174"/>
         <source>Choose Files</source>
         <translation>Choose Files</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="224"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="203"/>
+        <source>Moved to Trash.</source>
+        <translation>Moved to Trash.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="203"/>
+        <source>Undo</source>
+        <translation>Undo</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="235"/>
         <source>Rename Recording</source>
         <translation>Rename Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="232"/>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="233"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="243"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="244"/>
         <source>Recording title</source>
         <translation>Recording title</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="241"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="252"/>
         <source>Edit Tags</source>
         <translation>Edit Tags</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="252"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="263"/>
         <source>meeting, product, customer</source>
         <translation>meeting, product, customer</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="253"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="264"/>
         <source>Comma-separated recording tags</source>
         <translation>Comma-separated recording tags</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="258"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="269"/>
         <source>Separate tags with commas.</source>
         <translation>Separate tags with commas.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="270"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="286"/>
         <source>Relink Recording Source</source>
         <translation>Relink Recording Source</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="273"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="289"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
@@ -1232,7 +1250,7 @@
         <translation>Microphone recording is unavailable in this build.</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="104"/>
+        <location filename="../src/qml/Main.qml" line="126"/>
         <source>Diagnostics export is unavailable in this build.</source>
         <translation>Diagnostics export is unavailable in this build.</translation>
     </message>
@@ -1241,132 +1259,132 @@
         <translation type="vanished">BreezeDesk logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="160"/>
+        <location filename="../src/qml/Main.qml" line="182"/>
         <source>%1 logo</source>
         <translation>%1 logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="182"/>
+        <location filename="../src/qml/Main.qml" line="204"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="183"/>
+        <location filename="../src/qml/Main.qml" line="205"/>
         <source>Queue</source>
         <translation>Queue</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="184"/>
+        <location filename="../src/qml/Main.qml" line="206"/>
         <source>Trash</source>
         <translation>Trash</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="185"/>
+        <location filename="../src/qml/Main.qml" line="207"/>
         <source>Models</source>
         <translation>Models</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="186"/>
+        <location filename="../src/qml/Main.qml" line="208"/>
         <source>Glossary</source>
         <translation>Glossary</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="208"/>
+        <location filename="../src/qml/Main.qml" line="230"/>
         <source>Import Media</source>
         <translation>Import Media</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="222"/>
+        <location filename="../src/qml/Main.qml" line="244"/>
         <source>Start Recording</source>
         <translation>Start Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="229"/>
+        <location filename="../src/qml/Main.qml" line="251"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="266"/>
+        <location filename="../src/qml/Main.qml" line="291"/>
         <source>Import Audio or Video</source>
         <translation>Import Audio or Video</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="269"/>
+        <location filename="../src/qml/Main.qml" line="294"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="270"/>
+        <location filename="../src/qml/Main.qml" line="295"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="278"/>
+        <location filename="../src/qml/Main.qml" line="303"/>
         <source>Import Media Folder</source>
         <translation>Import Media Folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="284"/>
+        <location filename="../src/qml/Main.qml" line="309"/>
         <source>Export Transcript</source>
         <translation>Export Transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="287"/>
+        <location filename="../src/qml/Main.qml" line="312"/>
         <source>Plain text (*.txt)</source>
         <translation>Plain text (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="288"/>
+        <location filename="../src/qml/Main.qml" line="313"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="289"/>
+        <location filename="../src/qml/Main.qml" line="314"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip subtitles (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="290"/>
+        <location filename="../src/qml/Main.qml" line="315"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT subtitles (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="291"/>
+        <location filename="../src/qml/Main.qml" line="316"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="292"/>
+        <location filename="../src/qml/Main.qml" line="317"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="302"/>
+        <location filename="../src/qml/Main.qml" line="327"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>Import a whisper.cpp GGML model</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="304"/>
+        <location filename="../src/qml/Main.qml" line="329"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML model (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="335"/>
+        <location filename="../src/qml/Main.qml" line="361"/>
         <source>Transcription is still running</source>
         <translation>Transcription is still running</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="343"/>
+        <location filename="../src/qml/Main.qml" line="369"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="352"/>
+        <location filename="../src/qml/Main.qml" line="378"/>
         <source>Continue in Background</source>
         <translation>Continue in Background</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="353"/>
+        <location filename="../src/qml/Main.qml" line="379"/>
         <source>Quit and Resume Later</source>
         <translation>Quit and Resume Later</translation>
     </message>
@@ -1476,6 +1494,29 @@
         <location filename="../src/qml/components/ModelCard.qml" line="154"/>
         <source>Delete model</source>
         <translation>Delete model</translation>
+    </message>
+</context>
+<context>
+    <name>ModelRequiredDialog</name>
+    <message>
+        <location filename="../src/qml/dialogs/ModelRequiredDialog.qml" line="9"/>
+        <source>No transcription model installed</source>
+        <translation>No transcription model installed</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/dialogs/ModelRequiredDialog.qml" line="17"/>
+        <source>Download the recommended model or import a GGML model before adding recordings to the queue.</source>
+        <translation>Download the recommended model or import a GGML model before adding recordings to the queue.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/dialogs/ModelRequiredDialog.qml" line="28"/>
+        <source>Cancel</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/dialogs/ModelRequiredDialog.qml" line="33"/>
+        <source>Go to Models</source>
+        <translation>Go to Models</translation>
     </message>
 </context>
 <context>
@@ -1666,12 +1707,12 @@
         <translation>Clear Completed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="71"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="72"/>
         <source>The queue is empty</source>
         <translation>The queue is empty</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="72"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="73"/>
         <source>Open a recording from Library and add it to the transcription queue.</source>
         <translation>Open a recording from Library and add it to the transcription queue.</translation>
     </message>
@@ -1679,17 +1720,17 @@
 <context>
     <name>RecordingCard</name>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="93"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="94"/>
         <source>Reviewed</source>
         <translation>Reviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="93"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="94"/>
         <source>Unreviewed</source>
         <translation>Unreviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="124"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="125"/>
         <source>Tags: %1</source>
         <translation>Tags: %1</translation>
     </message>
@@ -1698,7 +1739,7 @@
         <translation type="vanished">Actions</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="144"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="145"/>
         <source>Actions for %1</source>
         <translation>Actions for %1</translation>
     </message>
@@ -1707,52 +1748,57 @@
         <translation type="vanished">Trash</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="28"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="29"/>
         <source>Open recording details</source>
         <translation>Open recording details</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="158"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="155"/>
         <source>Move %1 to Trash</source>
         <translation>Move %1 to Trash</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="167"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="164"/>
         <source>Open Recording</source>
         <translation>Open Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="172"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="169"/>
+        <source>Transcribe</source>
+        <translation>Transcribe</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/components/RecordingCard.qml" line="174"/>
         <source>Rename…</source>
         <translation>Rename…</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="176"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="178"/>
         <source>Show in Finder / Explorer</source>
         <translation>Show in Finder / Explorer</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="180"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="182"/>
         <source>Relink Missing Source…</source>
         <translation>Relink Missing Source…</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="180"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="182"/>
         <source>Relink Source…</source>
         <translation>Relink Source…</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="185"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="187"/>
         <source>Edit Tags…</source>
         <translation>Edit Tags…</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="190"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="192"/>
         <source>Mark as Unreviewed</source>
         <translation>Mark as Unreviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/RecordingCard.qml" line="190"/>
+        <location filename="../src/qml/components/RecordingCard.qml" line="192"/>
         <source>Mark as Reviewed</source>
         <translation>Mark as Reviewed</translation>
     </message>
@@ -1760,77 +1806,82 @@
 <context>
     <name>RecordingDialog</name>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="14"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="15"/>
         <source>Record from Microphone</source>
         <translation>Record from Microphone</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="50"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="51"/>
         <source>Input device</source>
         <translation>Input device</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="51"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="52"/>
         <source>Recordings are saved as local PCM WAV files.</source>
         <translation>Recordings are saved as local PCM WAV files.</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="57"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="58"/>
         <source>Microphone input device</source>
         <translation>Microphone input device</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="81"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="82"/>
         <source>Paused</source>
         <translation>Paused</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="82"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="83"/>
         <source>Recording</source>
         <translation>Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="83"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="84"/>
         <source>Ready</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="90"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="91"/>
         <source>Recording duration</source>
         <translation>Recording duration</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="95"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="96"/>
         <source>Input level</source>
         <translation>Input level</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="103"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="104"/>
         <source>Microphone input level</source>
         <translation>Microphone input level</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="124"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="113"/>
+        <source>Transcribe automatically after recording</source>
+        <translation>Transcribe automatically after recording</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="134"/>
         <source>Start Recording</source>
         <translation>Start Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="134"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="144"/>
         <source>Resume</source>
         <translation>Resume</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="134"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="144"/>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="139"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="149"/>
         <source>Stop and Save</source>
         <translation>Stop and Save</translation>
     </message>
     <message>
-        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="145"/>
+        <location filename="../src/qml/dialogs/RecordingDialog.qml" line="155"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
@@ -1838,28 +1889,28 @@
 <context>
     <name>RecordingPage</name>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="119"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="131"/>
         <source>Transcribe</source>
         <translation>Transcribe</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="120"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="132"/>
         <source>Export</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="124"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="519"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="136"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="530"/>
         <source>Details</source>
         <translation>Details</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="125"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="137"/>
         <source>Show recording details</source>
         <translation>Show recording details</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="160"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="172"/>
         <source>Recording waveform</source>
         <translation>Recording waveform</translation>
     </message>
@@ -1868,17 +1919,17 @@
         <translation type="vanished">−5 s</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="200"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="213"/>
         <source>Back 5 seconds</source>
         <translation>Back 5 seconds</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="214"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="225"/>
         <source>Pause</source>
         <translation>Pause</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="214"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="225"/>
         <source>Play</source>
         <translation>Play</translation>
     </message>
@@ -1887,137 +1938,147 @@
         <translation type="vanished">+5 s</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="35"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="47"/>
         <source>Duration</source>
         <translation>Duration</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="41"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="53"/>
         <source>Status</source>
         <translation>Status</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="47"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="59"/>
         <source>Model</source>
         <translation>Model</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="222"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="232"/>
         <source>Forward 5 seconds</source>
         <translation>Forward 5 seconds</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="237"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="245"/>
         <source>Playback position</source>
         <translation>Playback position</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="254"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="263"/>
         <source>Playback rate</source>
         <translation>Playback rate</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="261"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="270"/>
         <source>Mute</source>
         <translation>Mute</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="273"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="282"/>
         <source>Volume</source>
         <translation>Volume</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="276"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="285"/>
         <source>Loop selection</source>
         <translation>Loop selection</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="289"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="298"/>
         <source>Live transcription — editing locked</source>
         <translation>Live transcription — editing locked</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="308"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="317"/>
         <source>Find in transcript</source>
         <translation>Find in transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="311"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="320"/>
         <source>Low confidence</source>
         <translation>Low confidence</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="322"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="331"/>
         <source>Previous</source>
         <translation>Previous</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="331"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="338"/>
         <source>Next</source>
         <translation>Next</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="341"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="346"/>
         <source>Undo</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="350"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="353"/>
         <source>Redo</source>
         <translation>Redo</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="359"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="360"/>
+        <source>Copy Transcript</source>
+        <translation>Copy Transcript</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="364"/>
+        <source>Transcript copied to clipboard.</source>
+        <translation>Transcript copied to clipboard.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="370"/>
         <source>Save Changes</source>
         <translation>Save Changes</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="359"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="370"/>
         <source>Saved</source>
         <translation>Saved</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="373"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="383"/>
         <source>No transcript yet</source>
         <translation>No transcript yet</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="374"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="384"/>
         <source>Add this recording to the queue. Partial segments will appear here as each long-form unit completes.</source>
         <translation>Add this recording to the queue. Partial segments will appear here as each long-form unit completes.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="375"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="385"/>
         <source>Add to Queue</source>
         <translation>Add to Queue</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="384"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="394"/>
         <source>No matching segments</source>
         <translation>No matching segments</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="385"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="395"/>
         <source>Clear the search or low-confidence filter to show the transcript.</source>
         <translation>Clear the search or low-confidence filter to show the transcript.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="386"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="396"/>
         <source>Clear Filters</source>
         <translation>Clear Filters</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="493"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="504"/>
         <source>Close recording details</source>
         <translation>Close recording details</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="527"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="538"/>
         <source>Close</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="31"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="43"/>
         <source>Recording</source>
         <translation>Recording</translation>
     </message>
@@ -2034,17 +2095,17 @@
         <translation type="vanished">Model: %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="50"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="62"/>
         <source>Not transcribed</source>
         <translation>Not transcribed</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="63"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="75"/>
         <source>Transcript</source>
         <translation>Transcript</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/RecordingPage.qml" line="66"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="78"/>
         <source>%n segment(s)</source>
         <translation>
             <numerusform>%n segment(s)</numerusform>
@@ -2052,17 +2113,17 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="68"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="80"/>
         <source>Auto-scroll</source>
         <translation>Auto-scroll</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="73"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="85"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="79"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="91"/>
         <source>Recording notes</source>
         <translation>Recording notes</translation>
     </message>
@@ -2098,27 +2159,27 @@
         <translation>Transcript segment</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="137"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="138"/>
         <source>Segment text</source>
         <translation>Segment text</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="138"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="139"/>
         <source>Transcript text from %1 to %2</source>
         <translation>Transcript text from %1 to %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="169"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="170"/>
         <source>Low confidence</source>
         <translation>Low confidence</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="174"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="175"/>
         <source>Edited</source>
         <translation>Edited</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="179"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="180"/>
         <source>Glossary</source>
         <translation>Glossary</translation>
     </message>
@@ -2127,22 +2188,22 @@
         <translation type="vanished">Reviewed</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="203"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="204"/>
         <source>Split</source>
         <translation>Split</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="208"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="209"/>
         <source>Merge Prev</source>
         <translation>Merge Prev</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="213"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="214"/>
         <source>Merge Next</source>
         <translation>Merge Next</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="219"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="220"/>
         <source>Delete segment</source>
         <translation>Delete segment</translation>
     </message>
@@ -2151,32 +2212,32 @@
         <translation type="vanished">Delete</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="232"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="233"/>
         <source>Glossary replacements</source>
         <translation>Glossary replacements</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="252"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="253"/>
         <source>%1 → %2</source>
         <translation>%1 → %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="260"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="261"/>
         <source>Applied</source>
         <translation>Applied</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="260"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="261"/>
         <source>Reverted</source>
         <translation>Reverted</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="264"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="265"/>
         <source>Undo</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="264"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="265"/>
         <source>Apply</source>
         <translation>Apply</translation>
     </message>
@@ -2651,12 +2712,12 @@
 <context>
     <name>Toast</name>
     <message>
-        <location filename="../src/qml/components/Toast.qml" line="29"/>
+        <location filename="../src/qml/components/Toast.qml" line="74"/>
         <source>Dismiss</source>
         <translation>Dismiss</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/Toast.qml" line="30"/>
+        <location filename="../src/qml/components/Toast.qml" line="75"/>
         <source>Dismiss notification</source>
         <translation>Dismiss notification</translation>
     </message>
@@ -2678,22 +2739,22 @@
         <translation>Original source files are never deleted. Permanent delete removes only application-managed data and cache.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="32"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="33"/>
         <source>Trash is empty</source>
         <translation>Trash is empty</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="33"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="34"/>
         <source>Recordings moved here can be restored until permanently deleted.</source>
         <translation>Recordings moved here can be restored until permanently deleted.</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="62"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="63"/>
         <source>Restore</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="65"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="66"/>
         <source>Delete %1 permanently</source>
         <translation>Delete %1 permanently</translation>
     </message>
@@ -2702,12 +2763,12 @@
         <translation type="vanished">Delete Permanently</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="74"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="75"/>
         <source>Delete recording permanently?</source>
         <translation>Delete recording permanently?</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="80"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="82"/>
         <source>The transcript, managed media copy, and cache will be deleted. Your original source file stays untouched.</source>
         <translation>The transcript, managed media copy, and cache will be deleted. Your original source file stays untouched.</translation>
     </message>

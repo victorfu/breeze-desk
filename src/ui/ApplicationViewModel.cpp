@@ -8,11 +8,13 @@
 #include "breezedesk/transcript/ITranscriptRepository.h"
 #include "breezedesk/transcript/TranscriptExporter.h"
 
+#include <QClipboard>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
+#include <QGuiApplication>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStorageInfo>
@@ -736,6 +738,12 @@ void ApplicationViewModel::showToast(const QString& message) {
     }
     m_toastMessage = message;
     emit toastMessageChanged();
+}
+
+void ApplicationViewModel::copyToClipboard(const QString& text) const {
+    if (auto* clipboard = QGuiApplication::clipboard()) {
+        clipboard->setText(text);
+    }
 }
 
 void ApplicationViewModel::reloadActiveTranscript() {

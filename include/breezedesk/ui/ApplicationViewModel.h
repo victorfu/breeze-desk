@@ -80,6 +80,7 @@ class ApplicationViewModel : public QObject {
     Q_INVOKABLE void startRecording();
     Q_INVOKABLE void dismissToast();
     Q_INVOKABLE void showToast(const QString& message);
+    Q_INVOKABLE void copyToClipboard(const QString& text) const;
     Q_INVOKABLE void reloadActiveTranscript();
     void reloadTranscriptForJob(const QString& recordingId, const QString& jobId, bool editingLocked);
     void setManagedMediaCopyEnabled(bool enabled);

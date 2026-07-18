@@ -9,6 +9,7 @@ Item {
     required property var app
     signal importRequested
     signal folderImportRequested
+    signal toastRequested(string message, string severity, string actionText, var action)
     objectName: "libraryPage"
     readonly property int headerStackWidth: 760
     readonly property int toolbarStackWidth: 840
@@ -165,6 +166,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: root.vm.empty
+            iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/file-input.svg"
             title: root.vm.searchText.length > 0 ? qsTr("No matching recordings") : qsTr("Import your first recording")
             description: root.vm.searchText.length > 0
                          ? qsTr("Try a different title, tag, or note.")
@@ -189,8 +191,17 @@ Item {
                 onOpenRequested: function(recordingId) {
                     root.vm.activateRecording(recordingId)
                 }
+                onTranscribeRequested: function(recordingId) {
+                    if (root.app.modelManager.defaultModelReady)
+                        root.app.enqueueTranscription(recordingId)
+                    else
+                        modelRequiredDialog.open()
+                }
                 onTrashRequested: function(recordingId) {
-                    root.vm.moveToTrash(recordingId)
+                    const libraryVm = root.vm
+                    libraryVm.moveToTrash(recordingId)
+                    root.toastRequested(qsTr("Moved to Trash."), "info", qsTr("Undo"),
+                                        function() { libraryVm.restore(recordingId) })
                 }
                 onRenameRequested: function(recordingId, title) {
                     root.pendingRecordingId = recordingId
@@ -262,6 +273,11 @@ Item {
                 font.pixelSize: SemanticTokens.captionSize
             }
         }
+    }
+
+    ModelRequiredDialog {
+        id: modelRequiredDialog
+        app: root.app
     }
 
     FileDialog {

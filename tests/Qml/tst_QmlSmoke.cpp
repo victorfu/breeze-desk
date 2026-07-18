@@ -338,6 +338,7 @@ class tst_QmlSmoke final : public QObject {
                 height: 320
                 visible: true
                 property int openRequests: 0
+                property real expectedCardPadding: ComponentTokens.cardPadding
 
                 RemoveButton {
                     id: removeButton
@@ -397,6 +398,7 @@ class tst_QmlSmoke final : public QObject {
             recordingCard,
             QRectF(0.0, 0.0, recordingActionRow->width(), recordingActionRow->height()));
         const qreal cardPadding = recordingCard->property("padding").toReal();
+        QCOMPARE(cardPadding, root->property("expectedCardPadding").toReal());
         QVERIFY2(actionRowRect.top() <= cardPadding + 0.5,
                  "Recording action icons must be aligned to the card's top edge.");
         QVERIFY2(recordingCard->width() - actionRowRect.right() <= cardPadding + 0.5,
@@ -2112,6 +2114,408 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(second.exportPath(), exportPath);
         QVERIFY(second.automaticUpdates());
         QCOMPARE(second.updateChannel(), QStringLiteral("Beta"));
+    }
+
+    void dangerStylingIsAppliedToDestructiveActions() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                width: 640
+                height: 480
+                visible: true
+
+                AppButton {
+                    objectName: "fixtureDangerButton"
+                    x: 24
+                    y: 24
+                    danger: true
+                    text: "Delete"
+                }
+                AppDialog {
+                    objectName: "fixtureDestructiveDialog"
+                    title: "Delete permanently?"
+                    destructive: true
+                    standardButtons: Dialog.Cancel | Dialog.Ok
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:DangerStylingHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        QQmlComponent tokenProbe(&engine);
+        tokenProbe.setData(R"(
+            import QtQuick
+            import BreezeDesk
+            QtObject {
+                property color danger: SemanticTokens.danger
+                property color textOnAccent: SemanticTokens.textOnAccent
+            }
+        )",
+                           QUrl(QStringLiteral("inline:DangerTokenProbe.qml")));
+        QScopedPointer<QObject> tokens(tokenProbe.create());
+        QVERIFY2(tokens, qPrintable(tokenProbe.errorString()));
+        const QColor dangerColor = tokens->property("danger").value<QColor>();
+
+        auto* dangerButton = root->findChild<QQuickItem*>(QStringLiteral("fixtureDangerButton"));
+        QVERIFY(dangerButton);
+        auto* dangerBackground = dangerButton->property("background").value<QQuickItem*>();
+        QVERIFY(dangerBackground);
+        QCOMPARE(dangerBackground->property("color").value<QColor>(), dangerColor);
+
+        QObject* dialog = root->findChild<QObject*>(QStringLiteral("fixtureDestructiveDialog"));
+        QVERIFY(dialog);
+        QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
+        QTRY_VERIFY_WITH_TIMEOUT(dialog->property("visible").toBool(), 1'000);
+        QCoreApplication::processEvents();
+
+        auto* footer = root->findChild<QQuickItem*>(QStringLiteral("appDialogFooter"));
+        QVERIFY(footer);
+        QList<QQuickItem*> footerButtons;
+        for (QQuickItem* candidate : footer->findChildren<QQuickItem*>()) {
+            if (candidate->property("danger").isValid() && candidate->property("primary").isValid()) {
+                footerButtons.append(candidate);
+            }
+        }
+        QCOMPARE(footerButtons.size(), 2);
+        QQuickItem* destructiveDelegate = nullptr;
+        for (QQuickItem* button : std::as_const(footerButtons)) {
+            QVERIFY2(!button->property("primary").toBool(),
+                     "A destructive dialog must not render an accent-primary confirm button.");
+            if (button->property("danger").toBool()) {
+                QVERIFY2(destructiveDelegate == nullptr,
+                         "Only the accept-role delegate may carry the danger style.");
+                destructiveDelegate = button;
+            }
+        }
+        QVERIFY2(destructiveDelegate, "The destructive dialog confirm button lost its danger style.");
+        auto* delegateBackground = destructiveDelegate->property("background").value<QQuickItem*>();
+        QVERIFY(delegateBackground);
+        QCOMPARE(delegateBackground->property("color").value<QColor>(), dangerColor);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void iconButtonsProvideBuiltInTooltips() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                width: 640
+                height: 320
+                visible: true
+
+                IconButton {
+                    objectName: "fixtureIconButton"
+                    accessibleName: "Fixture action"
+                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/save.svg"
+                }
+                RemoveButton {
+                    objectName: "fixtureRemoveButton"
+                    y: 48
+                    accessibleName: "Remove fixture"
+                }
+                AppButton {
+                    objectName: "fixtureLabeledButton"
+                    y: 96
+                    text: "Save"
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:TooltipDefaultsHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* iconButton = root->findChild<QQuickItem*>(QStringLiteral("fixtureIconButton"));
+        auto* removeButton = root->findChild<QQuickItem*>(QStringLiteral("fixtureRemoveButton"));
+        auto* labeledButton = root->findChild<QQuickItem*>(QStringLiteral("fixtureLabeledButton"));
+        QVERIFY(iconButton);
+        QVERIFY(removeButton);
+        QVERIFY(labeledButton);
+        QCOMPARE(iconButton->property("toolTipText").toString(), QStringLiteral("Fixture action"));
+        QCOMPARE(removeButton->property("toolTipText").toString(), QStringLiteral("Remove fixture"));
+        QVERIFY2(labeledButton->property("toolTipText").toString().isEmpty(),
+                 "Labelled buttons must not sprout tooltips by default.");
+    }
+
+    void recordingCardOffersTranscribeShortcut() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                width: 640
+                height: 320
+                visible: true
+                property int transcribeRequests: 0
+
+                RecordingCard {
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    recordingId: "recording-id"
+                    title: "Fixture recording"
+                    durationMs: 1000
+                    createdAt: new Date(0)
+                    status: "Imported"
+                    modelName: ""
+                    tags: []
+                    reviewState: "Unreviewed"
+                    progress: 0
+                    sourceMissing: false
+                    onTranscribeRequested: function(id) {
+                        if (id === "recording-id") {
+                            transcribeRequests += 1
+                        }
+                    }
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:TranscribeShortcutHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        QObject* transcribeMenuItem =
+            root->findChild<QObject*>(QStringLiteral("recordingTranscribeMenuItem"));
+        QVERIFY(transcribeMenuItem);
+        QVERIFY(QMetaObject::invokeMethod(transcribeMenuItem, "triggered", Qt::DirectConnection));
+        QCOMPARE(root->property("transcribeRequests").toInt(), 1);
+    }
+
+    void toastQueuePresentsSeveritiesSequentially() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString()));
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        QVERIFY(window);
+        window->show();
+        QCoreApplication::processEvents();
+
+        QQmlComponent tokenProbe(&engine);
+        tokenProbe.setData(R"(
+            import QtQuick
+            import BreezeDesk
+            QtObject {
+                property color accent: SemanticTokens.accent
+                property color success: SemanticTokens.success
+                property color surfaceRaised: SemanticTokens.surfaceRaised
+            }
+        )",
+                           QUrl(QStringLiteral("inline:ToastTokenProbe.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(tokenProbe.status() != QQmlComponent::Loading, 1'000);
+        QScopedPointer<QObject> tokens(tokenProbe.create());
+        QVERIFY2(tokens, qPrintable(tokenProbe.errorString()));
+
+        const auto showToast = [&root](const QString& message, const QString& severity,
+                                       const QString& actionText) {
+            return QMetaObject::invokeMethod(root.data(), "showToast", Q_ARG(QVariant, message),
+                                             Q_ARG(QVariant, severity), Q_ARG(QVariant, actionText),
+                                             Q_ARG(QVariant, QVariant()));
+        };
+
+        QObject* toast = root->findChild<QObject*>(QStringLiteral("appToast"));
+        QVERIFY(toast);
+        QVERIFY(showToast(QStringLiteral("first"), QStringLiteral("info"), QString()));
+        QTRY_VERIFY_WITH_TIMEOUT(toast->property("opened").toBool(), 1'000);
+        QCOMPARE(toast->property("message").toString(), QStringLiteral("first"));
+
+        auto* strip = root->findChild<QQuickItem*>(QStringLiteral("appToastSeverityStrip"));
+        QVERIFY(strip);
+        QCOMPARE(strip->property("color").value<QColor>(), tokens->property("accent").value<QColor>());
+        auto* background = toast->property("background").value<QQuickItem*>();
+        QVERIFY(background);
+        QCOMPARE(background->property("color").value<QColor>(),
+                 tokens->property("surfaceRaised").value<QColor>());
+
+        QVERIFY(showToast(QStringLiteral("second"), QStringLiteral("success"), QStringLiteral("Undo")));
+        QCOMPARE(toast->property("message").toString(), QStringLiteral("first"));
+
+        QVERIFY(QMetaObject::invokeMethod(toast, "close"));
+        QTRY_COMPARE_WITH_TIMEOUT(toast->property("message").toString(), QStringLiteral("second"), 1'000);
+        QTRY_VERIFY_WITH_TIMEOUT(toast->property("opened").toBool(), 1'000);
+        QCOMPARE(strip->property("color").value<QColor>(), tokens->property("success").value<QColor>());
+        auto* actionButton = root->findChild<QQuickItem*>(QStringLiteral("appToastActionButton"));
+        QVERIFY(actionButton);
+        QVERIFY2(actionButton->property("visible").toBool(),
+                 "A toast with an action label must show its action button.");
+        QVERIFY(QMetaObject::invokeMethod(actionButton, "clicked", Qt::DirectConnection));
+        QTRY_VERIFY_WITH_TIMEOUT(!toast->property("opened").toBool(), 1'000);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void defaultModelReadyTracksInstallState() {
+        BreezeDesk::ModelManagerViewModel viewModel;
+        QVERIFY2(!viewModel.defaultModelReady(),
+                 "Without any installed model the default model must not report ready.");
+        QSignalSpy readySpy(&viewModel, &BreezeDesk::ModelManagerViewModel::defaultModelReadyChanged);
+
+        viewModel.updateInstalled(QStringLiteral("breeze-asr-25-q5"), true, true);
+        QVERIFY(viewModel.defaultModelReady());
+        QCOMPARE(readySpy.count(), 1);
+
+        viewModel.updateInstalled(QStringLiteral("breeze-asr-25-q5"), false, false);
+        QVERIFY(!viewModel.defaultModelReady());
+        QCOMPARE(readySpy.count(), 2);
+
+        viewModel.updateInstalled(QStringLiteral("breeze-asr-25-q8"), true, true);
+        QVERIFY2(!viewModel.defaultModelReady(),
+                 "Installing a non-default model must not report the default as ready.");
+        viewModel.setDefaultModel(QStringLiteral("breeze-asr-25-q8"));
+        QVERIFY(viewModel.defaultModelReady());
+    }
+
+    void glossaryProfileDeleteRequiresConfirmation() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("glossary.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteGlossaryRepository repository(database);
+        BreezeDesk::GlossaryViewModel glossaryViewModel;
+        glossaryViewModel.installRepository(&repository);
+        const QString profileId = glossaryViewModel.createProfile(
+            QStringLiteral("Product"), QString(), QString());
+        QVERIFY(!profileId.isEmpty());
+        glossaryViewModel.setProperty("selectedProfileId", profileId);
+
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                id: host
+                required property var glossaryVm
+                width: 980
+                height: 720
+                visible: true
+
+                GlossaryPage {
+                    anchors.fill: parent
+                    vm: host.glossaryVm
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:GlossaryDeleteConfirmHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.createWithInitialProperties(
+            {{QStringLiteral("glossaryVm"), QVariant::fromValue<QObject*>(&glossaryViewModel)}}));
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* deleteButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryDeleteProfileButton"));
+        QObject* confirmDialog =
+            root->findChild<QObject*>(QStringLiteral("glossaryDeleteProfileDialog"));
+        QVERIFY(deleteButton);
+        QVERIFY(confirmDialog);
+        QVERIFY(deleteButton->property("enabled").toBool());
+
+        QVERIFY(QMetaObject::invokeMethod(deleteButton, "clicked", Qt::DirectConnection));
+        QTRY_VERIFY_WITH_TIMEOUT(confirmDialog->property("visible").toBool(), 1'000);
+        QCOMPARE(glossaryViewModel.profiles()->rowCount(), 1);
+        QVERIFY2(confirmDialog->property("destructive").toBool(),
+                 "The profile delete confirmation must use the destructive dialog style.");
+
+        QVERIFY(QMetaObject::invokeMethod(confirmDialog, "accept"));
+        QTRY_COMPARE_WITH_TIMEOUT(glossaryViewModel.profiles()->rowCount(), 0, 1'000);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void recordingDialogExposesAutoTranscribeToggle() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        FakeRecorder recorder;
+        BreezeDesk::ApplicationViewModel appViewModel;
+        QVERIFY(!appViewModel.settings()->autoTranscribeRecording());
+
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                id: host
+                required property var recorderVm
+                property var settingsVm: null
+                width: 640
+                height: 480
+                visible: true
+
+                RecordingDialog {
+                    objectName: "fixtureRecordingDialog"
+                    recorder: host.recorderVm
+                    settings: host.settingsVm
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:AutoTranscribeToggleHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.createWithInitialProperties(
+            {{QStringLiteral("recorderVm"), QVariant::fromValue<QObject*>(&recorder)}}));
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        QVERIFY(window);
+        window->show();
+        QCoreApplication::processEvents();
+
+        QObject* dialog = root->findChild<QObject*>(QStringLiteral("fixtureRecordingDialog"));
+        QVERIFY(dialog);
+        QVERIFY(QMetaObject::invokeMethod(dialog, "open"));
+        QTRY_VERIFY_WITH_TIMEOUT(dialog->property("visible").toBool(), 1'000);
+
+        QObject* toggle = root->findChild<QObject*>(QStringLiteral("recordingAutoTranscribeToggle"));
+        QVERIFY(toggle);
+        QVERIFY2(!toggle->property("visible").toBool(),
+                 "Without settings the auto-transcribe toggle must stay hidden.");
+
+        QVERIFY(root->setProperty("settingsVm",
+                                  QVariant::fromValue<QObject*>(appViewModel.settings())));
+        QTRY_VERIFY_WITH_TIMEOUT(toggle->property("visible").toBool(), 1'000);
+        QVERIFY(!toggle->property("checked").toBool());
+
+        QVERIFY(QMetaObject::invokeMethod(toggle, "click"));
+        QTRY_VERIFY_WITH_TIMEOUT(appViewModel.settings()->autoTranscribeRecording(), 1'000);
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 
     void modelDefaultSurvivesServiceRecreation() {

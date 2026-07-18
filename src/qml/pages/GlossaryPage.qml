@@ -122,7 +122,7 @@ Item {
                         Layout.alignment: Qt.AlignRight
                         enabled: root.vm.selectedProfileId.length > 0
                         accessibleName: qsTr("Delete glossary profile")
-                        onClicked: root.vm.deleteProfile(root.vm.selectedProfileId)
+                        onClicked: confirmDeleteProfile.open()
                     }
                 }
                 GridLayout {
@@ -230,6 +230,7 @@ Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: root.vm.selectedProfileId.length === 0
+                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
                 title: qsTr("Create a glossary profile")
                 description: qsTr("Profiles keep project context and important names scoped to a meeting or recording.")
                 actionText: qsTr("New Profile")
@@ -739,5 +740,22 @@ Item {
         nameFilters: [qsTr("CSV file (*.csv)")]
         defaultSuffix: "csv"
         onAccepted: root.vm.exportFile(selectedFile, "csv")
+    }
+    AppDialog {
+        id: confirmDeleteProfile
+        objectName: "glossaryDeleteProfileDialog"
+        title: qsTr("Delete glossary profile permanently?")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
+        destructive: true
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        onAccepted: root.vm.deleteProfile(root.vm.selectedProfileId)
+        Text {
+            width: parent.width
+            text: qsTr("This deletes the profile and all of its terms. This cannot be undone.")
+            wrapMode: Text.Wrap
+            color: SemanticTokens.text
+            font.family: SemanticTokens.fontFamily
+            font.pixelSize: SemanticTokens.bodySize
+        }
     }
 }

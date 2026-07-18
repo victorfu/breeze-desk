@@ -53,6 +53,7 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         acceptedButtons: Qt.LeftButton
+        cursorShape: Qt.PointingHandCursor
         propagateComposedEvents: true
         onClicked: function(mouse) {
             root.selectedRequested(root.modelIndex)

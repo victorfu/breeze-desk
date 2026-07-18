@@ -22,6 +22,10 @@ Button {
              + String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0")
     }
     onClicked: seekRequested(milliseconds)
+    HoverHandler {
+        enabled: control.enabled
+        cursorShape: Qt.PointingHandCursor
+    }
     TapHandler {
         acceptedButtons: Qt.LeftButton
         margin: Math.max(0, (ComponentTokens.clickTarget - control.height) / 2)

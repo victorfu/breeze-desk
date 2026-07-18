@@ -6,6 +6,8 @@ T.Button {
     id: control
     property string accessibleName: text
     property bool primary: false
+    property bool danger: false
+    property string toolTipText: ""
     property url iconSource
     property int contentAlignment: Qt.AlignHCenter
     property int iconSize: 18
@@ -16,8 +18,12 @@ T.Button {
     padding: SemanticTokens.spacingSm
     font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
+    hoverEnabled: true
     Accessible.name: accessibleName
     Accessible.role: Accessible.Button
+    T.ToolTip.visible: control.hovered && control.toolTipText.length > 0
+    T.ToolTip.text: control.toolTipText
+    T.ToolTip.delay: 500
     contentItem: Item {
         implicitWidth: buttonContents.implicitWidth
         implicitHeight: buttonContents.implicitHeight
@@ -43,7 +49,7 @@ T.Button {
                 visible: String(control.iconSource).length > 0
                 source: control.iconSource
                 iconSize: control.iconSize
-                color: control.primary ? SemanticTokens.textOnAccent : SemanticTokens.text
+                color: control.primary || control.danger ? SemanticTokens.textOnAccent : SemanticTokens.text
             }
             Text {
                 id: label
@@ -54,7 +60,7 @@ T.Button {
                 Layout.preferredWidth: implicitWidth
                 Layout.leftMargin: icon.visible ? control.contentSpacing : 0
                 text: control.text
-                color: control.primary ? SemanticTokens.textOnAccent : SemanticTokens.text
+                color: control.primary || control.danger ? SemanticTokens.textOnAccent : SemanticTokens.text
                 font: control.font
                 elide: Text.ElideRight
                 maximumLineCount: 1
@@ -68,9 +74,11 @@ T.Button {
     }
     background: Rectangle {
         radius: SemanticTokens.radiusSm
-        color: control.primary
-               ? (control.down ? SemanticTokens.accentStrong : SemanticTokens.accent)
-               : (control.down ? SemanticTokens.surfaceMuted : SemanticTokens.surface)
+        color: control.danger
+               ? (control.down || control.hovered ? SemanticTokens.dangerStrong : SemanticTokens.danger)
+               : control.primary
+                 ? (control.down || control.hovered ? SemanticTokens.accentStrong : SemanticTokens.accent)
+                 : (control.down || control.hovered ? SemanticTokens.surfaceMuted : SemanticTokens.surface)
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
         border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
         opacity: control.enabled ? 1.0 : 0.5

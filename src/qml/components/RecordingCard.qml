@@ -15,6 +15,7 @@ ItemDelegate {
     required property real progress
     required property bool sourceMissing
     signal openRequested(string id)
+    signal transcribeRequested(string id)
     signal trashRequested(string id)
     signal renameRequested(string id, string title)
     signal revealRequested(string id)
@@ -23,7 +24,7 @@ ItemDelegate {
     signal reviewRequested(string id, bool reviewed)
     readonly property string displayedStatus: UiText.recordingStatus(status)
     implicitHeight: Math.max(72, contentItem.implicitHeight + topPadding + bottomPadding)
-    padding: SemanticTokens.spacingSm
+    padding: ComponentTokens.cardPadding
     Accessible.name: title + ", " + displayedStatus
     Accessible.description: qsTr("Open recording details")
     onClicked: openRequested(recordingId)
@@ -144,10 +145,6 @@ ItemDelegate {
                 accessibleName: qsTr("Actions for %1").arg(control.title)
                 iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/ellipsis.svg"
 
-                ToolTip.visible: hovered
-                ToolTip.text: accessibleName
-                ToolTip.delay: 500
-
                 onClicked: actionsMenu.popup(
                                actionsButton,
                                actionsButton.width - actionsMenu.implicitWidth,
@@ -166,6 +163,11 @@ ItemDelegate {
                 objectName: "recordingOpenMenuItem"
                 text: qsTr("Open Recording")
                 onTriggered: control.openRequested(control.recordingId)
+            }
+            AppMenuItem {
+                objectName: "recordingTranscribeMenuItem"
+                text: qsTr("Transcribe")
+                onTriggered: control.transcribeRequested(control.recordingId)
             }
             AppMenuSeparator { }
             AppMenuItem {

@@ -288,6 +288,11 @@ bool ModelListModel::isLoaded(const QString& id) const {
     return row >= 0 && m_models.at(row).loaded;
 }
 
+bool ModelListModel::isInstalled(const QString& id) const {
+    const int row = indexOf(id);
+    return row >= 0 && m_models.at(row).installed;
+}
+
 int ModelListModel::indexOf(const QString& id) const {
     for (int i = 0; i < m_models.size(); ++i) {
         if (m_models.at(i).id == id) {
@@ -301,7 +306,19 @@ void ModelListModel::emitRowChanged(int row) {
     emit dataChanged(index(row), index(row));
 }
 
-ModelManagerViewModel::ModelManagerViewModel(QObject* parent) : QObject(parent) {}
+ModelManagerViewModel::ModelManagerViewModel(QObject* parent) : QObject(parent) {
+    connect(&m_models, &QAbstractItemModel::dataChanged, this,
+            &ModelManagerViewModel::refreshDefaultModelReady);
+    connect(&m_models, &QAbstractItemModel::modelReset, this,
+            &ModelManagerViewModel::refreshDefaultModelReady);
+    connect(&m_models, &QAbstractItemModel::rowsInserted, this,
+            &ModelManagerViewModel::refreshDefaultModelReady);
+    connect(&m_models, &QAbstractItemModel::rowsRemoved, this,
+            &ModelManagerViewModel::refreshDefaultModelReady);
+    connect(this, &ModelManagerViewModel::defaultModelChanged, this,
+            &ModelManagerViewModel::refreshDefaultModelReady);
+    refreshDefaultModelReady();
+}
 
 void ModelManagerViewModel::installServices(ModelManager* modelManager,
                                             ModelSettingsManager* settingsManager) {
@@ -346,6 +363,19 @@ QString ModelManagerViewModel::actualBackend() const {
 
 QString ModelManagerViewModel::runtimeVersion() const {
     return m_runtimeVersion;
+}
+
+bool ModelManagerViewModel::defaultModelReady() const {
+    return m_defaultModelReady;
+}
+
+void ModelManagerViewModel::refreshDefaultModelReady() {
+    const bool ready = m_models.isInstalled(m_defaultModelId);
+    if (m_defaultModelReady == ready) {
+        return;
+    }
+    m_defaultModelReady = ready;
+    emit defaultModelReadyChanged();
 }
 
 void ModelManagerViewModel::download(const QString& id) {

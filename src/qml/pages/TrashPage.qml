@@ -29,6 +29,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: root.vm.trashEmpty
+            iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
             title: qsTr("Trash is empty")
             description: qsTr("Recordings moved here can be restored until permanently deleted.")
         }
@@ -73,6 +74,7 @@ Item {
         id: confirmDelete
         title: qsTr("Delete recording permanently?")
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
+        destructive: true
         standardButtons: Dialog.Cancel | Dialog.Ok
         onAccepted: root.vm.deletePermanently(root.pendingDeleteId)
         Text {

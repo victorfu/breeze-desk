@@ -6,6 +6,7 @@ AppDialog {
     id: control
 
     required property var recorder
+    property var settings: null
     property string errorMessage: ""
 
     signal startRequested()
@@ -103,6 +104,15 @@ AppDialog {
                     Accessible.name: qsTr("Microphone input level")
                 }
             }
+        }
+
+        Toggle {
+            objectName: "recordingAutoTranscribeToggle"
+            Layout.fillWidth: true
+            visible: control.settings !== null
+            text: qsTr("Transcribe automatically after recording")
+            checked: control.settings ? control.settings.autoTranscribeRecording : false
+            onToggled: if (control.settings) control.settings.autoTranscribeRecording = checked
         }
 
         Text {

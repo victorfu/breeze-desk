@@ -22,15 +22,14 @@ T.MenuItem {
         elide: Text.ElideRight
     }
 
-    indicator: Text {
+    indicator: AppIcon {
+        objectName: "appMenuItemCheckIcon"
         visible: control.checkable && control.checked
         x: SemanticTokens.spacingSm
-        y: (control.height - height) / 2
-        text: "✓"
+        y: Math.round((control.height - height) / 2)
+        iconSize: 16
+        source: "qrc:/qt/qml/BreezeDesk/icons/lucide/check.svg"
         color: SemanticTokens.accent
-        font.family: SemanticTokens.fontFamily
-        font.pixelSize: SemanticTokens.bodySize
-        font.weight: Font.DemiBold
     }
 
     background: Rectangle {

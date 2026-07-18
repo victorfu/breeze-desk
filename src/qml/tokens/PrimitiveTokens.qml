@@ -21,6 +21,7 @@ QtObject {
     readonly property color green500: "#23885A"
     readonly property color amber500: "#B76B00"
     readonly property color red500: "#C83D4B"
+    readonly property color red600: "#A83240"
 
     readonly property int space1: 4
     readonly property int space2: 8

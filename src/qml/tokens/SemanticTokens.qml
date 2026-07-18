@@ -17,6 +17,7 @@ QtObject {
     readonly property color success: PrimitiveTokens.green500
     readonly property color warning: PrimitiveTokens.amber500
     readonly property color danger: PrimitiveTokens.red500
+    readonly property color dangerStrong: PrimitiveTokens.red600
     readonly property color waveform: DesignSystem.dark ? PrimitiveTokens.blue300 : PrimitiveTokens.blue500
     readonly property color playhead: PrimitiveTokens.red500
     readonly property color selection: DesignSystem.dark ? "#664B70E2" : "#334B70E2"

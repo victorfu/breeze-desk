@@ -6,10 +6,15 @@ T.Button {
     required property string accessibleName
     property url iconSource
     property color iconColor: control.enabled ? SemanticTokens.text : SemanticTokens.textMuted
+    property string toolTipText: accessibleName
     implicitWidth: ComponentTokens.clickTarget
     implicitHeight: ComponentTokens.clickTarget
+    hoverEnabled: true
     Accessible.name: accessibleName
     Accessible.role: Accessible.Button
+    T.ToolTip.visible: control.hovered && control.toolTipText.length > 0
+    T.ToolTip.text: control.toolTipText
+    T.ToolTip.delay: 500
     contentItem: AppIcon {
         source: control.iconSource
         iconSize: 20
@@ -17,8 +22,9 @@ T.Button {
     }
     background: Rectangle {
         radius: SemanticTokens.radiusSm
-        color: control.down ? SemanticTokens.surfaceMuted : "transparent"
+        color: control.down || control.hovered ? SemanticTokens.surfaceMuted : "transparent"
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 0
         border.color: SemanticTokens.focusRing
+        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
     }
 }

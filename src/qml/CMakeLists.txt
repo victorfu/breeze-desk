@@ -14,7 +14,8 @@ set_source_files_properties(${BREEZEDESK_MENUBAR_ICON} PROPERTIES
 set(BREEZEDESK_LUCIDE_ICON_NAMES
     library list-ordered trash-2 box book-open settings
     play pause file-input mic rotate-ccw rotate-cw
-    chevron-up chevron-down undo-2 redo-2 save ellipsis)
+    chevron-up chevron-down undo-2 redo-2 save ellipsis
+    check info circle-check circle-alert copy)
 set(BREEZEDESK_LUCIDE_ICONS)
 foreach(icon_name IN LISTS BREEZEDESK_LUCIDE_ICON_NAMES)
     set(icon_path "${PROJECT_SOURCE_DIR}/resources/icons/lucide/${icon_name}.svg")
@@ -56,10 +57,10 @@ qt_add_qml_module(breezedesk_ui
         dialogs/Dialog.qml
         dialogs/AppDialog.qml
         dialogs/DiagnosticsExportDialog.qml
+        dialogs/ModelRequiredDialog.qml
         dialogs/RecordingDialog.qml
         components/DownloadProgress.qml
         components/EmptyState.qml
-        components/ErrorState.qml
         components/InspectorSection.qml
         components/JobProgress.qml
         components/ModelCard.qml

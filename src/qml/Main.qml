@@ -61,6 +61,28 @@ ApplicationWindow {
             Qt.quit()
     }
 
+    property var pendingToasts: []
+
+    function showToast(message, severity, actionText, action) {
+        if (pendingToasts.length >= 3)
+            pendingToasts.shift()
+        pendingToasts.push({ message: message, severity: severity || "info",
+                             actionText: actionText || "", action: action || null })
+        if (!toast.opened)
+            presentNextToast()
+    }
+
+    function presentNextToast() {
+        if (pendingToasts.length === 0)
+            return
+        const next = pendingToasts.shift()
+        toast.message = next.message
+        toast.severity = next.severity
+        toast.actionText = next.actionText
+        toast.action = next.action
+        toast.open()
+    }
+
     Component.onCompleted: applyAppearanceSettings()
 
     onClosing: function(close) {
@@ -83,8 +105,8 @@ ApplicationWindow {
         target: window.vm
         function onToastMessageChanged() {
             if (window.vm.toastMessage.length > 0) {
-                toast.message = window.vm.toastMessage
-                toast.open()
+                window.showToast(window.vm.toastMessage)
+                window.vm.dismissToast()
             }
         }
         function onOpenImportDialogRequested() { importDialog.open() }
@@ -251,6 +273,9 @@ ApplicationWindow {
                 app: window.vm
                 onImportRequested: importDialog.open()
                 onFolderImportRequested: importFolderDialog.open()
+                onToastRequested: function(message, severity, actionText, action) {
+                    window.showToast(message, severity, actionText, action)
+                }
             }
             QueuePage { vm: window.vm.jobQueue }
             TrashPage { vm: window.vm.library }
@@ -312,6 +337,7 @@ ApplicationWindow {
         sourceComponent: Component {
             RecordingDialog {
                 recorder: window.injectedRecorder
+                settings: window.vm.settings
                 onStartRequested: window.vm.startRecording()
             }
         }
@@ -357,8 +383,9 @@ ApplicationWindow {
 
     Toast {
         id: toast
+        objectName: "appToast"
         x: window.width - width - SemanticTokens.spacingLg
         y: window.height - height - SemanticTokens.spacingLg
-        onDismissed: window.vm.dismissToast()
+        onClosed: Qt.callLater(window.presentNextToast)
     }
 }

@@ -21,6 +21,18 @@ Item {
 
     onCompactInspectorChanged: if (!compactInspector) compactInspectorOpen = false
 
+    function requestTranscription() {
+        if (root.vm.modelManager.defaultModelReady)
+            root.vm.enqueueTranscription(root.vm.activeRecordingId)
+        else
+            modelRequiredDialog.open()
+    }
+
+    ModelRequiredDialog {
+        id: modelRequiredDialog
+        app: root.vm
+    }
+
     Component {
         id: inspectorContentComponent
 
@@ -116,7 +128,7 @@ Item {
                     Text { text: root.detail.sourcePath; color: SemanticTokens.textMuted; elide: Text.ElideMiddle; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize; Layout.maximumWidth: 520 }
                 }
             }
-            AppButton { text: qsTr("Transcribe"); primary: true; onClicked: root.vm.enqueueTranscription(root.vm.activeRecordingId) }
+            AppButton { text: qsTr("Transcribe"); primary: true; onClicked: root.requestTranscription() }
             AppButton { text: qsTr("Export"); onClicked: root.vm.exportActiveRecording() }
             AppButton {
                 objectName: "recordingInspectorButton"
@@ -160,6 +172,7 @@ Item {
                         Accessible.name: qsTr("Recording waveform")
                         onSeekRequested: function(positionMs) { root.player.position = positionMs }
                         onSelectionRequested: function(startMs, endMs) { root.player.selectionStart = startMs; root.player.selectionEnd = endMs }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                 }
                 Rectangle {
@@ -198,8 +211,6 @@ Item {
                                 IconButton {
                                     iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/rotate-ccw.svg"
                                     accessibleName: qsTr("Back 5 seconds")
-                                    ToolTip.visible: hovered
-                                    ToolTip.text: accessibleName
                                     onClicked: root.player.skipBackward()
                                 }
                                 AppButton {
@@ -213,15 +224,12 @@ Item {
                                     text: ""
                                     accessibleName: root.player.playing ? qsTr("Pause") : qsTr("Play")
                                     primary: true
-                                    ToolTip.visible: hovered
-                                    ToolTip.text: accessibleName
+                                    toolTipText: accessibleName
                                     onClicked: root.player.playPause()
                                 }
                                 IconButton {
                                     iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/rotate-cw.svg"
                                     accessibleName: qsTr("Forward 5 seconds")
-                                    ToolTip.visible: hovered
-                                    ToolTip.text: accessibleName
                                     onClicked: root.player.skipForward()
                                 }
                             }
@@ -322,8 +330,6 @@ Item {
                                 iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg"
                                 accessibleName: qsTr("Previous")
                                 enabled: root.transcript.visibleSegmentCount > 0
-                                ToolTip.visible: hovered
-                                ToolTip.text: accessibleName
                                 onClicked: root.transcript.selectedIndex = root.transcript.findPrevious(root.transcript.selectedIndex)
                             }
                             IconButton {
@@ -331,8 +337,6 @@ Item {
                                 iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg"
                                 accessibleName: qsTr("Next")
                                 enabled: root.transcript.visibleSegmentCount > 0
-                                ToolTip.visible: hovered
-                                ToolTip.text: accessibleName
                                 onClicked: root.transcript.selectedIndex = root.transcript.findNext(root.transcript.selectedIndex)
                             }
                             Item { visible: root.narrowTools; Layout.fillWidth: root.narrowTools }
@@ -341,8 +345,6 @@ Item {
                                 iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/undo-2.svg"
                                 accessibleName: qsTr("Undo")
                                 enabled: root.transcript.canUndo
-                                ToolTip.visible: hovered
-                                ToolTip.text: accessibleName
                                 onClicked: root.transcript.undo()
                             }
                             IconButton {
@@ -350,17 +352,23 @@ Item {
                                 iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/redo-2.svg"
                                 accessibleName: qsTr("Redo")
                                 enabled: root.transcript.canRedo
-                                ToolTip.visible: hovered
-                                ToolTip.text: accessibleName
                                 onClicked: root.transcript.redo()
+                            }
+                            IconButton {
+                                objectName: "recordingCopyTranscriptButton"
+                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/copy.svg"
+                                accessibleName: qsTr("Copy Transcript")
+                                enabled: root.transcript.segmentCount > 0
+                                onClicked: {
+                                    root.vm.copyToClipboard(root.transcript.fullText())
+                                    root.vm.showToast(qsTr("Transcript copied to clipboard."))
+                                }
                             }
                             IconButton {
                                 objectName: "recordingSaveButton"
                                 iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/save.svg"
                                 accessibleName: root.transcript.dirty ? qsTr("Save Changes") : qsTr("Saved")
                                 enabled: root.transcript.dirty
-                                ToolTip.visible: hovered
-                                ToolTip.text: accessibleName
                                 onClicked: root.transcript.save()
                             }
                         }
@@ -368,13 +376,14 @@ Item {
                 }
                 EmptyState {
                     objectName: "recordingNoTranscriptState"
+                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     visible: root.transcript.segmentCount === 0
                     title: qsTr("No transcript yet")
                     description: qsTr("Add this recording to the queue. Partial segments will appear here as each long-form unit completes.")
                     actionText: qsTr("Add to Queue")
-                    onActionTriggered: root.vm.enqueueTranscription(root.vm.activeRecordingId)
+                    onActionTriggered: root.requestTranscription()
                 }
                 EmptyState {
                     objectName: "recordingNoMatchesState"
@@ -491,6 +500,7 @@ Item {
             opacity: 0.72
             MouseArea {
                 anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
                 Accessible.name: qsTr("Close recording details")
                 onClicked: root.compactInspectorOpen = false
             }

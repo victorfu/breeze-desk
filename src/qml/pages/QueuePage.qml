@@ -68,6 +68,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             visible: root.vm.empty
+            iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
             title: qsTr("The queue is empty")
             description: qsTr("Open a recording from Library and add it to the transcription queue.")
         }
