@@ -583,7 +583,7 @@ int main(int argc, char* argv[]) {
                      [pendingForwardedTranscriptions,
                       viewModel = viewModel.get()](const QString& recordingId, const QString& sourcePath) {
                          const QString normalizedPath = QFileInfo(sourcePath).absoluteFilePath();
-                         if (pendingForwardedTranscriptions->remove(normalizedPath) > 0) {
+                         if (pendingForwardedTranscriptions->remove(normalizedPath)) {
                              (void)viewModel->enqueueTranscription(recordingId);
                          }
                      });

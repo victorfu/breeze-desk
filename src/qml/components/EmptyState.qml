@@ -11,6 +11,7 @@ Item {
     implicitWidth: 400
     implicitHeight: content.implicitHeight
     Accessible.name: title + ". " + description
+    Accessible.role: Accessible.Pane
     ColumnLayout {
         id: content
         anchors.centerIn: parent

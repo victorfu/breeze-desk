@@ -41,6 +41,26 @@ QtObject {
         return locale.toString(value, Locale.ShortFormat)
     }
 
+    function timecode(value) {
+        const total = Math.max(0, Math.floor(value / 1000))
+        const hours = Math.floor(total / 3600)
+        const minutes = Math.floor((total % 3600) / 60)
+        const seconds = total % 60
+        return (hours > 0 ? String(hours).padStart(2, "0") + ":" : "")
+             + String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0")
+    }
+
+    function computeBackendName(value) {
+        const backend = String(value).trim()
+        return backend.toLowerCase() === "auto" ? qsTr("Automatic") : backend
+    }
+
+    function activeComputeName(value) {
+        const backend = String(value).trim()
+        return backend.length === 0 || backend.toLowerCase() === "not loaded"
+               ? qsTr("Available after model load") : backend
+    }
+
     function modelState(value) {
         switch (String(value)) {
         case "NotInstalled": return qsTr("Not installed")

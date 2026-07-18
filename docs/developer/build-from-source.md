@@ -6,8 +6,9 @@ at commit `f049fff95a089aa9969deb009cdd4892b3e74916`; set `BREEZEDESK_WHISPER_CP
 local checkout to build without FetchContent network access.
 
 macOS requires Xcode Command Line Tools and builds arm64/Metal+CPU for the supported release. Windows
-requires Visual Studio 2022 Build Tools and the Windows SDK; Vulkan and CUDA workers require their
-matching SDK/toolkit. Qt must be a dynamic LGPL-compatible installation.
+source builds default to a CPU worker and require Visual Studio 2022 Build Tools and the Windows SDK;
+Vulkan and CUDA workers require their matching SDK/toolkit. Qt must be a dynamic LGPL-compatible
+installation.
 
 ## Preset build
 
@@ -21,7 +22,9 @@ The equivalent repository scripts are `scripts/build.sh`, `scripts/run-tests.sh`
 `scripts/build-and-run.sh`; Windows uses the matching `.bat` files. Debug intentionally uses a distinct
 display name, executable, bundle id, and data directory so it cannot open Release settings by accident.
 The normal `debug` and `release` presets explicitly enable whisper.cpp, so reconfiguring an older build
-tree cannot silently retain a runtime-off cache value.
+tree cannot silently retain a runtime-off cache value. On Windows, raw CMake outputs are not standalone;
+`build-and-run.bat` uses the matching Qt kit to deploy the complete union of Debug runtime dependencies
+for the application, CLI, and worker. `deploy-debug.bat` performs the same deployment without launching.
 
 Important cache variables are:
 
@@ -30,7 +33,7 @@ Important cache variables are:
 | `BREEZEDESK_ENABLE_WHISPER` | `ON` | Build/link the native ASR worker. |
 | `BREEZEDESK_WHISPER_CPP_REF` | pinned commit | Immutable whisper.cpp revision; do not point at a branch. |
 | `BREEZEDESK_WHISPER_CPP_SOURCE_DIR` | empty | Exact local checkout used instead of FetchContent. |
-| `BREEZEDESK_WINDOWS_BACKEND` | `VULKAN` | `VULKAN`, `CUDA`, or `CPU` worker build. |
+| `BREEZEDESK_WINDOWS_BACKEND` | `CPU` | `VULKAN`, `CUDA`, or `CPU` worker build. Release packaging selects its backend explicitly. |
 | `BREEZEDESK_BUILD_TESTS` | `ON` | Configure Qt Test targets. |
 | `BREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS` | `OFF` | Enable checksum-pinned tiny-model integration. |
 | `BREEZEDESK_ENABLE_UPDATES` | `OFF` | Compile native updater adapters for a configured package. |
@@ -62,13 +65,16 @@ ctest --preset debug-runtime-off
 ```
 
 It uses `build/debug-runtime-off`, never the normal Debug cache, and is not a production package. The
-equivalent manual switch remains `-DBREEZEDESK_ENABLE_WHISPER=OFF`. With whisper enabled, expected build
-products are under `src/app`, `src/worker`, and `src/cli` in the chosen build tree. On macOS the
-application is a bundle and the post-build rule copies the worker into `Contents/MacOS`.
+equivalent manual switch remains `-DBREEZEDESK_ENABLE_WHISPER=OFF`. With whisper enabled, Windows places
+the application, worker, and CLI in the chosen build-tree root. Other Ninja builds keep their target
+subdirectories. On macOS the application is a bundle and the post-build rule copies the worker into
+`Contents/MacOS`.
 
-`BREEZEDESK_WINDOWS_BACKEND` is `VULKAN`, `CUDA`, or `CPU` and must use a separate build tree. ccache is
-selected before sccache. Compile commands are exported, Unity builds are disabled, project targets use
-strict warnings as errors, and third-party targets do not inherit that policy.
+`BREEZEDESK_WINDOWS_BACKEND` is `VULKAN`, `CUDA`, or `CPU` and must use a separate build tree. The normal
+Debug and Release source presets use CPU so transcription works without an optional GPU SDK; the
+`windows-universal` and `windows-cuda` presets opt into their named accelerator. ccache is selected before
+sccache. Compile commands are exported, Unity builds are disabled, project targets use strict warnings as
+errors, and third-party targets do not inherit that policy.
 
 macOS builds default `CMAKE_OSX_DEPLOYMENT_TARGET` to 14.0 before compiler initialization. Release
 sidecars use the same default through `BREEZEDESK_MACOS_DEPLOYMENT_TARGET`; set that environment variable

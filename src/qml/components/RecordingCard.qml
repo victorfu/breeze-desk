@@ -23,16 +23,21 @@ ItemDelegate {
     signal editTagsRequested(string id, var tags)
     signal reviewRequested(string id, bool reviewed)
     readonly property string displayedStatus: UiText.recordingStatus(status)
+    readonly property int metadataRowHeight: 24
     implicitHeight: Math.max(72, contentItem.implicitHeight + topPadding + bottomPadding)
     padding: ComponentTokens.cardPadding
     Accessible.name: title + ", " + displayedStatus
     Accessible.description: qsTr("Open recording details")
     onClicked: openRequested(recordingId)
+    Keys.onReturnPressed: openRequested(recordingId)
+    Keys.onEnterPressed: openRequested(recordingId)
     background: Rectangle {
-        color: control.hovered ? SemanticTokens.surfaceMuted : SemanticTokens.surface
+        color: control.hovered || control.highlighted ? SemanticTokens.surfaceMuted
+                                                      : SemanticTokens.surface
         radius: ComponentTokens.cardRadius
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
-        border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
+        border.color: control.activeFocus ? SemanticTokens.focusRing
+                    : control.highlighted ? SemanticTokens.borderStrong : SemanticTokens.border
     }
     contentItem: Item {
         id: cardContent
@@ -97,16 +102,15 @@ ItemDelegate {
                 Text {
                     visible: control.modelName.length > 0
                     text: control.modelName
-                    height: metadataRowHeight
+                    height: control.metadataRowHeight
                     verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
                     font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
-                    readonly property real metadataRowHeight: 28
                 }
                 Text {
                     text: UiText.shortDateTime(control.createdAt)
-                    height: 28
+                    height: control.metadataRowHeight
                     verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
                     font.family: SemanticTokens.fontFamily

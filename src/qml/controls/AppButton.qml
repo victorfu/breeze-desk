@@ -83,5 +83,13 @@ T.Button {
         border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
         opacity: control.enabled ? 1.0 : 0.5
         Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
+
+        Rectangle {
+            anchors.fill: parent
+            radius: parent.radius
+            color: SemanticTokens.pressedTint
+            opacity: control.down ? 1.0 : 0.0
+            Behavior on opacity { NumberAnimation { duration: SemanticTokens.animationFast } }
+        }
     }
 }

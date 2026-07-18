@@ -146,7 +146,8 @@ ApplicationCommandForwardResult ApplicationCommandClient::forward(const QString&
             if (parsed.error.isError()) {
                 return failed(ApplicationCommandForwardStatus::ProtocolError, parsed.error.detail);
             }
-            for (const Envelope& reply : parsed.envelopes) {
+            if (!parsed.envelopes.isEmpty()) {
+                const Envelope& reply = parsed.envelopes.constFirst();
                 if (reply.protocolVersion != kProtocolVersion ||
                     reply.type != MessageType::ApplicationCommandResult ||
                     reply.requestId != command.requestId) {
@@ -174,15 +175,15 @@ ApplicationCommandForwardResult ApplicationCommandClient::forward(const QString&
                 if (retryableValue.toBool()) {
                     primaryExplicitlyNotReady = true;
                     retryWhenReady = true;
-                    break;
+                } else {
+                    ApplicationCommandForwardResult result;
+                    result.status = handledValue.toBool() ? ApplicationCommandForwardStatus::Completed
+                                                          : ApplicationCommandForwardStatus::Declined;
+                    result.exitCode = static_cast<int>(encodedExitCode);
+                    result.standardOutput = standardOutput;
+                    result.standardError = standardError;
+                    return result;
                 }
-                ApplicationCommandForwardResult result;
-                result.status = handledValue.toBool() ? ApplicationCommandForwardStatus::Completed
-                                                      : ApplicationCommandForwardStatus::Declined;
-                result.exitCode = static_cast<int>(encodedExitCode);
-                result.standardOutput = standardOutput;
-                result.standardError = standardError;
-                return result;
             }
             if (retryWhenReady) {
                 break;

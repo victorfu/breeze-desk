@@ -15,10 +15,14 @@
 
 #include <utility>
 
+#if defined(Q_OS_WIN)
+#include <windows.h>
+#endif
+
 namespace BreezeDesk {
 
 namespace {
-constexpr int MaximumConnectionAttempts = 40;
+constexpr int MaximumConnectionAttempts = 100;
 constexpr int ConnectionRetryMs = 50;
 constexpr int CancellationGraceMs = 5000;
 constexpr int RestartWindowSeconds = 60;
@@ -27,6 +31,11 @@ constexpr int MaximumRestartsInWindow = 3;
 
 WorkerProcessManager::WorkerProcessManager(QObject* parent)
     : QObject(parent), m_client(QString::fromLatin1(BREEZEDESK_VERSION_STRING), this) {
+#if defined(Q_OS_WIN)
+    // Let QProcess report worker loader failures through the normal fallback path instead
+    // of allowing Windows to block the application with a system error dialog.
+    SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS);
+#endif
     connect(&m_client, &Ipc::AsrWorkerClient::ready, this, &WorkerProcessManager::readyChanged);
     connect(&m_client, &Ipc::AsrWorkerClient::disconnected, this, &WorkerProcessManager::readyChanged);
     connect(&m_client, &Ipc::AsrWorkerClient::protocolError, this,

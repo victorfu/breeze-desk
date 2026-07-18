@@ -104,6 +104,22 @@ scripts\run-tests.bat
 scripts\build-and-run.bat
 ```
 
+一般 Windows 建置預設使用 CPU 版 whisper.cpp Worker，因此不需要額外安裝 Vulkan 或 CUDA
+SDK。開發時請一律使用 `scripts\build-and-run.bat` 啟動；CMake 的原始輸出並不是可獨立執行
+的完整目錄，可能會因缺少 `Qt6Networkd.dll` 等 Debug Qt DLL 而失敗。此腳本會找出目前 Qt
+kit 對應的 `windeployqt.exe`，並部署 GUI、CLI 與 ASR Worker 合併後所需的完整 runtime。
+若只要部署而不啟動，請執行：
+
+```bat
+scripts\deploy-debug.bat
+```
+
+若 Qt 安裝在非標準位置，請先將 `BREEZEDESK_WINDEPLOYQT` 設為相同 Qt kit 的
+`windeployqt.exe`。請勿從其他 build 或 Qt 版本手動複製部分 DLL。
+
+`debug-runtime-off` preset 只供通訊協定與 UI 測試使用，刻意不具備轉錄能力；請勿將該
+目錄的執行檔用於一般開發或散佈。
+
 ### 手動 CMake
 
 ```sh

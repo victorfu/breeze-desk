@@ -114,6 +114,23 @@ jobs:
           -DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=${{ github.workspace }}/.cache/whisper.cpp
       - name: Build
         run: cmake --build build/ci --parallel
+      - name: Deploy and smoke-test the Windows Debug runtime
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cmd /d /c "scripts\deploy-debug.bat build\ci"
+          if ($LASTEXITCODE -ne 0) { throw 'Debug Qt deployment failed.' }
+          $Build = (Resolve-Path build/ci).Path
+          if (-not (Test-Path "$Build\Qt6Networkd.dll")) {
+            throw 'Qt6Networkd.dll required by the ASR worker was not deployed.'
+          }
+          $AllowedPath = @($Build, "$env:VULKAN_SDK\Bin", "$env:SystemRoot\System32", $env:SystemRoot)
+          $env:PATH = $AllowedPath -join [IO.Path]::PathSeparator
+          $env:BREEZEDESK_DATA_ROOT = Join-Path $env:RUNNER_TEMP 'breezedesk-loader-smoke'
+          & "$Build\breezedesk-asr-worker.exe"
+          if ($LASTEXITCODE -ne 2) {
+            throw "ASR worker loader smoke returned $LASTEXITCODE instead of reaching main()."
+          }
       - name: Test
         run: ctest --test-dir build/ci --output-on-failure --no-tests=error
       - name: Configure CPU fallback worker
@@ -122,12 +139,15 @@ jobs:
           cmake -S . -B build/ci-cpu -G Ninja
           -DCMAKE_BUILD_TYPE=Release
           -DBREEZEDESK_ENABLE_WHISPER=ON
-          -DBREEZEDESK_BUILD_TESTS=OFF
+          -DBREEZEDESK_BUILD_TESTS=ON
           -DBREEZEDESK_WINDOWS_BACKEND=CPU
           -DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=${{ github.workspace }}/.cache/whisper.cpp
-      - name: Build CPU fallback worker
+      - name: Build CPU fallback worker capability test
         if: runner.os == 'Windows'
-        run: cmake --build build/ci-cpu --target breezedesk-asr-worker --parallel
+        run: cmake --build build/ci-cpu --target tst_ipc_worker_process --parallel
+      - name: Verify CPU fallback includes whisper.cpp
+        if: runner.os == 'Windows'
+        run: ctest --test-dir build/ci-cpu -R '^IPC.WorkerProcess$' --output-on-failure --no-tests=error
       - name: Upload CTest diagnostics
         if: failure()
         uses: actions/upload-artifact@v4

@@ -13,6 +13,8 @@ target_link_libraries(tst_ipc_worker_process PRIVATE Qt6::Test breezedesk_ipc)
 target_compile_definitions(tst_ipc_worker_process PRIVATE
     BREEZEDESK_TEST_WORKER_PATH="$<TARGET_FILE:breezedesk-asr-worker>")
 if(BREEZEDESK_ENABLE_WHISPER)
+    target_compile_definitions(tst_ipc_worker_process PRIVATE
+        BREEZEDESK_TEST_EXPECT_WHISPER=1)
     if(BREEZEDESK_WHISPER_CPP_SOURCE_DIR)
         set(_breezedesk_test_vad_model
             "${BREEZEDESK_WHISPER_CPP_SOURCE_DIR}/models/for-tests-silero-v6.2.0-ggml.bin")
@@ -24,6 +26,9 @@ if(BREEZEDESK_ENABLE_WHISPER)
         target_compile_definitions(tst_ipc_worker_process PRIVATE
             BREEZEDESK_TEST_VAD_MODEL_PATH="${_breezedesk_test_vad_model}")
     endif()
+else()
+    target_compile_definitions(tst_ipc_worker_process PRIVATE
+        BREEZEDESK_TEST_EXPECT_WHISPER=0)
 endif()
 add_dependencies(tst_ipc_worker_process breezedesk-asr-worker)
 add_test(NAME IPC.WorkerProcess COMMAND tst_ipc_worker_process)

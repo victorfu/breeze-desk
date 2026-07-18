@@ -78,6 +78,8 @@ class WorkerProcessTest final : public QObject {
 };
 
 void WorkerProcessTest::reportsCapabilitiesAndShutsDown() {
+    QTemporaryDir dataRoot;
+    QVERIFY(dataRoot.isValid());
     QByteArray token(32, Qt::Uninitialized);
     for (char& byte : token) {
         byte = static_cast<char>(QRandomGenerator::system()->generate() & 0xFFU);
@@ -93,6 +95,7 @@ void WorkerProcessTest::reportsCapabilitiesAndShutsDown() {
     });
     worker.setProcessChannelMode(QProcess::SeparateChannels);
     QProcessEnvironment environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(QStringLiteral("BREEZEDESK_DATA_ROOT"), dataRoot.path());
     environment.insert(QStringLiteral("QT_LOGGING_RULES"),
                        QStringLiteral("breezedesk.asr.worker.debug=true"));
     worker.setProcessEnvironment(environment);
@@ -105,11 +108,16 @@ void WorkerProcessTest::reportsCapabilitiesAndShutsDown() {
 
     AsrWorkerClient client(QStringLiteral("test-client"));
     QSignalSpy ready(&client, &AsrWorkerClient::ready);
-    for (int attempt = 0; attempt < 40 && ready.isEmpty(); ++attempt) {
+    for (int attempt = 0; attempt < 100 && ready.isEmpty(); ++attempt) {
         client.connectToWorker(endpoint, token);
         QTest::qWait(50);
     }
-    QCOMPARE(ready.size(), 1);
+    const QString readinessDiagnostic =
+        QStringLiteral("workerState=%1 exitCode=%2 processError=%3 stderr=%4")
+            .arg(static_cast<int>(worker.state()))
+            .arg(worker.exitCode())
+            .arg(worker.errorString(), QString::fromUtf8(worker.readAllStandardError()));
+    QVERIFY2(ready.size() == 1, qPrintable(readinessDiagnostic));
     QVERIFY(client.isReady());
 
     QSignalSpy messages(&client, &AsrWorkerClient::envelopeReceived);
@@ -129,6 +137,8 @@ void WorkerProcessTest::reportsCapabilitiesAndShutsDown() {
     QCOMPARE(capabilities.type, MessageType::Capabilities);
     QCOMPARE(capabilities.payload.value(QStringLiteral("protocolVersion")).toInteger(), kProtocolVersion);
     QVERIFY(capabilities.payload.value(QStringLiteral("runtimeAvailable")).isBool());
+    QCOMPARE(capabilities.payload.value(QStringLiteral("runtimeAvailable")).toBool(),
+             BREEZEDESK_TEST_EXPECT_WHISPER != 0);
     QVERIFY(!capabilities.payload.value(QStringLiteral("whisperVersion")).toString().isEmpty());
     QCOMPARE(capabilities.payload.value(QStringLiteral("streamingVad")).toBool(), true);
 #if defined(Q_OS_MACOS)

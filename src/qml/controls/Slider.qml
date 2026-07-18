@@ -39,7 +39,8 @@ T.Slider {
         implicitHeight: 20
         radius: width / 2
         color: control.enabled ? SemanticTokens.surfaceRaised : SemanticTokens.surfaceMuted
-        border.width: control.activeFocus || control.pressed ? 3 : 2
+        border.width: control.activeFocus || control.pressed
+                      || (control.hovered && control.enabled) ? 3 : 2
         border.color: control.activeFocus ? SemanticTokens.focusRing
                                             : (control.enabled ? SemanticTokens.accent
                                                                : SemanticTokens.borderStrong)

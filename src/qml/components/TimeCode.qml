@@ -6,20 +6,16 @@ Button {
     id: control
     property int milliseconds: 0
     signal seekRequested(int position)
-    implicitHeight: Math.max(28, contentItem.implicitHeight + topPadding + bottomPadding)
+    implicitHeight: Math.max(control.enabled ? 28 : 22,
+                             contentItem.implicitHeight + topPadding + bottomPadding)
     Layout.minimumHeight: implicitHeight
     padding: SemanticTokens.spacingXs
     text: formatTime(milliseconds)
-    Accessible.name: qsTr("Seek to %1").arg(text)
+    Accessible.name: enabled ? qsTr("Seek to %1").arg(text) : text
     font.family: SemanticTokens.fixedFontFamily
     font.pixelSize: SemanticTokens.captionSize
     function formatTime(value) {
-        const total = Math.max(0, Math.floor(value / 1000))
-        const hours = Math.floor(total / 3600)
-        const minutes = Math.floor((total % 3600) / 60)
-        const seconds = total % 60
-        return (hours > 0 ? String(hours).padStart(2, "0") + ":" : "")
-             + String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0")
+        return UiText.timecode(value)
     }
     onClicked: seekRequested(milliseconds)
     HoverHandler {
@@ -43,7 +39,7 @@ Button {
     }
     contentItem: Text {
         text: control.text
-        color: SemanticTokens.accentStrong
+        color: control.enabled ? SemanticTokens.accentStrong : SemanticTokens.textMuted
         font: control.font
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

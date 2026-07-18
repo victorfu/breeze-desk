@@ -107,6 +107,22 @@ scripts\run-tests.bat
 scripts\build-and-run.bat
 ```
 
+The normal Windows build uses the CPU whisper.cpp worker, so it does not require an optional Vulkan or
+CUDA SDK. Always use `scripts\build-and-run.bat` for a development launch: raw CMake outputs are not
+self-contained and can fail with missing Debug Qt DLLs such as `Qt6Networkd.dll`. The script finds the
+matching Qt kit's `windeployqt.exe` and deploys the combined runtime required by the GUI, CLI, and ASR
+worker. To deploy without launching, use:
+
+```bat
+scripts\deploy-debug.bat
+```
+
+For a nonstandard Qt layout, set `BREEZEDESK_WINDEPLOYQT` to the matching kit's `windeployqt.exe` before
+running that script. Do not manually copy a subset of Qt DLLs from another build or Qt version.
+
+The `debug-runtime-off` preset is only for protocol and UI tests; it deliberately cannot transcribe.
+Do not distribute or use its executables for normal development.
+
 ### Manual CMake build
 
 ```sh

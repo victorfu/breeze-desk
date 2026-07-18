@@ -27,6 +27,7 @@ QtObject {
     readonly property color dangerHoverTint: "#1FC83D4B"
     readonly property color dangerPressedTint: "#33C83D4B"
     readonly property color focusRing: DesignSystem.dark ? PrimitiveTokens.blue300 : PrimitiveTokens.blue600
+    readonly property color scrim: DesignSystem.dark ? "#88000000" : "#660F172A"
     readonly property color shadow: PrimitiveTokens.black
 
     readonly property string fontFamily: DesignSystem.systemFontFamily

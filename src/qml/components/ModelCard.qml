@@ -1,5 +1,4 @@
 import QtQuick
-import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
@@ -31,6 +30,11 @@ Rectangle {
     signal sourceRequested(url url)
     readonly property string displayedModelState: UiText.modelState(modelState)
     readonly property string displayedDescription: UiText.modelDescription(modelId, description)
+    readonly property bool downloadActionAvailable: !root.installed
+                                                    && (root.modelState === "NotInstalled"
+                                                        || root.modelState === "Paused"
+                                                        || root.modelState === "Cancelled"
+                                                        || root.modelState === "Failed")
     implicitHeight: card.implicitHeight + SemanticTokens.spacingLg * 2
     color: SemanticTokens.surface
     radius: ComponentTokens.cardRadius
@@ -47,15 +51,25 @@ Rectangle {
                 Layout.fillWidth: true
                 spacing: SemanticTokens.spacingXs
                 RowLayout {
+                    Layout.fillWidth: true
                     Text {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: implicitWidth
                         text: root.displayName
                         color: SemanticTokens.text
+                        elide: Text.ElideRight
                         font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.headingSize
                         font.weight: Font.DemiBold
                     }
                     StatusBadge { visible: root.recommended; text: qsTr("Recommended"); tone: "accent" }
                     StatusBadge { visible: root.isDefault; text: qsTr("Default"); tone: "success" }
+                    StatusBadge {
+                        visible: root.modelState === "Failed"
+                        text: root.displayedModelState
+                        tone: "danger"
+                    }
                 }
                 Text {
                     Layout.fillWidth: true
@@ -70,34 +84,45 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            Text {
-                text: qsTr("%1 GB").arg((root.fileSize / 1000000000).toFixed(2))
-                color: SemanticTokens.textMuted
-                font.family: SemanticTokens.fontFamily
-                font.pixelSize: SemanticTokens.captionSize
+            spacing: SemanticTokens.spacingSm
+            Flow {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.alignment: Qt.AlignVCenter
+                spacing: SemanticTokens.spacingSm
+                Text {
+                    height: ComponentTokens.compactControlHeight
+                    verticalAlignment: Text.AlignVCenter
+                    text: qsTr("%1 GB").arg((root.fileSize / 1000000000).toFixed(2))
+                    color: SemanticTokens.textMuted
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.captionSize
+                }
+                Text {
+                    height: ComponentTokens.compactControlHeight
+                    verticalAlignment: Text.AlignVCenter
+                    text: qsTr("License: %1").arg(root.licenseName)
+                    color: SemanticTokens.textMuted
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.captionSize
+                }
+                AppLinkButton {
+                    objectName: "modelLicenseLink"
+                    text: qsTr("License")
+                    accessibleName: qsTr("Open model license")
+                    enabled: root.licenseUrl.toString().length > 0
+                    onClicked: root.licenseRequested(root.licenseUrl)
+                }
+                AppLinkButton {
+                    objectName: "modelSourceLink"
+                    text: qsTr("Source")
+                    accessibleName: qsTr("Open model source")
+                    enabled: root.sourceUrl.toString().length > 0
+                    onClicked: root.sourceRequested(root.sourceUrl)
+                }
             }
-            Text {
-                text: qsTr("License: %1").arg(root.licenseName)
-                color: SemanticTokens.textMuted
-                font.family: SemanticTokens.fontFamily
-                font.pixelSize: SemanticTokens.captionSize
-            }
-            AppLinkButton {
-                objectName: "modelLicenseLink"
-                text: qsTr("License")
-                accessibleName: qsTr("Open model license")
-                enabled: root.licenseUrl.toString().length > 0
-                onClicked: root.licenseRequested(root.licenseUrl)
-            }
-            AppLinkButton {
-                objectName: "modelSourceLink"
-                text: qsTr("Source")
-                accessibleName: qsTr("Open model source")
-                enabled: root.sourceUrl.toString().length > 0
-                onClicked: root.sourceRequested(root.sourceUrl)
-            }
-            Item { Layout.fillWidth: true }
             StatusBadge {
+                Layout.alignment: Qt.AlignTop
                 text: root.loaded ? qsTr("Loaded") : root.installed ? qsTr("Installed") : qsTr("Not installed")
                 tone: root.loaded || root.installed ? "success" : "neutral"
             }
@@ -112,43 +137,52 @@ Rectangle {
         }
         RowLayout {
             Layout.fillWidth: true
-            AppButton {
-                visible: !root.installed && root.modelState !== "Downloading"
-                text: root.modelState === "Paused" ? qsTr("Resume") : qsTr("Download")
-                primary: root.recommended
-                onClicked: root.modelState === "Paused" ? root.resumeRequested(root.modelId) : root.downloadRequested(root.modelId)
+            spacing: SemanticTokens.spacingSm
+            Flow {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.alignment: Qt.AlignVCenter
+                spacing: SemanticTokens.spacingSm
+                AppButton {
+                    objectName: "modelDownloadButton"
+                    visible: root.downloadActionAvailable
+                    enabled: root.downloadActionAvailable
+                    text: root.modelState === "Paused" ? qsTr("Resume") : qsTr("Download")
+                    primary: root.recommended
+                    onClicked: root.modelState === "Paused" ? root.resumeRequested(root.modelId) : root.downloadRequested(root.modelId)
+                }
+                AppButton {
+                    visible: root.modelState === "Downloading"
+                    text: qsTr("Pause")
+                    onClicked: root.pauseRequested(root.modelId)
+                }
+                AppButton {
+                    visible: root.modelState === "Downloading" || root.modelState === "Requested"
+                             || root.modelState === "Paused"
+                    text: qsTr("Cancel")
+                    onClicked: root.cancelRequested(root.modelId)
+                }
+                AppButton {
+                    visible: root.installed
+                    enabled: root.modelState !== "Testing"
+                    text: qsTr("Verify")
+                    onClicked: root.verifyRequested(root.modelId)
+                }
+                AppButton {
+                    visible: root.installed && root.defaultCandidate
+                    enabled: root.modelState !== "Testing"
+                    text: qsTr("Test")
+                    onClicked: root.testRequested(root.modelId)
+                }
+                AppButton {
+                    visible: root.installed && root.defaultCandidate && !root.isDefault
+                    text: qsTr("Set Default")
+                    onClicked: root.defaultRequested(root.modelId)
+                }
             }
-            AppButton {
-                visible: root.modelState === "Downloading"
-                text: qsTr("Pause")
-                onClicked: root.pauseRequested(root.modelId)
-            }
-            AppButton {
-                visible: root.modelState === "Downloading" || root.modelState === "Requested"
-                         || root.modelState === "Paused"
-                text: qsTr("Cancel")
-                onClicked: root.cancelRequested(root.modelId)
-            }
-            AppButton {
-                visible: root.installed
-                enabled: root.modelState !== "Testing"
-                text: qsTr("Verify")
-                onClicked: root.verifyRequested(root.modelId)
-            }
-            AppButton {
-                visible: root.installed && root.defaultCandidate
-                enabled: root.modelState !== "Testing"
-                text: qsTr("Test")
-                onClicked: root.testRequested(root.modelId)
-            }
-            AppButton {
-                visible: root.installed && root.defaultCandidate && !root.isDefault
-                text: qsTr("Set Default")
-                onClicked: root.defaultRequested(root.modelId)
-            }
-            Item { Layout.fillWidth: true }
             RemoveButton {
                 objectName: "modelDeleteButton"
+                Layout.alignment: Qt.AlignTop
                 visible: root.installed
                 enabled: !root.loaded && root.modelState !== "Testing" && root.modelState !== "Verifying"
                 accessibleName: root.loaded ? qsTr("Model is in use and cannot be deleted") : qsTr("Delete model")

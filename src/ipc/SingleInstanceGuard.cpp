@@ -214,7 +214,8 @@ void SingleInstanceGuard::readSocket(QLocalSocket* socket) {
         socket->abort();
         return;
     }
-    for (const auto& envelope : parsed.envelopes) {
+    if (!parsed.envelopes.isEmpty()) {
+        const auto& envelope = parsed.envelopes.constFirst();
         if (envelope.protocolVersion != kProtocolVersion || envelope.requestId.isEmpty()) {
             socket->abort();
             return;

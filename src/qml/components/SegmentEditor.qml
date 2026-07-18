@@ -183,84 +183,94 @@ Rectangle {
                 }
             }
 
-            Row {
-                id: actionsRow
+            Loader {
+                id: actionsLoader
 
-                objectName: "segmentActionsRow"
                 Layout.alignment: Qt.AlignTop
-                visible: root.selected
-                spacing: 0
+                active: root.selected
+                visible: active
 
-                IconButton {
-                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/scissors.svg"
-                    accessibleName: qsTr("Split")
-                    enabled: !root.editingLocked
-                    onClicked: root.splitRequested(root.modelIndex)
-                }
-                IconButton {
-                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-up-to-line.svg"
-                    accessibleName: qsTr("Merge with Previous")
-                    enabled: !root.editingLocked
-                    onClicked: root.mergePreviousRequested(root.modelIndex)
-                }
-                IconButton {
-                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-down-to-line.svg"
-                    accessibleName: qsTr("Merge with Next")
-                    enabled: !root.editingLocked
-                    onClicked: root.mergeNextRequested(root.modelIndex)
-                }
-                RemoveButton {
-                    objectName: "segmentDeleteButton"
-                    accessibleName: qsTr("Delete segment")
-                    enabled: !root.editingLocked
-                    onClicked: root.deleteRequested(root.modelIndex)
+                sourceComponent: Row {
+                    objectName: "segmentActionsRow"
+                    spacing: 0
+
+                    IconButton {
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/scissors.svg"
+                        accessibleName: qsTr("Split")
+                        enabled: !root.editingLocked
+                        onClicked: root.splitRequested(root.modelIndex)
+                    }
+                    IconButton {
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-up-to-line.svg"
+                        accessibleName: qsTr("Merge with Previous")
+                        enabled: !root.editingLocked
+                        onClicked: root.mergePreviousRequested(root.modelIndex)
+                    }
+                    IconButton {
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/arrow-down-to-line.svg"
+                        accessibleName: qsTr("Merge with Next")
+                        enabled: !root.editingLocked
+                        onClicked: root.mergeNextRequested(root.modelIndex)
+                    }
+                    RemoveButton {
+                        objectName: "segmentDeleteButton"
+                        accessibleName: qsTr("Delete segment")
+                        enabled: !root.editingLocked
+                        onClicked: root.deleteRequested(root.modelIndex)
+                    }
                 }
             }
         }
 
-        ColumnLayout {
+        Loader {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            visible: root.selected && root.glossaryAudit.length > 0
-            spacing: SemanticTokens.spacingXs
+            active: root.selected && root.glossaryAudit.length > 0
+            visible: active
 
-            Text {
-                text: qsTr("Glossary replacements")
-                color: SemanticTokens.textMuted
-                font.family: SemanticTokens.fontFamily
-                font.pixelSize: SemanticTokens.captionSize
-                font.weight: Font.DemiBold
-            }
+            sourceComponent: ColumnLayout {
+                spacing: SemanticTokens.spacingXs
 
-            Repeater {
-                model: root.glossaryAudit
-                delegate: RowLayout {
-                    required property int index
-                    required property var modelData
+                Text {
+                    text: qsTr("Glossary replacements")
+                    color: SemanticTokens.textMuted
+                    font.family: SemanticTokens.fontFamily
+                    font.pixelSize: SemanticTokens.captionSize
+                    font.weight: Font.DemiBold
+                }
 
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    spacing: SemanticTokens.spacingXs
+                Repeater {
+                    model: root.glossaryAudit
+                    delegate: RowLayout {
+                        id: auditRow
 
-                    Text {
+                        required property int index
+                        required property var modelData
+
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        text: qsTr("%1 → %2").arg(parent.modelData.originalText)
-                                                  .arg(parent.modelData.canonicalText)
-                        color: SemanticTokens.text
-                        elide: Text.ElideRight
-                        font.family: SemanticTokens.fontFamily
-                        font.pixelSize: SemanticTokens.captionSize
-                    }
-                    StatusBadge {
-                        text: parent.modelData.applied ? qsTr("Applied") : qsTr("Reverted")
-                        tone: parent.modelData.applied ? "success" : "neutral"
-                    }
-                    AppButton {
-                        text: parent.modelData.applied ? qsTr("Undo") : qsTr("Apply")
-                        enabled: !root.editingLocked
-                        onClicked: root.glossaryReplacementRequested(
-                                       root.modelIndex, parent.index, !parent.modelData.applied)
+                        spacing: SemanticTokens.spacingXs
+
+                        Text {
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            text: qsTr("%1 → %2").arg(auditRow.modelData.originalText)
+                                                      .arg(auditRow.modelData.canonicalText)
+                            color: SemanticTokens.text
+                            elide: Text.ElideRight
+                            font.family: SemanticTokens.fontFamily
+                            font.pixelSize: SemanticTokens.captionSize
+                        }
+                        StatusBadge {
+                            text: auditRow.modelData.applied ? qsTr("Applied") : qsTr("Reverted")
+                            tone: auditRow.modelData.applied ? "success" : "neutral"
+                        }
+                        AppButton {
+                            text: auditRow.modelData.applied ? qsTr("Undo") : qsTr("Apply")
+                            enabled: !root.editingLocked
+                            onClicked: root.glossaryReplacementRequested(
+                                           root.modelIndex, auditRow.index, !auditRow.modelData.applied)
+                        }
                     }
                 }
             }

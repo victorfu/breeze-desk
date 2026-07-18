@@ -293,6 +293,77 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(root->property("localizedDateTime").toString().contains(QStringLiteral("PM")));
     }
 
+    void modelDownloadActionIsUnavailableWhileDownloadIsBusy() {
+        QQmlEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        QQmlComponent component(&engine);
+        component.setData(R"(
+            import QtQuick
+            import QtQuick.Controls
+            import BreezeDesk
+
+            ApplicationWindow {
+                id: host
+                width: 800
+                height: 400
+                visible: true
+                property string fixtureState: "NotInstalled"
+
+                ModelCard {
+                    anchors.fill: parent
+                    modelId: "fixture-model"
+                    displayName: "Fixture model"
+                    description: "Fixture description"
+                    quantization: "Q5"
+                    fileSize: 1000000000
+                    licenseName: "Fixture license"
+                    recommended: false
+                    defaultCandidate: true
+                    installed: false
+                    loaded: false
+                    isDefault: false
+                    modelState: host.fixtureState
+                    progress: 1.0
+                    licenseUrl: ""
+                    sourceUrl: ""
+                }
+            }
+        )",
+                          QUrl(QStringLiteral("inline:ModelDownloadBusyStateHost.qml")));
+        QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
+        QVERIFY2(component.isReady(), qPrintable(component.errorString()));
+        QScopedPointer<QObject> root(component.create());
+        QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
+
+        auto* downloadButton = root->findChild<QQuickItem*>(QStringLiteral("modelDownloadButton"));
+        QVERIFY(downloadButton);
+        QVERIFY(downloadButton->property("visible").toBool());
+        QVERIFY(downloadButton->property("enabled").toBool());
+
+        for (const QString& busyState : {QStringLiteral("Requested"), QStringLiteral("Downloading"),
+                                         QStringLiteral("Verifying")}) {
+            QVERIFY(root->setProperty("fixtureState", busyState));
+            QCoreApplication::processEvents();
+            QVERIFY2(!downloadButton->property("visible").toBool(),
+                     qPrintable(QStringLiteral("Download action stayed visible in state %1")
+                                    .arg(busyState)));
+            QVERIFY2(!downloadButton->property("enabled").toBool(),
+                     qPrintable(QStringLiteral("Download action stayed enabled in state %1")
+                                    .arg(busyState)));
+        }
+
+        for (const QString& availableState : {QStringLiteral("Paused"), QStringLiteral("Failed"),
+                                              QStringLiteral("Cancelled")}) {
+            QVERIFY(root->setProperty("fixtureState", availableState));
+            QCoreApplication::processEvents();
+            QVERIFY(downloadButton->property("visible").toBool());
+            QVERIFY(downloadButton->property("enabled").toBool());
+            QCOMPARE(downloadButton->property("text").toString(),
+                     availableState == QLatin1String("Paused") ? QStringLiteral("Resume")
+                                                                : QStringLiteral("Download"));
+        }
+    }
+
     void primaryButtonIconUsesAccentForeground() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));

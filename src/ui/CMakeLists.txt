@@ -67,6 +67,11 @@ target_link_libraries(breezedesk_ui
 
 target_compile_features(breezedesk_ui PUBLIC cxx_std_17)
 breezedesk_enable_strict_warnings(breezedesk_ui)
+if(MSVC)
+    # qmlcachegen output instantiates Qt headers which MSVC 19.44 reports as
+    # unreachable code even with those include directories marked external.
+    target_compile_options(breezedesk_ui PRIVATE /wd4702)
+endif()
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(breezedesk_ui PRIVATE -Wno-variadic-macro-arguments-omitted)
 endif()

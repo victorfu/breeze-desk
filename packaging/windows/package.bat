@@ -2,6 +2,7 @@
 setlocal EnableExtensions
 cd /d "%~dp0\..\.."
 set "PROJECT_ROOT=%CD%"
+call "%PROJECT_ROOT%\scripts\setup-msvc.bat" || exit /b 1
 set "IDENTITY_DIR=%PROJECT_ROOT%\build\package-identity"
 cmake "-DBREEZEDESK_SOURCE_DIR=%PROJECT_ROOT%" "-DBREEZEDESK_IDENTITY_OUTPUT_DIR=%IDENTITY_DIR%" -P "%PROJECT_ROOT%\cmake\ReadProjectIdentity.cmake" || exit /b 1
 for /f "usebackq delims=" %%I in ("%IDENTITY_DIR%\product-name.txt") do set "DEFAULT_PRODUCT_NAME=%%I"
@@ -113,7 +114,7 @@ if not exist "%STAGE_DIR%\bin\%WORKER_EXE%" (
   echo The preferred native ASR worker is missing. 1>&2
   exit /b 1
 )
-if not exist "%CPU_BUILD%\src\worker\%WORKER_EXE%" (
+if not exist "%CPU_BUILD%\%WORKER_EXE%" (
   echo The CPU fallback worker is missing. 1>&2
   exit /b 1
 )
@@ -138,7 +139,7 @@ if not exist "%FFMPEG_LICENSE_DIR%\FFmpeg-LGPL-3.0.txt" (
   exit /b 1
 )
 cmake -E copy_if_different "%STAGE_DIR%\bin\%WORKER_EXE%" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-%BACKEND_SLUG%.exe" || exit /b 1
-cmake -E copy_if_different "%CPU_BUILD%\src\worker\%WORKER_EXE%" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-cpu.exe" || exit /b 1
+cmake -E copy_if_different "%CPU_BUILD%\%WORKER_EXE%" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-cpu.exe" || exit /b 1
 cmake -E copy_if_different "%BREEZEDESK_FFMPEG_DIR%\ffmpeg.exe" "%STAGE_DIR%\bin\ffmpeg.exe" || exit /b 1
 cmake -E copy_if_different "%BREEZEDESK_FFMPEG_DIR%\ffprobe.exe" "%STAGE_DIR%\bin\ffprobe.exe" || exit /b 1
 cmake -E copy_if_different "%PROJECT_ROOT%\LICENSE" "%STAGE_DIR%\share\breezedesk\licenses\%BREEZEDESK_PRODUCT_NAME%-MIT.txt" || exit /b 1
@@ -184,6 +185,10 @@ if /I "%PACKAGE_VARIANT%"=="CUDA" (
 )
 
 windeployqt --release --force --compiler-runtime --qmldir "%PROJECT_ROOT%\src\qml" --translations en,zh_TW "%STAGE_DIR%\bin\%APP_EXE%" "%STAGE_DIR%\bin\%CLI_EXE%" "%STAGE_DIR%\bin\%WORKER_EXE%" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-%BACKEND_SLUG%.exe" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-cpu.exe" || exit /b 1
+if not exist "%STAGE_DIR%\bin\Qt6Network.dll" (
+  echo Qt deployment did not produce Qt6Network.dll required by the ASR workers. 1>&2
+  exit /b 1
+)
 call :sign_if_requested "%STAGE_DIR%" || exit /b 1
 
 set "MAKENSIS=%ProgramFiles(x86)%\NSIS\makensis.exe"

@@ -15,6 +15,7 @@ Rectangle {
     color: "transparent"
     border.color: toneColor
     Accessible.name: text
+    Accessible.role: Accessible.StaticText
     Text {
         id: label
         anchors.centerIn: parent

@@ -3,15 +3,19 @@ import QtQuick.Controls as T
 
 T.Switch {
     id: control
+    property string accessibleName: text
     implicitHeight: ComponentTokens.clickTarget
-    Accessible.name: text
+    hoverEnabled: true
+    Accessible.name: accessibleName
     font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
     contentItem: Text {
         leftPadding: control.indicator.width + SemanticTokens.spacingMd
         text: control.text
-        color: SemanticTokens.text
+        color: control.enabled ? SemanticTokens.text : SemanticTokens.textMuted
         font: control.font
+        elide: Text.ElideRight
+        maximumLineCount: 1
         verticalAlignment: Text.AlignVCenter
     }
     indicator: Rectangle {
@@ -20,9 +24,13 @@ T.Switch {
         implicitWidth: 42
         implicitHeight: 24
         radius: 12
-        color: control.checked ? SemanticTokens.accent : SemanticTokens.borderStrong
+        color: control.checked
+               ? (control.hovered && control.enabled ? SemanticTokens.accentStrong : SemanticTokens.accent)
+               : (control.hovered && control.enabled ? SemanticTokens.textMuted : SemanticTokens.borderStrong)
+        opacity: control.enabled ? 1.0 : 0.5
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 0
         border.color: SemanticTokens.focusRing
+        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
         Rectangle {
             width: 18
             height: 18
