@@ -1504,9 +1504,9 @@ class tst_QmlSmoke final : public QObject {
                                     .arg(width)
                                     .arg(segment->height())));
             QVERIFY(lowConfidenceMarker->isVisible());
-            QVERIFY2(!statusRow->isVisible(),
-                     qPrintable(QStringLiteral("Low confidence must not add a badge row at %1 px")
-                                    .arg(width)));
+            QVERIFY2(
+                !statusRow->isVisible(),
+                qPrintable(QStringLiteral("Low confidence must not add a badge row at %1 px").arg(width)));
             QVERIFY(actionsRow->isVisible());
             QVERIFY2(deleteButton->height() <= 32.0,
                      qPrintable(QStringLiteral("Segment action buttons must stay compact at %1 px: "
@@ -1516,8 +1516,8 @@ class tst_QmlSmoke final : public QObject {
 
             const QPointF selectedTextOrigin = textEditor->mapToItem(segment, QPointF{});
             const QPointF selectedActionsOrigin = actionsRow->mapToItem(segment, QPointF{});
-            const qreal actionsCenterOffset = selectedActionsOrigin.y() + actionsRow->height() / 2.0 -
-                                              segment->height() / 2.0;
+            const qreal actionsCenterOffset =
+                selectedActionsOrigin.y() + actionsRow->height() / 2.0 - segment->height() / 2.0;
             QVERIFY2(std::abs(actionsCenterOffset) <= 2.0,
                      qPrintable(QStringLiteral("Segment actions must be vertically centered at %1 px: "
                                                "offset=%2")
