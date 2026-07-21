@@ -190,11 +190,11 @@ if not exist "%STAGE_DIR%\bin\Qt6Network.dll" (
   exit /b 1
 )
 if not exist "%STAGE_DIR%\bin\iconengines\qsvgicon.dll" (
-  echo Qt deployment did not produce the SVG icon engine required by the Windows tray icon. 1>&2
+  echo Qt deployment did not produce the SVG icon engine required by SVG-based UI icons. 1>&2
   exit /b 1
 )
 if not exist "%STAGE_DIR%\bin\imageformats\qsvg.dll" (
-  echo Qt deployment did not produce the SVG image plugin required by the in-app logo. 1>&2
+  echo Qt deployment did not produce the SVG image plugin required by SVG-based UI icons. 1>&2
   exit /b 1
 )
 call :sign_if_requested "%STAGE_DIR%" || exit /b 1

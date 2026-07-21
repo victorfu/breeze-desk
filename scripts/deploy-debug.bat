@@ -66,11 +66,11 @@ if not exist "%BUILD_DIR%\Qt6Testd.dll" (
   exit /b 1
 )
 if not exist "%BUILD_DIR%\iconengines\qsvgicond.dll" (
-  echo Qt deployment did not produce qsvgicond.dll required by the Windows tray icon. 1>&2
+  echo Qt deployment did not produce qsvgicond.dll required by SVG-based UI icons. 1>&2
   exit /b 1
 )
 if not exist "%BUILD_DIR%\imageformats\qsvgd.dll" (
-  echo Qt deployment did not produce qsvgd.dll required by the in-app logo. 1>&2
+  echo Qt deployment did not produce qsvgd.dll required by SVG-based UI icons. 1>&2
   exit /b 1
 )
 exit /b 0

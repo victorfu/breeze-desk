@@ -190,7 +190,7 @@ class tst_QmlSmoke final : public QObject {
 
     void cleanup() { qmlMessages.clear(); }
 
-    void brandIconsRenderAtNativeWindowsSizes() {
+    void brandIconRendersAtNativeWindowsSizes() {
         const QIcon icon = BreezeDesk::brandIcon();
         const QList<QSize> expectedSizes = BreezeDesk::nativeBrandIconSizes();
 
