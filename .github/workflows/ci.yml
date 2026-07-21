@@ -22,7 +22,7 @@ jobs:
   format:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install formatter
         run: sudo apt-get update && sudo apt-get install --yes clang-format-18
       - name: Check clang-format
@@ -32,7 +32,7 @@ jobs:
   configure-check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
@@ -60,15 +60,17 @@ jobs:
             backend: VULKAN
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
           arch: ${{ matrix.qt_arch }}
           modules: qtmultimedia qtshadertools
           cache: true
-      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure MSVC developer shell
         if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/export-msvc-environment.ps1
       - name: Install macOS compiler cache
         if: runner.os == 'macOS'
         run: brew install ccache
@@ -82,7 +84,7 @@ jobs:
           if (-not $Sdk) { throw 'Chocolatey did not install the Vulkan SDK under C:\VulkanSDK.' }
           "VULKAN_SDK=$($Sdk.FullName)" | Out-File $env:GITHUB_ENV -Append
           "$($Sdk.FullName)\Bin" | Out-File $env:GITHUB_PATH -Append
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             .cache/whisper.cpp
@@ -146,7 +148,7 @@ jobs:
         run: ctest --test-dir build/ci-cpu -R '^IPC.WorkerProcess$' --output-on-failure --no-tests=error
       - name: Upload CTest diagnostics
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ctest-${{ runner.os }}-${{ matrix.backend }}
           path: build/ci/Testing/Temporary
@@ -154,7 +156,7 @@ jobs:
   qml-smoke:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}

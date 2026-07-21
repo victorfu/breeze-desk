@@ -64,26 +64,23 @@ $Manifest = $Manifest.Replace('@EXECUTABLE_NAME@', (Escape-XmlAttribute $Executa
 $Manifest = $Manifest.Replace('@PRODUCT_ID@', (Escape-XmlAttribute $ProductId))
 $Manifest | Set-Content (Join-Path $LayoutDirectory "AppxManifest.xml") -Encoding utf8
 
-$FullIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk.png"
-$SymbolIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-symbol.svg"
-$TrayIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-tray.svg"
+$AppIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-sidebar.png"
 $Assets = Join-Path $LayoutDirectory "Assets"
 
-function New-VectorAsset([string]$Source, [int]$Size, [string]$Name) {
-    & $Magick -background transparent -density 384 $Source -resize "${Size}x${Size}" (Join-Path $Assets $Name)
+function New-AppIconAsset([int]$Size, [string]$Name) {
+    & $Magick -background transparent $AppIcon -filter Lanczos -resize "${Size}x${Size}" (Join-Path $Assets $Name)
     if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create $Name." }
 }
 
-New-VectorAsset $SymbolIcon 44 "Square44x44Logo.png"
+New-AppIconAsset 44 "Square44x44Logo.png"
 foreach ($TargetSize in 16, 20, 24, 28, 30, 32, 36, 40, 44, 48, 56, 60, 64, 72, 80, 96, 256) {
-    $TargetSource = if ($TargetSize -le 28) { $TrayIcon } else { $SymbolIcon }
-    New-VectorAsset $TargetSource $TargetSize "Square44x44Logo.targetsize-$TargetSize.png"
+    New-AppIconAsset $TargetSize "Square44x44Logo.targetsize-$TargetSize.png"
 }
-New-VectorAsset $SymbolIcon 50 "StoreLogo.png"
+New-AppIconAsset 50 "StoreLogo.png"
 
-& $Magick -background transparent $FullIcon -filter Lanczos -resize 150x150 (Join-Path $Assets "Square150x150Logo.png")
+& $Magick -background transparent $AppIcon -filter Lanczos -resize 150x150 (Join-Path $Assets "Square150x150Logo.png")
 if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create Square150x150Logo.png." }
-& $Magick -background transparent -size 310x150 -gravity center $FullIcon -filter Lanczos -resize 140x140 -extent 310x150 (Join-Path $Assets "Wide310x150Logo.png")
+& $Magick -background transparent -size 310x150 -gravity center $AppIcon -filter Lanczos -resize 140x140 -extent 310x150 (Join-Path $Assets "Wide310x150Logo.png")
 if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create Wide310x150Logo.png." }
 
 $OutputFile = [IO.Path]::GetFullPath($OutputFile)

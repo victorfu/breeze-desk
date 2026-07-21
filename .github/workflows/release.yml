@@ -20,7 +20,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       product_name: ${{ steps.version.outputs.product_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - id: version
         shell: bash
         run: |
@@ -36,7 +36,7 @@ jobs:
           python3 scripts/extract-changelog_entry.py "$version" > release-notes.md
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "product_name=$product_name" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-notes
           path: release-notes.md
@@ -45,7 +45,7 @@ jobs:
     needs: validate
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
@@ -74,7 +74,7 @@ jobs:
             echo "Local unsigned packaging remains available through packaging/macos/package.sh." >&2
             exit 1
           fi
-      - uses: apple-actions/import-codesign-certs@v3
+      - uses: apple-actions/import-codesign-certs@v7
         with:
           p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
           p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -89,7 +89,7 @@ jobs:
           --team-id "$APPLE_TEAM_ID"
           --password "$APPLE_APP_PASSWORD"
       - run: brew install ccache imagemagick
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             .cache/whisper.cpp
@@ -132,7 +132,7 @@ jobs:
         env:
           BREEZEDESK_SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: packaging/macos/sign-sparkle-update.sh "dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-macOS-arm64.dmg"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos
           path: |
@@ -144,14 +144,16 @@ jobs:
     needs: validate
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
           modules: qtmultimedia qtshadertools
           cache: true
-      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure MSVC developer shell
+        shell: pwsh
+        run: ./scripts/export-msvc-environment.ps1
       - name: Install release tools and Vulkan SDK
         shell: pwsh
         run: |
@@ -181,7 +183,7 @@ jobs:
           if ($Missing.Count) {
             throw "Signed release cannot proceed. Missing: $($Missing -join ', '). Local unsigned package.bat builds remain available."
           }
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             .cache/whisper.cpp
@@ -235,7 +237,7 @@ jobs:
         env:
           BREEZEDESK_WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
         run: packaging/windows/sign-winsparkle-update.ps1 "dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-Universal-Setup.exe"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-universal
           path: |
@@ -250,13 +252,15 @@ jobs:
     needs: validate
     runs-on: [self-hosted, Windows, X64, CUDA]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
           arch: win64_msvc2022_64
           modules: qtmultimedia qtshadertools
-      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Configure MSVC developer shell
+        shell: pwsh
+        run: ./scripts/export-msvc-environment.ps1
       - name: Verify self-hosted release prerequisites
         shell: pwsh
         env:
@@ -301,7 +305,7 @@ jobs:
         env:
           BREEZEDESK_WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
         run: packaging/windows/sign-winsparkle-update.ps1 "dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-cuda
           path: |
@@ -321,8 +325,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v8
         with:
           path: downloaded
       - name: Assemble release artifacts and update feeds
@@ -346,7 +350,7 @@ jobs:
             --release-notes downloaded/release-notes/release-notes.md \
             --require-update-signatures \
             "${artifacts[@]}"
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           body_path: downloaded/release-notes/release-notes.md
           files: release-assets/*

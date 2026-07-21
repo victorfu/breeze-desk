@@ -7,7 +7,6 @@
 namespace BreezeDesk {
 
 [[nodiscard]] QList<QSize> nativeBrandIconSizes();
-[[nodiscard]] QIcon brandSymbolIcon();
-[[nodiscard]] QIcon windowsTrayIcon();
+[[nodiscard]] QIcon brandIcon();
 
 } // namespace BreezeDesk

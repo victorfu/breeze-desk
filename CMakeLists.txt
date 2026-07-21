@@ -58,7 +58,7 @@ if(WIN32)
     set(_breezedesk_default_windows_icon "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/breezedesk.ico")
 endif()
 set(BREEZEDESK_WINDOWS_ICON_PATH "${_breezedesk_default_windows_icon}" CACHE FILEPATH
-    "Windows multi-resolution ICO generated from the small-size brand assets")
+    "Windows multi-resolution ICO generated from the canonical app icon")
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(BreezeDeskCompilerCache)

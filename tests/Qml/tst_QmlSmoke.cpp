@@ -191,39 +191,37 @@ class tst_QmlSmoke final : public QObject {
     void cleanup() { qmlMessages.clear(); }
 
     void brandIconsRenderAtNativeWindowsSizes() {
-        const QList<QIcon> icons{BreezeDesk::brandSymbolIcon(), BreezeDesk::windowsTrayIcon()};
+        const QIcon icon = BreezeDesk::brandIcon();
         const QList<QSize> expectedSizes = BreezeDesk::nativeBrandIconSizes();
 
-        for (const QIcon& icon : icons) {
-            QVERIFY(!icon.isNull());
-            for (const QSize& expectedSize : expectedSizes) {
-                const QImage image =
-                    icon.pixmap(expectedSize).toImage().convertToFormat(QImage::Format_RGBA8888);
-                QCOMPARE(image.size(), expectedSize);
+        QVERIFY(!icon.isNull());
+        for (const QSize& expectedSize : expectedSizes) {
+            const QImage image =
+                icon.pixmap(expectedSize).toImage().convertToFormat(QImage::Format_RGBA8888);
+            QCOMPARE(image.size(), expectedSize);
 
-                int opaquePixels = 0;
-                int whitePixels = 0;
-                int greenPixels = 0;
-                for (int y = 0; y < image.height(); ++y) {
-                    for (int x = 0; x < image.width(); ++x) {
-                        const QColor pixel = image.pixelColor(x, y);
-                        if (pixel.alpha() < 180) {
-                            continue;
-                        }
-                        ++opaquePixels;
-                        if (pixel.red() > 225 && pixel.green() > 225 && pixel.blue() > 225) {
-                            ++whitePixels;
-                        }
-                        if (pixel.green() > pixel.red() + 30 && pixel.green() > pixel.blue() + 20) {
-                            ++greenPixels;
-                        }
+            int opaquePixels = 0;
+            int whitePixels = 0;
+            int greenPixels = 0;
+            for (int y = 0; y < image.height(); ++y) {
+                for (int x = 0; x < image.width(); ++x) {
+                    const QColor pixel = image.pixelColor(x, y);
+                    if (pixel.alpha() < 180) {
+                        continue;
+                    }
+                    ++opaquePixels;
+                    if (pixel.red() > 225 && pixel.green() > 225 && pixel.blue() > 225) {
+                        ++whitePixels;
+                    }
+                    if (pixel.green() > pixel.red() + 30 && pixel.green() > pixel.blue() + 20) {
+                        ++greenPixels;
                     }
                 }
-                const int pixelCount = expectedSize.width() * expectedSize.height();
-                QVERIFY(opaquePixels > pixelCount / 2);
-                QVERIFY(whitePixels > pixelCount / 10);
-                QVERIFY(greenPixels > pixelCount / 4);
             }
+            const int pixelCount = expectedSize.width() * expectedSize.height();
+            QVERIFY(opaquePixels > pixelCount / 2);
+            QVERIFY(whitePixels > pixelCount / 10);
+            QVERIFY(greenPixels > pixelCount / 4);
         }
     }
 

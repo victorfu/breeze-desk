@@ -172,6 +172,8 @@ int main(int argc, char* argv[]) {
           BreezeDesk::StoragePaths::logs(), BreezeDesk::StoragePaths::exports()}},
         &application);
     BreezeDesk::registerUiTypes();
+    const QIcon applicationIcon = BreezeDesk::brandIcon();
+    application.setWindowIcon(applicationIcon);
 
     QQmlApplicationEngine engine;
     std::unique_ptr<BreezeDesk::ApplicationViewModel> viewModel(
@@ -468,16 +470,8 @@ int main(int argc, char* argv[]) {
         return 11;
     }
 
-#ifdef Q_OS_WIN
-    const QIcon applicationIcon = BreezeDesk::brandSymbolIcon();
-#else
-    const QIcon applicationIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.png"));
-#endif
-    application.setWindowIcon(applicationIcon);
 #ifdef Q_OS_MACOS
     const QIcon trayIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar.png"));
-#elif defined(Q_OS_WIN)
-    const QIcon trayIcon = BreezeDesk::windowsTrayIcon();
 #else
     const QIcon trayIcon(applicationIcon);
 #endif

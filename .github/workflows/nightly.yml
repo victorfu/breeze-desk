@@ -21,7 +21,7 @@ jobs:
   dependency-and-long-form:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
@@ -59,7 +59,7 @@ jobs:
   tiny-model-integration:
     runs-on: macos-15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
@@ -67,7 +67,7 @@ jobs:
           modules: qtmultimedia qtshadertools
           cache: true
       - run: brew install ccache
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: |
             .cache/whisper.cpp
@@ -105,7 +105,7 @@ jobs:
     if: ${{ vars.RUN_BREEZE_MODEL_SMOKE == 'true' }}
     runs-on: [self-hosted, macOS, ARM64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Verify manually provisioned fixtures
         shell: bash
         run: |

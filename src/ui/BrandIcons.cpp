@@ -9,12 +9,8 @@ QList<QSize> nativeBrandIconSizes() {
             {56, 56}, {64, 64}, {80, 80}, {96, 96}, {128, 128}, {256, 256}};
 }
 
-QIcon brandSymbolIcon() {
-    return QIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-symbol.svg"));
-}
-
-QIcon windowsTrayIcon() {
-    return QIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-tray.svg"));
+QIcon brandIcon() {
+    return QIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png"));
 }
 
 } // namespace BreezeDesk

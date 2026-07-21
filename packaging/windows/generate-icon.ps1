@@ -20,17 +20,15 @@ if (-not $ResolvedFrameDirectory.StartsWith($TempRoot, [StringComparison]::Ordin
     throw "Refusing to create icon frames outside the temporary directory."
 }
 
-$Symbol = Join-Path $ProjectDirectory "resources\icons\breezedesk-symbol.svg"
-$Tray = Join-Path $ProjectDirectory "resources\icons\breezedesk-tray.svg"
+$Source = Join-Path $ProjectDirectory "resources\icons\breezedesk-sidebar.png"
 $Sizes = 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128, 256
 $FramePaths = @()
 
 try {
     New-Item -ItemType Directory -Force $ResolvedFrameDirectory | Out-Null
     foreach ($Size in $Sizes) {
-        $Source = if ($Size -le 28) { $Tray } else { $Symbol }
         $FramePath = Join-Path $ResolvedFrameDirectory (("{0:D3}" -f $Size) + ".png")
-        & $Magick -background transparent -density 384 $Source -resize "${Size}x${Size}" $FramePath
+        & $Magick -background transparent $Source -filter Lanczos -resize "${Size}x${Size}" $FramePath
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $FramePath)) {
             throw "ImageMagick could not render the ${Size}px Windows icon frame."
         }

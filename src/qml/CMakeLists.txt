@@ -8,16 +8,10 @@ set_source_files_properties(${BREEZEDESK_QML_SINGLETONS} PROPERTIES QT_QML_SINGL
 
 set(BREEZEDESK_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk.png)
 set(BREEZEDESK_SIDEBAR_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-sidebar.png)
-set(BREEZEDESK_SYMBOL ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-symbol.svg)
-set(BREEZEDESK_TRAY_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-tray.svg)
 set(BREEZEDESK_MENUBAR_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-menubar.png)
 set_source_files_properties(${BREEZEDESK_ICON} PROPERTIES QT_RESOURCE_ALIAS icons/breezedesk.png)
 set_source_files_properties(${BREEZEDESK_SIDEBAR_ICON} PROPERTIES
     QT_RESOURCE_ALIAS icons/breezedesk-sidebar.png)
-set_source_files_properties(${BREEZEDESK_SYMBOL} PROPERTIES
-    QT_RESOURCE_ALIAS icons/breezedesk-symbol.svg)
-set_source_files_properties(${BREEZEDESK_TRAY_ICON} PROPERTIES
-    QT_RESOURCE_ALIAS icons/breezedesk-tray.svg)
 set_source_files_properties(${BREEZEDESK_MENUBAR_ICON} PROPERTIES
     QT_RESOURCE_ALIAS icons/breezedesk-menubar.png)
 set(BREEZEDESK_LUCIDE_ICON_NAMES
@@ -93,8 +87,6 @@ qt_add_qml_module(breezedesk_ui
     RESOURCES
         ${BREEZEDESK_ICON}
         ${BREEZEDESK_SIDEBAR_ICON}
-        ${BREEZEDESK_SYMBOL}
-        ${BREEZEDESK_TRAY_ICON}
         ${BREEZEDESK_MENUBAR_ICON}
         ${BREEZEDESK_LUCIDE_ICONS}
 )
