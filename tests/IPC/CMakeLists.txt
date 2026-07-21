@@ -47,7 +47,9 @@ target_link_libraries(single_instance_race_helper PRIVATE Qt6::Core breezedesk_i
 add_executable(tst_ipc_single_instance tst_SingleInstanceGuard.cpp)
 target_link_libraries(tst_ipc_single_instance PRIVATE Qt6::Test breezedesk_ipc)
 add_dependencies(tst_ipc_single_instance single_instance_race_helper)
-add_test(NAME IPC.SingleInstance COMMAND tst_ipc_single_instance)
+add_test(NAME IPC.SingleInstance COMMAND tst_ipc_single_instance
+    -o -,txt
+    -o "${CMAKE_BINARY_DIR}/Testing/Temporary/IPC.SingleInstance.txt,txt")
 set_tests_properties(IPC.SingleInstance PROPERTIES LABELS "IPC;unit")
 
 add_executable(tst_cli_forwarding_policy tst_CliForwardingPolicy.cpp)

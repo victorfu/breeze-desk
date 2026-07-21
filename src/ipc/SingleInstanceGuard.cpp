@@ -160,8 +160,16 @@ bool SingleInstanceGuard::forwardToPrimary(const QStringList& filePaths, int tim
         }
         activation.payload.insert(QStringLiteral("filePaths"), paths);
         const QByteArray frame = FrameCodec::encode(activation);
-        if (socket.write(frame) != frame.size() ||
-            !socket.waitForBytesWritten(qMax(1, timeoutMs - static_cast<int>(timer.elapsed())))) {
+        if (socket.write(frame) != frame.size()) {
+            m_error = socket.errorString();
+            return false;
+        }
+        // A fast primary can consume the request and close its pipe before this wait observes a
+        // bytes-written signal. Only fail while Qt still has request bytes queued; the matching
+        // reply below remains the success condition.
+        if (socket.bytesToWrite() > 0 &&
+            !socket.waitForBytesWritten(qMax(1, timeoutMs - static_cast<int>(timer.elapsed()))) &&
+            socket.bytesToWrite() > 0) {
             m_error = socket.errorString();
             return false;
         }

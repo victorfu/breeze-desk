@@ -13,21 +13,31 @@
 namespace BreezeDesk {
 namespace {
 
+#if defined(Q_OS_WIN)
+constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseInsensitive;
+#else
+constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseSensitive;
+#endif
+
 struct DirectoryCandidate {
     QString path;
     QDateTime lastModified;
 };
 
 [[nodiscard]] QString normalizedPath(const QString& path) {
-    return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    return QDir::cleanPath(QDir::fromNativeSeparators(QFileInfo(path).absoluteFilePath()));
+}
+
+[[nodiscard]] bool pathsAreEqual(const QString& left, const QString& right) {
+    return left.compare(right, PathCaseSensitivity) == 0;
 }
 
 [[nodiscard]] bool isPathWithin(const QString& path, const QString& parent) {
-    if (path == parent) {
+    if (pathsAreEqual(path, parent)) {
         return true;
     }
-    const QString prefix = parent.endsWith(QDir::separator()) ? parent : parent + QDir::separator();
-    return path.startsWith(prefix, Qt::CaseSensitive);
+    const QString prefix = parent.endsWith(QLatin1Char('/')) ? parent : parent + QLatin1Char('/');
+    return path.startsWith(prefix, PathCaseSensitivity);
 }
 
 [[nodiscard]] bool isProtected(const QString& path, const QStringList& protectedPaths) {
@@ -38,8 +48,8 @@ struct DirectoryCandidate {
 
 [[nodiscard]] bool isUnsafeRoot(const QString& directory) {
     const QFileInfo info(directory);
-    return info.isRoot() || directory == normalizedPath(QDir::homePath()) ||
-           directory == normalizedPath(StoragePaths::root());
+    return info.isRoot() || pathsAreEqual(directory, normalizedPath(QDir::homePath())) ||
+           pathsAreEqual(directory, normalizedPath(StoragePaths::root()));
 }
 
 } // namespace

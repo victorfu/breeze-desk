@@ -17,6 +17,9 @@ using namespace BreezeDesk::Ipc;
 
 namespace {
 
+constexpr int RacePrimaryHoldMilliseconds = 5'000;
+constexpr int RaceProcessTimeoutMilliseconds = 10'000;
+
 [[nodiscard]] QByteArray normalizedLineEndings(QByteArray bytes) {
     bytes.replace("\r\n", "\n");
     return bytes;
@@ -186,14 +189,14 @@ void SingleInstanceGuardTest::startupRaceHasOnePrimary() {
     processes.reserve(6);
     for (int index = 0; index < 6; ++index) {
         auto process = std::make_unique<QProcess>();
-        process->start(helper,
-                       {QStringLiteral("--application-id"), applicationId, QStringLiteral("--hold-ms"),
-                        QStringLiteral("900"), QStringLiteral("file-%1-中文.wav").arg(index)});
+        process->start(helper, {QStringLiteral("--application-id"), applicationId,
+                                QStringLiteral("--hold-ms"), QString::number(RacePrimaryHoldMilliseconds),
+                                QStringLiteral("file-%1-中文.wav").arg(index)});
         QVERIFY(process->waitForStarted());
         processes.push_back(std::move(process));
     }
     for (const auto& process : processes) {
-        QVERIFY(process->waitForFinished(5'000));
+        QVERIFY(process->waitForFinished(RaceProcessTimeoutMilliseconds));
         QCOMPARE(process->exitStatus(), QProcess::NormalExit);
         QCOMPARE(process->exitCode(), 0);
     }

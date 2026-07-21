@@ -115,7 +115,17 @@ ApplicationCommandForwardResult ApplicationCommandClient::forward(const QString&
         command.payload.insert(QStringLiteral("arguments"), encodedArguments);
         const QByteArray frame = FrameCodec::encode(command);
         const int writeBudget = boundedTimeout - static_cast<int>(timer.elapsed());
-        if (socket.write(frame) != frame.size() || !socket.waitForBytesWritten(qMax(1, writeBudget))) {
+        if (socket.write(frame) != frame.size()) {
+            return failed(ApplicationCommandForwardStatus::Indeterminate,
+                          QStringLiteral("The GUI command may have been received, but its result "
+                                         "could not be confirmed: %1")
+                              .arg(socket.errorString()));
+        }
+        // A fast GUI can consume the request and close its pipe before this wait observes a
+        // bytes-written signal. Only fail while Qt still has request bytes queued; the matching
+        // reply below remains the success condition.
+        if (socket.bytesToWrite() > 0 && !socket.waitForBytesWritten(qMax(1, writeBudget)) &&
+            socket.bytesToWrite() > 0) {
             return failed(ApplicationCommandForwardStatus::Indeterminate,
                           QStringLiteral("The GUI command may have been received, but its result "
                                          "could not be confirmed: %1")
