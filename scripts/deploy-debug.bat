@@ -48,10 +48,21 @@ if not exist "%WINDEPLOYQT%" (
   echo Unable to locate the matching windeployqt.exe from BREEZEDESK_WINDEPLOYQT, Qt6_DIR, or PATH. 1>&2
   exit /b 1
 )
+for %%I in ("%WINDEPLOYQT%") do set "QT_BIN=%%~dpI"
+set "QT_TEST_DLL=%QT_BIN%Qt6Testd.dll"
+if not exist "%QT_TEST_DLL%" (
+  echo The matching Qt Debug test runtime is missing: %QT_TEST_DLL% 1>&2
+  exit /b 1
+)
 
 "%WINDEPLOYQT%" --debug --force --compiler-runtime --verbose 0 --qmldir "%PROJECT_ROOT%\src\qml" --translations en,zh_TW "%APP_PATH%" "%CLI_PATH%" "%WORKER_PATH%" || exit /b 1
+copy /y "%QT_TEST_DLL%" "%BUILD_DIR%\Qt6Testd.dll" >nul || exit /b 1
 if not exist "%BUILD_DIR%\Qt6Networkd.dll" (
   echo Qt deployment did not produce Qt6Networkd.dll required by the ASR worker. 1>&2
+  exit /b 1
+)
+if not exist "%BUILD_DIR%\Qt6Testd.dll" (
+  echo Qt deployment did not produce Qt6Testd.dll required by the Debug tests. 1>&2
   exit /b 1
 )
 if not exist "%BUILD_DIR%\iconengines\qsvgicond.dll" (

@@ -15,6 +15,15 @@
 
 using namespace BreezeDesk::Ipc;
 
+namespace {
+
+[[nodiscard]] QByteArray normalizedLineEndings(QByteArray bytes) {
+    bytes.replace("\r\n", "\n");
+    return bytes;
+}
+
+} // namespace
+
 class SingleInstanceGuardTest final : public QObject {
     Q_OBJECT
 
@@ -84,8 +93,8 @@ void SingleInstanceGuardTest::forwardsApplicationCommandResult() {
     QTRY_COMPARE_WITH_TIMEOUT(client.state(), QProcess::NotRunning, 3'000);
     QCOMPARE(client.exitStatus(), QProcess::NormalExit);
     QCOMPARE(client.exitCode(), 7);
-    QCOMPARE(client.readAllStandardOutput(), QByteArrayLiteral("machine-output\n"));
-    QCOMPARE(client.readAllStandardError(), QByteArrayLiteral("diagnostic-output\n"));
+    QCOMPARE(normalizedLineEndings(client.readAllStandardOutput()), QByteArrayLiteral("machine-output\n"));
+    QCOMPARE(normalizedLineEndings(client.readAllStandardError()), QByteArrayLiteral("diagnostic-output\n"));
     QCOMPARE(received,
              QStringList({QStringLiteral("library"), QStringLiteral("search"), QStringLiteral("台灣 會議")}));
 }

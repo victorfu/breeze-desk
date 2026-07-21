@@ -217,7 +217,9 @@ Result<void> ApplicationLogger::install() {
     }
 
     d->file.setFileName(d->activePath);
-    if (!d->file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+    // Keep the file in binary mode so the encoded byte count used for rotation
+    // is also the byte count written on Windows (where Text expands LF to CRLF).
+    if (!d->file.open(QIODevice::WriteOnly | QIODevice::Append)) {
         return Result<void>::failure(
             loggingError(QStringLiteral("The active log file could not be opened."), d->file.errorString()));
     }
@@ -343,7 +345,7 @@ QByteArray ApplicationLogger::appendMessage(const QtMsgType type, const QMessage
             QFile::remove(d->activePath);
         }
         d->file.setFileName(d->activePath);
-        if (!d->file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text)) {
+        if (!d->file.open(QIODevice::WriteOnly | QIODevice::Append)) {
             return encoded;
         }
         d->file.setPermissions(QFileDevice::ReadOwner | QFileDevice::WriteOwner);

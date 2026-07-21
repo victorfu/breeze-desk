@@ -76,9 +76,14 @@ void AsrWorkerClient::sendEnvelope(Envelope envelope) {
         emit protocolError(error);
         return;
     }
-    if (m_socket.write(frame) != frame.size() || !m_socket.flush()) {
+    if (m_socket.write(frame) != frame.size()) {
         fail(ProtocolErrorCode::SocketError, m_socket.errorString());
+        return;
     }
+    // flush() is only a best-effort, non-blocking nudge. A false result means
+    // that no bytes were written immediately, not that the queued frame failed.
+    // The event loop will continue draining the buffer.
+    (void)m_socket.flush();
 }
 
 void AsrWorkerClient::readAvailable() {

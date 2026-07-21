@@ -124,6 +124,9 @@ jobs:
           if (-not (Test-Path "$Build\Qt6Networkd.dll")) {
             throw 'Qt6Networkd.dll required by the ASR worker was not deployed.'
           }
+          if (-not (Test-Path "$Build\Qt6Testd.dll")) {
+            throw 'Qt6Testd.dll required by the Windows Debug tests was not deployed.'
+          }
       - name: Test
         run: ctest --test-dir build/ci --output-on-failure --no-tests=error
       - name: Configure CPU fallback worker
