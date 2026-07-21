@@ -19,6 +19,7 @@ class IJobRepository;
 class IGlossaryRepository;
 class IRecordingRepository;
 class ITranscriptRepository;
+class ModelDownloadOperation;
 class ModelManager;
 class NormalizationOperation;
 class TranscriptionSettingsManager;
@@ -69,6 +70,7 @@ class TranscriptionCoordinator final : public QObject {
   private:
     enum class RequestKind { None, GetCapabilities, AnalyzeSpeech, LoadModel, TranscribeChunk };
     enum class RuntimeAvailability { Unknown, Available, Unavailable };
+    enum class VadModelContinuation { PrepareChunks, AnalyzeSpeech, StartNextChunk, TranscribeCurrentChunk };
 
     void scheduleNext();
     void scheduleLeaseRetry();
@@ -88,6 +90,10 @@ class TranscriptionCoordinator final : public QObject {
     void analyzeSpeech();
     void loadModel();
     void startNextChunk();
+    void transcribeCurrentChunk();
+    bool ensureVadModelAvailable(VadModelContinuation continuation, bool forceDownload = false);
+    void appendVadModelEvent(const QString& eventType, const QString& message,
+                             const QString& severity = QStringLiteral("info"));
     void handleWorkerEnvelope(const Ipc::Envelope& envelope);
     void persistPartialSegments();
     bool finalizeCurrentChunk(QString* error);
@@ -139,6 +145,8 @@ class TranscriptionCoordinator final : public QObject {
     QJsonObject m_loadedRuntimeDiagnostics;
     QString m_loadedVadModelId;
     QString m_loadedVadPath;
+    QPointer<ModelDownloadOperation> m_vadDownload;
+    QMetaObject::Connection m_vadDownloadFinishedConnection;
     QString m_requestId;
     RequestKind m_requestKind{RequestKind::None};
     RuntimeAvailability m_runtimeAvailability{RuntimeAvailability::Unknown};
@@ -148,6 +156,8 @@ class TranscriptionCoordinator final : public QObject {
     bool m_pauseAfterCurrent{false};
     bool m_externalWorkerReserved{false};
     bool m_activeRevisionPublished{false};
+    bool m_vadModelVerified{false};
+    bool m_vadRecoveryAttempted{false};
 };
 
 } // namespace BreezeDesk

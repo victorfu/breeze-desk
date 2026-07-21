@@ -264,7 +264,19 @@ ModelDownloadOperation* ModelManager::download(const QString& id) {
     if (entry == nullptr) {
         return nullptr;
     }
+    if (ModelDownloadOperation* existing = m_downloads.value(id); existing != nullptr) {
+        return existing;
+    }
+    m_downloads.remove(id);
     auto* operation = new ModelDownloadOperation(*entry, modelsDirectory(), m_network, this);
+    m_downloads.insert(id, operation);
+    connect(operation, &ModelDownloadOperation::finished, this, [this, id, operation](bool, const QString&) {
+        if (m_downloads.value(id) == operation) {
+            m_downloads.remove(id);
+        }
+        emit modelsChanged();
+        operation->deleteLater();
+    });
     QTimer::singleShot(0, operation, &ModelDownloadOperation::start);
     return operation;
 }

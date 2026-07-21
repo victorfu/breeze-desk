@@ -8,7 +8,8 @@ cloud recognition, summarization, chatbot, collaboration service, or synchroniza
 
 Only two features may create an outbound request:
 
-- a model download, pause/resume, or retry that the user starts from Models or the CLI;
+- a model download, pause/resume, or retry that the user starts from Models or the CLI, or the automatic
+  download of the pinned built-in Silero VAD model when a queued transcription requires it;
 - an application update check when native updates are available and the user enables or invokes it.
 
 Built-in model URLs are immutable manifest revisions. Update checks are disabled in Debug and do not

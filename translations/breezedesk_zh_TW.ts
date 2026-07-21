@@ -659,6 +659,56 @@
         <translation>使用 VAD 轉錄長錄音前，請先安裝 Silero VAD 模型。</translation>
     </message>
     <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1048"/>
+        <source>The required Silero VAD model is not present in the trusted model manifest.</source>
+        <translation>受信任的模型清單中沒有必要的 Silero VAD 模型。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1056"/>
+        <source>The required Silero VAD model is missing or invalid. Downloading and verifying it now.</source>
+        <translation>必要的 Silero VAD 模型缺少或無效，正在自動下載並驗證。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1075"/>
+        <source>The Silero VAD model could not be downloaded and verified.</source>
+        <translation>無法下載並驗證 Silero VAD 模型。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1076"/>
+        <source>The Silero VAD model could not be downloaded and verified: %1</source>
+        <translation>無法下載並驗證 Silero VAD 模型：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1082"/>
+        <source>The downloaded Silero VAD model failed verification: %1</source>
+        <translation>下載的 Silero VAD 模型驗證失敗：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1087"/>
+        <source>The Silero VAD model was downloaded and verified.</source>
+        <translation>Silero VAD 模型已下載並通過驗證。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1225"/>
+        <source>The active transcription unit is no longer available.</source>
+        <translation>目前的轉錄單元已無法使用。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1887"/>
+        <source>Downloading Silero VAD model</source>
+        <translation>正在下載 Silero VAD 模型</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1889"/>
+        <source>Silero VAD model downloaded</source>
+        <translation>Silero VAD 模型下載完成</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1896"/>
+        <source>Silero VAD model download failed</source>
+        <translation>Silero VAD 模型下載失敗</translation>
+    </message>
+    <message>
         <location filename="../src/app/TranscriptionCoordinator.cpp" line="890"/>
         <source>Speech analysis did not produce a transcription chunk plan.</source>
         <translation>語音分析未產生轉錄分段計畫。</translation>
@@ -3040,8 +3090,8 @@
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="264"/>
-        <source>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are model downloads you start and optional app update checks.</source>
-        <translation>音訊與逐字稿皆在本機處理。本應用程式不包含帳號、遙測、分析、當機上傳、雲端 ASR 或雲端 AI。唯一的網路活動是您主動啟動的模型下載，以及選用的應用程式更新檢查。</translation>
+        <source>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are verified model downloads, including automatic Silero VAD retrieval when required, and optional app update checks.</source>
+        <translation>音訊與逐字稿皆在本機處理。本應用程式不包含帳號、遙測、分析、當機上傳、雲端 ASR 或雲端 AI。唯一的網路活動是經過驗證的模型下載（包含需要時自動取得 Silero VAD），以及選用的應用程式更新檢查。</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="277"/>

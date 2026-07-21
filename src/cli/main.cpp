@@ -429,20 +429,23 @@ CliExitCode downloadModel(ModelManager* manager, const QString& id, bool json) {
     QEventLoop loop;
     bool success = false;
     QString path;
+    QString downloadError;
     QObject::connect(operation, &ModelDownloadOperation::progressChanged, operation, [operation] {
         writeProgress(QStringLiteral("Downloading %1 %2%")
                           .arg(operation->modelId(), QString::number(operation->progress() * 100.0, 'f', 1)));
     });
-    QObject::connect(operation, &ModelDownloadOperation::finished, &loop,
-                     [&loop, &success, &path](bool completed, const QString& filePath) {
-                         success = completed;
-                         path = filePath;
-                         loop.quit();
-                     });
+    QObject::connect(
+        operation, &ModelDownloadOperation::finished, &loop,
+        [&loop, &success, &path, &downloadError, operation](bool completed, const QString& filePath) {
+            success = completed;
+            path = filePath;
+            downloadError = operation->error();
+            loop.quit();
+        });
     loop.exec();
     finishProgress();
     if (!success) {
-        writeError(operation->error());
+        writeError(downloadError);
         return CliExitCode::NetworkFailure;
     }
     if (json) {

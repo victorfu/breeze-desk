@@ -73,7 +73,7 @@ Output is `dist/BreezeDesk-<version>-macOS-arm64.dmg` plus `.sha256` and, for re
 Run from a Visual Studio 2022 developer command prompt with Qt, Ninja, NSIS, ImageMagick, Windows SDK,
 MSYS2 (`make`, `nasm`, `diffutils`, and the mingw-w64 x64 GCC toolchain), and an LGPL FFmpeg directory
 available. The package script
-renders the canonical and optically simplified repository PNGs to a multi-resolution ICO before CMake
+renders the canonical and tray-sized repository PNGs to a multi-resolution ICO before CMake
 configures the executable resource and NSIS branding:
 
 ```bat

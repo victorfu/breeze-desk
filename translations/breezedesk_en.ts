@@ -662,6 +662,56 @@
         <translation>Install the Silero VAD model before transcribing long recordings with VAD.</translation>
     </message>
     <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1048"/>
+        <source>The required Silero VAD model is not present in the trusted model manifest.</source>
+        <translation>The required Silero VAD model is not present in the trusted model manifest.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1056"/>
+        <source>The required Silero VAD model is missing or invalid. Downloading and verifying it now.</source>
+        <translation>The required Silero VAD model is missing or invalid. Downloading and verifying it now.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1075"/>
+        <source>The Silero VAD model could not be downloaded and verified.</source>
+        <translation>The Silero VAD model could not be downloaded and verified.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1076"/>
+        <source>The Silero VAD model could not be downloaded and verified: %1</source>
+        <translation>The Silero VAD model could not be downloaded and verified: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1082"/>
+        <source>The downloaded Silero VAD model failed verification: %1</source>
+        <translation>The downloaded Silero VAD model failed verification: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1087"/>
+        <source>The Silero VAD model was downloaded and verified.</source>
+        <translation>The Silero VAD model was downloaded and verified.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1225"/>
+        <source>The active transcription unit is no longer available.</source>
+        <translation>The active transcription unit is no longer available.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1887"/>
+        <source>Downloading Silero VAD model</source>
+        <translation>Downloading Silero VAD model</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1889"/>
+        <source>Silero VAD model downloaded</source>
+        <translation>Silero VAD model downloaded</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1896"/>
+        <source>Silero VAD model download failed</source>
+        <translation>Silero VAD model download failed</translation>
+    </message>
+    <message>
         <location filename="../src/app/TranscriptionCoordinator.cpp" line="890"/>
         <source>Speech analysis did not produce a transcription chunk plan.</source>
         <translation>Speech analysis did not produce a transcription chunk plan.</translation>
@@ -3048,8 +3098,8 @@
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="264"/>
-        <source>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are model downloads you start and optional app update checks.</source>
-        <translation>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are model downloads you start and optional app update checks.</translation>
+        <source>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are verified model downloads, including automatic Silero VAD retrieval when required, and optional app update checks.</source>
+        <translation>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are verified model downloads, including automatic Silero VAD retrieval when required, and optional app update checks.</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="277"/>

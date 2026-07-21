@@ -24,7 +24,8 @@ BreezeDesk is a private, offline desktop workspace for long-form transcription. 
 video, records from a microphone, normalizes media with an LGPL FFmpeg sidecar, and transcribes
 through a separate native Qt worker that links directly to the whisper.cpp C API — no `whisper-cli`,
 no cloud ASR, no Python runtime, no telemetry. Audio and transcripts remain on the computer; the only
-network features are explicit model downloads and optional update checks.
+network features are verified model downloads and optional update checks. Starting a transcription
+automatically downloads the pinned Silero VAD model when that required built-in model is missing or invalid.
 
 The first release targets Taiwan Mandarin and mixed Chinese/English engineering meetings, on
 macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
@@ -70,7 +71,9 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
 Models are never bundled in the repository or installer. The Models page (or `breezedesk-cli models
 download`) fetches them from immutable source revisions, supports pause/resume, and verifies the
 exact byte size and SHA-256 before a file can reach the worker. License and provenance stay visible
-in the app, and a local whisper.cpp GGML `.bin` can be imported as a custom model.
+in the app, and a local whisper.cpp GGML `.bin` can be imported as a custom model. A queued
+transcription that requires Silero VAD automatically uses this same verified download path and resumes
+after the model is installed.
 
 | Model | Quantization | Size | Purpose |
 | --- | --- | ---: | --- |

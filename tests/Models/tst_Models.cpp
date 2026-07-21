@@ -58,6 +58,7 @@ class ModelsTest final : public QObject {
     void resumesAndCommitsVerifiedDownload();
     void removesChecksumFailure();
     void restartsWhenServerIgnoresRange();
+    void managerDeduplicatesConcurrentDownloads();
     void customModelSurvivesManagerRestart();
 };
 
@@ -71,6 +72,13 @@ void ModelsTest::bundledManifestHasVerifiedMetadata() {
     QCOMPARE(q5->fileSize, 1080732108LL);
     QCOMPARE(q5->sha256,
              QByteArrayLiteral("8efbf0ce8a3f50fe332b7617da787fb81354b358c288b008d3bdef8359df64c6"));
+    const ModelManifestEntry* vad = manifest.find(QStringLiteral("silero-vad-v6.2.0"));
+    QVERIFY(vad != nullptr);
+    QCOMPARE(vad->fileName, QStringLiteral("ggml-silero-v6.2.0.bin"));
+    QCOMPARE(vad->fileSize, 885'098LL);
+    QCOMPARE(vad->sha256,
+             QByteArrayLiteral("2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987"));
+    QVERIFY(vad->downloadUrl.contains(QStringLiteral("/9ffd54a1e1ee413ddf265af9913beaf518d1639b/")));
 }
 
 void ModelsTest::resumesAndCommitsVerifiedDownload() {
@@ -147,6 +155,28 @@ void ModelsTest::restartsWhenServerIgnoresRange() {
     QFile result(temporary.filePath(QStringLiteral("no-range.bin")));
     QVERIFY(result.open(QIODevice::ReadOnly));
     QCOMPARE(result.readAll(), payload);
+}
+
+void ModelsTest::managerDeduplicatesConcurrentDownloads() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QByteArray previousRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const auto restoreRoot = qScopeGuard([previousRoot] {
+        if (previousRoot.isNull()) {
+            qunsetenv("BREEZEDESK_DATA_ROOT");
+        } else {
+            qputenv("BREEZEDESK_DATA_ROOT", previousRoot);
+        }
+    });
+    qputenv("BREEZEDESK_DATA_ROOT", temporary.path().toUtf8());
+
+    ModelManager manager;
+    ModelDownloadOperation* first = manager.download(QStringLiteral("silero-vad-v6.2.0"));
+    QVERIFY(first != nullptr);
+    QCOMPARE(manager.download(QStringLiteral("silero-vad-v6.2.0")), first);
+    QSignalSpy finished(first, &ModelDownloadOperation::finished);
+    first->cancel();
+    QCOMPARE(finished.count(), 1);
 }
 
 void ModelsTest::customModelSurvivesManagerRestart() {

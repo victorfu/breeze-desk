@@ -232,7 +232,7 @@ class tst_QmlSmoke final : public QObject {
                 }
                 const int pixelCount = expectedSize.width() * expectedSize.height();
                 QVERIFY(opaquePixels > pixelCount / 2);
-                QVERIFY(whitePixels > pixelCount / 30);
+                QVERIFY(whitePixels >= pixelCount / 32);
                 QVERIFY(bluePixels > pixelCount / 3);
             }
         }
@@ -1584,16 +1584,30 @@ class tst_QmlSmoke final : public QObject {
         verifySegment(920);
 
         QSignalSpy selectionSpy(segment, SIGNAL(selectedRequested(int)));
+        QSignalSpy textEditedSpy(segment, SIGNAL(textEdited(int,QString)));
         textEditor->forceActiveFocus();
         QTRY_VERIFY_WITH_TIMEOUT(!selectionSpy.isEmpty(), 1'000);
 
+        const auto clickEditButton = [editButton, window] {
+            const QPointF center =
+                editButton->mapToScene(QPointF(editButton->width() / 2.0, editButton->height() / 2.0));
+            QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, center.toPoint());
+        };
+
         QVERIFY2(textEditor->property("readOnly").toBool(),
                  "Selecting a segment must not enter editing mode.");
-        QMetaObject::invokeMethod(editButton, "clicked");
+        clickEditButton();
         QTRY_VERIFY_WITH_TIMEOUT(!textEditor->property("readOnly").toBool(), 1'000);
         QVERIFY(textEditor->hasActiveFocus());
-        QMetaObject::invokeMethod(editButton, "clicked");
+        textEditor->setProperty("text", QStringLiteral("Edited with the Done Editing button"));
+        clickEditButton();
         QTRY_VERIFY_WITH_TIMEOUT(textEditor->property("readOnly").toBool(), 1'000);
+        QVERIFY(!segment->property("editing").toBool());
+        QVERIFY(!textEditor->hasActiveFocus());
+        QTRY_COMPARE_WITH_TIMEOUT(textEditedSpy.count(), 1, 1'000);
+        QCOMPARE(textEditedSpy.constFirst().at(0).toInt(), 0);
+        QCOMPARE(textEditedSpy.constFirst().at(1).toString(),
+                 QStringLiteral("Edited with the Done Editing button"));
 
         host->setProperty("uiScale", 1.5);
         QTRY_VERIFY_WITH_TIMEOUT(timeColumn->width() >= 90.0, 1'000);

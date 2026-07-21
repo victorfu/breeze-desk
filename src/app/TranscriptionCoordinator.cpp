@@ -644,6 +644,8 @@ void TranscriptionCoordinator::releaseActiveLease() {
 void TranscriptionCoordinator::beginJob(const TranscriptionJob& job) {
     m_activeJob = job;
     m_activeJob.state = JobState::Preparing;
+    m_vadModelVerified = false;
+    m_vadRecoveryAttempted = false;
     publishEvents(job.id);
     advanceProgress(JobStage::Preparing, 0.0);
     ensureWorkerReady(m_activeJob.id);
@@ -868,10 +870,7 @@ void TranscriptionCoordinator::prepareChunks() {
         return;
     }
 
-    const QString vadPath = m_models.modelPath(QString::fromLatin1(VadModelId));
-    if (!QFileInfo(vadPath).isFile()) {
-        failActiveJob(QStringLiteral("ModelNotInstalled"),
-                      tr("Install the Silero VAD model before transcribing long recordings with VAD."));
+    if (!ensureVadModelAvailable(VadModelContinuation::PrepareChunks)) {
         return;
     }
     const auto analyzing = m_jobs.transition(m_activeJob.id, JobState::AnalyzingSpeech);
@@ -995,18 +994,11 @@ void TranscriptionCoordinator::analyzeSpeech() {
     if (m_activeJob.state != JobState::AnalyzingSpeech) {
         return;
     }
+    if (!ensureVadModelAvailable(VadModelContinuation::AnalyzeSpeech)) {
+        return;
+    }
     const QString vadPath = m_models.modelPath(QString::fromLatin1(VadModelId));
-    if (!QFileInfo(vadPath).isFile()) {
-        failActiveJob(QStringLiteral("ModelNotInstalled"),
-                      tr("The Silero VAD model is no longer installed."));
-        return;
-    }
     const QByteArray vadSha256 = m_models.expectedSha256(QString::fromLatin1(VadModelId));
-    if (vadSha256.size() != 64) {
-        failActiveJob(QStringLiteral("ModelChecksumMismatch"),
-                      tr("The Silero VAD model does not have a trusted checksum."));
-        return;
-    }
     if (!m_loadedVadModelId.isEmpty() && m_loadedVadPath != vadPath) {
         clearLoadedVadModel();
     }
@@ -1028,6 +1020,112 @@ void TranscriptionCoordinator::analyzeSpeech() {
         failActiveJob(QStringLiteral("WorkerCrashed"),
                       tr("The speech-analysis request could not be sent to the ASR worker."));
     }
+}
+
+bool TranscriptionCoordinator::ensureVadModelAvailable(const VadModelContinuation continuation,
+                                                       const bool forceDownload) {
+    if (m_activeJob.id.isEmpty() || m_activeJob.state == JobState::Cancelling || m_shuttingDown) {
+        return false;
+    }
+
+    const QString modelId = QString::fromLatin1(VadModelId);
+    const QString modelPath = m_models.modelPath(modelId);
+    if (!forceDownload && m_vadModelVerified && QFileInfo(modelPath).isFile()) {
+        return true;
+    }
+    QString verificationError;
+    if (!forceDownload && m_models.verify(modelId, &verificationError)) {
+        m_vadModelVerified = true;
+        return true;
+    }
+    if (m_vadDownload != nullptr) {
+        return false;
+    }
+
+    ModelDownloadOperation* operation = m_models.download(modelId);
+    if (operation == nullptr) {
+        failActiveJob(QStringLiteral("VadModelDownloadFailed"),
+                      tr("The required Silero VAD model is not present in the trusted model manifest."));
+        return false;
+    }
+
+    m_vadDownload = operation;
+    const QString jobId = m_activeJob.id;
+    appendVadModelEvent(
+        QStringLiteral("vad_model_download_started"),
+        tr("The required Silero VAD model is missing or invalid. Downloading and verifying it now."));
+    QObject::disconnect(m_vadDownloadFinishedConnection);
+    m_vadDownloadFinishedConnection = connect(
+        operation, &ModelDownloadOperation::finished, this,
+        [this, operation, jobId, continuation](const bool success, const QString&) {
+            if (m_vadDownload != operation || !activeJobMatches(jobId)) {
+                return;
+            }
+            m_vadDownloadFinishedConnection = {};
+            m_vadDownload = nullptr;
+            if (m_activeJob.state == JobState::Cancelling) {
+                finishCancellation();
+                return;
+            }
+            if (!success) {
+                const QString detail = operation->error().trimmed();
+                failActiveJob(
+                    QStringLiteral("VadModelDownloadFailed"),
+                    detail.isEmpty()
+                        ? tr("The Silero VAD model could not be downloaded and verified.")
+                        : tr("The Silero VAD model could not be downloaded and verified: %1").arg(detail));
+                return;
+            }
+            QString error;
+            if (!m_models.verify(QString::fromLatin1(VadModelId), &error)) {
+                failActiveJob(QStringLiteral("ModelChecksumMismatch"),
+                              tr("The downloaded Silero VAD model failed verification: %1").arg(error));
+                return;
+            }
+            m_vadModelVerified = true;
+            appendVadModelEvent(QStringLiteral("vad_model_download_completed"),
+                                tr("The Silero VAD model was downloaded and verified."));
+            switch (continuation) {
+            case VadModelContinuation::PrepareChunks:
+                prepareChunks();
+                break;
+            case VadModelContinuation::AnalyzeSpeech:
+                analyzeSpeech();
+                break;
+            case VadModelContinuation::StartNextChunk:
+                startNextChunk();
+                break;
+            case VadModelContinuation::TranscribeCurrentChunk:
+                transcribeCurrentChunk();
+                break;
+            }
+        });
+    if (operation->state() == ModelDownloadOperation::State::Paused) {
+        operation->resume();
+    }
+    return false;
+}
+
+void TranscriptionCoordinator::appendVadModelEvent(const QString& eventType, const QString& message,
+                                                   const QString& severity) {
+    if (m_activeJob.id.isEmpty()) {
+        return;
+    }
+    JobEvent event;
+    event.jobId = m_activeJob.id;
+    event.eventType = eventType;
+    event.severity = severity;
+    event.state = m_activeJob.state;
+    event.stage = m_activeJob.stage;
+    event.progress = m_activeJob.progress;
+    event.message = message;
+    event.payload = {{QStringLiteral("modelId"), QString::fromLatin1(VadModelId)}};
+    const auto appended = m_jobs.appendEvent(std::move(event));
+    if (!appended) {
+        emit errorOccurred(appended.error().message);
+        return;
+    }
+    publishEvents(m_activeJob.id);
 }
 
 void TranscriptionCoordinator::loadModel() {
@@ -1088,6 +1186,9 @@ void TranscriptionCoordinator::startNextChunk() {
         finishCancellation();
         return;
     }
+    if (m_activeJob.vadEnabled && !ensureVadModelAvailable(VadModelContinuation::StartNextChunk)) {
+        return;
+    }
     int next = m_currentChunkIndex + 1;
     while (next < m_chunks.size() && m_chunks.at(next).state == ChunkState::Completed) {
         ++next;
@@ -1110,25 +1211,40 @@ void TranscriptionCoordinator::startNextChunk() {
     publishEvents(m_activeJob.id);
     emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1, static_cast<int>(m_chunks.size()),
                              m_latestPartialText);
+    transcribeCurrentChunk();
+}
+
+void TranscriptionCoordinator::transcribeCurrentChunk() {
+    if (m_activeJob.state == JobState::Cancelling) {
+        finishCancellation();
+        return;
+    }
+    if (m_activeJob.state != JobState::Transcribing || m_currentChunkIndex < 0 ||
+        m_currentChunkIndex >= m_chunks.size()) {
+        failActiveJob(QStringLiteral("InvalidStateTransition"),
+                      tr("The active transcription unit is no longer available."));
+        return;
+    }
+    if (m_activeJob.vadEnabled && !ensureVadModelAvailable(VadModelContinuation::TranscribeCurrentChunk)) {
+        return;
+    }
+    JobChunk& chunk = m_chunks[m_currentChunkIndex];
+    const QString vadPath = m_models.modelPath(QString::fromLatin1(VadModelId));
+    if (m_activeJob.vadEnabled &&
+        (m_loadedVadModelId != QLatin1String(VadModelId) || m_loadedVadPath != vadPath)) {
+        clearLoadedVadModel();
+        m_loadedVadModelId = QString::fromLatin1(VadModelId);
+        m_loadedVadPath = vadPath;
+        m_models.setModelInUse(m_loadedVadModelId, true);
+    }
     m_currentSegments.clear();
     const auto existingSegments = m_transcripts.segmentsForJob(m_activeJob.id, true);
     m_nextOrdinal = existingSegments ? static_cast<int>(existingSegments.value().size()) : 0;
     const bool finalChunk =
         std::none_of(m_chunks.cbegin() + m_currentChunkIndex + 1, m_chunks.cend(),
                      [](const JobChunk& candidate) { return candidate.state != ChunkState::Completed; });
-    const QString vadPath = m_models.modelPath(QString::fromLatin1(VadModelId));
-    if (m_activeJob.vadEnabled && !QFileInfo(vadPath).isFile()) {
-        failActiveJob(QStringLiteral("ModelNotInstalled"),
-                      tr("The Silero VAD model is no longer installed."));
-        return;
-    }
     const QByteArray vadSha256 =
         m_activeJob.vadEnabled ? m_models.expectedSha256(QString::fromLatin1(VadModelId)) : QByteArray{};
-    if (m_activeJob.vadEnabled && vadSha256.size() != 64) {
-        failActiveJob(QStringLiteral("ModelChecksumMismatch"),
-                      tr("The Silero VAD model does not have a trusted checksum."));
-        return;
-    }
     QCborMap payload{
         {QStringLiteral("pcmPath"), m_activeNormalizedPath},
         {QStringLiteral("startMs"), chunk.startMs},
@@ -1202,18 +1318,32 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         return;
     }
     if (envelope.type == Ipc::MessageType::Error) {
+        const RequestKind failedRequestKind = m_requestKind;
         const auto asrError =
             static_cast<Asr::AsrErrorCode>(envelope.payload.value(QStringLiteral("code")).toInteger());
-        if (m_activeJob.state == JobState::Cancelling && asrError == Asr::AsrErrorCode::Cancelled) {
+        if (m_activeJob.state == JobState::Cancelling) {
             finishCancellation();
             return;
         }
-        if ((m_requestKind == RequestKind::AnalyzeSpeech || m_requestKind == RequestKind::TranscribeChunk) &&
+        if (m_activeJob.state != JobState::Cancelling &&
+            (failedRequestKind == RequestKind::AnalyzeSpeech ||
+             failedRequestKind == RequestKind::TranscribeChunk) &&
             (asrError == Asr::AsrErrorCode::ModelChecksumMismatch ||
              asrError == Asr::AsrErrorCode::ModelFileMissing)) {
             clearLoadedVadModel();
+            m_vadModelVerified = false;
+            if (!m_vadRecoveryAttempted) {
+                m_vadRecoveryAttempted = true;
+                m_requestId.clear();
+                m_requestKind = RequestKind::None;
+                const VadModelContinuation continuation = failedRequestKind == RequestKind::AnalyzeSpeech
+                                                              ? VadModelContinuation::AnalyzeSpeech
+                                                              : VadModelContinuation::TranscribeCurrentChunk;
+                (void)ensureVadModelAvailable(continuation, true);
+                return;
+            }
         }
-        if (m_requestKind == RequestKind::LoadModel) {
+        if (failedRequestKind == RequestKind::LoadModel) {
             // WhisperModelSession releases its previous context before verifying
             // and loading the requested file, so a failed load invalidates the
             // coordinator's resident-model cache as well.
@@ -1223,8 +1353,8 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         if (message.isEmpty()) {
             message = tr("The ASR worker rejected the request.");
         }
-        failActiveJob(workerErrorCode(envelope.payload, m_requestKind == RequestKind::AnalyzeSpeech,
-                                      m_requestKind == RequestKind::LoadModel),
+        failActiveJob(workerErrorCode(envelope.payload, failedRequestKind == RequestKind::AnalyzeSpeech,
+                                      failedRequestKind == RequestKind::LoadModel),
                       message);
         return;
     }
@@ -1655,6 +1785,11 @@ void TranscriptionCoordinator::clearActive() {
     m_latestPartialText.clear();
     m_normalization = nullptr;
     m_activeRevisionPublished = false;
+    QObject::disconnect(m_vadDownloadFinishedConnection);
+    m_vadDownloadFinishedConnection = {};
+    m_vadDownload = nullptr;
+    m_vadModelVerified = false;
+    m_vadRecoveryAttempted = false;
 }
 
 void TranscriptionCoordinator::clearLoadedAsrModel() {
@@ -1748,12 +1883,18 @@ void TranscriptionCoordinator::publishEvents(const QString& jobId) {
                 title = tr("Transcription unit interrupted");
             } else if (event.eventType == QLatin1String("chunk_reset")) {
                 title = tr("Transcription unit reset");
+            } else if (event.eventType == QLatin1String("vad_model_download_started")) {
+                title = tr("Downloading Silero VAD model");
+            } else if (event.eventType == QLatin1String("vad_model_download_completed")) {
+                title = tr("Silero VAD model downloaded");
             } else if (event.eventType == QLatin1String("completed")) {
                 title = tr("Transcription completed");
             } else if (event.eventType == QLatin1String("cancelled")) {
                 title = tr("Transcription cancelled");
             } else if (event.eventType == QLatin1String("failed")) {
-                title = tr("Transcription failed");
+                title = event.code == QLatin1String("VadModelDownloadFailed")
+                            ? tr("Silero VAD model download failed")
+                            : tr("Transcription failed");
             } else if (event.eventType == QLatin1String("interrupted")) {
                 title = tr("Transcription interrupted");
             } else if (event.eventType == QLatin1String("retry")) {

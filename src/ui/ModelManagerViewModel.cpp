@@ -653,7 +653,6 @@ void ModelManagerViewModel::attachDownload(ModelDownloadOperation* operation) {
                     emit commandRejected(operation->error());
                 }
                 m_downloads.remove(id);
-                operation->deleteLater();
             });
     refresh();
 }

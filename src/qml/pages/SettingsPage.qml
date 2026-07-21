@@ -334,7 +334,7 @@ Item {
                 title: qsTr("Privacy")
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are model downloads you start and optional app update checks.")
+                    text: qsTr("Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are verified model downloads, including automatic Silero VAD retrieval when required, and optional app update checks.")
                     color: SemanticTokens.text
                     wrapMode: Text.Wrap
                     font.family: SemanticTokens.fontFamily

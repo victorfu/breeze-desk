@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QList>
 #include <QObject>
+#include <QPointer>
 #include <QSet>
 #include <QString>
 
@@ -55,6 +56,7 @@ class ModelManager final : public QObject {
 
     ModelManifest m_manifest;
     QNetworkAccessManager* m_network = nullptr;
+    QHash<QString, QPointer<ModelDownloadOperation>> m_downloads;
     QSet<QString> m_modelsInUse;
     QHash<QString, QString> m_customModels;
     QHash<QString, QString> m_customModelNames;

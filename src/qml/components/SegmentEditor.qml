@@ -226,6 +226,9 @@ Rectangle {
                         implicitWidth: root.actionButtonSize
                         implicitHeight: root.actionButtonSize
                         enabled: !root.editingLocked
+                        // A pointer click must not blur the editor before onClicked
+                        // decides whether this action finishes the current edit.
+                        focusPolicy: Qt.TabFocus
                         onClicked: {
                             if (root.editing) {
                                 root.editing = false
