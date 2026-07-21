@@ -33,8 +33,9 @@ export BREEZEDESK_FFMPEG_DIR="$(packaging/macos/build-ffmpeg-lgpl.sh)"
 packaging/macos/package.sh
 ```
 
-The script requires an Apple Silicon host and ImageMagick, renders the repository SVG into a Retina
-`.icns`, deploys dynamic Qt frameworks/QML imports/SQLite, embeds the native Metal+CPU worker plus
+The script requires an Apple Silicon host and ImageMagick, rebuilds the checked-in macOS bundle icon
+from the canonical 1024 px PNG as a Retina `.icns`, deploys dynamic Qt frameworks/QML imports/SQLite,
+embeds the native Metal+CPU worker plus
 `ffmpeg` and `ffprobe`, records linked libraries, and verifies every required executable has an arm64
 slice. CMake and the source-built FFmpeg sidecars default to a macOS 14.0 deployment target. Set
 `BREEZEDESK_MACOS_DEPLOYMENT_TARGET` before both commands only when intentionally changing that floor;
@@ -72,8 +73,8 @@ Output is `dist/BreezeDesk-<version>-macOS-arm64.dmg` plus `.sha256` and, for re
 Run from a Visual Studio 2022 developer command prompt with Qt, Ninja, NSIS, ImageMagick, Windows SDK,
 MSYS2 (`make`, `nasm`, `diffutils`, and the mingw-w64 x64 GCC toolchain), and an LGPL FFmpeg directory
 available. The package script
-renders the canonical repository SVG to a multi-resolution ICO before CMake configures the executable
-resource and NSIS branding:
+renders the canonical and optically simplified repository PNGs to a multi-resolution ICO before CMake
+configures the executable resource and NSIS branding:
 
 ```bat
 set BREEZEDESK_FFMPEG_DIR=C:\path\to\ffmpeg\bin
@@ -101,8 +102,9 @@ DLLs it actually imports, records their SHA-256 values, and includes the Toolkit
 NVIDIA DLL signatures are preserved; the signing hook signs BreezeDesk/FFmpeg executables and the final
 installers rather than rewriting third-party DLL signatures.
 
-Generate the Universal MSIX by passing `--msix`; ImageMagick rasterizes the repository SVG and
-`makeappx` comes from the Windows SDK:
+Generate the Universal MSIX by passing `--msix`; ImageMagick builds the scale-, target-size-, and
+theme-qualified assets from the repository PNGs, then Windows SDK `makepri` indexes them and
+`makeappx` packages them:
 
 ```bat
 packaging\windows\package.bat Universal --msix

@@ -111,7 +111,12 @@ The normal Windows build uses the CPU whisper.cpp worker, so it does not require
 CUDA SDK. Always use `scripts\build-and-run.bat` for a development launch: raw CMake outputs are not
 self-contained and can fail with missing Debug Qt DLLs such as `Qt6Networkd.dll`. The script finds the
 matching Qt kit's `windeployqt.exe` and deploys the combined runtime required by the GUI, CLI, and ASR
-worker. To deploy without launching, use:
+worker. It also preloads `ffmpeg.exe` and `ffprobe.exe` next to the Debug executable. The first launch
+reuses `BREEZEDESK_FFMPEG_DIR` or the source-built FFmpeg cache when available; otherwise it downloads
+the checksum-pinned FFmpeg 8.1.2 source and builds the same offline LGPL sidecars used by packages.
+That first build additionally requires MSYS2 `make`, `nasm`, `diffutils`, and the MinGW-w64 x64 GCC
+toolchain; later launches reuse the cached tools. To deploy Qt without launching or preparing media
+tools, use:
 
 ```bat
 scripts\deploy-debug.bat

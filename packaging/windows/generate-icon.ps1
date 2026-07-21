@@ -20,13 +20,15 @@ if (-not $ResolvedFrameDirectory.StartsWith($TempRoot, [StringComparison]::Ordin
     throw "Refusing to create icon frames outside the temporary directory."
 }
 
-$Source = Join-Path $ProjectDirectory "resources\icons\breezedesk-sidebar.png"
-$Sizes = 16, 20, 24, 28, 32, 40, 48, 56, 64, 80, 96, 128, 256
+$AppIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk.png"
+$SmallIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-tray.png"
+$Sizes = 16, 20, 24, 28, 30, 32, 36, 40, 48, 56, 60, 64, 72, 80, 96, 128, 256
 $FramePaths = @()
 
 try {
     New-Item -ItemType Directory -Force $ResolvedFrameDirectory | Out-Null
     foreach ($Size in $Sizes) {
+        $Source = if ($Size -le 48) { $SmallIcon } else { $AppIcon }
         $FramePath = Join-Path $ResolvedFrameDirectory (("{0:D3}" -f $Size) + ".png")
         & $Magick -background transparent $Source -filter Lanczos -resize "${Size}x${Size}" $FramePath
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $FramePath)) {

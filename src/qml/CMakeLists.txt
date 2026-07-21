@@ -6,12 +6,26 @@ set(BREEZEDESK_QML_SINGLETONS
 )
 set_source_files_properties(${BREEZEDESK_QML_SINGLETONS} PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
 
+set(BREEZEDESK_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk.png)
 set(BREEZEDESK_SIDEBAR_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-sidebar.png)
-set(BREEZEDESK_MENUBAR_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-menubar.png)
+set(BREEZEDESK_TRAY_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-tray.png)
+set(BREEZEDESK_WINDOWS_ICON ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk.ico)
+set(BREEZEDESK_MENUBAR_ICON
+    ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-menubar-Template.png)
+set(BREEZEDESK_MENUBAR_ICON_2X
+    ${PROJECT_SOURCE_DIR}/resources/icons/breezedesk-menubar-Template@2x.png)
+set_source_files_properties(${BREEZEDESK_ICON} PROPERTIES
+    QT_RESOURCE_ALIAS icons/breezedesk.png)
 set_source_files_properties(${BREEZEDESK_SIDEBAR_ICON} PROPERTIES
     QT_RESOURCE_ALIAS icons/breezedesk-sidebar.png)
+set_source_files_properties(${BREEZEDESK_TRAY_ICON} PROPERTIES
+    QT_RESOURCE_ALIAS icons/breezedesk-tray.png)
+set_source_files_properties(${BREEZEDESK_WINDOWS_ICON} PROPERTIES
+    QT_RESOURCE_ALIAS icons/breezedesk.ico)
 set_source_files_properties(${BREEZEDESK_MENUBAR_ICON} PROPERTIES
-    QT_RESOURCE_ALIAS icons/breezedesk-menubar.png)
+    QT_RESOURCE_ALIAS icons/breezedesk-menubar-Template.png)
+set_source_files_properties(${BREEZEDESK_MENUBAR_ICON_2X} PROPERTIES
+    QT_RESOURCE_ALIAS icons/breezedesk-menubar-Template@2x.png)
 set(BREEZEDESK_LUCIDE_ICON_NAMES
     library list-ordered trash-2 box book-open settings
     play pause file-input mic rotate-ccw rotate-cw
@@ -83,7 +97,11 @@ qt_add_qml_module(breezedesk_ui
         pages/SettingsPage.qml
         pages/TrashPage.qml
     RESOURCES
+        ${BREEZEDESK_ICON}
         ${BREEZEDESK_SIDEBAR_ICON}
+        ${BREEZEDESK_TRAY_ICON}
+        ${BREEZEDESK_WINDOWS_ICON}
         ${BREEZEDESK_MENUBAR_ICON}
+        ${BREEZEDESK_MENUBAR_ICON_2X}
         ${BREEZEDESK_LUCIDE_ICONS}
 )

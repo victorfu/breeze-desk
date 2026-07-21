@@ -5,6 +5,7 @@ set "PROJECT_ROOT=%CD%"
 call scripts\setup-msvc.bat || exit /b 1
 call scripts\build.bat || exit /b 1
 call scripts\deploy-debug.bat || exit /b 1
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\scripts\prepare-debug-media-tools.ps1" -Destination "%PROJECT_ROOT%\build\debug" || exit /b 1
 for /f "tokens=2 delims==" %%A in ('cmake -N -LA build\debug ^| findstr /b "BREEZEDESK_DEBUG_EXECUTABLE_NAME:STRING="') do set APP_NAME=%%A
 if not defined APP_NAME (
   echo Unable to read BREEZEDESK_DEBUG_EXECUTABLE_NAME from the CMake cache. 1>&2

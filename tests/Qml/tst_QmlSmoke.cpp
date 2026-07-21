@@ -19,6 +19,7 @@
 #include <QDirIterator>
 #include <QFile>
 #include <QGuiApplication>
+#include <QImage>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -191,38 +192,70 @@ class tst_QmlSmoke final : public QObject {
     void cleanup() { qmlMessages.clear(); }
 
     void brandIconRendersAtNativeWindowsSizes() {
-        const QIcon icon = BreezeDesk::brandIcon();
+        const QList<QIcon> icons{BreezeDesk::brandIcon(), BreezeDesk::windowsTrayIcon()};
         const QList<QSize> expectedSizes = BreezeDesk::nativeBrandIconSizes();
 
-        QVERIFY(!icon.isNull());
+#ifdef Q_OS_WIN
+        const QList<QSize> embeddedSizes = icons.constFirst().availableSizes();
         for (const QSize& expectedSize : expectedSizes) {
-            const QImage image =
-                icon.pixmap(expectedSize).toImage().convertToFormat(QImage::Format_RGBA8888);
-            QCOMPARE(image.size(), expectedSize);
+            QVERIFY2(embeddedSizes.contains(expectedSize),
+                     qPrintable(QStringLiteral("The Windows ICO is missing its %1 px frame.")
+                                    .arg(expectedSize.width())));
+        }
+#endif
 
-            int opaquePixels = 0;
-            int whitePixels = 0;
-            int greenPixels = 0;
-            for (int y = 0; y < image.height(); ++y) {
-                for (int x = 0; x < image.width(); ++x) {
-                    const QColor pixel = image.pixelColor(x, y);
-                    if (pixel.alpha() < 180) {
-                        continue;
-                    }
-                    ++opaquePixels;
-                    if (pixel.red() > 225 && pixel.green() > 225 && pixel.blue() > 225) {
-                        ++whitePixels;
-                    }
-                    if (pixel.green() > pixel.red() + 30 && pixel.green() > pixel.blue() + 20) {
-                        ++greenPixels;
+        for (const QIcon& icon : icons) {
+            QVERIFY(!icon.isNull());
+            for (const QSize& expectedSize : expectedSizes) {
+                const QImage image =
+                    icon.pixmap(expectedSize).toImage().convertToFormat(QImage::Format_RGBA8888);
+                QCOMPARE(image.size(), expectedSize);
+
+                int opaquePixels = 0;
+                int whitePixels = 0;
+                int bluePixels = 0;
+                for (int y = 0; y < image.height(); ++y) {
+                    for (int x = 0; x < image.width(); ++x) {
+                        const QColor pixel = image.pixelColor(x, y);
+                        if (pixel.alpha() < 180) {
+                            continue;
+                        }
+                        ++opaquePixels;
+                        if (pixel.red() > 225 && pixel.green() > 225 && pixel.blue() > 225) {
+                            ++whitePixels;
+                        }
+                        if (pixel.blue() > pixel.red() + 80 &&
+                            pixel.blue() > pixel.green() + 60) {
+                            ++bluePixels;
+                        }
                     }
                 }
+                const int pixelCount = expectedSize.width() * expectedSize.height();
+                QVERIFY(opaquePixels > pixelCount / 2);
+                QVERIFY(whitePixels > pixelCount / 30);
+                QVERIFY(bluePixels > pixelCount / 3);
             }
-            const int pixelCount = expectedSize.width() * expectedSize.height();
-            QVERIFY(opaquePixels > pixelCount / 2);
-            QVERIFY(whitePixels > pixelCount / 10);
-            QVERIFY(greenPixels > pixelCount / 4);
         }
+    }
+
+    void platformBrandAssetsArePackaged() {
+        const auto loadImage = [](const QString& path, const QSize& expectedSize) {
+            const QImage image(path);
+            QVERIFY2(!image.isNull(), qPrintable(QStringLiteral("Could not load %1").arg(path)));
+            QCOMPARE(image.size(), expectedSize);
+        };
+
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.png"), {1024, 1024});
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png"), {512, 512});
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-tray.png"), {256, 256});
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar-Template.png"),
+                  {18, 18});
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar-Template@2x.png"),
+                  {36, 36});
+
+        const QIcon menuBarIcon = BreezeDesk::macMenuBarIcon();
+        QVERIFY(!menuBarIcon.isNull());
+        QVERIFY(menuBarIcon.isMask());
     }
 
     void loadsMainAndEveryPage() {

@@ -6,6 +6,7 @@
   <key>CFBundleDisplayName</key><string>${BREEZEDESK_OUTPUT_NAME}</string>
   <key>CFBundleExecutable</key><string>${BREEZEDESK_OUTPUT_NAME}</string>
   <key>CFBundleIdentifier</key><string>${BREEZEDESK_BUNDLE_ID}</string>
+  <key>CFBundleIconFile</key><string>breezedesk.icns</string>
   <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
   <key>CFBundleName</key><string>${BREEZEDESK_OUTPUT_NAME}</string>
   <key>CFBundlePackageType</key><string>APPL</string>

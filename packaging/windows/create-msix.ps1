@@ -43,9 +43,10 @@ function Find-WindowsSdkTool([string]$ToolName) {
 }
 
 $MakeAppx = Find-WindowsSdkTool "makeappx.exe"
+$MakePri = Find-WindowsSdkTool "makepri.exe"
 $Magick = (Get-Command "magick.exe" -ErrorAction SilentlyContinue).Source
 if (-not $Magick) {
-    throw "ImageMagick (magick.exe) is required to rasterize the repository SVG for MSIX assets."
+    throw "ImageMagick (magick.exe) is required to resize the repository PNG icons for MSIX assets."
 }
 
 $WorkDirectory = Join-Path $ProjectDirectory "build\package-msix"
@@ -64,24 +65,77 @@ $Manifest = $Manifest.Replace('@EXECUTABLE_NAME@', (Escape-XmlAttribute $Executa
 $Manifest = $Manifest.Replace('@PRODUCT_ID@', (Escape-XmlAttribute $ProductId))
 $Manifest | Set-Content (Join-Path $LayoutDirectory "AppxManifest.xml") -Encoding utf8
 
-$AppIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-sidebar.png"
+$AppIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk.png"
+$SmallIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-tray.png"
+$UnplatedIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-unplated.png"
+$LightUnplatedIcon = Join-Path $ProjectDirectory "resources\icons\breezedesk-light-unplated.png"
 $Assets = Join-Path $LayoutDirectory "Assets"
 
-function New-AppIconAsset([int]$Size, [string]$Name) {
-    & $Magick -background transparent $AppIcon -filter Lanczos -resize "${Size}x${Size}" (Join-Path $Assets $Name)
+function New-SquareAsset([string]$Source, [int]$Size, [string]$Name) {
+    & $Magick -background transparent $Source -filter Lanczos -resize "${Size}x${Size}" (Join-Path $Assets $Name)
     if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create $Name." }
 }
 
-New-AppIconAsset 44 "Square44x44Logo.png"
-foreach ($TargetSize in 16, 20, 24, 28, 30, 32, 36, 40, 44, 48, 56, 60, 64, 72, 80, 96, 256) {
-    New-AppIconAsset $TargetSize "Square44x44Logo.targetsize-$TargetSize.png"
+function New-WideAsset([int]$Width, [int]$Height, [int]$IconSize, [string]$Name) {
+    & $Magick $AppIcon -background transparent -filter Lanczos -resize "${IconSize}x${IconSize}" `
+        -gravity center -extent "${Width}x${Height}" (Join-Path $Assets $Name)
+    if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create $Name." }
 }
-New-AppIconAsset 50 "StoreLogo.png"
 
-& $Magick -background transparent $AppIcon -filter Lanczos -resize 150x150 (Join-Path $Assets "Square150x150Logo.png")
-if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create Square150x150Logo.png." }
-& $Magick -background transparent -size 310x150 -gravity center $AppIcon -filter Lanczos -resize 140x140 -extent 310x150 (Join-Path $Assets "Wide310x150Logo.png")
-if ($LASTEXITCODE -ne 0) { throw "ImageMagick could not create Wide310x150Logo.png." }
+New-SquareAsset $AppIcon 44 "Square44x44Logo.png"
+foreach ($ScaleAsset in @(
+    @(125, 55), @(150, 66), @(200, 88), @(400, 176)
+)) {
+    New-SquareAsset $AppIcon $ScaleAsset[1] "Square44x44Logo.scale-$($ScaleAsset[0]).png"
+}
+
+foreach ($TargetSize in 16, 20, 24, 28, 30, 32, 36, 40, 44, 48, 56, 60, 64, 72, 80, 96, 256) {
+    $TargetSource = if ($TargetSize -le 48) { $SmallIcon } else { $AppIcon }
+    foreach ($Variant in @(
+        @("", $TargetSource),
+        @("_altform-unplated", $UnplatedIcon),
+        @("_altform-lightunplated", $LightUnplatedIcon)
+    )) {
+        New-SquareAsset $Variant[1] $TargetSize "Square44x44Logo.targetsize-$TargetSize$($Variant[0]).png"
+    }
+}
+
+New-SquareAsset $AppIcon 50 "StoreLogo.png"
+foreach ($ScaleAsset in @(
+    @(125, 63), @(150, 75), @(200, 100), @(400, 200)
+)) {
+    New-SquareAsset $AppIcon $ScaleAsset[1] "StoreLogo.scale-$($ScaleAsset[0]).png"
+}
+
+New-SquareAsset $AppIcon 150 "Square150x150Logo.png"
+foreach ($ScaleAsset in @(
+    @(125, 188), @(150, 225), @(200, 300), @(400, 600)
+)) {
+    New-SquareAsset $AppIcon $ScaleAsset[1] "Square150x150Logo.scale-$($ScaleAsset[0]).png"
+}
+
+New-WideAsset 310 150 140 "Wide310x150Logo.png"
+foreach ($ScaleAsset in @(
+    @(125, 388, 188, 175),
+    @(150, 465, 225, 210),
+    @(200, 620, 300, 280),
+    @(400, 1240, 600, 560)
+)) {
+    New-WideAsset $ScaleAsset[1] $ScaleAsset[2] $ScaleAsset[3] `
+        "Wide310x150Logo.scale-$($ScaleAsset[0]).png"
+}
+
+$PriConfig = Join-Path $WorkDirectory "priconfig.xml"
+& $MakePri createconfig /cf $PriConfig /dq en-US /o
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $PriConfig)) {
+    throw "MakePri could not create the resource-index configuration."
+}
+$PriFile = Join-Path $LayoutDirectory "resources.pri"
+& $MakePri new /pr $LayoutDirectory /cf $PriConfig `
+    /mn (Join-Path $LayoutDirectory "AppxManifest.xml") /of $PriFile /o
+if ($LASTEXITCODE -ne 0 -or -not (Test-Path $PriFile)) {
+    throw "MakePri could not index the qualified MSIX icon assets."
+}
 
 $OutputFile = [IO.Path]::GetFullPath($OutputFile)
 $OutputParent = Split-Path -Parent $OutputFile

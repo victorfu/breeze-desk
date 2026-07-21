@@ -183,15 +183,14 @@ printf '%s\n' "$ffmpeg_configuration" > "$license_dir/FFmpeg-BUILD_CONFIGURATION
 iconset="$stage_dir/AppIcon.iconset"
 cmake -E make_directory "$iconset"
 for size in 16 32 128 256 512; do
-  magick -background transparent "$project_dir/resources/icons/breezedesk-sidebar.png" \
-    -resize "${size}x${size}" "$iconset/icon_${size}x${size}.png"
+  magick -background transparent "$project_dir/resources/icons/breezedesk.png" \
+    -filter Lanczos -resize "${size}x${size}" "$iconset/icon_${size}x${size}.png"
   double_size=$((size * 2))
-  magick -background transparent "$project_dir/resources/icons/breezedesk-sidebar.png" \
-    -resize "${double_size}x${double_size}" "$iconset/icon_${size}x${size}@2x.png"
+  magick -background transparent "$project_dir/resources/icons/breezedesk.png" \
+    -filter Lanczos -resize "${double_size}x${double_size}" "$iconset/icon_${size}x${size}@2x.png"
 done
-iconutil -c icns "$iconset" -o "$app_resources/AppIcon.icns"
-/usr/libexec/PlistBuddy -c "Delete :CFBundleIconFile" "$app/Contents/Info.plist" >/dev/null 2>&1 || true
-/usr/libexec/PlistBuddy -c "Add :CFBundleIconFile string AppIcon" "$app/Contents/Info.plist"
+cmake -E rm -f "$app_resources/breezedesk.icns"
+iconutil -c icns "$iconset" -o "$app_resources/breezedesk.icns"
 
 macdeployqt "$app" -qmldir="$project_dir/src/qml" -always-overwrite -verbose=2 \
   -executable="$worker" -executable="$cli"

@@ -471,7 +471,9 @@ int main(int argc, char* argv[]) {
     }
 
 #ifdef Q_OS_MACOS
-    const QIcon trayIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar.png"));
+    const QIcon trayIcon = BreezeDesk::macMenuBarIcon();
+#elif defined(Q_OS_WIN)
+    const QIcon trayIcon = BreezeDesk::windowsTrayIcon();
 #else
     const QIcon trayIcon(applicationIcon);
 #endif

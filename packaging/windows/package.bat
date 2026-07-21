@@ -42,7 +42,7 @@ if /I "%PACKAGE_VARIANT%"=="CUDA" if "%BUILD_MSIX%"=="1" (
   exit /b 2
 )
 
-for %%T in (cmake.exe ninja.exe windeployqt.exe powershell.exe magick.exe) do (
+for %%T in (cmake.exe ninja.exe windeployqt.exe powershell.exe magick.exe dumpbin.exe) do (
   where %%T >nul 2>nul || (
     echo Required command %%T was not found on PATH. 1>&2
     exit /b 1
@@ -86,6 +86,24 @@ set "FFMPEG_BUILDCONF=%PROJECT_ROOT%\build\ffmpeg-buildconf-windows.txt"
 findstr /C:"--enable-gpl" /C:"--enable-nonfree" "%FFMPEG_BUILDCONF%" >nul && (
   echo Packaging rejects FFmpeg builds with GPL or nonfree components enabled. 1>&2
   exit /b 1
+)
+for %%F in (--disable-gpl --disable-nonfree --disable-network --disable-autodetect --disable-shared --enable-static) do (
+  findstr /C:"%%F" "%FFMPEG_BUILDCONF%" >nul || (
+    echo Packaging requires FFmpeg build flag %%F. 1>&2
+    exit /b 1
+  )
+)
+set "FFMPEG_VERSION_OUTPUT=%PROJECT_ROOT%\build\ffmpeg-version-windows.txt"
+"%BREEZEDESK_FFMPEG_DIR%\ffmpeg.exe" -hide_banner -version > "%FFMPEG_VERSION_OUTPUT%" 2>&1 || exit /b 1
+findstr /B /C:"ffmpeg version 8.1.2 " "%FFMPEG_VERSION_OUTPUT%" >nul || (
+  echo Packaging requires the pinned FFmpeg 8.1.2 release. 1>&2
+  exit /b 1
+)
+for %%E in (ffmpeg.exe ffprobe.exe) do (
+  dumpbin.exe /nologo /dependents "%BREEZEDESK_FFMPEG_DIR%\%%E" | findstr /I /C:"libwinpthread-1.dll" /C:"libgcc_s_" /C:"libstdc++-6.dll" >nul && (
+    echo Packaging rejects %%E because its MinGW runtime is not statically linked. 1>&2
+    exit /b 1
+  )
 )
 
 set "ICON_PATH=%PROJECT_ROOT%\build\package-icon\breezedesk.ico"
