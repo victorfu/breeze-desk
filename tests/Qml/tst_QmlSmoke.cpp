@@ -198,9 +198,10 @@ class tst_QmlSmoke final : public QObject {
 #ifdef Q_OS_WIN
         const QList<QSize> embeddedSizes = icons.constFirst().availableSizes();
         for (const QSize& expectedSize : expectedSizes) {
-            QVERIFY2(embeddedSizes.contains(expectedSize),
-                     qPrintable(QStringLiteral("The Windows ICO is missing its %1 px frame.")
-                                    .arg(expectedSize.width())));
+            QVERIFY2(
+                embeddedSizes.contains(expectedSize),
+                qPrintable(
+                    QStringLiteral("The Windows ICO is missing its %1 px frame.").arg(expectedSize.width())));
         }
 #endif
 
@@ -224,8 +225,7 @@ class tst_QmlSmoke final : public QObject {
                         if (pixel.red() > 225 && pixel.green() > 225 && pixel.blue() > 225) {
                             ++whitePixels;
                         }
-                        if (pixel.blue() > pixel.red() + 80 &&
-                            pixel.blue() > pixel.green() + 60) {
+                        if (pixel.blue() > pixel.red() + 80 && pixel.blue() > pixel.green() + 60) {
                             ++bluePixels;
                         }
                     }
@@ -248,10 +248,8 @@ class tst_QmlSmoke final : public QObject {
         loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.png"), {1024, 1024});
         loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png"), {512, 512});
         loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-tray.png"), {256, 256});
-        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar-Template.png"),
-                  {18, 18});
-        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar-Template@2x.png"),
-                  {36, 36});
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar-Template.png"), {18, 18});
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar-Template@2x.png"), {36, 36});
 
         const QIcon menuBarIcon = BreezeDesk::macMenuBarIcon();
         QVERIFY(!menuBarIcon.isNull());
@@ -1584,7 +1582,7 @@ class tst_QmlSmoke final : public QObject {
         verifySegment(920);
 
         QSignalSpy selectionSpy(segment, SIGNAL(selectedRequested(int)));
-        QSignalSpy textEditedSpy(segment, SIGNAL(textEdited(int,QString)));
+        QSignalSpy textEditedSpy(segment, SIGNAL(textEdited(int, QString)));
         textEditor->forceActiveFocus();
         QTRY_VERIFY_WITH_TIMEOUT(!selectionSpy.isEmpty(), 1'000);
 
