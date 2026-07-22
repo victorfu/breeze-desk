@@ -13,7 +13,10 @@ icons must remain PNG/ICO/ICNS; do not create an SVG substitute.
 ## Checked-in sources
 
 - `breezedesk.png` is the canonical 1024 x 1024 RGBA app icon used by documentation, application
-  windows, and macOS app-icon packaging.
+  windows, and non-macOS packaging.
+- `breezedesk-macos.png` is the 1024 x 1024 RGBA macOS source. Its larger transparent safe area keeps
+  the visible tile and the system-drawn App Switcher selection outline optically aligned with native
+  macOS icons and apps such as Slack.
 - `breezedesk-sidebar.png` is the 512 x 512 app/sidebar rendering.
 - `breezedesk-tray.png` is the 256 x 256 Windows tray source. It preserves the selected swept tail and
   is visually checked at 16-64 px before release.
@@ -39,7 +42,7 @@ variants), scale-qualified Square44, Square150, StoreLogo, and Wide310 assets, t
 qualified resources into `resources.pri`.
 
 macOS packaging derives the standard 16, 32, 128, 256, and 512 pt iconset with every `@2x` partner
-from the 1024 px canonical PNG, then rebuilds `breezedesk.icns` with `iconutil`.
+from `breezedesk-macos.png`, then rebuilds `breezedesk.icns` with `iconutil`.
 
 Keep the selected infinity silhouette, center crossing, optical padding, and swept breeze tail
 consistent. Re-check the small-size and menu-bar previews whenever the canonical artwork changes.

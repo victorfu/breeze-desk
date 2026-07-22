@@ -12,6 +12,8 @@ QList<QSize> nativeBrandIconSizes() {
 QIcon brandIcon() {
 #ifdef Q_OS_WIN
     return QIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.ico"));
+#elif defined(Q_OS_MACOS)
+    return QIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-macos.png"));
 #else
     return QIcon(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.png"));
 #endif

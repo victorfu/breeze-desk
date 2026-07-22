@@ -232,7 +232,15 @@ class tst_QmlSmoke final : public QObject {
                 }
                 const int pixelCount = expectedSize.width() * expectedSize.height();
                 QVERIFY(opaquePixels > pixelCount / 2);
-                QVERIFY(whitePixels >= pixelCount / 32);
+                // The macOS app icon intentionally reserves a larger transparent safe area so its
+                // App Switcher tile matches native icons. Keep enough white pixels to prove the mark
+                // survives small-size rasterization without assuming the old full-canvas coverage.
+                QVERIFY2(
+                    whitePixels >= pixelCount / 64,
+                    qPrintable(QStringLiteral("The %1 px icon retained only %2 white pixels; expected %3.")
+                                   .arg(expectedSize.width())
+                                   .arg(whitePixels)
+                                   .arg(pixelCount / 64)));
                 QVERIFY(bluePixels > pixelCount / 3);
             }
         }
@@ -246,6 +254,7 @@ class tst_QmlSmoke final : public QObject {
         };
 
         loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk.png"), {1024, 1024});
+        loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-macos.png"), {1024, 1024});
         loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png"), {512, 512});
         loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-tray.png"), {256, 256});
         loadImage(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-menubar-Template.png"), {18, 18});
@@ -254,6 +263,48 @@ class tst_QmlSmoke final : public QObject {
         const QIcon menuBarIcon = BreezeDesk::macMenuBarIcon();
         QVERIFY(!menuBarIcon.isNull());
         QVERIFY(menuBarIcon.isMask());
+    }
+
+    void macBrandIconKeepsAppSwitcherSafeArea() {
+        const QImage source(QStringLiteral(":/qt/qml/BreezeDesk/icons/breezedesk-macos.png"));
+        QVERIFY(!source.isNull());
+
+        const auto alphaBounds = [](const QImage& image) {
+            QRect bounds;
+            for (int y = 0; y < image.height(); ++y) {
+                for (int x = 0; x < image.width(); ++x) {
+                    if (image.pixelColor(x, y).alpha() > 10) {
+                        bounds |= QRect(x, y, 1, 1);
+                    }
+                }
+            }
+            return bounds;
+        };
+
+        const QRect visibleBounds = alphaBounds(source);
+        QVERIFY(visibleBounds.isValid());
+        QVERIFY(visibleBounds.left() >= 85);
+        QVERIFY(visibleBounds.top() >= 85);
+        QVERIFY(source.width() - visibleBounds.right() - 1 >= 85);
+        QVERIFY(source.height() - visibleBounds.bottom() - 1 >= 85);
+        QVERIFY(qAbs(visibleBounds.width() - visibleBounds.height()) <= 2);
+
+        const int cornerSampleY = visibleBounds.top() + 20;
+        int firstVisibleX = -1;
+        for (int x = visibleBounds.left(); x <= visibleBounds.right(); ++x) {
+            if (source.pixelColor(x, cornerSampleY).alpha() > 10) {
+                firstVisibleX = x;
+                break;
+            }
+        }
+        QVERIFY(firstVisibleX >= 0);
+        QVERIFY(firstVisibleX - visibleBounds.left() >= 100);
+
+#ifdef Q_OS_MACOS
+        const QImage runtimeIcon = BreezeDesk::brandIcon().pixmap(QSize(1024, 1024)).toImage();
+        QCOMPARE(runtimeIcon.size(), source.size());
+        QCOMPARE(alphaBounds(runtimeIcon), visibleBounds);
+#endif
     }
 
     void loadsMainAndEveryPage() {

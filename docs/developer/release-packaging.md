@@ -34,7 +34,7 @@ packaging/macos/package.sh
 ```
 
 The script requires an Apple Silicon host and ImageMagick, rebuilds the checked-in macOS bundle icon
-from the canonical 1024 px PNG as a Retina `.icns`, deploys dynamic Qt frameworks/QML imports/SQLite,
+from `resources/icons/breezedesk-macos.png` as a Retina `.icns`, deploys dynamic Qt frameworks/QML imports/SQLite,
 embeds the native Metal+CPU worker plus
 `ffmpeg` and `ffprobe`, records linked libraries, and verifies every required executable has an arm64
 slice. CMake and the source-built FFmpeg sidecars default to a macOS 14.0 deployment target. Set
