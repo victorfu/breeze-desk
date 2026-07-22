@@ -20,6 +20,7 @@
 #include <QFile>
 #include <QGuiApplication>
 #include <QImage>
+#include <QQmlApplicationEngine>
 #include <QQmlComponent>
 #include <QQmlEngine>
 #include <QQuickItem>
@@ -331,6 +332,36 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(root->findChild<QObject*>(QStringLiteral("deleteDirtyTranscriptRevisionWarning")));
         const auto failures = qmlMessages.filter(
             QRegularExpression(QStringLiteral("qrc:|ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void injectedApplicationViewModelLoadsAndTearsDownWithoutNullBindings() {
+        QScopedPointer<BreezeDesk::ApplicationViewModel> injectedViewModel(
+            BreezeDesk::createApplicationViewModel());
+        FakeRecorder injectedRecorder;
+        QObject injectedMaintenance;
+
+        {
+            QQmlApplicationEngine engine;
+            engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+            engine.setInitialProperties(
+                {{QStringLiteral("injectedApplicationViewModel"),
+                  QVariant::fromValue(static_cast<QObject*>(injectedViewModel.data()))},
+                 {QStringLiteral("injectedRecorder"),
+                  QVariant::fromValue(static_cast<QObject*>(&injectedRecorder))},
+                 {QStringLiteral("injectedMaintenance"), QVariant::fromValue(&injectedMaintenance)}});
+            engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
+            QVERIFY2(!engine.rootObjects().isEmpty(), "Main.qml did not create a root object.");
+            QObject* root = engine.rootObjects().constFirst();
+            QCOMPARE(root->property("vm").value<QObject*>(), static_cast<QObject*>(injectedViewModel.data()));
+            QCOMPARE(root->property("injectedRecorder").value<QObject*>(),
+                     static_cast<QObject*>(&injectedRecorder));
+            QCOMPARE(root->property("injectedMaintenance").value<QObject*>(), &injectedMaintenance);
+            QCoreApplication::processEvents();
+        }
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 

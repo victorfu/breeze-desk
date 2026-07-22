@@ -38,13 +38,13 @@
 #include <QLocale>
 #include <QMenu>
 #include <QQmlApplicationEngine>
-#include <QQmlContext>
 #include <QQuickStyle>
 #include <QSignalBlocker>
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <QTranslator>
 #include <QUrl>
+#include <QVariantMap>
 #include <QtConcurrentRun>
 
 #include <QSet>
@@ -175,9 +175,11 @@ int main(int argc, char* argv[]) {
     const QIcon applicationIcon = BreezeDesk::brandIcon();
     application.setWindowIcon(applicationIcon);
 
-    QQmlApplicationEngine engine;
+    // Injected objects must outlive the QML object tree. Locals are destroyed in reverse
+    // declaration order, so keep the view model parentless and declare the engine after it.
     std::unique_ptr<BreezeDesk::ApplicationViewModel> viewModel(
-        BreezeDesk::createApplicationViewModel(&recordingRepository, &transcriptRepository, &engine));
+        BreezeDesk::createApplicationViewModel(&recordingRepository, &transcriptRepository, nullptr));
+    QQmlApplicationEngine engine;
     viewModel->installJobRepository(&jobRepository);
     viewModel->setPlatformService(platform.get());
     viewModel->settings()->installManagers({&generalSettings, &appearanceSettings, &transcriptionSettings,
@@ -238,10 +240,12 @@ int main(int argc, char* argv[]) {
     modelTestDependencies.temporaryDirectory = BreezeDesk::StoragePaths::temporary();
     BreezeDesk::ModelTestController modelTest(std::move(modelTestDependencies), &application);
     modelTest.setBackendPreference(viewModel->settings()->backend(), viewModel->settings()->flashAttention());
-    engine.rootContext()->setContextProperty(QStringLiteral("App"), viewModel.get());
-    engine.rootContext()->setContextProperty(QStringLiteral("WorkerManager"), &worker);
-    engine.rootContext()->setContextProperty(QStringLiteral("Recorder"), &microphoneRecorder);
-    engine.rootContext()->setContextProperty(QStringLiteral("Maintenance"), &maintenance);
+    engine.setInitialProperties(
+        {{QStringLiteral("injectedApplicationViewModel"),
+          QVariant::fromValue(static_cast<QObject*>(viewModel.get()))},
+         {QStringLiteral("injectedRecorder"),
+          QVariant::fromValue(static_cast<QObject*>(&microphoneRecorder))},
+         {QStringLiteral("injectedMaintenance"), QVariant::fromValue(static_cast<QObject*>(&maintenance))}});
 
     const auto applyLanguage = [&application, &engine, &uiTranslator](const QString& language) {
         application.removeTranslator(&uiTranslator);

@@ -28,9 +28,9 @@ ApplicationWindow {
     palette.dark: SemanticTokens.borderStrong
     palette.shadow: SemanticTokens.shadow
 
-    property var injectedApplicationViewModel: typeof App !== "undefined" ? App : null
-    property var injectedRecorder: typeof Recorder !== "undefined" ? Recorder : null
-    property var injectedMaintenance: typeof Maintenance !== "undefined" ? Maintenance : null
+    property var injectedApplicationViewModel: null
+    property var injectedRecorder: null
+    property var injectedMaintenance: null
     readonly property var vm: injectedApplicationViewModel ? injectedApplicationViewModel : ownedApplicationViewModel
 
     ApplicationViewModel { id: ownedApplicationViewModel }
