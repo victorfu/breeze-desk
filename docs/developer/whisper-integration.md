@@ -42,7 +42,7 @@ when compiled into that worker. A failed GPU initialization may create a CPU con
 set requested/actual backend, `usedFallback`, flash-attention result, load time, runtime version, and
 system info so the GUI can disclose it.
 
-Windows Universal installs separate Vulkan and CPU workers; CUDA installs CUDA and CPU. macOS ships the
+Windows Universal installs separate Vulkan and CPU workers. macOS ships the
 Metal+CPU arm64 worker. `WorkerRegistry` selects a compatible executable before context initialization;
 the C API adapter never assumes one binary contains every backend.
 

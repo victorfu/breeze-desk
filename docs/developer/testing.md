@@ -76,5 +76,4 @@ local HTTP fixture server, generated WAVs, fake engine/client implementations, a
 `ci.yml` checks clang-format, dependency-free CMake configure, macOS/Windows native builds and tests,
 the CPU fallback worker, and QML smoke. `nightly.yml` validates dependency metadata, runs the four-hour
 synthetic planner, and enables the tiny model on macOS. A self-hosted Apple Silicon job may run the full
-Breeze Q5 smoke; CUDA requires a specifically provisioned Windows runner. Reports must distinguish
-compiled backends from hardware-tested inference.
+Breeze Q5 smoke. Reports must distinguish compiled backends from hardware-tested inference.

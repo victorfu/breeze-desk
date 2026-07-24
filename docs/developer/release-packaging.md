@@ -18,8 +18,7 @@ Release tooling verifies every downloaded archive before use:
 - vendored Lucide 1.16.0 icons at commit `2214caa407f4147449c81ac27e30d36edfb7b40f`, source
   archive SHA-256 `b831bb343805685d2afefb19aa30ee1cbaf2972c1af75ab501f58fbe01b77183`.
 
-Hosted Windows CI uses Vulkan SDK 1.4.341. CUDA is intentionally supplied by the dedicated runner rather
-than silently downloading a different Toolkit during a release.
+Hosted Windows CI uses Vulkan SDK 1.4.341.
 
 Model files are never placed in an installer. FFmpeg is source-built with GPL, nonfree, network, and
 autodetection disabled. Its exact `-buildconf` output and source record are included with each package.
@@ -79,27 +78,22 @@ configures the executable resource and NSIS branding:
 ```bat
 set BREEZEDESK_FFMPEG_DIR=C:\path\to\ffmpeg\bin
 packaging\windows\package.bat Universal
-packaging\windows\package.bat CUDA
 ```
 
-Universal configures separate Vulkan and CPU whisper.cpp build trees. CUDA configures separate CUDA and
-CPU trees. The installed layout preserves an unqualified preferred worker for compatibility and explicit
-variants for runtime selection:
+Universal configures separate Vulkan and CPU whisper.cpp build trees. The installed layout preserves an
+unqualified preferred worker for compatibility and explicit variants for runtime selection:
 
 ```text
 bin/BreezeDesk.exe
 bin/breezedesk-cli.exe
 bin/breezedesk-asr-worker.exe
-bin/workers/breezedesk-asr-worker-vulkan.exe   (Universal)
-bin/workers/breezedesk-asr-worker-cuda.exe     (CUDA)
-bin/workers/breezedesk-asr-worker-cpu.exe      (both)
+bin/workers/breezedesk-asr-worker-vulkan.exe
+bin/workers/breezedesk-asr-worker-cpu.exe
 bin/ffmpeg.exe
 bin/ffprobe.exe
 ```
 
-For CUDA, `deploy-cuda-runtime.ps1` inspects the built worker with `dumpbin`, copies only the CUDA runtime
-DLLs it actually imports, records their SHA-256 values, and includes the Toolkit EULA. Qt, WinSparkle, and
-NVIDIA DLL signatures are preserved; the signing hook signs BreezeDesk/FFmpeg executables and the final
+Qt, WinSparkle, and third-party DLL signatures are preserved; the signing hook signs BreezeDesk/FFmpeg executables and the final
 installers rather than rewriting third-party DLL signatures.
 
 Generate the Universal MSIX by passing `--msix`; ImageMagick builds the scale-, target-size-, and
@@ -146,12 +140,8 @@ packaging/windows/sign-winsparkle-update.ps1 dist/BreezeDesk-<version>-Windows-x
 Outputs are:
 
 - `dist/BreezeDesk-<version>-Windows-x64-Universal-Setup.exe`;
-- `dist/BreezeDesk-<version>-Windows-x64-CUDA-Setup.exe`;
 - `dist/BreezeDesk-<version>-Windows-x64.msix` when requested;
 - SHA-256 sidecars for every generated installer.
-
-The CUDA package requires a CUDA-capable build machine and Toolkit; ordinary hosted CI does not claim to
-test CUDA initialization or inference.
 
 ## Tag release workflow
 
@@ -164,16 +154,15 @@ The release workflow fails with the missing variable names before doing expensiv
 - Windows secrets: `WINDOWS_CERTIFICATE_PFX_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`,
   `WINSPARKLE_PRIVATE_KEY`;
 - repository variables: `SPARKLE_PUBLIC_KEY`, `WINSPARKLE_PUBLIC_KEY`,
-  `BREEZEDESK_UPDATE_FEED_BASE_URL`, `WINDOWS_MSIX_PUBLISHER`;
-- optional variable `RUN_WINDOWS_CUDA_PACKAGE=true` and a self-hosted `Windows`, `X64`, `CUDA` runner.
+  `BREEZEDESK_UPDATE_FEED_BASE_URL`, `WINDOWS_MSIX_PUBLISHER`.
 
 `BREEZEDESK_UPDATE_FEED_BASE_URL` is a stable HTTPS directory such as the GitHub
 `releases/latest/download` URL and must not end in `/`. Release publication creates separate
-`appcast-macos.xml`, `appcast-windows-universal.xml`, and (when built) `appcast-windows-cuda.xml`, plus a
+`appcast-macos.xml` and `appcast-windows-universal.xml`, plus a
 machine-readable release manifest and aggregate checksums. Sparkle update signatures are mandatory for
 every DMG or NSIS enclosure. No credential, private key, or certificate is committed or uploaded as an
 artifact.
 
 The workflows validate build and package mechanics, not backend performance. Metal is exercised by the
-optional tiny-model nightly test. Vulkan and CPU are built in hosted Windows CI. CUDA and the full Breeze
-model require explicitly provisioned runners and are reported as untested when those runners are absent.
+optional tiny-model nightly test. Vulkan and CPU are built in hosted Windows CI. The full Breeze
+model requires an explicitly provisioned runner and is reported as untested when that runner is absent.

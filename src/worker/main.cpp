@@ -44,9 +44,6 @@ Backend backendFromString(const QString& name) {
     if (name.compare(QStringLiteral("vulkan"), Qt::CaseInsensitive) == 0) {
         return Backend::Vulkan;
     }
-    if (name.compare(QStringLiteral("cuda"), Qt::CaseInsensitive) == 0) {
-        return Backend::Cuda;
-    }
     return Backend::Auto;
 }
 

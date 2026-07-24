@@ -7,7 +7,7 @@ local checkout to build without FetchContent network access.
 
 macOS requires Xcode Command Line Tools and builds arm64/Metal+CPU for the supported release. Windows
 source builds default to a CPU worker and require Visual Studio 2022 Build Tools and the Windows SDK;
-Vulkan and CUDA workers require their matching SDK/toolkit. Qt must be a dynamic LGPL-compatible
+the Vulkan worker requires the Vulkan SDK. Qt must be a dynamic LGPL-compatible
 installation.
 
 ## Preset build
@@ -33,7 +33,7 @@ Important cache variables are:
 | `BREEZEDESK_ENABLE_WHISPER` | `ON` | Build/link the native ASR worker. |
 | `BREEZEDESK_WHISPER_CPP_REF` | pinned commit | Immutable whisper.cpp revision; do not point at a branch. |
 | `BREEZEDESK_WHISPER_CPP_SOURCE_DIR` | empty | Exact local checkout used instead of FetchContent. |
-| `BREEZEDESK_WINDOWS_BACKEND` | `CPU` | `VULKAN`, `CUDA`, or `CPU` worker build. Release packaging selects its backend explicitly. |
+| `BREEZEDESK_WINDOWS_BACKEND` | `CPU` | `VULKAN` or `CPU` worker build. Release packaging selects its backend explicitly. |
 | `BREEZEDESK_BUILD_TESTS` | `ON` | Configure Qt Test targets. |
 | `BREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS` | `OFF` | Enable checksum-pinned tiny-model integration. |
 | `BREEZEDESK_ENABLE_UPDATES` | `OFF` | Compile native updater adapters for a configured package. |
@@ -70,9 +70,9 @@ the application, worker, and CLI in the chosen build-tree root. Other Ninja buil
 subdirectories. On macOS the application is a bundle and the post-build rule copies the worker into
 `Contents/MacOS`.
 
-`BREEZEDESK_WINDOWS_BACKEND` is `VULKAN`, `CUDA`, or `CPU` and must use a separate build tree. The normal
+`BREEZEDESK_WINDOWS_BACKEND` is `VULKAN` or `CPU` and must use a separate build tree. The normal
 Debug and Release source presets use CPU so transcription works without an optional GPU SDK; the
-`windows-universal` and `windows-cuda` presets opt into their named accelerator. ccache is selected before
+`windows-universal` preset opts into Vulkan. ccache is selected before
 sccache. Compile commands are exported, Unity builds are disabled, project targets use strict warnings as
 errors, and third-party targets do not inherit that policy.
 
@@ -97,7 +97,6 @@ packaging/macos/package.sh
 ```powershell
 $env:BREEZEDESK_FFMPEG_DIR = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
 cmd /c packaging\windows\package.bat Universal
-cmd /c packaging\windows\package.bat CUDA
 ```
 
 See [release-packaging.md](release-packaging.md) for unsigned versus signed builds, MSIX, updater

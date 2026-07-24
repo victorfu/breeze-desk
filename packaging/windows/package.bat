@@ -26,21 +26,12 @@ if /I "%PACKAGE_VARIANT%"=="Universal" (
   set "BACKEND=VULKAN"
   set "BACKEND_SLUG=vulkan"
   set "PREFERRED_BUILD=%PROJECT_ROOT%\build\windows-universal"
-) else if /I "%PACKAGE_VARIANT%"=="CUDA" (
-  set "PACKAGE_VARIANT=CUDA"
-  set "BACKEND=CUDA"
-  set "BACKEND_SLUG=cuda"
-  set "PREFERRED_BUILD=%PROJECT_ROOT%\build\windows-cuda"
 ) else (
-  echo Usage: packaging\windows\package.bat [Universal^|CUDA] [--msix] 1>&2
+  echo Usage: packaging\windows\package.bat [Universal] [--msix] 1>&2
   exit /b 2
 )
 set "BUILD_MSIX=%BREEZEDESK_BUILD_MSIX%"
 if /I "%~2"=="--msix" set "BUILD_MSIX=1"
-if /I "%PACKAGE_VARIANT%"=="CUDA" if "%BUILD_MSIX%"=="1" (
-  echo MSIX is emitted only by the Universal package to keep the required output name unambiguous. 1>&2
-  exit /b 2
-)
 
 for %%T in (cmake.exe ninja.exe windeployqt.exe powershell.exe magick.exe dumpbin.exe) do (
   where %%T >nul 2>nul || (
@@ -197,9 +188,6 @@ if defined BREEZEDESK_WINSPARKLE_DIR (
   if exist "%BREEZEDESK_WINSPARKLE_DIR%\SOURCE.txt" (
     cmake -E copy_if_different "%BREEZEDESK_WINSPARKLE_DIR%\SOURCE.txt" "%STAGE_DIR%\share\breezedesk\licenses\WinSparkle-SOURCE.txt" || exit /b 1
   )
-)
-if /I "%PACKAGE_VARIANT%"=="CUDA" (
-  powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\deploy-cuda-runtime.ps1" -Worker "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-cuda.exe" -Destination "%STAGE_DIR%\bin" -LicenseDirectory "%STAGE_DIR%\share\breezedesk\licenses" || exit /b 1
 )
 
 windeployqt --release --force --compiler-runtime --qmldir "%PROJECT_ROOT%\src\qml" --translations en,zh_TW "%STAGE_DIR%\bin\%APP_EXE%" "%STAGE_DIR%\bin\%CLI_EXE%" "%STAGE_DIR%\bin\%WORKER_EXE%" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-%BACKEND_SLUG%.exe" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-cpu.exe" || exit /b 1

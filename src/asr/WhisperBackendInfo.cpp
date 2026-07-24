@@ -33,8 +33,6 @@ QString WhisperBackendInfo::systemInfo() {
 Backend WhisperBackendInfo::compiledBackend() noexcept {
 #if defined(BREEZEDESK_WHISPER_BACKEND_METAL)
     return Backend::Metal;
-#elif defined(BREEZEDESK_WHISPER_BACKEND_CUDA)
-    return Backend::Cuda;
 #elif defined(BREEZEDESK_WHISPER_BACKEND_VULKAN)
     return Backend::Vulkan;
 #else

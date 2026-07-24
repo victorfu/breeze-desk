@@ -29,8 +29,7 @@ void WorkerRegistryTest::windowsVariantOrder_data() {
     QTest::addColumn<QString>("preference");
     QTest::addColumn<QStringList>("expectedNames");
     QTest::newRow("automatic") << QStringLiteral("Auto")
-                               << QStringList{workerName(QStringLiteral("-cuda.exe")),
-                                              workerName(QStringLiteral("-vulkan.exe")),
+                               << QStringList{workerName(QStringLiteral("-vulkan.exe")),
                                               workerName(QStringLiteral("-cpu.exe")),
                                               workerName(QStringLiteral(".exe")),
                                               workerName(QStringLiteral(".exe"))};
@@ -38,10 +37,6 @@ void WorkerRegistryTest::windowsVariantOrder_data() {
         << QStringLiteral("cpu")
         << QStringList{workerName(QStringLiteral("-cpu.exe")), workerName(QStringLiteral(".exe")),
                        workerName(QStringLiteral(".exe"))};
-    QTest::newRow("cuda-prefers-cpu-fallback")
-        << QStringLiteral("CUDA")
-        << QStringList{workerName(QStringLiteral("-cuda.exe")), workerName(QStringLiteral("-cpu.exe")),
-                       workerName(QStringLiteral(".exe")), workerName(QStringLiteral(".exe"))};
     QTest::newRow("vulkan-prefers-cpu-fallback")
         << QStringLiteral("Vulkan")
         << QStringList{workerName(QStringLiteral("-vulkan.exe")), workerName(QStringLiteral("-cpu.exe")),

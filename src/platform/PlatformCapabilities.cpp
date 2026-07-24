@@ -14,7 +14,6 @@ PlatformCapabilities PlatformCapabilities::current() {
     result.supportsFileAssociations = true;
     result.supportsMicrophonePermission = true;
 #elif defined(Q_OS_WIN)
-    result.supportsCuda = true;
     result.supportsVulkan = true;
     result.supportsAutoLaunch = true;
     result.supportsTray = true;

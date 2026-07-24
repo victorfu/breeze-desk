@@ -47,10 +47,10 @@ option(BREEZEDESK_WARNINGS_AS_ERRORS "Treat warnings in BreezeDesk code as error
 set(BREEZEDESK_WHISPER_CPP_REF "f049fff95a089aa9969deb009cdd4892b3e74916" CACHE STRING "Immutable whisper.cpp commit")
 set(BREEZEDESK_WHISPER_CPP_SOURCE_DIR "" CACHE PATH "Optional local whisper.cpp checkout")
 # Keep source builds usable with only the documented Visual Studio and Windows SDK
-# prerequisites. Release packaging selects VULKAN or CUDA explicitly and also
-# builds a CPU fallback worker.
-set(BREEZEDESK_WINDOWS_BACKEND "CPU" CACHE STRING "Windows worker backend: VULKAN, CUDA, or CPU")
-set_property(CACHE BREEZEDESK_WINDOWS_BACKEND PROPERTY STRINGS VULKAN CUDA CPU)
+# prerequisites. Release packaging selects VULKAN explicitly and also builds a
+# CPU fallback worker.
+set(BREEZEDESK_WINDOWS_BACKEND "CPU" CACHE STRING "Windows worker backend: VULKAN or CPU")
+set_property(CACHE BREEZEDESK_WINDOWS_BACKEND PROPERTY STRINGS VULKAN CPU)
 set(BREEZEDESK_APPCAST_URL "" CACHE STRING "Sparkle/WinSparkle appcast URL")
 set(BREEZEDESK_EDDSA_PUBLIC_KEY "" CACHE STRING "Sparkle EdDSA public key")
 set(_breezedesk_default_windows_icon "")
@@ -92,14 +92,9 @@ if(BREEZEDESK_ENABLE_WHISPER)
         # Accelerate and Metal remain enabled for the macOS runtime.
         set(GGML_OPENMP OFF CACHE BOOL "" FORCE)
     elseif(WIN32)
-        if(BREEZEDESK_WINDOWS_BACKEND STREQUAL "CUDA")
-            set(GGML_CUDA ON CACHE BOOL "" FORCE)
-            set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
-        elseif(BREEZEDESK_WINDOWS_BACKEND STREQUAL "VULKAN")
-            set(GGML_CUDA OFF CACHE BOOL "" FORCE)
+        if(BREEZEDESK_WINDOWS_BACKEND STREQUAL "VULKAN")
             set(GGML_VULKAN ON CACHE BOOL "" FORCE)
         else()
-            set(GGML_CUDA OFF CACHE BOOL "" FORCE)
             set(GGML_VULKAN OFF CACHE BOOL "" FORCE)
         endif()
     endif()

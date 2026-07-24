@@ -11,7 +11,7 @@ namespace BreezeDesk {
 
 enum class ThemeMode { System, Light, Dark };
 enum class CloseBehavior { CloseWindow, MinimizeToTray, Quit };
-enum class BackendPreference { Automatic, Cpu, Metal, Vulkan, Cuda };
+enum class BackendPreference { Automatic, Cpu, Metal, Vulkan };
 enum class ManagedMediaPolicy { ReferenceOriginal, CopyIntoLibrary };
 enum class UpdateChannel { Stable, Beta };
 

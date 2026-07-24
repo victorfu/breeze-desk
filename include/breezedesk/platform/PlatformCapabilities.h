@@ -7,7 +7,6 @@ namespace BreezeDesk {
 struct PlatformCapabilities {
     Q_GADGET
     Q_PROPERTY(bool supportsMetal MEMBER supportsMetal)
-    Q_PROPERTY(bool supportsCuda MEMBER supportsCuda)
     Q_PROPERTY(bool supportsVulkan MEMBER supportsVulkan)
     Q_PROPERTY(bool supportsAutoLaunch MEMBER supportsAutoLaunch)
     Q_PROPERTY(bool supportsTray MEMBER supportsTray)
@@ -17,7 +16,6 @@ struct PlatformCapabilities {
 
   public:
     bool supportsMetal = false;
-    bool supportsCuda = false;
     bool supportsVulkan = false;
     bool supportsAutoLaunch = false;
     bool supportsTray = false;

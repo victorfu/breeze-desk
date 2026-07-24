@@ -10,7 +10,7 @@ Sanitized Diagnostics** over screenshots containing local paths or transcript te
 | Model not installed | Install Q5/Q8 in Models, wait for **Verified**, then retry. |
 | Checksum mismatch | Verify or redownload. A corrupt `.part`, installed model, or custom-model sidecar is never loaded. |
 | Model load failed | Run **Test Model**, confirm available memory and backend, then try Q5 or CPU. |
-| GPU initialization failed | Select CPU, or use the Windows installer matching Vulkan/CUDA and update the GPU driver. |
+| GPU initialization failed | Select CPU, or use the Vulkan-enabled Windows package and update the GPU driver. |
 | Out of memory | Use Q5, close memory-heavy applications, switch backend, and retry the interrupted job. |
 | Unsupported/missing media | Relink the source and confirm its extension is supported. Reference imports break when moved. |
 | Audio decode failed | Confirm bundled FFmpeg/FFprobe versions, free disk space, and read access to the source. |

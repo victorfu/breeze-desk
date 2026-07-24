@@ -32,8 +32,7 @@ const QHash<BackendPreference, QString>& backends() {
     static const QHash<BackendPreference, QString> v{{BackendPreference::Automatic, QStringLiteral("auto")},
                                                      {BackendPreference::Cpu, QStringLiteral("cpu")},
                                                      {BackendPreference::Metal, QStringLiteral("metal")},
-                                                     {BackendPreference::Vulkan, QStringLiteral("vulkan")},
-                                                     {BackendPreference::Cuda, QStringLiteral("cuda")}};
+                                                     {BackendPreference::Vulkan, QStringLiteral("vulkan")}};
     return v;
 }
 const QHash<ManagedMediaPolicy, QString>& policies() {

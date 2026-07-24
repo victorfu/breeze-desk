@@ -39,11 +39,6 @@
       "cacheVariables": { "BREEZEDESK_WINDOWS_BACKEND": "VULKAN" }
     },
     {
-      "name": "windows-cuda",
-      "inherits": "release",
-      "cacheVariables": { "BREEZEDESK_WINDOWS_BACKEND": "CUDA" }
-    },
-    {
       "name": "windows-cpu",
       "inherits": "release",
       "cacheVariables": { "BREEZEDESK_WINDOWS_BACKEND": "CPU" }
@@ -54,7 +49,6 @@
     { "name": "debug-runtime-off", "configurePreset": "debug-runtime-off" },
     { "name": "release", "configurePreset": "release" },
     { "name": "windows-universal", "configurePreset": "windows-universal" },
-    { "name": "windows-cuda", "configurePreset": "windows-cuda" },
     { "name": "windows-cpu", "configurePreset": "windows-cpu" }
   ],
   "testPresets": [

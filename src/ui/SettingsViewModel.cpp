@@ -75,8 +75,6 @@ QString uiBackend(BackendPreference value) {
         return QStringLiteral("Metal");
     case BackendPreference::Vulkan:
         return QStringLiteral("Vulkan");
-    case BackendPreference::Cuda:
-        return QStringLiteral("CUDA");
     }
     return QStringLiteral("Auto");
 }
@@ -90,9 +88,6 @@ BackendPreference storedBackend(const QString& value) {
     }
     if (value == QLatin1String("Vulkan")) {
         return BackendPreference::Vulkan;
-    }
-    if (value == QLatin1String("CUDA")) {
-        return BackendPreference::Cuda;
     }
     return BackendPreference::Automatic;
 }
@@ -553,7 +548,7 @@ void SettingsViewModel::setInitialPromptBehavior(const QString& value) {
 
 void SettingsViewModel::setBackend(const QString& value) {
     static const QStringList allowed{QStringLiteral("Auto"), QStringLiteral("CPU"), QStringLiteral("Metal"),
-                                     QStringLiteral("Vulkan"), QStringLiteral("CUDA")};
+                                     QStringLiteral("Vulkan")};
     if (!allowed.contains(value) || m_backend == value) {
         return;
     }

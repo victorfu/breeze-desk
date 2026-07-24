@@ -12,8 +12,6 @@ QString backendName(Backend backend) {
         return QStringLiteral("Metal");
     case Backend::Vulkan:
         return QStringLiteral("Vulkan");
-    case Backend::Cuda:
-        return QStringLiteral("CUDA");
     }
     return QStringLiteral("Unknown");
 }

@@ -1,6 +1,19 @@
 # ADR 0005: Windows backend variants
 
-Status: Accepted — 2026-07-17
+Status: Accepted — 2026-07-17 (amended 2026-07-24)
+
+## Amendment — 2026-07-24: CUDA variant dropped
+
+The CUDA variant is no longer built or shipped. It required a provisioned self-hosted runner that never
+existed, so it was never packaged, and CI never compiled it. Vulkan already covers NVIDIA hardware. The
+`BackendPreference::Cuda` enum, the `-cuda.exe` worker probe, the `GGML_CUDA` build path, the
+`windows-cuda` preset, `deploy-cuda-runtime.ps1`, and the `windows-cuda` release job were removed.
+
+Windows now ships one variant — Universal, a Vulkan preferred worker plus a CPU fallback. The
+configure-time-choice rationale below still holds; only the CUDA option is withdrawn.
+`BREEZEDESK_WINDOWS_BACKEND` accepts `VULKAN` or `CPU` for source builds.
+
+The original decision is preserved unchanged for the record.
 
 ## Context
 

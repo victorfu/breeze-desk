@@ -16,7 +16,7 @@ time; media preparation may proceed separately without freezing the interface.
 | Silero VAD | Finds speech regions and silence-aligned boundaries for long recordings. |
 
 Backend **Auto** selects an available worker variant and can fall back to CPU. Manual CPU, Metal,
-Vulkan, and CUDA choices must exist in the installed package. Initial-prompt behavior combines the
+and Vulkan choices must exist in the installed package. Initial-prompt behavior combines the
 selected glossary, project/meeting context, and a bounded previous-chunk tail. See
 [Glossary](glossary.md) before adding a large terminology list.
 

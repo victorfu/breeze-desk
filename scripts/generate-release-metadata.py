@@ -27,8 +27,6 @@ def sha256(path: pathlib.Path) -> str:
 def platform_for(name: str) -> str:
     if name.endswith("-macOS-arm64.dmg"):
         return "macos-arm64"
-    if "-Windows-x64-CUDA-" in name:
-        return "windows-x64-cuda"
     if "-Windows-x64-Universal-" in name:
         return "windows-x64-universal"
     if name.endswith("-Windows-x64.msix"):
@@ -88,7 +86,6 @@ def main() -> int:
     feed_names = {
         "macos-arm64": "appcast-macos.xml",
         "windows-x64-universal": "appcast-windows-universal.xml",
-        "windows-x64-cuda": "appcast-windows-cuda.xml",
     }
     for platform, feed_name in feed_names.items():
         platform_items = [

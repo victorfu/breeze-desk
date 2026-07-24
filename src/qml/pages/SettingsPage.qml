@@ -205,9 +205,9 @@ Item {
                     AppComboBox {
                         Layout.fillWidth: true
                         accessibleName: qsTr("Backend")
-                        model: [qsTr("Automatic"), "CPU", "Metal", "Vulkan", "CUDA"]
-                        currentIndex: ["Auto", "CPU", "Metal", "Vulkan", "CUDA"].indexOf(root.vm.backend)
-                        onActivated: root.vm.backend = ["Auto", "CPU", "Metal", "Vulkan", "CUDA"][currentIndex]
+                        model: [qsTr("Automatic"), "CPU", "Metal", "Vulkan"]
+                        currentIndex: ["Auto", "CPU", "Metal", "Vulkan"].indexOf(root.vm.backend)
+                        onActivated: root.vm.backend = ["Auto", "CPU", "Metal", "Vulkan"][currentIndex]
                     }
                 }
                 SettingRow {

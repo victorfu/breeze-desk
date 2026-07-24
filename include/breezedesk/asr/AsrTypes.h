@@ -15,7 +15,6 @@ enum class Backend {
     Cpu,
     Metal,
     Vulkan,
-    Cuda,
 };
 
 enum class TranscriptionPreset {

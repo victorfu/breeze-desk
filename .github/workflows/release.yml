@@ -247,80 +247,13 @@ jobs:
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix.sha256
 
-  windows-cuda:
-    if: ${{ vars.RUN_WINDOWS_CUDA_PACKAGE == 'true' }}
-    needs: validate
-    runs-on: [self-hosted, Windows, X64, CUDA]
-    steps:
-      - uses: actions/checkout@v6
-      - uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          arch: win64_msvc2022_64
-          modules: qtmultimedia qtshadertools
-      - name: Configure MSVC developer shell
-        shell: pwsh
-        run: ./scripts/export-msvc-environment.ps1
-      - name: Verify self-hosted release prerequisites
-        shell: pwsh
-        env:
-          PFX: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
-          PFX_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          UPDATE_FEED_BASE_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}
-          WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
-          WINSPARKLE_PUBLIC_KEY: ${{ vars.WINSPARKLE_PUBLIC_KEY }}
-        run: |
-          foreach ($Command in @('cmake.exe', 'ninja.exe', 'makensis.exe', 'magick.exe', 'nvcc.exe', 'windeployqt.exe', 'dumpbin.exe', 'signtool.exe')) {
-            if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) { throw "CUDA release runner is missing $Command." }
-          }
-          if (-not (Test-Path 'C:\msys64\usr\bin\bash.exe')) {
-            throw 'CUDA release runner is missing MSYS2 at C:\msys64.'
-          }
-          if (-not $env:PFX -or -not $env:PFX_PASSWORD -or -not $env:UPDATE_FEED_BASE_URL -or -not $env:WINSPARKLE_PRIVATE_KEY -or -not $env:WINSPARKLE_PUBLIC_KEY) {
-            throw 'CUDA release requires Windows signing credentials and WinSparkle update keys.'
-          }
-      - name: Prepare dependencies and certificate
-        shell: pwsh
-        env:
-          WINDOWS_PFX_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_PFX_BASE64 }}
-        run: |
-          $Path = Join-Path $env:RUNNER_TEMP 'breezedesk-release.pfx'
-          [IO.File]::WriteAllBytes($Path, [Convert]::FromBase64String($env:WINDOWS_PFX_BASE64))
-          "BREEZEDESK_SIGNTOOL_CERT=$Path" | Out-File $env:GITHUB_ENV -Append
-          $Ffmpeg = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
-          $WinSparkle = packaging/windows/fetch-winsparkle.ps1 | Select-Object -Last 1
-          "BREEZEDESK_FFMPEG_DIR=$Ffmpeg" | Out-File $env:GITHUB_ENV -Append
-          "BREEZEDESK_WINSPARKLE_DIR=$WinSparkle" | Out-File $env:GITHUB_ENV -Append
-          "BREEZEDESK_WINSPARKLE_TOOL=$WinSparkle\winsparkle-tool.exe" | Out-File $env:GITHUB_ENV -Append
-      - name: Build and package CUDA installer
-        shell: cmd
-        env:
-          BREEZEDESK_SIGNTOOL_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          BREEZEDESK_PACKAGE_UPDATES: '1'
-          BREEZEDESK_APPCAST_URL: ${{ vars.BREEZEDESK_UPDATE_FEED_BASE_URL }}/appcast-windows-cuda.xml
-          BREEZEDESK_EDDSA_PUBLIC_KEY: ${{ vars.WINSPARKLE_PUBLIC_KEY }}
-        run: packaging\windows\package.bat CUDA
-      - name: Sign CUDA update enclosure with WinSparkle EdDSA
-        shell: pwsh
-        env:
-          BREEZEDESK_WINSPARKLE_PRIVATE_KEY: ${{ secrets.WINSPARKLE_PRIVATE_KEY }}
-        run: packaging/windows/sign-winsparkle-update.ps1 "dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe"
-      - uses: actions/upload-artifact@v7
-        with:
-          name: windows-cuda
-          path: |
-            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe
-            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe.sha256
-            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-CUDA-Setup.exe.edSignature
-
   publish:
     if: >-
       always() &&
       needs.validate.result == 'success' &&
       needs.macos.result == 'success' &&
-      needs.windows-universal.result == 'success' &&
-      (needs.windows-cuda.result == 'success' || needs.windows-cuda.result == 'skipped')
-    needs: [validate, macos, windows-universal, windows-cuda]
+      needs.windows-universal.result == 'success'
+    needs: [validate, macos, windows-universal]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

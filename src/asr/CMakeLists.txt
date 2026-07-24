@@ -34,9 +34,6 @@ if(BREEZEDESK_ENABLE_WHISPER)
     if(APPLE)
         target_compile_definitions(breezedesk_asr PRIVATE
             BREEZEDESK_WHISPER_BACKEND_METAL=1)
-    elseif(WIN32 AND BREEZEDESK_WINDOWS_BACKEND STREQUAL "CUDA")
-        target_compile_definitions(breezedesk_asr PRIVATE
-            BREEZEDESK_WHISPER_BACKEND_CUDA=1)
     elseif(WIN32 AND BREEZEDESK_WINDOWS_BACKEND STREQUAL "VULKAN")
         target_compile_definitions(breezedesk_asr PRIVATE
             BREEZEDESK_WHISPER_BACKEND_VULKAN=1)

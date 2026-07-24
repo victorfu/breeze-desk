@@ -41,15 +41,10 @@ QStringList WorkerRegistry::executableCandidatesForHost(WorkerHostPlatform hostP
     if (hostPlatform == WorkerHostPlatform::Windows) {
         const QString executable = QString::fromLatin1(AppConfig::WorkerExecutableName);
         const QDir workers(QDir(applicationDirectory).filePath(QStringLiteral("workers")));
-        const QString cuda = workers.filePath(executable + QStringLiteral("-cuda.exe"));
         const QString vulkan = workers.filePath(executable + QStringLiteral("-vulkan.exe"));
         const QString cpu = workers.filePath(executable + QStringLiteral("-cpu.exe"));
         const QString generic = QDir(applicationDirectory).filePath(executable + QStringLiteral(".exe"));
         if (preferredBackend.compare(QStringLiteral("CPU"), Qt::CaseInsensitive) == 0) {
-            appendUnique(&candidates, cpu);
-            appendUnique(&candidates, generic);
-        } else if (preferredBackend.compare(QStringLiteral("CUDA"), Qt::CaseInsensitive) == 0) {
-            appendUnique(&candidates, cuda);
             appendUnique(&candidates, cpu);
             appendUnique(&candidates, generic);
         } else if (preferredBackend.compare(QStringLiteral("Vulkan"), Qt::CaseInsensitive) == 0) {
@@ -57,7 +52,6 @@ QStringList WorkerRegistry::executableCandidatesForHost(WorkerHostPlatform hostP
             appendUnique(&candidates, cpu);
             appendUnique(&candidates, generic);
         } else {
-            appendUnique(&candidates, cuda);
             appendUnique(&candidates, vulkan);
             appendUnique(&candidates, cpu);
             appendUnique(&candidates, generic);

@@ -61,7 +61,7 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
 | --- | --- |
 | UI | Qt 6.8+ Quick/QML (Qt 6.10.1 release baseline) over a C++17 core |
 | ASR | whisper.cpp pinned to an immutable commit, linked as a library by the worker process |
-| Acceleration | Metal + Accelerate on macOS; Vulkan, CUDA, or CPU worker builds on Windows |
+| Acceleration | Metal + Accelerate on macOS; Vulkan or CPU worker builds on Windows |
 | Media | LGPL FFmpeg sidecar for probing and normalization; Qt Multimedia for capture and playback |
 | Storage | SQLite for the library, jobs, chunk checkpoints, revisions, glossary, and audit data |
 | Updates | Optional Sparkle (macOS) and WinSparkle (Windows) update checks |
@@ -110,8 +110,8 @@ scripts\run-tests.bat
 scripts\build-and-run.bat
 ```
 
-The normal Windows build uses the CPU whisper.cpp worker, so it does not require an optional Vulkan or
-CUDA SDK. Always use `scripts\build-and-run.bat` for a development launch: raw CMake outputs are not
+The normal Windows build uses the CPU whisper.cpp worker, so it does not require an optional Vulkan
+SDK. Always use `scripts\build-and-run.bat` for a development launch: raw CMake outputs are not
 self-contained and can fail with missing Debug Qt DLLs such as `Qt6Networkd.dll`. The script finds the
 matching Qt kit's `windeployqt.exe` and deploys the combined runtime required by the GUI, CLI, and ASR
 worker. It also preloads `ffmpeg.exe` and `ffprobe.exe` next to the Debug executable. The first launch
@@ -140,7 +140,7 @@ ctest --test-dir build/manual --output-on-failure
 ```
 
 `BREEZEDESK_ENABLE_WHISPER=OFF` builds protocol/domain tests without the native runtime. Production
-packages always enable it. Windows packages use separate Vulkan and CUDA worker builds because GGML
+packages always enable it. Windows packages build separate Vulkan and CPU workers because GGML
 backends are configure-time choices.
 
 ### Release packages
@@ -155,7 +155,6 @@ packaging/macos/package.sh
 ```powershell
 $env:BREEZEDESK_FFMPEG_DIR = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
 cmd /c packaging\windows\package.bat Universal --msix
-cmd /c packaging\windows\package.bat CUDA
 ```
 
 Signing is environment-controlled and optional for local builds. See
