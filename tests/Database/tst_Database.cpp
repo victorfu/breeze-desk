@@ -12,6 +12,49 @@
 
 using namespace BreezeDesk;
 
+namespace {
+bool insertTranscript(DatabaseManager& manager, const QString& recordingId, const QStringList& segments) {
+    auto connection = manager.connection();
+    if (!connection)
+        return false;
+    QSqlQuery job(connection.value());
+    job.prepare(QStringLiteral(
+        "INSERT INTO transcription_jobs(id,recording_id,state,stage,progress,queue_position,"
+        "revision_number,created_at) VALUES(?,?,'Completed','Finalizing',1,0,1,'2026-01-01T00:00:00.000Z')"));
+    job.addBindValue(recordingId + QStringLiteral("-job"));
+    job.addBindValue(recordingId);
+    if (!job.exec())
+        return false;
+    for (int i = 0; i < segments.size(); ++i) {
+        QSqlQuery segment(connection.value());
+        segment.prepare(QStringLiteral(
+            "INSERT INTO transcript_segments(id,recording_id,job_id,ordinal,start_ms,end_ms,original_text,"
+            "created_at,updated_at) VALUES(?,?,?,?,?,?,?,'2026-01-01T00:00:00.000Z',"
+            "'2026-01-01T00:00:00.000Z')"));
+        segment.addBindValue(recordingId + QStringLiteral("-seg-") + QString::number(i));
+        segment.addBindValue(recordingId);
+        segment.addBindValue(recordingId + QStringLiteral("-job"));
+        segment.addBindValue(i);
+        segment.addBindValue(i * 1000);
+        segment.addBindValue(i * 1000 + 900);
+        segment.addBindValue(segments.at(i));
+        if (!segment.exec())
+            return false;
+    }
+    return static_cast<bool>(DatabaseSearchService(manager).rebuildRecording(recordingId));
+}
+
+bool createRecordingWithTranscript(DatabaseManager& manager, const QString& id, const QStringList& segments) {
+    SqliteRecordingRepository repository(manager);
+    Recording recording;
+    recording.id = id;
+    recording.title = QStringLiteral("Recording ") + id;
+    if (!repository.create(recording))
+        return false;
+    return insertTranscript(manager, id, segments);
+}
+} // namespace
+
 class DatabaseTest final : public QObject {
     Q_OBJECT
 
@@ -20,6 +63,10 @@ class DatabaseTest final : public QObject {
     void failedTransactionRollsBack();
     void connectionsAreThreadLocal();
     void recordingTrashAndSearchWork();
+    void chineseSubstringSearchFindsRecordings();
+    void multiKeywordSearchRequiresAllTerms();
+    void searchEscapesLikeWildcards();
+    void searchIndexMigrationRebuildsWithTrigram();
     void migrationBackupAndIntegrityCheckWork();
     void upgradeMigrationCreatesBackup();
     void revisionMigrationNormalizesLegacyHistory();
@@ -31,7 +78,7 @@ void DatabaseTest::cleanMigrationConfiguresSQLite() {
     QVERIFY(directory.isValid());
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
-    QCOMPARE(manager.schemaVersion(), 7);
+    QCOMPARE(manager.schemaVersion(), 8);
     auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery foreignKeys(connection.value());
@@ -129,6 +176,125 @@ void DatabaseTest::recordingTrashAndSearchWork() {
     QCOMPARE(repository.findById(recording.id).value().has_value(), false);
 }
 
+void DatabaseTest::chineseSubstringSearchFindsRecordings() {
+    QTemporaryDir directory;
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    QVERIFY(createRecordingWithTranscript(manager, QStringLiteral("rec-zh"),
+                                          {QStringLiteral("開場寒暄"), QStringLiteral("今天討論預算分配")}));
+    DatabaseSearchService search(manager);
+
+    auto twoCharacter = search.search(QStringLiteral("預算"));
+    QVERIFY(twoCharacter);
+    QCOMPARE(twoCharacter.value().size(), 1);
+    QCOMPARE(twoCharacter.value().first().recordingId, QStringLiteral("rec-zh"));
+    QCOMPARE(twoCharacter.value().first().segmentId, QStringLiteral("rec-zh-seg-1"));
+    QCOMPARE(twoCharacter.value().first().startMs, 1000);
+
+    auto fourCharacter = search.search(QStringLiteral("預算分配"));
+    QVERIFY(fourCharacter);
+    QCOMPARE(fourCharacter.value().size(), 1);
+    QCOMPARE(fourCharacter.value().first().recordingId, QStringLiteral("rec-zh"));
+
+    auto missing = search.search(QStringLiteral("不存在"));
+    QVERIFY(missing);
+    QCOMPARE(missing.value().size(), 0);
+}
+
+void DatabaseTest::multiKeywordSearchRequiresAllTerms() {
+    QTemporaryDir directory;
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    QVERIFY(createRecordingWithTranscript(
+        manager, QStringLiteral("rec-multi"),
+        {QStringLiteral("會議結束後我們散會"), QStringLiteral("我們確認了預算數字")}));
+    SqliteRecordingRepository repository(manager);
+    Recording english;
+    english.id = QStringLiteral("rec-en");
+    english.title = QStringLiteral("Weekly sync");
+    english.notes = QStringLiteral("Taiwan product meeting");
+    QVERIFY(repository.create(english));
+    DatabaseSearchService search(manager);
+
+    auto mixedLengths = search.search(QStringLiteral("會議 預算數字"));
+    QVERIFY(mixedLengths);
+    QCOMPARE(mixedLengths.value().size(), 1);
+    QCOMPARE(mixedLengths.value().first().recordingId, QStringLiteral("rec-multi"));
+
+    auto nonAdjacent = search.search(QStringLiteral("Taiwan meeting"));
+    QVERIFY(nonAdjacent);
+    QCOMPARE(nonAdjacent.value().size(), 1);
+    QCOMPARE(nonAdjacent.value().first().recordingId, QStringLiteral("rec-en"));
+
+    auto shortMiss = search.search(QStringLiteral("會議 火箭"));
+    QVERIFY(shortMiss);
+    QCOMPARE(shortMiss.value().size(), 0);
+
+    auto mixedMiss = search.search(QStringLiteral("預算數字 火箭"));
+    QVERIFY(mixedMiss);
+    QCOMPARE(mixedMiss.value().size(), 0);
+}
+
+void DatabaseTest::searchEscapesLikeWildcards() {
+    QTemporaryDir directory;
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    QVERIFY(createRecordingWithTranscript(manager, QStringLiteral("rec-percent"),
+                                          {QStringLiteral("折扣5%活動開跑")}));
+    QVERIFY(createRecordingWithTranscript(manager, QStringLiteral("rec-plain"),
+                                          {QStringLiteral("折扣5折活動開跑")}));
+    QVERIFY(createRecordingWithTranscript(manager, QStringLiteral("rec-underscore"),
+                                          {QStringLiteral("檔案A_B版本")}));
+    QVERIFY(createRecordingWithTranscript(manager, QStringLiteral("rec-letter"),
+                                          {QStringLiteral("檔案AXB版本")}));
+    DatabaseSearchService search(manager);
+
+    auto percent = search.search(QStringLiteral("5%"));
+    QVERIFY(percent);
+    QCOMPARE(percent.value().size(), 1);
+    QCOMPARE(percent.value().first().recordingId, QStringLiteral("rec-percent"));
+
+    auto underscore = search.search(QStringLiteral("A_"));
+    QVERIFY(underscore);
+    QCOMPARE(underscore.value().size(), 1);
+    QCOMPARE(underscore.value().first().recordingId, QStringLiteral("rec-underscore"));
+}
+
+void DatabaseTest::searchIndexMigrationRebuildsWithTrigram() {
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("library.sqlite"));
+    {
+        DatabaseManager manager({path});
+        QVERIFY(manager.initialize());
+        QVERIFY(manager.hasFts5());
+        QVERIFY(createRecordingWithTranscript(manager, QStringLiteral("rec-migrate"),
+                                              {QStringLiteral("今天討論預算分配")}));
+        auto connection = manager.connection();
+        QVERIFY(connection);
+        QSqlQuery query(connection.value());
+        QVERIFY(query.exec(QStringLiteral("DROP TABLE search_index")));
+        QVERIFY(query.exec(QStringLiteral(
+            "CREATE VIRTUAL TABLE search_index USING fts5(recording_id UNINDEXED, title, notes, tags, "
+            "transcript, tokenize='unicode61 remove_diacritics 2')")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version=8")));
+    }
+    DatabaseManager upgraded({path});
+    QVERIFY(upgraded.initialize());
+    QCOMPARE(upgraded.schemaVersion(), 8);
+    QVERIFY(upgraded.hasFts5());
+    auto connection = upgraded.connection();
+    QVERIFY(connection);
+    QSqlQuery ddl(connection.value());
+    QVERIFY(ddl.exec(QStringLiteral("SELECT sql FROM sqlite_master WHERE name='search_index'")));
+    QVERIFY(ddl.next());
+    QVERIFY(ddl.value(0).toString().contains(QStringLiteral("trigram")));
+    DatabaseSearchService search(upgraded);
+    auto rebuilt = search.search(QStringLiteral("預算分配"));
+    QVERIFY(rebuilt);
+    QCOMPARE(rebuilt.value().size(), 1);
+    QCOMPARE(rebuilt.value().first().recordingId, QStringLiteral("rec-migrate"));
+}
+
 void DatabaseTest::migrationBackupAndIntegrityCheckWork() {
     QTemporaryDir directory;
     const QString path = directory.filePath(QStringLiteral("library.sqlite"));
@@ -155,13 +321,13 @@ void DatabaseTest::upgradeMigrationCreatesBackup() {
         QSqlQuery removeReviewed(connection.value());
         QVERIFY(removeReviewed.exec(QStringLiteral("ALTER TABLE transcript_segments DROP COLUMN reviewed")));
         QVERIFY(
-            removeVersion.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7)")));
+            removeVersion.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8)")));
         QSqlQuery removeIndex(connection.value());
         QVERIFY(removeIndex.exec(QStringLiteral("DROP INDEX idx_recordings_source_path")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 7);
+    QCOMPARE(upgraded.schemaVersion(), 8);
     const QStringList backups =
         QDir(directory.path()).entryList({QStringLiteral("library.sqlite.backup-*")}, QDir::Files);
     QCOMPARE(backups.size(), 1);
@@ -187,7 +353,7 @@ void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
         QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_jobs_single_execution")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE asr_execution_lease")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE transcription_job_events")));
-        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version=7")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (7,8)")));
 
         const auto insertJob = [&](const QString& id, const QString& state, const int queuePosition,
                                    const QString& createdAt) {
@@ -217,7 +383,7 @@ void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
 
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 7);
+    QCOMPARE(upgraded.schemaVersion(), 8);
     auto connection = upgraded.connection();
     QVERIFY(connection);
     QSqlQuery jobs(connection.value());

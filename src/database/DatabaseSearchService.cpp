@@ -10,6 +10,29 @@ namespace {
 UserFacingError searchError(const QString& message, const QSqlQuery& query) {
     return UserFacingError::database(ErrorCode::DatabaseQueryFailed, message, query.lastError().text(), true);
 }
+
+QStringList searchTokens(const QString& queryText) {
+    return queryText.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
+}
+
+// The trigram tokenizer cannot match phrases shorter than three code points, so shorter
+// tokens (most two-character Chinese words) are matched with escaped LIKE patterns instead.
+bool trigramMatchable(const QString& token) {
+    return token.toUcs4().size() >= 3;
+}
+
+QString ftsPhrase(QString token) {
+    token.replace(QLatin1Char('"'), QStringLiteral("\"\""));
+    return QLatin1Char('"') + token + QLatin1Char('"');
+}
+
+QString likePattern(const QString& token) {
+    QString escaped = token;
+    escaped.replace(QLatin1Char('\\'), QStringLiteral("\\\\"));
+    escaped.replace(QLatin1Char('%'), QStringLiteral("\\%"));
+    escaped.replace(QLatin1Char('_'), QStringLiteral("\\_"));
+    return QLatin1Char('%') + escaped + QLatin1Char('%');
+}
 } // namespace
 
 DatabaseSearchService::DatabaseSearchService(DatabaseManager& databaseManager)
@@ -92,28 +115,48 @@ Result<void> DatabaseSearchService::rebuildAll() const {
 
 Result<QList<SearchResult>> DatabaseSearchService::search(const QString& queryText, const int limit,
                                                           const int offset) const {
-    if (queryText.trimmed().isEmpty())
+    const QStringList tokens = searchTokens(queryText);
+    if (tokens.isEmpty())
         return Result<QList<SearchResult>>::success({});
     auto connectionResult = m_databaseManager.connection();
     if (!connectionResult)
         return Result<QList<SearchResult>>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
+    QStringList matchTokens;
+    QStringList likeTokens;
     if (m_databaseManager.hasFts5()) {
-        query.prepare(QStringLiteral(
+        for (const QString& token : tokens)
+            (trigramMatchable(token) ? matchTokens : likeTokens).append(token);
+    } else {
+        likeTokens = tokens;
+    }
+    const QString columnFilter = QStringLiteral(
+        " AND (s.title LIKE ? ESCAPE '\\' OR s.notes LIKE ? ESCAPE '\\' OR s.tags LIKE ? ESCAPE '\\' "
+        "OR s.transcript LIKE ? ESCAPE '\\')");
+    QSqlQuery query(connectionResult.value());
+    if (!matchTokens.isEmpty()) {
+        QString sql = QStringLiteral(
             "SELECT s.recording_id,r.title,snippet(search_index,4,'<mark>','</mark>',' … ',18) "
             "FROM search_index s JOIN recordings r ON r.id=s.recording_id "
-            "WHERE search_index MATCH ? AND r.deleted_at IS NULL ORDER BY bm25(search_index) LIMIT ? OFFSET "
-            "?"));
-        QString match = queryText.trimmed();
-        match.replace(QLatin1Char('"'), QStringLiteral("\"\""));
-        query.addBindValue(QLatin1Char('"') + match + QLatin1Char('"'));
+            "WHERE search_index MATCH ? AND r.deleted_at IS NULL");
+        for (int i = 0; i < likeTokens.size(); ++i)
+            sql += columnFilter;
+        sql += QStringLiteral(" ORDER BY bm25(search_index) LIMIT ? OFFSET ?");
+        query.prepare(sql);
+        QStringList phrases;
+        for (const QString& token : matchTokens)
+            phrases.append(ftsPhrase(token));
+        query.addBindValue(phrases.join(QLatin1Char(' ')));
     } else {
-        query.prepare(QStringLiteral(
+        QString sql = QStringLiteral(
             "SELECT s.recording_id,r.title,substr(s.transcript,1,240) FROM search_index_fallback s "
-            "JOIN recordings r ON r.id=s.recording_id WHERE r.deleted_at IS NULL AND "
-            "(s.title LIKE ? OR s.notes LIKE ? OR s.tags LIKE ? OR s.transcript LIKE ?) "
-            "ORDER BY r.updated_at DESC LIMIT ? OFFSET ?"));
-        const QString pattern = QLatin1Char('%') + queryText.trimmed() + QLatin1Char('%');
+            "JOIN recordings r ON r.id=s.recording_id WHERE r.deleted_at IS NULL");
+        for (int i = 0; i < likeTokens.size(); ++i)
+            sql += columnFilter;
+        sql += QStringLiteral(" ORDER BY r.updated_at DESC LIMIT ? OFFSET ?");
+        query.prepare(sql);
+    }
+    for (const QString& token : likeTokens) {
+        const QString pattern = likePattern(token);
         for (int i = 0; i < 4; ++i)
             query.addBindValue(pattern);
     }
@@ -122,6 +165,15 @@ Result<QList<SearchResult>> DatabaseSearchService::search(const QString& queryTe
     if (!query.exec())
         return Result<QList<SearchResult>>::failure(
             searchError(QStringLiteral("The library search could not be completed."), query));
+    QString segmentSql =
+        QStringLiteral("SELECT id,start_ms,CASE WHEN edited_text='' THEN original_text ELSE edited_text END "
+                       "FROM transcript_segments WHERE recording_id=? AND (");
+    QStringList segmentClauses;
+    for (int i = 0; i < tokens.size(); ++i) {
+        segmentClauses.append(
+            QStringLiteral("original_text LIKE ? ESCAPE '\\' OR edited_text LIKE ? ESCAPE '\\'"));
+    }
+    segmentSql += segmentClauses.join(QStringLiteral(" OR ")) + QStringLiteral(") ORDER BY start_ms LIMIT 1");
     QList<SearchResult> results;
     while (query.next()) {
         SearchResult result;
@@ -129,14 +181,13 @@ Result<QList<SearchResult>> DatabaseSearchService::search(const QString& queryTe
         result.title = query.value(1).toString();
         result.snippet = query.value(2).toString();
         QSqlQuery segment(connectionResult.value());
-        segment.prepare(QStringLiteral(
-            "SELECT id,start_ms,CASE WHEN edited_text='' THEN original_text ELSE edited_text END "
-            "FROM transcript_segments WHERE recording_id=? AND "
-            "(original_text LIKE ? OR edited_text LIKE ?) ORDER BY start_ms LIMIT 1"));
-        const QString segmentPattern = QLatin1Char('%') + queryText.trimmed() + QLatin1Char('%');
+        segment.prepare(segmentSql);
         segment.addBindValue(result.recordingId);
-        segment.addBindValue(segmentPattern);
-        segment.addBindValue(segmentPattern);
+        for (const QString& token : tokens) {
+            const QString pattern = likePattern(token);
+            segment.addBindValue(pattern);
+            segment.addBindValue(pattern);
+        }
         if (!segment.exec()) {
             return Result<QList<SearchResult>>::failure(
                 searchError(QStringLiteral("Transcript search locations could not be loaded."), segment));
