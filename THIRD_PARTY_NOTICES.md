@@ -45,6 +45,10 @@ Release media tools are built from FFmpeg 8.1.2 source archive SHA-256
 disabled. The exact `-buildconf` output and source record ship beside release notices. FFmpeg is covered
 by LGPL 2.1 or later. https://ffmpeg.org/legal.html
 
+Windows sidecars are built with w64devkit 2.8.0. The complete MinGW-w64 runtime notice supplied by
+that toolchain is distributed as `MinGW-w64-runtime.txt` beside the FFmpeg notices.
+https://github.com/skeeto/w64devkit
+
 ## Sparkle
 
 Direct-download macOS packages use Sparkle 2.9.2 at revision

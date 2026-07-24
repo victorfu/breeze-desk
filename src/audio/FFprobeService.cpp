@@ -18,6 +18,8 @@ MediaMetadata FFprobeService::inspect(const QString& path, QString* error) const
     QProcess process;
     const QStringList arguments{QStringLiteral("-v"),
                                 QStringLiteral("error"),
+                                QStringLiteral("-protocol_whitelist"),
+                                QStringLiteral("file,pipe"),
                                 QStringLiteral("-show_format"),
                                 QStringLiteral("-show_streams"),
                                 QStringLiteral("-of"),

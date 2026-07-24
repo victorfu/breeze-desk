@@ -70,8 +70,9 @@ Output is `dist/BreezeDesk-<version>-macOS-arm64.dmg` plus `.sha256` and, for re
 ## Windows x64
 
 Run from a Visual Studio 2022 developer command prompt with Qt, Ninja, NSIS, ImageMagick, Windows SDK,
-MSYS2 (`make`, `nasm`, `diffutils`, and the mingw-w64 x64 GCC toolchain), and an LGPL FFmpeg directory
-available. The package script
+and an LGPL FFmpeg directory available. `build-ffmpeg-lgpl.ps1` bootstraps checksum-pinned portable
+w64devkit and native Windows NASM archives when that directory must be built, so MSYS2 is not required.
+The package script
 renders the canonical and tray-sized repository PNGs to a multi-resolution ICO before CMake
 configures the executable resource and NSIS branding:
 

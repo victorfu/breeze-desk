@@ -159,8 +159,6 @@ jobs:
         run: |
           choco install ninja nsis sccache imagemagick --yes --no-progress
           choco install vulkan-sdk --version=1.4.341 --yes --no-progress
-          & C:\msys64\usr\bin\bash.exe -lc 'pacman -Sy --needed --noconfirm make nasm diffutils mingw-w64-x86_64-gcc'
-          if ($LASTEXITCODE -ne 0) { throw 'MSYS2 build-tool installation failed.' }
           $Sdk = Get-ChildItem C:\VulkanSDK -Directory | Sort-Object Name -Descending | Select-Object -First 1
           if (-not $Sdk) { throw 'Chocolatey did not install the Vulkan SDK under C:\VulkanSDK.' }
           "VULKAN_SDK=$($Sdk.FullName)" | Out-File $env:GITHUB_ENV -Append
@@ -190,9 +188,11 @@ jobs:
             .cache/sccache
             build/ffmpeg-8.1.2-windows-x64/install
             build/ffmpeg-8.1.2-windows-x64/ffmpeg-8.1.2.tar.xz
+            build/toolchains/w64devkit-x64-2.8.0.7z.exe
+            build/toolchains/nasm-2.16.03-win64.zip
             build/winsparkle-0.9.3/install
             build/winsparkle-0.9.3/WinSparkle-0.9.3.zip
-          key: release-windows-${{ env.WHISPER_CPP_REF }}-ffmpeg-8.1.2-winsparkle-0.9.3
+          key: release-windows-${{ env.WHISPER_CPP_REF }}-ffmpeg-8.1.2-w64devkit-2.8.0-nasm-2.16.03-winsparkle-0.9.3
       - name: Prepare pinned whisper.cpp source
         shell: bash
         run: |

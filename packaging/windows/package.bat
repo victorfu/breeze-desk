@@ -163,11 +163,18 @@ cmake -E copy_if_different "%PROJECT_ROOT%\resources\icons\lucide\SOURCE.md" "%S
 cmake -E copy_if_different "%FFMPEG_BUILDCONF%" "%STAGE_DIR%\share\breezedesk\licenses\FFmpeg-BUILD_CONFIGURATION.txt" || exit /b 1
 cmake -E copy_if_different "%FFMPEG_LICENSE_DIR%\FFmpeg-LGPL-2.1.txt" "%STAGE_DIR%\share\breezedesk\licenses\FFmpeg-LGPL-2.1.txt" || exit /b 1
 cmake -E copy_if_different "%FFMPEG_LICENSE_DIR%\FFmpeg-LGPL-3.0.txt" "%STAGE_DIR%\share\breezedesk\licenses\FFmpeg-LGPL-3.0.txt" || exit /b 1
-(
-  echo FFmpeg 8.1.2
-  echo Source archive: https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz
-  echo Source SHA-256: 464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
-) > "%STAGE_DIR%\share\breezedesk\licenses\FFmpeg-SOURCE.txt"
+if exist "%FFMPEG_LICENSE_DIR%\MinGW-w64-runtime.txt" (
+  cmake -E copy_if_different "%FFMPEG_LICENSE_DIR%\MinGW-w64-runtime.txt" "%STAGE_DIR%\share\breezedesk\licenses\MinGW-w64-runtime.txt" || exit /b 1
+)
+if exist "%BREEZEDESK_FFMPEG_DIR%\..\SOURCE.txt" (
+  cmake -E copy_if_different "%BREEZEDESK_FFMPEG_DIR%\..\SOURCE.txt" "%STAGE_DIR%\share\breezedesk\licenses\FFmpeg-SOURCE.txt" || exit /b 1
+) else (
+  (
+    echo FFmpeg 8.1.2
+    echo Source archive: https://ffmpeg.org/releases/ffmpeg-8.1.2.tar.xz
+    echo Source SHA-256: 464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c
+  ) > "%STAGE_DIR%\share\breezedesk\licenses\FFmpeg-SOURCE.txt"
+)
 
 if defined BREEZEDESK_WINSPARKLE_DIR (
   if not "%BREEZEDESK_PACKAGE_UPDATES%"=="1" (

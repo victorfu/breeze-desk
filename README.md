@@ -116,9 +116,9 @@ self-contained and can fail with missing Debug Qt DLLs such as `Qt6Networkd.dll`
 matching Qt kit's `windeployqt.exe` and deploys the combined runtime required by the GUI, CLI, and ASR
 worker. It also preloads `ffmpeg.exe` and `ffprobe.exe` next to the Debug executable. The first launch
 reuses `BREEZEDESK_FFMPEG_DIR` or the source-built FFmpeg cache when available; otherwise it downloads
-the checksum-pinned FFmpeg 8.1.2 source and builds the same offline LGPL sidecars used by packages.
-That first build additionally requires MSYS2 `make`, `nasm`, `diffutils`, and the MinGW-w64 x64 GCC
-toolchain; later launches reuse the cached tools. To deploy Qt without launching or preparing media
+the checksum-pinned FFmpeg 8.1.2 source, portable w64devkit, and native Windows NASM, then builds the
+same optimized offline LGPL sidecars used by packages. No MSYS2 installation or system-wide setup is
+required, and later launches reuse the cached tools. To deploy Qt without launching or preparing media
 tools, use:
 
 ```bat

@@ -54,6 +54,8 @@ class FFmpegNormalizationOperation final : public NormalizationOperation {
         const QStringList arguments{QStringLiteral("-hide_banner"),
                                     QStringLiteral("-nostdin"),
                                     QStringLiteral("-y"),
+                                    QStringLiteral("-protocol_whitelist"),
+                                    QStringLiteral("file,pipe"),
                                     QStringLiteral("-i"),
                                     std::move(source),
                                     QStringLiteral("-vn"),

@@ -133,16 +133,7 @@ foreach ($CandidateDirectory in $CandidateDirectories) {
     }
 }
 
-if (-not (Test-Path -LiteralPath 'C:\msys64\usr\bin\bash.exe' -PathType Leaf)) {
-    throw @'
-Pinned FFmpeg must be built once, but MSYS2 was not found at C:\msys64.
-Install MSYS2 and the documented build packages, then rerun scripts\build-and-run.bat:
-  winget install --exact --id MSYS2.MSYS2
-  C:\msys64\usr\bin\bash.exe -lc "pacman -Sy --needed --noconfirm make nasm diffutils mingw-w64-x86_64-gcc"
-'@
-}
-
-Write-Host 'Preparing checksum-pinned FFmpeg 8.1.2 from official source. The first build can take several minutes...'
+Write-Host 'Preparing checksum-pinned FFmpeg 8.1.2 with a portable Windows toolchain. The first build can take several minutes...'
 $BuildOutput = @()
 & $SourceBuildScript | Tee-Object -Variable BuildOutput
 $BuiltDirectory = [string]($BuildOutput | Select-Object -Last 1)

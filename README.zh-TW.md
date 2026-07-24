@@ -112,9 +112,9 @@ SDK。開發時請一律使用 `scripts\build-and-run.bat` 啟動；CMake 的原
 kit 對應的 `windeployqt.exe`，並部署 GUI、CLI 與 ASR Worker 合併後所需的完整 runtime。
 它也會將 `ffmpeg.exe` 與 `ffprobe.exe` preload 到 Debug 執行檔旁。第一次啟動會優先重用
 `BREEZEDESK_FFMPEG_DIR` 或自行編譯的 FFmpeg 快取；若都不存在，便下載固定 SHA-256 的
-FFmpeg 8.1.2 原始碼，建立與正式安裝包相同的離線 LGPL sidecar。第一次建置另需 MSYS2 的
-`make`、`nasm`、`diffutils` 與 MinGW-w64 x64 GCC toolchain，之後會直接重用快取。若只要
-部署 Qt、不啟動程式也不準備媒體工具，請執行：
+FFmpeg 8.1.2 原始碼、可攜式 w64devkit 與原生 Windows NASM，建立與正式安裝包相同且保留
+最佳化的離線 LGPL sidecar。不需安裝 MSYS2 或設定系統層級 toolchain，之後也會直接重用
+快取。若只要部署 Qt、不啟動程式也不準備媒體工具，請執行：
 
 ```bat
 scripts\deploy-debug.bat
