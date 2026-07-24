@@ -61,6 +61,7 @@ target_link_libraries(breezedesk_ui
         breezedesk_audio
         breezedesk_jobs
         breezedesk_models
+        breezedesk_platform
         breezedesk_settings
         breezedesk_glossary
         breezedesk_transcript

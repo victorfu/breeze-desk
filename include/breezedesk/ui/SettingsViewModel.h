@@ -47,6 +47,7 @@ class SettingsViewModel final : public QObject {
     Q_PROPERTY(QString initialPromptBehavior READ initialPromptBehavior WRITE setInitialPromptBehavior NOTIFY
                    transcriptionChanged)
     Q_PROPERTY(QString backend READ backend WRITE setBackend NOTIFY transcriptionChanged)
+    Q_PROPERTY(QStringList availableBackends READ availableBackends CONSTANT)
     Q_PROPERTY(bool flashAttention READ flashAttention WRITE setFlashAttention NOTIFY transcriptionChanged)
     Q_PROPERTY(bool tokenTimestamps READ tokenTimestamps WRITE setTokenTimestamps NOTIFY transcriptionChanged)
     Q_PROPERTY(int threadCount READ threadCount WRITE setThreadCount NOTIFY transcriptionChanged)
@@ -89,6 +90,7 @@ class SettingsViewModel final : public QObject {
     [[nodiscard]] bool vadEnabled() const noexcept;
     [[nodiscard]] QString initialPromptBehavior() const;
     [[nodiscard]] QString backend() const;
+    [[nodiscard]] QStringList availableBackends() const;
     [[nodiscard]] bool flashAttention() const noexcept;
     [[nodiscard]] bool tokenTimestamps() const noexcept;
     [[nodiscard]] int threadCount() const noexcept;

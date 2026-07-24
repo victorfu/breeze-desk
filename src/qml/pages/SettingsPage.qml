@@ -205,9 +205,10 @@ Item {
                     AppComboBox {
                         Layout.fillWidth: true
                         accessibleName: qsTr("Backend")
-                        model: [qsTr("Automatic"), "CPU", "Metal", "Vulkan"]
-                        currentIndex: ["Auto", "CPU", "Metal", "Vulkan"].indexOf(root.vm.backend)
-                        onActivated: root.vm.backend = ["Auto", "CPU", "Metal", "Vulkan"][currentIndex]
+                        readonly property var backendValues: root.vm.availableBackends
+                        model: backendValues.map(value => value === "Auto" ? qsTr("Automatic") : value)
+                        currentIndex: backendValues.indexOf(root.vm.backend)
+                        onActivated: root.vm.backend = backendValues[currentIndex]
                     }
                 }
                 SettingRow {

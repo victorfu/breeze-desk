@@ -2531,6 +2531,36 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(second.updateChannel(), QStringLiteral("Beta"));
     }
 
+    void backendOptionsFilterByPlatform() {
+        BreezeDesk::SettingsViewModel viewModel;
+        const QStringList backends = viewModel.availableBackends();
+
+        // Auto and CPU are offered everywhere; Auto falls back to CPU at runtime.
+        QVERIFY(backends.contains(QStringLiteral("Auto")));
+        QVERIFY(backends.contains(QStringLiteral("CPU")));
+
+        // Each platform only offers the accelerator its worker is compiled with.
+#if defined(Q_OS_MACOS)
+        QVERIFY(backends.contains(QStringLiteral("Metal")));
+        QVERIFY(!backends.contains(QStringLiteral("Vulkan")));
+        const QString unavailable = QStringLiteral("Vulkan");
+#elif defined(Q_OS_WIN)
+        QVERIFY(backends.contains(QStringLiteral("Vulkan")));
+        QVERIFY(!backends.contains(QStringLiteral("Metal")));
+        const QString unavailable = QStringLiteral("Metal");
+#else
+        QVERIFY(!backends.contains(QStringLiteral("Metal")));
+        QVERIFY(!backends.contains(QStringLiteral("Vulkan")));
+        const QString unavailable = QStringLiteral("Vulkan");
+#endif
+
+        // A backend the current platform cannot host is rejected, not stored.
+        viewModel.setBackend(QStringLiteral("CPU"));
+        QCOMPARE(viewModel.backend(), QStringLiteral("CPU"));
+        viewModel.setBackend(unavailable);
+        QCOMPARE(viewModel.backend(), QStringLiteral("CPU"));
+    }
+
     void dangerStylingIsAppliedToDestructiveActions() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));

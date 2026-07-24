@@ -1,5 +1,6 @@
 #include "breezedesk/ui/SettingsViewModel.h"
 
+#include "breezedesk/platform/PlatformCapabilities.h"
 #include "breezedesk/settings/SettingsManagers.h"
 
 #include <QAudioDevice>
@@ -218,6 +219,21 @@ QString SettingsViewModel::initialPromptBehavior() const {
 
 QString SettingsViewModel::backend() const {
     return m_backend;
+}
+
+QStringList SettingsViewModel::availableBackends() const {
+    // The compiled worker only ships accelerators the platform can host, so the
+    // picker must not offer Metal on Windows or Vulkan on macOS. Auto and CPU are
+    // always present; Auto falls back to CPU when no accelerator initializes.
+    QStringList backends{QStringLiteral("Auto"), QStringLiteral("CPU")};
+    const PlatformCapabilities capabilities = PlatformCapabilities::current();
+    if (capabilities.supportsMetal) {
+        backends.append(QStringLiteral("Metal"));
+    }
+    if (capabilities.supportsVulkan) {
+        backends.append(QStringLiteral("Vulkan"));
+    }
+    return backends;
 }
 
 bool SettingsViewModel::flashAttention() const noexcept {
@@ -547,9 +563,7 @@ void SettingsViewModel::setInitialPromptBehavior(const QString& value) {
 }
 
 void SettingsViewModel::setBackend(const QString& value) {
-    static const QStringList allowed{QStringLiteral("Auto"), QStringLiteral("CPU"), QStringLiteral("Metal"),
-                                     QStringLiteral("Vulkan")};
-    if (!allowed.contains(value) || m_backend == value) {
+    if (!availableBackends().contains(value) || m_backend == value) {
         return;
     }
     m_backend = value;
