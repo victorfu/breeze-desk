@@ -143,7 +143,6 @@ Rectangle {
                     selectionColor: SemanticTokens.accent
                     selectedTextColor: SemanticTokens.textOnAccent
                     wrapMode: TextEdit.Wrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                     Accessible.name: qsTr("Segment text")
                     Accessible.description: qsTr("Transcript text from %1 to %2")
@@ -291,9 +290,8 @@ Rectangle {
                 Text {
                     text: qsTr("Glossary replacements")
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
 
                 Repeater {
@@ -315,7 +313,6 @@ Rectangle {
                                                       .arg(auditRow.modelData.canonicalText)
                             color: SemanticTokens.text
                             elide: Text.ElideRight
-                            font.family: SemanticTokens.fontFamily
                             font.pixelSize: SemanticTokens.captionSize
                         }
                         StatusBadge {

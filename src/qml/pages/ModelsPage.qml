@@ -54,7 +54,6 @@ Item {
                               .arg(UiText.computeBackendName(root.vm.selectedBackend))
                     color: SemanticTokens.text
                     wrapMode: Text.WordWrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
                 Text {
@@ -68,7 +67,6 @@ Item {
                               .arg(UiText.activeComputeName(root.vm.actualBackend))
                     color: SemanticTokens.textMuted
                     wrapMode: Text.WordWrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
                 Text {
@@ -80,7 +78,6 @@ Item {
                     text: qsTr("whisper.cpp: %1").arg(root.vm.runtimeVersion)
                     color: SemanticTokens.textMuted
                     wrapMode: Text.WordWrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
             }

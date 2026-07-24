@@ -121,7 +121,6 @@ Item {
                           : qsTr("Scanning folder…")
                     color: SemanticTokens.textMuted
                     elide: Text.ElideRight
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
                 AppButton { text: qsTr("Cancel"); onClicked: root.app.cancelFolderImport() }
@@ -241,7 +240,6 @@ Item {
                 text: qsTr("Separate tags with commas.")
                 color: SemanticTokens.textMuted
                 wrapMode: Text.WordWrap
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.captionSize
             }
         }

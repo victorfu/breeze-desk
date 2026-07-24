@@ -40,16 +40,14 @@ Button {
             color: SemanticTokens.text
             elide: Text.ElideRight
             maximumLineCount: 1
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
-            font.weight: control.selected ? Font.DemiBold : Font.Normal
+            font.weight: control.selected ? SemanticTokens.weightSemiBold : SemanticTokens.weightNormal
         }
         Text {
             id: badge
             visible: control.badgeText.length > 0
             text: control.badgeText
             color: SemanticTokens.textMuted
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.captionSize
         }
     }

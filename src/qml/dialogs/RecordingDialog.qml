@@ -95,7 +95,6 @@ AppDialog {
                 Text {
                     text: qsTr("Input level")
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
                 AppProgressBar {
@@ -121,7 +120,6 @@ AppDialog {
             text: control.errorMessage
             color: SemanticTokens.danger
             wrapMode: Text.Wrap
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
             Accessible.role: Accessible.AlertMessage
         }

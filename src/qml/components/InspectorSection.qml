@@ -9,9 +9,8 @@ ColumnLayout {
     Text {
         text: root.title
         color: SemanticTokens.text
-        font.family: SemanticTokens.fontFamily
         font.pixelSize: SemanticTokens.captionSize
-        font.weight: Font.DemiBold
+        font.weight: SemanticTokens.weightSemiBold
         font.capitalization: Font.AllUppercase
     }
     ColumnLayout {

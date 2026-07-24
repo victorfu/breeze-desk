@@ -44,9 +44,8 @@ Item {
             text: root.title
             horizontalAlignment: Text.AlignHCenter
             color: SemanticTokens.text
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.headingSize
-            font.weight: Font.DemiBold
+            font.weight: SemanticTokens.weightSemiBold
         }
         Text {
             Layout.fillWidth: true
@@ -54,8 +53,9 @@ Item {
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.Wrap
             color: SemanticTokens.textMuted
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
+            lineHeight: SemanticTokens.lineHeightNormal
+            lineHeightMode: Text.ProportionalHeight
         }
         AppButton {
             Layout.alignment: Qt.AlignHCenter

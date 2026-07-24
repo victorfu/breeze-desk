@@ -17,7 +17,6 @@ AppDialog {
             text: qsTr("Download the recommended model or import a GGML model before adding recordings to the queue.")
             color: SemanticTokens.text
             wrapMode: Text.Wrap
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
         }
         RowLayout {

@@ -11,7 +11,6 @@ T.SpinBox {
     leftPadding: downIndicator.width + SemanticTokens.spacingXs
     rightPadding: upIndicator.width + SemanticTokens.spacingXs
     hoverEnabled: true
-    font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
     Accessible.name: accessibleName
 
@@ -67,6 +66,10 @@ T.SpinBox {
         color: SemanticTokens.surface
         radius: SemanticTokens.radiusSm
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
-        border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
+        border.color: control.activeFocus ? SemanticTokens.focusRing
+                    : control.hovered ? SemanticTokens.borderStrong : SemanticTokens.border
+        Behavior on border.color {
+            ColorAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard }
+        }
     }
 }

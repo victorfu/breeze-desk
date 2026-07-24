@@ -62,7 +62,6 @@ Item {
                 text: qsTr("No transcript versions are available yet.")
                 color: SemanticTokens.textMuted
                 wrapMode: Text.WordWrap
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.bodySize
             }
 
@@ -123,9 +122,8 @@ Item {
                                 Text {
                                     text: qsTr("Version %1").arg(revisionRow.revisionNumber)
                                     color: SemanticTokens.text
-                                    font.family: SemanticTokens.fontFamily
                                     font.pixelSize: SemanticTokens.bodySize
-                                    font.weight: Font.DemiBold
+                                    font.weight: SemanticTokens.weightSemiBold
                                 }
                                 StatusBadge {
                                     text: UiText.jobState(revisionRow.jobState)
@@ -152,7 +150,6 @@ Item {
                                       .arg(UiText.shortDateTime(revisionRow.createdAt))
                                 color: SemanticTokens.textMuted
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                             Text {
@@ -170,7 +167,6 @@ Item {
                                 }).join(" · ")
                                 color: SemanticTokens.textMuted
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                             Text {
@@ -179,7 +175,6 @@ Item {
                                 text: revisionRow.latestText
                                 color: SemanticTokens.text
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                             Text {
@@ -188,7 +183,6 @@ Item {
                                 text: revisionRow.errorMessage
                                 color: SemanticTokens.danger
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                             Text {
@@ -200,7 +194,6 @@ Item {
                                                                    : qsTr("Contains partial results")
                                 color: SemanticTokens.warning
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                         }
@@ -257,7 +250,6 @@ Item {
                 text: qsTr("The transcript segments and processing record for this version will be permanently deleted.")
                 wrapMode: Text.WordWrap
                 color: SemanticTokens.text
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.bodySize
             }
             Text {
@@ -266,9 +258,8 @@ Item {
                 text: qsTr("This version contains manual edits. Those edits will also be lost.")
                 wrapMode: Text.WordWrap
                 color: SemanticTokens.danger
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.bodySize
-                font.weight: Font.DemiBold
+                font.weight: SemanticTokens.weightSemiBold
             }
             Text {
                 objectName: "deleteDirtyTranscriptRevisionWarning"
@@ -278,9 +269,8 @@ Item {
                 text: qsTr("This is the version you are viewing, and it has unsaved changes. Those changes will be discarded.")
                 wrapMode: Text.WordWrap
                 color: SemanticTokens.danger
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.bodySize
-                font.weight: Font.DemiBold
+                font.weight: SemanticTokens.weightSemiBold
             }
         }
     }
@@ -295,24 +285,23 @@ Item {
                 title: qsTr("Recording")
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: qsTr("Duration"); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize }
+                    Text { text: qsTr("Duration"); color: SemanticTokens.textMuted; font.pixelSize: SemanticTokens.captionSize }
                     Item { Layout.fillWidth: true }
-                    Text { text: UiText.timecode(root.detail.durationMs); color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
+                    Text { text: UiText.timecode(root.detail.durationMs); color: SemanticTokens.text; font.pixelSize: SemanticTokens.bodySize }
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: qsTr("Status"); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize }
+                    Text { text: qsTr("Status"); color: SemanticTokens.textMuted; font.pixelSize: SemanticTokens.captionSize }
                     Item { Layout.fillWidth: true }
-                    Text { text: root.displayedRecordingStatus; color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize; elide: Text.ElideRight; Layout.maximumWidth: 170 }
+                    Text { text: root.displayedRecordingStatus; color: SemanticTokens.text; font.pixelSize: SemanticTokens.bodySize; elide: Text.ElideRight; Layout.maximumWidth: 170 }
                 }
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: qsTr("Model"); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize }
+                    Text { text: qsTr("Model"); color: SemanticTokens.textMuted; font.pixelSize: SemanticTokens.captionSize }
                     Item { Layout.fillWidth: true }
                     Text {
                         text: root.detail.model.length > 0 ? root.detail.model : qsTr("Not transcribed")
                         color: SemanticTokens.text
-                        font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.bodySize
                         elide: Text.ElideRight
                         horizontalAlignment: Text.AlignRight
@@ -326,7 +315,7 @@ Item {
                 title: qsTr("Transcript")
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: qsTr("%n segment(s)", "", root.transcript.segmentCount); color: SemanticTokens.text; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
+                    Text { text: qsTr("%n segment(s)", "", root.transcript.segmentCount); color: SemanticTokens.text; font.pixelSize: SemanticTokens.bodySize }
                     Item { Layout.fillWidth: true }
                     Toggle { text: qsTr("Auto-scroll"); checked: root.player.autoScroll; onToggled: root.player.autoScroll = checked }
                 }
@@ -342,7 +331,6 @@ Item {
                     placeholderText: qsTr("Recording notes")
                     color: SemanticTokens.text
                     wrapMode: TextEdit.Wrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                     onActiveFocusChanged: if (!activeFocus && text !== root.detail.notes) root.detail.notes = text
                     background: Rectangle { color: SemanticTokens.surface; radius: SemanticTokens.radiusSm; border.color: SemanticTokens.border }
@@ -370,13 +358,12 @@ Item {
                     text: root.detail.title
                     color: SemanticTokens.text
                     elide: Text.ElideRight
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.headingSize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 RowLayout {
                     StatusBadge { text: root.displayedRecordingStatus; tone: "neutral" }
-                    Text { text: root.detail.sourcePath; color: SemanticTokens.textMuted; elide: Text.ElideMiddle; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.captionSize; Layout.maximumWidth: 520 }
+                    Text { text: root.detail.sourcePath; color: SemanticTokens.textMuted; elide: Text.ElideMiddle; font.pixelSize: SemanticTokens.captionSize; Layout.maximumWidth: 520 }
                 }
             }
             AppButton { text: qsTr("Transcribe"); primary: true; onClicked: root.requestTranscription() }
@@ -559,7 +546,6 @@ Item {
                             Text {
                                 text: qsTr("Version")
                                 color: SemanticTokens.textMuted
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                             AppComboBox {
@@ -852,9 +838,8 @@ Item {
                         Layout.fillWidth: true
                         text: qsTr("Details")
                         color: SemanticTokens.text
-                        font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.headingSize
-                        font.weight: Font.DemiBold
+                        font.weight: SemanticTokens.weightSemiBold
                     }
                     AppButton {
                         objectName: "recordingInspectorCloseButton"

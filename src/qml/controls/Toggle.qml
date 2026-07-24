@@ -7,7 +7,6 @@ T.Switch {
     implicitHeight: ComponentTokens.clickTarget
     hoverEnabled: true
     Accessible.name: accessibleName
-    font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
     contentItem: Text {
         leftPadding: control.indicator.width + SemanticTokens.spacingMd
@@ -30,7 +29,7 @@ T.Switch {
         opacity: control.enabled ? 1.0 : 0.5
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 0
         border.color: SemanticTokens.focusRing
-        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
+        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard } }
         Rectangle {
             width: 18
             height: 18
@@ -38,7 +37,7 @@ T.Switch {
             y: 3
             x: control.checked ? parent.width - width - 3 : 3
             color: SemanticTokens.textOnAccent
-            Behavior on x { NumberAnimation { duration: SemanticTokens.animationFast } }
+            Behavior on x { NumberAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard } }
         }
     }
 }

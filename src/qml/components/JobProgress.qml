@@ -130,9 +130,8 @@ Rectangle {
                     text: root.title
                     color: SemanticTokens.text
                     elide: Text.ElideRight
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 Text {
                     id: queueMetadata
@@ -141,7 +140,6 @@ Rectangle {
                     visible: text.length > 0
                     text: root.queueSummary()
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
             }
@@ -170,7 +168,6 @@ Rectangle {
             Text {
                 text: Math.round(root.progress * 100) + "%"
                 color: SemanticTokens.textMuted
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.captionSize
             }
         }
@@ -185,7 +182,6 @@ Rectangle {
                 text: root.userFacingStatus()
                 color: root.errorMessage.length > 0 ? SemanticTokens.danger : SemanticTokens.textMuted
                 wrapMode: Text.WordWrap
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.captionSize
                 Accessible.role: root.errorMessage.length > 0
                                  ? Accessible.AlertMessage : Accessible.StaticText
@@ -196,7 +192,6 @@ Rectangle {
                 visible: text.length > 0
                 text: root.chunkSummary()
                 color: SemanticTokens.textMuted
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.captionSize
             }
         }
@@ -217,9 +212,8 @@ Rectangle {
                 Text {
                     text: qsTr("Latest partial transcript")
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 Text {
                     objectName: "jobLatestPartialText"
@@ -229,7 +223,6 @@ Rectangle {
                     wrapMode: Text.WordWrap
                     maximumLineCount: 2
                     elide: Text.ElideRight
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
             }
@@ -266,7 +259,6 @@ Rectangle {
                         Layout.alignment: Qt.AlignTop
                         text: UiText.shortDateTime(eventRow.modelData.timestamp)
                         color: SemanticTokens.textMuted
-                        font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.captionSize
                     }
                     ColumnLayout {
@@ -280,9 +272,8 @@ Rectangle {
                             color: eventRow.modelData.severity === "error"
                                    ? SemanticTokens.danger : SemanticTokens.text
                             wrapMode: Text.WordWrap
-                            font.family: SemanticTokens.fontFamily
                             font.pixelSize: SemanticTokens.captionSize
-                            font.weight: Font.DemiBold
+                            font.weight: SemanticTokens.weightSemiBold
                         }
                         Text {
                             Layout.fillWidth: true
@@ -290,7 +281,6 @@ Rectangle {
                             text: UiText.jobStage(eventRow.modelData.detail)
                             color: SemanticTokens.textMuted
                             wrapMode: Text.WordWrap
-                            font.family: SemanticTokens.fontFamily
                             font.pixelSize: SemanticTokens.captionSize
                         }
                     }

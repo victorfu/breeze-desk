@@ -1,9 +1,12 @@
 #include "breezedesk/ui/WaveformItem.h"
 
 #include <QMouseEvent>
+#include <QQuickWindow>
 #include <QSGFlatColorMaterial>
 #include <QSGGeometryNode>
 #include <QSGSimpleRectNode>
+
+#include <cmath>
 
 namespace BreezeDesk {
 
@@ -127,9 +130,16 @@ QSGNode* WaveformItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData*) {
         return root;
     }
 
+    // Snap logical coordinates onto the physical pixel grid so 1-2px features
+    // (bar gaps, the playhead) stay crisp on fractional and 2x display scales.
+    const qreal dpr = window() != nullptr ? window()->effectiveDevicePixelRatio() : 1.0;
+    const auto snap = [dpr](qreal value) { return std::round(value * dpr) / dpr; };
+
     if (m_durationMs > 0 && m_selectionEndMs > m_selectionStartMs) {
-        const qreal x = width() * static_cast<qreal>(m_selectionStartMs) / static_cast<qreal>(m_durationMs);
-        const qreal endX = width() * static_cast<qreal>(m_selectionEndMs) / static_cast<qreal>(m_durationMs);
+        const qreal x =
+            snap(width() * static_cast<qreal>(m_selectionStartMs) / static_cast<qreal>(m_durationMs));
+        const qreal endX =
+            snap(width() * static_cast<qreal>(m_selectionEndMs) / static_cast<qreal>(m_durationMs));
         root->appendChildNode(new QSGSimpleRectNode(QRectF(x, 0.0, endX - x, height()), m_selectionColor));
     }
 
@@ -141,14 +151,15 @@ QSGNode* WaveformItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData*) {
         auto* vertices = geometry->vertexDataAsPoint2D();
         const qreal barSlot = width() / static_cast<qreal>(visibleBars);
         const qreal barWidth = qMax<qreal>(1.0, barSlot * 0.65);
+        const qreal minBarWidth = 1.0 / dpr;
         for (int bar = 0; bar < visibleBars; ++bar) {
             const int source = static_cast<int>((static_cast<qint64>(bar) * m_peaks.size()) / visibleBars);
             const qreal amplitude = m_peaks.at(qMin(source, m_peaks.size() - 1));
             const qreal halfHeight = qMax<qreal>(1.0, amplitude * height() * 0.48);
-            const qreal x1 = bar * barSlot + (barSlot - barWidth) / 2.0;
-            const qreal x2 = x1 + barWidth;
-            const qreal y1 = height() / 2.0 - halfHeight;
-            const qreal y2 = height() / 2.0 + halfHeight;
+            const qreal x1 = snap(bar * barSlot + (barSlot - barWidth) / 2.0);
+            const qreal x2 = qMax(x1 + minBarWidth, snap(x1 + barWidth));
+            const qreal y1 = snap(height() / 2.0 - halfHeight);
+            const qreal y2 = snap(height() / 2.0 + halfHeight);
             const int offset = bar * 6;
             vertices[offset].set(static_cast<float>(x1), static_cast<float>(y1));
             vertices[offset + 1].set(static_cast<float>(x2), static_cast<float>(y1));
@@ -168,9 +179,10 @@ QSGNode* WaveformItem::updatePaintNode(QSGNode* oldNode, UpdatePaintNodeData*) {
     }
 
     if (m_durationMs > 0) {
-        const qreal cursorX = width() * static_cast<qreal>(m_positionMs) / static_cast<qreal>(m_durationMs);
+        const qreal cursorX =
+            snap(width() * static_cast<qreal>(m_positionMs) / static_cast<qreal>(m_durationMs));
         root->appendChildNode(
-            new QSGSimpleRectNode(QRectF(cursorX - 1.0, 0.0, 2.0, height()), m_cursorColor));
+            new QSGSimpleRectNode(QRectF(snap(cursorX - 1.0), 0.0, 2.0, height()), m_cursorColor));
     }
     return root;
 }

@@ -15,7 +15,6 @@ T.Button {
     bottomPadding: SemanticTokens.spacingXs
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
-    font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
 
     Accessible.name: accessibleName
@@ -28,7 +27,6 @@ T.Button {
         color: !control.enabled ? SemanticTokens.textMuted
                                 : (control.hovered || control.down
                                    ? SemanticTokens.accentStrong : SemanticTokens.accent)
-        font.family: control.font.family
         font.pixelSize: control.font.pixelSize
         font.underline: control.hovered || control.activeFocus
         horizontalAlignment: Text.AlignHCenter

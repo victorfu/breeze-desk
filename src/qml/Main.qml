@@ -165,7 +165,15 @@ ApplicationWindow {
             Layout.fillHeight: true
             clip: true
             color: SemanticTokens.surface
-            border.color: SemanticTokens.border
+            // Single hairline divider against the content pane; a full border
+            // would also stroke the three window-adjacent edges.
+            Rectangle {
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                width: 1
+                color: SemanticTokens.border
+            }
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: SemanticTokens.spacingMd
@@ -205,9 +213,8 @@ ApplicationWindow {
                         elide: Text.ElideRight
                         maximumLineCount: 1
                         wrapMode: Text.NoWrap
-                        font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.bodySize
-                        font.weight: Font.DemiBold
+                        font.weight: SemanticTokens.weightSemiBold
                     }
                 }
                 ColumnLayout {
@@ -383,7 +390,6 @@ ApplicationWindow {
                 text: qsTr("Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.")
                 color: SemanticTokens.text
                 wrapMode: Text.Wrap
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.bodySize
             }
             RowLayout {

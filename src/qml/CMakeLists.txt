@@ -55,6 +55,7 @@ qt_add_qml_module(breezedesk_ui
         ${BREEZEDESK_QML_SINGLETONS}
         controls/AppIcon.qml
         controls/AppButton.qml
+        controls/AppShadow.qml
         controls/AppMenu.qml
         controls/AppMenuItem.qml
         controls/AppMenuSeparator.qml
@@ -109,3 +110,30 @@ qt_add_qml_module(breezedesk_ui
         ${BREEZEDESK_MENUBAR_ICON_2X}
         ${BREEZEDESK_LUCIDE_ICONS}
 )
+
+# Custom Qt Quick Controls style overriding individual delegates (tool tips,
+# scroll bars) app-wide; everything else falls back to Basic.  Selected via
+# QQuickStyle in UiRegistration.cpp.
+set(BREEZEDESK_STYLE_QML
+    breezestyle/ToolTip.qml
+    breezestyle/ScrollBar.qml
+)
+foreach(style_file IN LISTS BREEZEDESK_STYLE_QML)
+    cmake_path(GET style_file FILENAME style_file_name)
+    set_source_files_properties(${style_file} PROPERTIES
+        QT_RESOURCE_ALIAS ${style_file_name})
+endforeach()
+
+qt_add_library(breezedesk_style STATIC)
+qt_add_qml_module(breezedesk_style
+    URI BreezeDeskStyle
+    VERSION 1.0
+    RESOURCE_PREFIX /qt/qml
+    OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/BreezeDeskStyle
+    NO_PLUGIN
+    NO_GENERATE_QMLTYPES
+    QML_FILES
+        ${BREEZEDESK_STYLE_QML}
+)
+target_link_libraries(breezedesk_style PRIVATE Qt6::Quick Qt6::QuickControls2)
+target_link_libraries(breezedesk_ui PUBLIC breezedesk_style)

@@ -13,14 +13,12 @@ ColumnLayout {
         Text {
             text: root.statusText
             color: SemanticTokens.textMuted
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.captionSize
         }
         Item { Layout.fillWidth: true }
         Text {
             text: root.detail.length > 0 ? root.detail : Math.round(root.value * 100) + "%"
             color: SemanticTokens.textMuted
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.captionSize
         }
     }

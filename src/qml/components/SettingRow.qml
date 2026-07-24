@@ -23,7 +23,6 @@ RowLayout {
             text: root.label
             color: SemanticTokens.text
             wrapMode: Text.Wrap
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
         }
 
@@ -33,7 +32,6 @@ RowLayout {
             text: root.description
             color: SemanticTokens.textMuted
             wrapMode: Text.WrapAnywhere
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.captionSize
         }
     }

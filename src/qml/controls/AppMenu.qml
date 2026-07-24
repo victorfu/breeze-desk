@@ -8,7 +8,6 @@ T.Menu {
     margins: SemanticTokens.spacingSm
     overlap: SemanticTokens.spacingXs
     padding: SemanticTokens.spacingXs
-    font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
 
     palette.window: SemanticTokens.surfaceRaised
@@ -20,12 +19,40 @@ T.Menu {
     palette.dark: SemanticTokens.borderStrong
     palette.shadow: SemanticTokens.shadow
 
-    background: Rectangle {
-        objectName: "appMenuSurface"
+    enter: Transition {
+        NumberAnimation {
+            property: "opacity"; from: 0.0; to: 1.0
+            duration: SemanticTokens.animationNormal
+            easing.type: SemanticTokens.easeStandard
+        }
+        NumberAnimation {
+            property: "scale"; from: 0.97; to: 1.0
+            duration: SemanticTokens.animationNormal
+            easing.type: SemanticTokens.easeStandard
+        }
+    }
+    exit: Transition {
+        NumberAnimation {
+            property: "opacity"; from: 1.0; to: 0.0
+            duration: SemanticTokens.animationFast
+            easing.type: SemanticTokens.easeExit
+        }
+    }
+
+    background: Item {
         implicitWidth: 236
-        color: SemanticTokens.surfaceRaised
-        radius: SemanticTokens.radiusMd
-        border.width: 1
-        border.color: SemanticTokens.border
+        AppShadow {
+            anchors.fill: parent
+            level: 2
+            radius: SemanticTokens.radiusMd
+        }
+        Rectangle {
+            objectName: "appMenuSurface"
+            anchors.fill: parent
+            color: SemanticTokens.surfaceRaised
+            radius: SemanticTokens.radiusMd
+            border.width: 1
+            border.color: SemanticTokens.border
+        }
     }
 }

@@ -8,7 +8,6 @@ T.MenuItem {
     implicitHeight: ComponentTokens.clickTarget
     leftPadding: SemanticTokens.spacingMd
     rightPadding: SemanticTokens.spacingMd
-    font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
     hoverEnabled: true
     Accessible.name: text

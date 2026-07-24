@@ -57,9 +57,8 @@ Item {
                 Layout.fillWidth: true
                 text: qsTr("Settings")
                 color: SemanticTokens.text
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.titleSize
-                font.weight: Font.DemiBold
+                font.weight: SemanticTokens.weightSemiBold
             }
             InspectorSection {
                 Layout.fillWidth: true
@@ -337,7 +336,6 @@ Item {
                     text: qsTr("Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are verified model downloads, including automatic Silero VAD retrieval when required, and optional app update checks.")
                     color: SemanticTokens.text
                     wrapMode: Text.Wrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
             }
@@ -350,7 +348,6 @@ Item {
                     text: qsTr("Application and whisper.cpp: MIT · Qt: LGPL · FFmpeg: LGPL · Lucide: ISC")
                     color: SemanticTokens.text
                     wrapMode: Text.Wrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
                 Text {
@@ -358,7 +355,6 @@ Item {
                     text: qsTr("Complete third-party notices, license texts, and FFmpeg build/source information are included with every packaged copy.")
                     color: SemanticTokens.textMuted
                     wrapMode: Text.Wrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
             }
@@ -366,7 +362,7 @@ Item {
             InspectorSection {
                 Layout.fillWidth: true
                 title: qsTr("Diagnostics")
-                Text { text: qsTr("Qt %1 · %2 · %3").arg(root.diagnostics.qtVersion).arg(root.diagnostics.osDescription).arg(root.diagnostics.cpuArchitecture); color: SemanticTokens.textMuted; font.family: SemanticTokens.fontFamily; font.pixelSize: SemanticTokens.bodySize }
+                Text { text: qsTr("Qt %1 · %2 · %3").arg(root.diagnostics.qtVersion).arg(root.diagnostics.osDescription).arg(root.diagnostics.cpuArchitecture); color: SemanticTokens.textMuted; font.pixelSize: SemanticTokens.bodySize }
                 Text {
                     objectName: "diagnosticsLocalCompute"
                     Layout.fillWidth: true
@@ -374,7 +370,6 @@ Item {
                                                    root.diagnostics.actualBackend)
                     color: SemanticTokens.textMuted
                     wrapMode: Text.Wrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
                 RowLayout {

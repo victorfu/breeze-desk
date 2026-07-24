@@ -17,7 +17,12 @@ void registerUiTypes() {
     }
     registered = true;
 
-    QQuickStyle::setStyle(QStringLiteral("Basic"));
+    // Our style module overrides individual delegates (ToolTip, ScrollBar);
+    // every other control resolves through the Basic fallback exactly as
+    // before.
+    QQuickStyle::setStyle(QStringLiteral("BreezeDeskStyle"));
+    QQuickStyle::setFallbackStyle(QStringLiteral("Basic"));
+    DesignSystem::applyApplicationFontFallback();
 
     constexpr auto uri = "BreezeDesk";
     qmlRegisterType<ApplicationViewModel>(uri, 1, 0, "ApplicationViewModel");

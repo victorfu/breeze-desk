@@ -75,13 +75,11 @@ Item {
                                 text: profileRow.name
                                 color: SemanticTokens.text
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.bodySize
                             }
                             Text {
                                 text: qsTr("%n term(s)", "", profileRow.termCount)
                                 color: SemanticTokens.textMuted
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                         }
@@ -237,9 +235,8 @@ Item {
                                 text: termCard.canonicalText
                                 color: SemanticTokens.text
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.bodySize
-                                font.weight: Font.DemiBold
+                                font.weight: SemanticTokens.weightSemiBold
                             }
                             Text {
                                 Layout.fillWidth: true
@@ -248,7 +245,6 @@ Item {
                                       : qsTr("No aliases")
                                 color: SemanticTokens.textMuted
                                 elide: Text.ElideRight
-                                font.family: SemanticTokens.fontFamily
                                 font.pixelSize: SemanticTokens.captionSize
                             }
                         }
@@ -285,14 +281,12 @@ Item {
                         text: root.vm.promptPreview.length > 0 ? root.vm.promptPreview : qsTr("No enabled terms are selected for this prompt.")
                         color: SemanticTokens.textMuted
                         wrapMode: Text.Wrap
-                        font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.bodySize
                     }
                 }
                 Text {
                     text: qsTr("Estimated tokens: %1 / %2").arg(root.vm.promptTokenCount).arg(root.vm.promptTokenMaximum)
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
             }
@@ -341,9 +335,8 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Profile name")
                     color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 AppTextField {
                     id: profileName
@@ -362,9 +355,8 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Description")
                     color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 AppTextField {
                     id: profileDescription
@@ -383,9 +375,8 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Project context")
                     color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 AppTextField {
                     id: profileContext
@@ -470,9 +461,8 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Canonical term")
                     color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 AppTextField {
                     id: canonicalText
@@ -490,9 +480,8 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Aliases")
                     color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 AppTextField {
                     id: aliasText
@@ -510,9 +499,8 @@ Item {
                     Layout.fillWidth: true
                     text: qsTr("Priority")
                     color: SemanticTokens.text
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 RowLayout {
                     Layout.fillWidth: true
@@ -603,7 +591,6 @@ Item {
             text: qsTr("This deletes the profile and all of its terms. This cannot be undone.")
             wrapMode: Text.Wrap
             color: SemanticTokens.text
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
         }
     }

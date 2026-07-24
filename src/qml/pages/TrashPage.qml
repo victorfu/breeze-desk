@@ -52,7 +52,6 @@ Item {
                         text: trashRow.title
                         color: SemanticTokens.text
                         elide: Text.ElideRight
-                        font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.bodySize
                     }
                     IconButton {
@@ -82,7 +81,6 @@ Item {
             text: qsTr("The transcript, managed media copy, and cache will be deleted. Your original source file stays untouched.")
             wrapMode: Text.Wrap
             color: SemanticTokens.text
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
         }
     }

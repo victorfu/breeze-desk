@@ -16,7 +16,6 @@ T.Button {
                              contentItem.implicitHeight + topPadding + bottomPadding)
     implicitWidth: Math.max(92, contentItem.implicitWidth + SemanticTokens.spacingLg * 2)
     padding: SemanticTokens.spacingSm
-    font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
     hoverEnabled: true
     Accessible.name: accessibleName
@@ -80,16 +79,21 @@ T.Button {
                  ? (control.down || control.hovered ? SemanticTokens.accentStrong : SemanticTokens.accent)
                  : (control.down || control.hovered ? SemanticTokens.surfaceHover : SemanticTokens.surface)
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
-        border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
+        border.color: control.activeFocus ? SemanticTokens.focusRing
+                    : control.hovered && !control.primary && !control.danger
+                      ? SemanticTokens.borderStrong : SemanticTokens.border
         opacity: control.enabled ? 1.0 : 0.5
-        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
+        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard } }
+        Behavior on border.color {
+            ColorAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard }
+        }
 
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
             color: SemanticTokens.pressedTint
             opacity: control.down ? 1.0 : 0.0
-            Behavior on opacity { NumberAnimation { duration: SemanticTokens.animationFast } }
+            Behavior on opacity { NumberAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard } }
         }
     }
 }

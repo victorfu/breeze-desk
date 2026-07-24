@@ -59,9 +59,8 @@ Rectangle {
                         text: root.displayName
                         color: SemanticTokens.text
                         elide: Text.ElideRight
-                        font.family: SemanticTokens.fontFamily
                         font.pixelSize: SemanticTokens.headingSize
-                        font.weight: Font.DemiBold
+                        font.weight: SemanticTokens.weightSemiBold
                     }
                     StatusBadge { visible: root.recommended; text: qsTr("Recommended"); tone: "accent" }
                     StatusBadge { visible: root.isDefault; text: qsTr("Default"); tone: "success" }
@@ -76,7 +75,6 @@ Rectangle {
                     text: root.displayedDescription
                     color: SemanticTokens.textMuted
                     wrapMode: Text.Wrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.bodySize
                 }
             }
@@ -95,7 +93,6 @@ Rectangle {
                     verticalAlignment: Text.AlignVCenter
                     text: qsTr("%1 GB").arg((root.fileSize / 1000000000).toFixed(2))
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
                 Text {
@@ -103,7 +100,6 @@ Rectangle {
                     verticalAlignment: Text.AlignVCenter
                     text: qsTr("License: %1").arg(root.licenseName)
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
                 AppLinkButton {

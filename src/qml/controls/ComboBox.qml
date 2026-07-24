@@ -9,7 +9,6 @@ T.ComboBox {
     hoverEnabled: true
     leftPadding: SemanticTokens.spacingMd
     rightPadding: SemanticTokens.spacingXl
-    font.family: SemanticTokens.fontFamily
     font.pixelSize: SemanticTokens.bodySize
     Accessible.name: accessibleName
 
@@ -23,12 +22,21 @@ T.ComboBox {
 
     indicator: AppIcon {
         objectName: "appComboBoxIndicator"
+        // Tracks the popup's *intent* rather than `visible`, which lingers for
+        // the duration of the exit transition and would leave the chevron
+        // pointing up while the popup fades out.
+        property bool popupShown: false
+        Connections {
+            target: control.popup
+            function onAboutToShow() { control.indicator.popupShown = true }
+            function onAboutToHide() { control.indicator.popupShown = false }
+        }
         x: control.width - width - SemanticTokens.spacingSm
         y: Math.round((control.height - height) / 2)
         width: 16
         height: 16
         iconSize: 16
-        source: control.popup.visible
+        source: popupShown
                 ? "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg"
                 : "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg"
         color: control.enabled ? SemanticTokens.textMuted : SemanticTokens.borderStrong
@@ -40,8 +48,12 @@ T.ComboBox {
              : control.hovered ? SemanticTokens.surfaceHover : SemanticTokens.surface
         radius: SemanticTokens.radiusSm
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 1
-        border.color: control.activeFocus ? SemanticTokens.focusRing : SemanticTokens.border
-        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
+        border.color: control.activeFocus ? SemanticTokens.focusRing
+                    : control.hovered ? SemanticTokens.borderStrong : SemanticTokens.border
+        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard } }
+        Behavior on border.color {
+            ColorAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard }
+        }
     }
 
     delegate: T.ItemDelegate {
@@ -59,9 +71,8 @@ T.ComboBox {
         contentItem: Text {
             text: control.textAt(option.index)
             color: SemanticTokens.text
-            font.family: control.font.family
             font.pixelSize: control.font.pixelSize
-            font.weight: control.currentIndex === option.index ? Font.DemiBold : Font.Normal
+            font.weight: control.currentIndex === option.index ? SemanticTokens.weightSemiBold : SemanticTokens.weightNormal
             verticalAlignment: Text.AlignVCenter
             elide: Text.ElideRight
         }
@@ -83,6 +94,26 @@ T.ComboBox {
         padding: SemanticTokens.spacingXs
         closePolicy: T.Popup.CloseOnEscape | T.Popup.CloseOnPressOutsideParent
 
+        enter: Transition {
+            NumberAnimation {
+                property: "opacity"; from: 0.0; to: 1.0
+                duration: SemanticTokens.animationNormal
+                easing.type: SemanticTokens.easeStandard
+            }
+            NumberAnimation {
+                property: "scale"; from: 0.97; to: 1.0
+                duration: SemanticTokens.animationNormal
+                easing.type: SemanticTokens.easeStandard
+            }
+        }
+        exit: Transition {
+            NumberAnimation {
+                property: "opacity"; from: 1.0; to: 0.0
+                duration: SemanticTokens.animationFast
+                easing.type: SemanticTokens.easeExit
+            }
+        }
+
         contentItem: ListView {
             clip: true
             implicitHeight: contentHeight
@@ -93,13 +124,21 @@ T.ComboBox {
             T.ScrollIndicator.vertical: T.ScrollIndicator { }
         }
 
-        background: Rectangle {
-            objectName: "appComboBoxPopupSurface"
+        background: Item {
             implicitWidth: 160
-            color: SemanticTokens.surfaceRaised
-            radius: SemanticTokens.radiusMd
-            border.width: 1
-            border.color: SemanticTokens.border
+            AppShadow {
+                anchors.fill: parent
+                level: 2
+                radius: SemanticTokens.radiusMd
+            }
+            Rectangle {
+                objectName: "appComboBoxPopupSurface"
+                anchors.fill: parent
+                color: SemanticTokens.surfaceRaised
+                radius: SemanticTokens.radiusMd
+                border.width: 1
+                border.color: SemanticTokens.border
+            }
         }
     }
 }

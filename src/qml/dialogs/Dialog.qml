@@ -31,13 +31,41 @@ T.Dialog {
     palette.dark: SemanticTokens.borderStrong
     palette.shadow: SemanticTokens.shadow
 
-    background: Rectangle {
-        id: surfaceRect
-        objectName: "appDialogSurface"
-        color: SemanticTokens.surfaceRaised
-        radius: SemanticTokens.radiusLg
-        border.width: 1
-        border.color: SemanticTokens.border
+    enter: Transition {
+        NumberAnimation {
+            property: "opacity"; from: 0.0; to: 1.0
+            duration: SemanticTokens.animationNormal
+            easing.type: SemanticTokens.easeStandard
+        }
+        NumberAnimation {
+            property: "scale"; from: 0.96; to: 1.0
+            duration: SemanticTokens.animationSlow
+            easing.type: SemanticTokens.easeStandard
+        }
+    }
+    exit: Transition {
+        NumberAnimation {
+            property: "opacity"; from: 1.0; to: 0.0
+            duration: SemanticTokens.animationFast
+            easing.type: SemanticTokens.easeExit
+        }
+    }
+
+    background: Item {
+        AppShadow {
+            anchors.fill: parent
+            level: 3
+            radius: SemanticTokens.radiusLg
+        }
+        Rectangle {
+            id: surfaceRect
+            objectName: "appDialogSurface"
+            anchors.fill: parent
+            color: SemanticTokens.surfaceRaised
+            radius: SemanticTokens.radiusLg
+            border.width: 1
+            border.color: SemanticTokens.border
+        }
     }
 
     header: Rectangle {
@@ -88,9 +116,8 @@ T.Dialog {
                     text: control.title
                     color: SemanticTokens.text
                     wrapMode: Text.WordWrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.headingSize
-                    font.weight: Font.DemiBold
+                    font.weight: SemanticTokens.weightSemiBold
                     Accessible.role: Accessible.Heading
                 }
                 Text {
@@ -99,8 +126,9 @@ T.Dialog {
                     text: control.subtitle
                     color: SemanticTokens.textMuted
                     wrapMode: Text.WordWrap
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
+                    lineHeight: SemanticTokens.lineHeightNormal
+                    lineHeightMode: Text.ProportionalHeight
                 }
             }
         }

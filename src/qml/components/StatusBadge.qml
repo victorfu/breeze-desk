@@ -21,8 +21,7 @@ Rectangle {
         anchors.centerIn: parent
         text: root.text
         color: root.toneColor
-        font.family: SemanticTokens.fontFamily
         font.pixelSize: SemanticTokens.captionSize
-        font.weight: Font.DemiBold
+        font.weight: SemanticTokens.weightSemiBold
     }
 }

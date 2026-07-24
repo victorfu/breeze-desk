@@ -22,7 +22,6 @@ AppDialog {
             text: qsTr("The diagnostics archive contains application and worker logs, versions, and sanitized system information. It never includes audio, transcripts, or glossary terms.")
             color: SemanticTokens.text
             wrapMode: Text.Wrap
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
         }
 
@@ -40,7 +39,6 @@ AppDialog {
             text: qsTr("Personal paths may contain your user name and folder names. Review the archive before sharing it.")
             color: SemanticTokens.warning
             wrapMode: Text.Wrap
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.captionSize
         }
 

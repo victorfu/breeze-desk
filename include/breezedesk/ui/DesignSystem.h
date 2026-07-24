@@ -2,6 +2,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 
 namespace BreezeDesk {
 
@@ -26,6 +27,13 @@ class DesignSystem final : public QObject {
     [[nodiscard]] bool compact() const noexcept;
     [[nodiscard]] QString systemFontFamily() const;
     [[nodiscard]] QString systemFixedFontFamily() const;
+
+    // QML's `font` grouped property only exposes a single `family`, so a glyph
+    // fallback chain can only be installed from C++ onto the application font.
+    // Call once during startup, before any QML is loaded.
+    static void applyApplicationFontFallback();
+    [[nodiscard]] static QStringList uiFontFamilies();
+    [[nodiscard]] static QStringList fixedFontFamilies();
 
   public slots:
     void setTheme(Theme theme);

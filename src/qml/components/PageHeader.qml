@@ -31,9 +31,11 @@ GridLayout {
             text: root.title
             color: SemanticTokens.text
             wrapMode: Text.WordWrap
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: root.titlePixelSize
-            font.weight: Font.DemiBold
+            font.weight: SemanticTokens.weightSemiBold
+            font.letterSpacing: SemanticTokens.trackingTight
+            lineHeight: SemanticTokens.lineHeightTight
+            lineHeightMode: Text.ProportionalHeight
             Accessible.role: Accessible.Heading
         }
         Text {
@@ -43,7 +45,6 @@ GridLayout {
             text: root.subtitle
             color: SemanticTokens.textMuted
             wrapMode: Text.WordWrap
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
         }
     }

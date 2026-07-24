@@ -55,6 +55,65 @@ QString DesignSystem::systemFixedFontFamily() const {
     return QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 }
 
+namespace {
+
+// The Latin UI fonts shipped by every desktop platform (Segoe UI, Helvetica
+// Neue, Cantarell) carry no CJK glyphs.  Naming the platform's CJK face
+// explicitly keeps Chinese text on a predictable, well-hinted family instead of
+// whatever Qt's generic fallback happens to resolve first.
+QStringList cjkFallbackFamilies() {
+#if defined(Q_OS_MACOS)
+    return {QStringLiteral("PingFang TC"), QStringLiteral("PingFang SC"),
+            QStringLiteral("Heiti TC")};
+#elif defined(Q_OS_WIN)
+    return {QStringLiteral("Microsoft JhengHei UI"), QStringLiteral("Microsoft YaHei UI"),
+            QStringLiteral("Microsoft JhengHei")};
+#else
+    return {QStringLiteral("Noto Sans CJK TC"), QStringLiteral("Noto Sans CJK SC"),
+            QStringLiteral("WenQuanYi Micro Hei")};
+#endif
+}
+
+QStringList cjkFixedFallbackFamilies() {
+#if defined(Q_OS_MACOS)
+    return {QStringLiteral("PingFang TC"), QStringLiteral("Heiti TC")};
+#elif defined(Q_OS_WIN)
+    return {QStringLiteral("Microsoft JhengHei UI"), QStringLiteral("Microsoft YaHei UI")};
+#else
+    return {QStringLiteral("Noto Sans Mono CJK TC"), QStringLiteral("Noto Sans CJK TC")};
+#endif
+}
+
+QStringList withFallbacks(const QString& primary, const QStringList& fallbacks) {
+    QStringList families;
+    if (!primary.isEmpty()) {
+        families.append(primary);
+    }
+    for (const QString& family : fallbacks) {
+        if (!families.contains(family, Qt::CaseInsensitive)) {
+            families.append(family);
+        }
+    }
+    return families;
+}
+
+} // namespace
+
+QStringList DesignSystem::uiFontFamilies() {
+    return withFallbacks(QGuiApplication::font().family().trimmed(), cjkFallbackFamilies());
+}
+
+QStringList DesignSystem::fixedFontFamilies() {
+    return withFallbacks(QFontDatabase::systemFont(QFontDatabase::FixedFont).family(),
+                         cjkFixedFallbackFamilies());
+}
+
+void DesignSystem::applyApplicationFontFallback() {
+    QFont font = QGuiApplication::font();
+    font.setFamilies(uiFontFamilies());
+    QGuiApplication::setFont(font);
+}
+
 void DesignSystem::setTheme(Theme theme) {
     if (m_theme == theme) {
         return;

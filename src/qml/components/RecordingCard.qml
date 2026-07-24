@@ -75,9 +75,8 @@ ItemDelegate {
                 text: control.title
                 color: SemanticTokens.text
                 elide: Text.ElideRight
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.bodySize
-                font.weight: Font.DemiBold
+                font.weight: SemanticTokens.weightSemiBold
             }
 
             RowLayout {
@@ -112,7 +111,6 @@ ItemDelegate {
                     text: control.modelName
                     verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
                 Text {
@@ -125,7 +123,6 @@ ItemDelegate {
                     text: UiText.shortDateTime(control.createdAt)
                     verticalAlignment: Text.AlignVCenter
                     color: SemanticTokens.textMuted
-                    font.family: SemanticTokens.fontFamily
                     font.pixelSize: SemanticTokens.captionSize
                 }
             }
@@ -136,7 +133,6 @@ ItemDelegate {
                 text: control.tags.join(" · ")
                 color: SemanticTokens.textMuted
                 elide: Text.ElideRight
-                font.family: SemanticTokens.fontFamily
                 font.pixelSize: SemanticTokens.captionSize
                 Accessible.name: qsTr("Tags: %1").arg(text)
             }

@@ -29,6 +29,6 @@ T.Button {
              : control.hovered ? control.hoverTintColor : "transparent"
         border.width: control.activeFocus ? ComponentTokens.focusWidth : 0
         border.color: SemanticTokens.focusRing
-        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast } }
+        Behavior on color { ColorAnimation { duration: SemanticTokens.animationFast; easing.type: SemanticTokens.easeStandard } }
     }
 }

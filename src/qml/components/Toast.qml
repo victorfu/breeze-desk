@@ -20,21 +20,53 @@ T.Popup {
     modal: false
     closePolicy: T.Popup.CloseOnEscape | T.Popup.CloseOnPressOutside
     padding: SemanticTokens.spacingMd
-    background: Rectangle {
-        color: SemanticTokens.surfaceRaised
-        radius: SemanticTokens.radiusMd
-        border.color: SemanticTokens.borderStrong
+
+    enter: Transition {
+        NumberAnimation {
+            property: "opacity"; from: 0.0; to: 1.0
+            duration: SemanticTokens.animationNormal
+            easing.type: SemanticTokens.easeStandard
+        }
+        NumberAnimation {
+            property: "scale"; from: 0.95; to: 1.0
+            duration: SemanticTokens.animationSlow
+            easing.type: SemanticTokens.easeEmphasis
+        }
+    }
+    exit: Transition {
+        NumberAnimation {
+            property: "opacity"; from: 1.0; to: 0.0
+            duration: SemanticTokens.animationFast
+            easing.type: SemanticTokens.easeExit
+        }
+    }
+    background: Item {
+        // The toast's "background colour" is the surface fill; forward it so
+        // callers (and tests) keep reading it off the background item.
+        property alias color: toastSurface.color
+        AppShadow {
+            anchors.fill: parent
+            level: 3
+            radius: SemanticTokens.radiusMd
+        }
         Rectangle {
-            objectName: "appToastSeverityStrip"
-            anchors.left: parent.left
-            anchors.leftMargin: 1
-            anchors.top: parent.top
-            anchors.bottom: parent.bottom
-            anchors.topMargin: SemanticTokens.radiusMd
-            anchors.bottomMargin: SemanticTokens.radiusMd
-            width: 3
-            radius: 1.5
-            color: control.severityColor
+            id: toastSurface
+            anchors.fill: parent
+            color: SemanticTokens.surfaceRaised
+            radius: SemanticTokens.radiusMd
+            border.color: SemanticTokens.borderStrong
+            Rectangle {
+                objectName: "appToastSeverityStrip"
+                anchors.left: parent.left
+                anchors.leftMargin: 1
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.topMargin: SemanticTokens.radiusMd
+                anchors.bottomMargin: SemanticTokens.radiusMd
+                width: 3
+                radius: 1.5
+                color: control.severityColor
+            }
         }
     }
     contentItem: Row {
@@ -51,7 +83,6 @@ T.Popup {
             anchors.verticalCenter: parent.verticalCenter
             text: control.message
             color: SemanticTokens.text
-            font.family: SemanticTokens.fontFamily
             font.pixelSize: SemanticTokens.bodySize
             wrapMode: Text.Wrap
             width: Math.min(420, implicitWidth)
