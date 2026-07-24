@@ -543,8 +543,8 @@
     <name>BreezeDesk::TranscriptRevisionModel</name>
     <message>
         <location filename="../src/ui/TranscriptRevisionModel.cpp" line="188"/>
-        <source>Version %1 · %2</source>
-        <translation>版本 %1 · %2</translation>
+        <source>Version %1</source>
+        <translation>版本 %1</translation>
     </message>
 </context>
 <context>
@@ -2396,6 +2396,11 @@
         <translation>靜音</translation>
     </message>
     <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="555"/>
+        <source>Unmute</source>
+        <translation>取消靜音</translation>
+    </message>
+    <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="534"/>
         <source>Volume</source>
         <translation>音量</translation>
@@ -2404,6 +2409,11 @@
         <location filename="../src/qml/pages/RecordingPage.qml" line="537"/>
         <source>Loop selection</source>
         <translation>循環播放選取範圍</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="575"/>
+        <source>Disable loop selection</source>
+        <translation>停止循環播放選取範圍</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="560"/>
@@ -2447,8 +2457,8 @@
     </message>
     <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="639"/>
-        <source>Low confidence</source>
-        <translation>低信心</translation>
+        <source>Low-confidence only</source>
+        <translation>僅顯示低信心</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="650"/>
@@ -2605,6 +2615,11 @@
         <location filename="../src/qml/controls/SearchField.qml" line="6"/>
         <source>Search</source>
         <translation>搜尋</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/controls/SearchField.qml" line="36"/>
+        <source>Clear search</source>
+        <translation>清除搜尋</translation>
     </message>
 </context>
 <context>

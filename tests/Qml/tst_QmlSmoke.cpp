@@ -1424,6 +1424,18 @@ class tst_QmlSmoke final : public QObject {
         auto* waveform = root->findChild<QQuickItem*>(QStringLiteral("recordingWaveformCard"));
         auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
         auto* toolbar = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
+        auto* transcriptCommands =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptCommands"));
+        auto* searchRow = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptSearchRow"));
+        auto* actionRow = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptActionRow"));
+        auto* searchField = root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptSearch"));
+        auto* searchClearButton =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptSearchClearButton"));
+        auto* previousButton = root->findChild<QQuickItem*>(QStringLiteral("recordingPreviousButton"));
+        auto* nextButton = root->findChild<QQuickItem*>(QStringLiteral("recordingNextButton"));
+        auto* historyButton = root->findChild<QQuickItem*>(QStringLiteral("transcriptHistoryButton"));
+        auto* lowConfidenceToggle =
+            root->findChild<QQuickItem*>(QStringLiteral("recordingLowConfidenceToggle"));
         auto* list = root->findChild<QQuickItem*>(QStringLiteral("segmentList"));
         auto* noMatchesState = root->findChild<QQuickItem*>(QStringLiteral("recordingNoMatchesState"));
         QVERIFY(window);
@@ -1433,8 +1445,24 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(waveform);
         QVERIFY(transport);
         QVERIFY(toolbar);
+        QVERIFY(transcriptCommands);
+        QVERIFY(searchRow);
+        QVERIFY(actionRow);
+        QVERIFY(searchField);
+        QVERIFY(searchClearButton);
+        QVERIFY(previousButton);
+        QVERIFY(nextButton);
+        QVERIFY(historyButton);
+        QVERIFY(lowConfidenceToggle);
         QVERIFY(list);
         QVERIFY(noMatchesState);
+        QCOMPARE(previousButton->parentItem(), searchRow);
+        QCOMPARE(nextButton->parentItem(), searchRow);
+        QVERIFY(previousButton->parentItem() != actionRow);
+        QCOMPARE(historyButton->property("iconSource").toUrl(),
+                 QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/history.svg")));
+        QCOMPARE(lowConfidenceToggle->property("text").toString(),
+                 QStringLiteral("Low-confidence only"));
 
         QList<BreezeDesk::TranscriptSegmentModel::Segment> segments;
         constexpr int segmentFixtureCount = 20;
@@ -1458,6 +1486,15 @@ class tst_QmlSmoke final : public QObject {
         vm->settings()->setCompactMode(false);
         vm->navigate(QStringLiteral("Recording"));
         window->show();
+        QTest::keyClick(window, Qt::Key_F, Qt::ControlModifier);
+        QTRY_COMPARE_WITH_TIMEOUT(window->activeFocusItem(), searchField, 1'000);
+        vm->transcript()->setSearchText(QStringLiteral("Compact"));
+        QTRY_VERIFY_WITH_TIMEOUT(searchClearButton->isVisible(), 1'000);
+        const QPointF clearCenter = searchClearButton->mapToScene(
+            QPointF(searchClearButton->width() / 2.0, searchClearButton->height() / 2.0));
+        QTest::mouseClick(window, Qt::LeftButton, Qt::NoModifier, clearCenter.toPoint());
+        QTRY_VERIFY_WITH_TIMEOUT(vm->transcript()->searchText().isEmpty(), 1'000);
+        QTRY_VERIFY_WITH_TIMEOUT(!searchClearButton->isVisible(), 1'000);
 
         const auto verifyContainedHorizontally = [](QQuickItem* parent, QQuickItem* child,
                                                     const QString& context) {
@@ -1553,6 +1590,7 @@ class tst_QmlSmoke final : public QObject {
             }
         };
 
+        verifyGeometry(720, 720, true);
         verifyGeometry(980, 720, true);
         verifyGeometry(1'280, 720, false);
         verifyGeometry(1'600, 1'080, false);
@@ -2408,6 +2446,74 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(vm.transcriptRevisions()->count(), 2);
         QCOMPARE(vm.transcriptRevisions()->selectedJobId(), completedJob.id);
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Completed revision"));
+
+        {
+            FakeRecorder recorder;
+            QObject maintenance;
+            QQmlApplicationEngine engine;
+            engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+            engine.setInitialProperties(
+                {{QStringLiteral("injectedApplicationViewModel"),
+                  QVariant::fromValue(static_cast<QObject*>(&vm))},
+                 {QStringLiteral("injectedRecorder"),
+                  QVariant::fromValue(static_cast<QObject*>(&recorder))},
+                 {QStringLiteral("injectedMaintenance"), QVariant::fromValue(&maintenance)}});
+            engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
+            QVERIFY2(!engine.rootObjects().isEmpty(), "Main.qml did not create a root object.");
+
+            auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+            QVERIFY(window);
+            auto* page = window->findChild<QQuickItem*>(QStringLiteral("recordingPage"));
+            auto* mainPane = window->findChild<QQuickItem*>(QStringLiteral("recordingMainPane"));
+            auto* toolbar =
+                window->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
+            auto* transport =
+                window->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
+            auto* playbackButtons =
+                window->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackButtons"));
+            auto* playbackTimeline =
+                window->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackTimeline"));
+            auto* transportOptions =
+                window->findChild<QQuickItem*>(QStringLiteral("recordingTransportOptions"));
+            auto* revisionBar =
+                window->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptRevisionBar"));
+            auto* commands =
+                window->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptCommands"));
+            QVERIFY(page);
+            QVERIFY(mainPane);
+            QVERIFY(toolbar);
+            QVERIFY(transport);
+            QVERIFY(playbackButtons);
+            QVERIFY(playbackTimeline);
+            QVERIFY(transportOptions);
+            QVERIFY(revisionBar);
+            QVERIFY(commands);
+
+            window->setWidth(1'920);
+            window->setHeight(1'080);
+            window->show();
+            QTRY_VERIFY_WITH_TIMEOUT(mainPane->width() >= 1'180.0, 1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(revisionBar->isVisible(), 1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(transport->height() <= 60.0, 1'000);
+            QTRY_VERIFY_WITH_TIMEOUT(toolbar->height() <= 48.0, 1'000);
+            const QPointF playbackOrigin = playbackButtons->mapToItem(transport, QPointF{});
+            const QPointF timelineOrigin = playbackTimeline->mapToItem(transport, QPointF{});
+            const QPointF optionsOrigin = transportOptions->mapToItem(transport, QPointF{});
+            QVERIFY2(qAbs(playbackOrigin.y() - timelineOrigin.y()) <= 4.0 &&
+                         qAbs(timelineOrigin.y() - optionsOrigin.y()) <= 4.0,
+                     qPrintable(QStringLiteral("Wide playback controls are not on one row: buttons y=%1, "
+                                               "timeline y=%2, options y=%3")
+                                    .arg(playbackOrigin.y())
+                                    .arg(timelineOrigin.y())
+                                    .arg(optionsOrigin.y())));
+            const QPointF revisionOrigin = revisionBar->mapToItem(toolbar, QPointF{});
+            const QPointF commandOrigin = commands->mapToItem(toolbar, QPointF{});
+            QVERIFY2(qAbs(revisionOrigin.y() - commandOrigin.y()) <= 0.5,
+                     qPrintable(QStringLiteral("Wide transcript tools are not on one row: revisions y=%1, "
+                                               "commands y=%2")
+                                    .arg(revisionOrigin.y())
+                                    .arg(commandOrigin.y())));
+        }
 
         vm.reloadTranscriptForJob(recording.id, liveJob.id, true);
         QCOMPARE(vm.transcriptRevisions()->selectedJobId(), liveJob.id);

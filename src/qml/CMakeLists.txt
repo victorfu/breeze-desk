@@ -33,7 +33,8 @@ set(BREEZEDESK_LUCIDE_ICON_NAMES
     library list-ordered trash-2 box book-open settings
     play pause file-input mic rotate-ccw rotate-cw
     chevron-up chevron-down undo-2 redo-2 save ellipsis
-    check info circle-check circle-alert copy
+    check info circle-check circle-alert copy search x history
+    volume-2 volume-x repeat-2
     scissors arrow-up-to-line arrow-down-to-line archive-restore pencil)
 set(BREEZEDESK_LUCIDE_ICONS)
 foreach(icon_name IN LISTS BREEZEDESK_LUCIDE_ICON_NAMES)

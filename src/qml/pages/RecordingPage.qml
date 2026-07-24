@@ -15,6 +15,8 @@ Item {
     readonly property string displayedRecordingStatus: UiText.recordingStatus(detail.status)
     readonly property bool compactInspector: width < 1040
     readonly property bool narrowTools: recordingMainPane.width < 680 * DesignSystem.textScale
+    readonly property bool stackTranscriptTools: recordingMainPane.width < 1160 * DesignSystem.textScale
+    readonly property bool stackTransportOptions: recordingMainPane.width < 1040 * DesignSystem.textScale
     readonly property bool narrowTransport: recordingMainPane.width < 440 * DesignSystem.textScale
     readonly property int compactWaveformHeight: DesignSystem.compact ? 52 : 64
     readonly property var playbackRates: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
@@ -22,10 +24,39 @@ Item {
     property string pendingDeleteRevisionId: ""
     property var pendingDeleteRevision: ({})
 
+    component ModeIconButton: IconButton {
+        id: modeButton
+        iconColor: checked ? SemanticTokens.accentStrong
+                           : (enabled ? SemanticTokens.text : SemanticTokens.textMuted)
+        background: Rectangle {
+            radius: SemanticTokens.radiusSm
+            color: modeButton.checked
+                   ? (modeButton.down || modeButton.hovered
+                      ? SemanticTokens.accentMuted : Qt.rgba(SemanticTokens.accent.r,
+                                                             SemanticTokens.accent.g,
+                                                             SemanticTokens.accent.b, 0.12))
+                   : modeButton.down ? SemanticTokens.pressedTint
+                   : modeButton.hovered ? SemanticTokens.hoverTint : "transparent"
+            border.width: modeButton.activeFocus ? ComponentTokens.focusWidth : 0
+            border.color: SemanticTokens.focusRing
+            Behavior on color {
+                ColorAnimation {
+                    duration: SemanticTokens.animationFast
+                    easing.type: SemanticTokens.easeStandard
+                }
+            }
+        }
+    }
+
     onCompactInspectorChanged: if (!compactInspector) compactInspectorOpen = false
 
     function requestTranscription() {
         root.vm.requestTranscription(root.vm.activeRecordingId)
+    }
+
+    function focusTranscriptSearch() {
+        recordingTranscriptSearch.forceActiveFocus()
+        recordingTranscriptSearch.selectAll()
     }
 
     function requestRevisionDeletion(jobId) {
@@ -426,32 +457,33 @@ Item {
                     Layout.fillWidth: true
                     Layout.preferredHeight: transportLayout.implicitHeight + SemanticTokens.spacingSm * 2
                     color: SemanticTokens.surface
-                    radius: SemanticTokens.radiusMd
+                    radius: SemanticTokens.radiusLg
                     border.color: SemanticTokens.border
-                    ColumnLayout {
+                    GridLayout {
                         id: transportLayout
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
+                        anchors.fill: parent
                         anchors.margins: SemanticTokens.spacingSm
-                        spacing: SemanticTokens.spacingSm
+                        columns: root.narrowTransport ? 1 : root.stackTransportOptions ? 2 : 3
+                        columnSpacing: SemanticTokens.spacingMd
+                        rowSpacing: SemanticTokens.spacingXs
 
-                        GridLayout {
-                            id: playbackTimeline
-                            objectName: "recordingPlaybackTimeline"
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
-                            Layout.maximumWidth: transportCard.width - SemanticTokens.spacingSm * 2
-                            columns: root.narrowTransport ? 3 : 4
-                            columnSpacing: SemanticTokens.spacingSm
-                            rowSpacing: SemanticTokens.spacingXs
+                        Rectangle {
+                            objectName: "recordingPlaybackButtonSurface"
+                            Layout.row: 0
+                            Layout.column: 0
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.preferredWidth: playbackButtons.implicitWidth + SemanticTokens.spacingXs * 2
+                            Layout.preferredHeight: 44 * DesignSystem.textScale
+                            color: SemanticTokens.surfaceMuted
+                            radius: SemanticTokens.radiusMd
+                            border.width: 1
+                            border.color: SemanticTokens.border
 
-                            Row {
+                            RowLayout {
                                 id: playbackButtons
                                 objectName: "recordingPlaybackButtons"
-                                Layout.columnSpan: root.narrowTransport ? 3 : 1
-                                Layout.alignment: root.narrowTransport ? Qt.AlignHCenter : Qt.AlignVCenter
-                                spacing: SemanticTokens.spacingSm
+                                anchors.centerIn: parent
+                                spacing: SemanticTokens.spacingXs
 
                                 IconButton {
                                     iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/rotate-ccw.svg"
@@ -469,7 +501,7 @@ Item {
                                     text: ""
                                     accessibleName: root.player.playing ? qsTr("Pause") : qsTr("Play")
                                     primary: true
-                                    toolTipText: accessibleName
+                                    toolTipText: accessibleName + " · Space"
                                     onClicked: root.player.playPause()
                                 }
                                 IconButton {
@@ -478,12 +510,21 @@ Item {
                                     onClicked: root.player.skipForward()
                                 }
                             }
+                        }
 
+                        RowLayout {
+                            id: playbackTimeline
+                            objectName: "recordingPlaybackTimeline"
+                            Layout.row: root.narrowTransport ? 1 : 0
+                            Layout.column: root.narrowTransport ? 0 : 1
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
+                            spacing: SemanticTokens.spacingXs
                             TimeCode { milliseconds: root.player.position; enabled: false }
                             AppSlider {
                                 objectName: "playbackPositionSlider"
                                 Layout.fillWidth: true
-                                Layout.minimumWidth: 160
+                                Layout.minimumWidth: 160 * DesignSystem.textScale
                                 from: 0
                                 to: Math.max(1, root.player.duration)
                                 value: root.player.position
@@ -496,31 +537,36 @@ Item {
                         GridLayout {
                             id: transportOptions
                             objectName: "recordingTransportOptions"
-                            Layout.fillWidth: true
-                            columns: root.narrowTransport ? 2 : 4
-                            columnSpacing: SemanticTokens.spacingSm
+                            Layout.row: root.narrowTransport ? 2 : root.stackTransportOptions ? 1 : 0
+                            Layout.column: root.stackTransportOptions ? 0 : 2
+                            Layout.columnSpan: root.stackTransportOptions && !root.narrowTransport ? 2 : 1
+                            Layout.fillWidth: root.stackTransportOptions
+                            Layout.alignment: root.stackTransportOptions ? Qt.AlignLeft : Qt.AlignRight
+                            columns: 4
+                            columnSpacing: SemanticTokens.spacingXs
                             rowSpacing: SemanticTokens.spacingXs
 
                             AppComboBox {
                                 objectName: "playbackRateComboBox"
-                                Layout.fillWidth: root.narrowTransport
-                                Layout.preferredWidth: 86
+                                Layout.preferredWidth: 78 * DesignSystem.textScale
                                 Accessible.name: qsTr("Playback rate")
                                 model: ["0.5×", "0.75×", "1×", "1.25×", "1.5×", "2×"]
                                 currentIndex: root.playbackRates.indexOf(root.player.playbackRate) >= 0
                                               ? root.playbackRates.indexOf(root.player.playbackRate) : 2
                                 onActivated: root.player.playbackRate = root.playbackRates[currentIndex]
                             }
-                            Toggle {
+                            ModeIconButton {
                                 objectName: "muteToggle"
-                                text: qsTr("Mute")
                                 checked: root.player.muted
-                                onToggled: root.player.muted = checked
+                                iconSource: checked
+                                            ? "qrc:/qt/qml/BreezeDesk/icons/lucide/volume-x.svg"
+                                            : "qrc:/qt/qml/BreezeDesk/icons/lucide/volume-2.svg"
+                                accessibleName: checked ? qsTr("Unmute") : qsTr("Mute")
+                                onClicked: root.player.muted = !root.player.muted
                             }
                             AppSlider {
                                 objectName: "volumeSlider"
-                                Layout.fillWidth: root.narrowTransport
-                                Layout.preferredWidth: 92
+                                Layout.preferredWidth: 104 * DesignSystem.textScale
                                 from: 0
                                 to: 1
                                 value: root.player.volume
@@ -528,38 +574,55 @@ Item {
                                 Accessible.name: qsTr("Volume")
                                 onMoved: root.player.volume = value
                             }
-                            Toggle { text: qsTr("Loop selection"); checked: root.player.loopSelection; onToggled: root.player.loopSelection = checked }
+                            ModeIconButton {
+                                objectName: "recordingLoopSelectionButton"
+                                checked: root.player.loopSelection
+                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/repeat-2.svg"
+                                accessibleName: checked ? qsTr("Disable loop selection")
+                                                        : qsTr("Loop selection")
+                                onClicked: root.player.loopSelection = !root.player.loopSelection
+                            }
                         }
                     }
                 }
-                ColumnLayout {
+                Rectangle {
                     id: transcriptToolbar
                     objectName: "recordingTranscriptToolbar"
                     Layout.fillWidth: true
-                    spacing: SemanticTokens.spacingSm
+                    Layout.preferredHeight: transcriptTools.implicitHeight + SemanticTokens.spacingSm
+                    color: SemanticTokens.surfaceMuted
+                    radius: SemanticTokens.radiusMd
+                    border.width: 1
+                    border.color: SemanticTokens.border
 
                     GridLayout {
-                        objectName: "recordingTranscriptRevisionBar"
-                        Layout.fillWidth: true
-                        visible: root.revisions.count > 0
-                        columns: root.narrowTools ? 1 : 2
+                        id: transcriptTools
+                        objectName: "recordingTranscriptTools"
+                        anchors.fill: parent
+                        anchors.margins: SemanticTokens.spacingXs
+                        readonly property bool hasRevisions: root.revisions.count > 0
+                        readonly property bool stacked: hasRevisions
+                                                        && (root.stackTranscriptTools
+                                                            || root.transcript.editingLocked)
+                        columns: stacked || !hasRevisions ? 1 : 2
                         columnSpacing: SemanticTokens.spacingSm
                         rowSpacing: SemanticTokens.spacingXs
 
                         RowLayout {
-                            Layout.fillWidth: true
+                            objectName: "recordingTranscriptRevisionBar"
+                            visible: transcriptTools.hasRevisions
+                            Layout.row: 0
+                            Layout.column: 0
+                            Layout.fillWidth: transcriptTools.stacked
                             Layout.minimumWidth: 0
-                            spacing: SemanticTokens.spacingSm
-                            Text {
-                                text: qsTr("Version")
-                                color: SemanticTokens.textMuted
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
+                            spacing: SemanticTokens.spacingXs
                             AppComboBox {
                                 id: transcriptRevisionPicker
                                 objectName: "transcriptRevisionPicker"
                                 Layout.fillWidth: true
-                                Layout.maximumWidth: 280 * DesignSystem.textScale
+                                Layout.preferredWidth: 220 * DesignSystem.textScale
+                                Layout.minimumWidth: 170 * DesignSystem.textScale
+                                Layout.maximumWidth: 260 * DesignSystem.textScale
                                 accessibleName: qsTr("Transcript version")
                                 model: root.revisions.revisions
                                 textRole: "displayLabel"
@@ -578,15 +641,16 @@ Item {
                                 text: qsTr("Following live")
                                 tone: "accent"
                             }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: root.narrowTools
-                            Layout.alignment: Qt.AlignRight
-                            spacing: SemanticTokens.spacingSm
+                            StatusBadge {
+                                objectName: "recordingEditingLockedBadge"
+                                visible: root.transcript.editingLocked
+                                text: qsTr("Live transcription — editing locked")
+                                tone: "accent"
+                            }
                             StatusBadge {
                                 objectName: "transcriptNewVersionBadge"
                                 visible: root.revisions.hasNewerRevision
+                                         && !root.revisions.selectionPinned
                                 text: qsTr("New version available")
                                 tone: "accent"
                             }
@@ -594,94 +658,112 @@ Item {
                                 objectName: "followLiveTranscriptButton"
                                 visible: root.revisions.selectionPinned
                                 text: qsTr("Follow latest")
+                                primary: true
                                 onClicked: root.vm.followLiveTranscript()
                             }
-                            AppButton {
+                            IconButton {
                                 objectName: "transcriptHistoryButton"
-                                text: qsTr("History")
+                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/history.svg"
+                                accessibleName: qsTr("Transcript history")
                                 onClicked: revisionHistoryDialog.open()
                             }
                         }
-                    }
 
-                    StatusBadge {
-                        objectName: "recordingEditingLockedBadge"
-                        visible: root.transcript.editingLocked
-                        text: qsTr("Live transcription — editing locked")
-                        tone: "accent"
-                    }
-                    GridLayout {
-                        Layout.fillWidth: true
-                        columns: root.narrowTools ? 1 : 2
-                        columnSpacing: SemanticTokens.spacingSm
-                        rowSpacing: SemanticTokens.spacingXs
-
-                        RowLayout {
-                            objectName: "recordingTranscriptSearchRow"
+                        GridLayout {
+                            id: transcriptCommands
+                            objectName: "recordingTranscriptCommands"
+                            Layout.row: transcriptTools.stacked ? 1 : 0
+                            Layout.column: transcriptTools.stacked || !transcriptTools.hasRevisions ? 0 : 1
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
-                            spacing: SemanticTokens.spacingSm
-                            AppSearchField {
-                                objectName: "recordingTranscriptSearch"
+                            columns: root.narrowTools ? 1 : 2
+                            columnSpacing: SemanticTokens.spacingSm
+                            rowSpacing: SemanticTokens.spacingXs
+
+                            RowLayout {
+                                objectName: "recordingTranscriptSearchRow"
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
-                                text: root.transcript.searchText
-                                placeholderText: qsTr("Find in transcript")
-                                onTextEdited: root.transcript.searchText = text
-                            }
-                            Toggle { objectName: "recordingLowConfidenceToggle"; text: qsTr("Low confidence"); checked: root.transcript.lowConfidenceOnly; onToggled: root.transcript.lowConfidenceOnly = checked }
-                        }
-
-                        RowLayout {
-                            objectName: "recordingTranscriptActionRow"
-                            Layout.fillWidth: root.narrowTools
-                            Layout.alignment: Qt.AlignRight
-                            spacing: SemanticTokens.spacingSm
-                            IconButton {
-                                objectName: "recordingPreviousButton"
-                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg"
-                                accessibleName: qsTr("Previous")
-                                enabled: root.transcript.visibleSegmentCount > 0
-                                onClicked: root.transcript.selectedIndex = root.transcript.findPrevious(root.transcript.selectedIndex)
-                            }
-                            IconButton {
-                                objectName: "recordingNextButton"
-                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg"
-                                accessibleName: qsTr("Next")
-                                enabled: root.transcript.visibleSegmentCount > 0
-                                onClicked: root.transcript.selectedIndex = root.transcript.findNext(root.transcript.selectedIndex)
-                            }
-                            Item { visible: root.narrowTools; Layout.fillWidth: root.narrowTools }
-                            IconButton {
-                                objectName: "recordingUndoButton"
-                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/undo-2.svg"
-                                accessibleName: qsTr("Undo")
-                                enabled: root.transcript.canUndo
-                                onClicked: root.transcript.undo()
-                            }
-                            IconButton {
-                                objectName: "recordingRedoButton"
-                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/redo-2.svg"
-                                accessibleName: qsTr("Redo")
-                                enabled: root.transcript.canRedo
-                                onClicked: root.transcript.redo()
-                            }
-                            IconButton {
-                                objectName: "recordingCopyTranscriptButton"
-                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/copy.svg"
-                                accessibleName: qsTr("Copy Transcript")
-                                enabled: root.transcript.segmentCount > 0
-                                onClicked: {
-                                    root.vm.copyToClipboard(root.transcript.fullText())
-                                    root.vm.showToast(qsTr("Transcript copied to clipboard."))
+                                spacing: SemanticTokens.spacingXs
+                                AppSearchField {
+                                    id: recordingTranscriptSearch
+                                    objectName: "recordingTranscriptSearch"
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    text: root.transcript.searchText
+                                    placeholderText: qsTr("Find in transcript")
+                                    onTextEdited: root.transcript.searchText = text
+                                }
+                                IconButton {
+                                    objectName: "recordingPreviousButton"
+                                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-up.svg"
+                                    accessibleName: qsTr("Previous")
+                                    enabled: root.transcript.visibleSegmentCount > 0
+                                    onClicked: root.transcript.selectedIndex = root.transcript.findPrevious(root.transcript.selectedIndex)
+                                }
+                                IconButton {
+                                    objectName: "recordingNextButton"
+                                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/chevron-down.svg"
+                                    accessibleName: qsTr("Next")
+                                    enabled: root.transcript.visibleSegmentCount > 0
+                                    onClicked: root.transcript.selectedIndex = root.transcript.findNext(root.transcript.selectedIndex)
+                                }
+                                Toggle {
+                                    objectName: "recordingLowConfidenceToggle"
+                                    text: qsTr("Low-confidence only")
+                                    checked: root.transcript.lowConfidenceOnly
+                                    onToggled: root.transcript.lowConfidenceOnly = checked
                                 }
                             }
-                            IconButton {
-                                objectName: "recordingSaveButton"
-                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/save.svg"
-                                accessibleName: root.transcript.dirty ? qsTr("Save Changes") : qsTr("Saved")
-                                enabled: root.transcript.dirty
-                                onClicked: root.transcript.save()
+
+                            RowLayout {
+                                objectName: "recordingTranscriptActionRow"
+                                Layout.fillWidth: root.narrowTools
+                                Layout.alignment: Qt.AlignRight
+                                spacing: SemanticTokens.spacingXs
+                                Item { visible: root.narrowTools; Layout.fillWidth: root.narrowTools }
+                                IconButton {
+                                    objectName: "recordingUndoButton"
+                                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/undo-2.svg"
+                                    accessibleName: qsTr("Undo")
+                                    toolTipText: accessibleName + " · Ctrl+Z"
+                                    enabled: root.transcript.canUndo
+                                    onClicked: root.transcript.undo()
+                                }
+                                IconButton {
+                                    objectName: "recordingRedoButton"
+                                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/redo-2.svg"
+                                    accessibleName: qsTr("Redo")
+                                    toolTipText: accessibleName + " · Ctrl+Shift+Z"
+                                    enabled: root.transcript.canRedo
+                                    onClicked: root.transcript.redo()
+                                }
+                                Rectangle {
+                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.leftMargin: SemanticTokens.spacingXs
+                                    Layout.rightMargin: SemanticTokens.spacingXs
+                                    implicitWidth: 1
+                                    implicitHeight: 24 * DesignSystem.textScale
+                                    color: SemanticTokens.border
+                                }
+                                IconButton {
+                                    objectName: "recordingCopyTranscriptButton"
+                                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/copy.svg"
+                                    accessibleName: qsTr("Copy Transcript")
+                                    enabled: root.transcript.segmentCount > 0
+                                    onClicked: {
+                                        root.vm.copyToClipboard(root.transcript.fullText())
+                                        root.vm.showToast(qsTr("Transcript copied to clipboard."))
+                                    }
+                                }
+                                IconButton {
+                                    objectName: "recordingSaveButton"
+                                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/save.svg"
+                                    accessibleName: root.transcript.dirty ? qsTr("Save Changes") : qsTr("Saved")
+                                    toolTipText: accessibleName + " · Ctrl+S"
+                                    enabled: root.transcript.dirty
+                                    onClicked: root.transcript.save()
+                                }
                             }
                         }
                     }

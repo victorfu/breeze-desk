@@ -546,8 +546,8 @@
     <name>BreezeDesk::TranscriptRevisionModel</name>
     <message>
         <location filename="../src/ui/TranscriptRevisionModel.cpp" line="188"/>
-        <source>Version %1 · %2</source>
-        <translation>Version %1 · %2</translation>
+        <source>Version %1</source>
+        <translation>Version %1</translation>
     </message>
 </context>
 <context>
@@ -2403,6 +2403,11 @@
         <translation>Mute</translation>
     </message>
     <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="555"/>
+        <source>Unmute</source>
+        <translation>Unmute</translation>
+    </message>
+    <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="534"/>
         <source>Volume</source>
         <translation>Volume</translation>
@@ -2411,6 +2416,11 @@
         <location filename="../src/qml/pages/RecordingPage.qml" line="537"/>
         <source>Loop selection</source>
         <translation>Loop selection</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="575"/>
+        <source>Disable loop selection</source>
+        <translation>Disable loop selection</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="560"/>
@@ -2454,8 +2464,8 @@
     </message>
     <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="639"/>
-        <source>Low confidence</source>
-        <translation>Low confidence</translation>
+        <source>Low-confidence only</source>
+        <translation>Low-confidence only</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="650"/>
@@ -2613,6 +2623,11 @@
         <location filename="../src/qml/controls/SearchField.qml" line="6"/>
         <source>Search</source>
         <translation>Search</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/controls/SearchField.qml" line="36"/>
+        <source>Clear search</source>
+        <translation>Clear search</translation>
     </message>
 </context>
 <context>

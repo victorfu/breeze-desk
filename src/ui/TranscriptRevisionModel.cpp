@@ -183,7 +183,7 @@ QVariant TranscriptRevisionModel::valueFor(const TranscriptRevisionSummary& revi
     case ErrorMessageRole:
         return job.errorMessage;
     case DisplayLabelRole:
-        return tr("Version %1 · %2").arg(job.revisionNumber).arg(jobStateName(job.state));
+        return tr("Version %1").arg(job.revisionNumber);
     default:
         return {};
     }

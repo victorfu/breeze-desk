@@ -143,11 +143,17 @@ ApplicationWindow {
         onImportTriggered: importDialog.open()
         onRecordingTriggered: window.openRecordingDialog()
         onPlayPauseTriggered: if (window.vm.currentPage === "Recording" && !window.activeFocusItem) window.vm.player.playPause()
-        onSearchTriggered: window.vm.navigate("Library")
-        onSaveTriggered: window.vm.transcript.save()
+        onSearchTriggered: {
+            if (window.vm.currentPage === "Recording") {
+                recordingPage.focusTranscriptSearch()
+            } else {
+                window.vm.navigate("Library")
+            }
+        }
+        onSaveTriggered: if (window.vm.currentPage === "Recording") window.vm.transcript.save()
         onExportTriggered: window.vm.exportActiveRecording()
-        onUndoTriggered: window.vm.transcript.undo()
-        onRedoTriggered: window.vm.transcript.redo()
+        onUndoTriggered: if (window.vm.currentPage === "Recording") window.vm.transcript.undo()
+        onRedoTriggered: if (window.vm.currentPage === "Recording") window.vm.transcript.redo()
         onSettingsTriggered: window.vm.navigate("Settings")
     }
 
@@ -303,7 +309,7 @@ ApplicationWindow {
             ModelsPage { vm: window.vm.modelManager; onCustomImportRequested: customModelDialog.open() }
             GlossaryPage { vm: window.vm.glossary }
             SettingsPage { vm: window.vm.settings; diagnostics: window.vm.diagnostics }
-            RecordingPage { vm: window.vm }
+            RecordingPage { id: recordingPage; vm: window.vm }
         }
     }
 
