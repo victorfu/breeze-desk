@@ -11,3 +11,5 @@ compile_commands.json
 __pycache__/
 *.py[cod]
 /tmp
+.env
+.env.*
