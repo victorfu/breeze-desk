@@ -838,12 +838,17 @@ int main(int argc, char* argv[]) {
     };
     QObject::connect(viewModel->settings(), &BreezeDesk::SettingsViewModel::languageChanged, &trayMenu,
                      retranslateTrayMenu);
-    QObject::connect(&quitAction, &QAction::triggered, &application, [&engine, showWindow] {
-        showWindow();
-        if (!engine.rootObjects().isEmpty()) {
-            QMetaObject::invokeMethod(engine.rootObjects().constFirst(), "requestQuit");
-        }
-    });
+    QObject::connect(&quitAction, &QAction::triggered, &application,
+                     [&engine, showWindow, viewModel = viewModel.get()] {
+                         // The quit confirmation dialog lives inside the main window, so the
+                         // window is only brought forward when active jobs need confirming.
+                         if (viewModel->jobQueue()->activeCount() > 0) {
+                             showWindow();
+                         }
+                         if (!engine.rootObjects().isEmpty()) {
+                             QMetaObject::invokeMethod(engine.rootObjects().constFirst(), "requestQuit");
+                         }
+                     });
 
     const bool workerStarted = worker.start();
     Q_UNUSED(workerStarted)
