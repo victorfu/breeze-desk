@@ -39,6 +39,7 @@ Rectangle {
     readonly property bool downloadBusy: root.modelState === "Requested"
                                          || root.modelState === "Downloading"
                                          || root.modelState === "Verifying"
+    readonly property int summaryStackWidth: 760
     implicitHeight: card.implicitHeight + SemanticTokens.spacingLg * 2
     color: SemanticTokens.surface
     radius: ComponentTokens.cardRadius
@@ -49,31 +50,33 @@ Rectangle {
         anchors.fill: parent
         anchors.margins: SemanticTokens.spacingLg
         spacing: SemanticTokens.spacingMd
-        RowLayout {
+        GridLayout {
+            id: summary
+            objectName: "modelSummaryLayout"
             Layout.fillWidth: true
+            columns: stacked ? 1 : 2
+            columnSpacing: SemanticTokens.spacingMd
+            rowSpacing: SemanticTokens.spacingSm
+            readonly property bool stacked: width < root.summaryStackWidth
+                                                      * DesignSystem.textScale
+
             ColumnLayout {
+                Layout.row: 0
+                Layout.column: 0
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 spacing: SemanticTokens.spacingXs
-                RowLayout {
+
+                Text {
+                    objectName: "modelDisplayName"
                     Layout.fillWidth: true
-                    Text {
-                        objectName: "modelDisplayName"
-                        Layout.fillWidth: true
-                        Layout.minimumWidth: 0
-                        text: root.displayName
-                        color: SemanticTokens.text
-                        elide: Text.ElideNone
-                        wrapMode: Text.WordWrap
-                        font.pixelSize: SemanticTokens.headingSize
-                        font.weight: SemanticTokens.weightSemiBold
-                    }
-                    StatusBadge { visible: root.recommended; text: qsTr("Recommended"); tone: "accent" }
-                    StatusBadge { visible: root.isDefault; text: qsTr("Default"); tone: "success" }
-                    StatusBadge {
-                        visible: root.modelState === "Failed"
-                        text: root.displayedModelState
-                        tone: "danger"
-                    }
+                    Layout.minimumWidth: 0
+                    text: root.displayName
+                    color: SemanticTokens.text
+                    elide: Text.ElideNone
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: SemanticTokens.headingSize
+                    font.weight: SemanticTokens.weightSemiBold
                 }
                 Text {
                     Layout.fillWidth: true
@@ -83,49 +86,80 @@ Rectangle {
                     font.pixelSize: SemanticTokens.bodySize
                 }
             }
-            StatusBadge { text: root.quantization; tone: "neutral" }
-        }
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: SemanticTokens.spacingSm
+
             Flow {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                Layout.alignment: Qt.AlignVCenter
+                id: badges
+                objectName: "modelBadges"
+                Layout.row: summary.stacked ? 1 : 0
+                Layout.column: summary.stacked ? 0 : 1
+                Layout.fillWidth: summary.stacked
+                Layout.minimumWidth: summary.stacked ? 0 : implicitWidth
+                Layout.alignment: summary.stacked ? Qt.AlignLeft : Qt.AlignTop | Qt.AlignRight
                 spacing: SemanticTokens.spacingSm
-                Text {
-                    height: ComponentTokens.compactControlHeight
-                    verticalAlignment: Text.AlignVCenter
-                    text: qsTr("%1 GB").arg((root.fileSize / 1000000000).toFixed(2))
-                    color: SemanticTokens.textMuted
-                    font.pixelSize: SemanticTokens.captionSize
+
+                StatusBadge {
+                    objectName: "modelRecommendedBadge"
+                    visible: root.recommended
+                    text: qsTr("Recommended")
+                    tone: "accent"
                 }
-                Text {
-                    height: ComponentTokens.compactControlHeight
-                    verticalAlignment: Text.AlignVCenter
-                    text: qsTr("License: %1").arg(root.licenseName)
-                    color: SemanticTokens.textMuted
-                    font.pixelSize: SemanticTokens.captionSize
+                StatusBadge {
+                    objectName: "modelDefaultBadge"
+                    visible: root.isDefault
+                    text: qsTr("Default")
+                    tone: "success"
                 }
-                AppLinkButton {
-                    objectName: "modelLicenseLink"
-                    text: qsTr("License")
-                    accessibleName: qsTr("Open model license")
-                    enabled: root.licenseUrl.toString().length > 0
-                    onClicked: root.licenseRequested(root.licenseUrl)
+                StatusBadge {
+                    objectName: "modelFailureBadge"
+                    visible: root.modelState === "Failed"
+                    text: root.displayedModelState
+                    tone: "danger"
                 }
-                AppLinkButton {
-                    objectName: "modelSourceLink"
-                    text: qsTr("Source")
-                    accessibleName: qsTr("Open model source")
-                    enabled: root.sourceUrl.toString().length > 0
-                    onClicked: root.sourceRequested(root.sourceUrl)
+                StatusBadge {
+                    objectName: "modelQuantizationBadge"
+                    text: root.quantization
+                    tone: "neutral"
+                }
+                StatusBadge {
+                    objectName: "modelInstallBadge"
+                    text: root.loaded ? qsTr("Loaded")
+                                      : root.installed ? qsTr("Installed") : qsTr("Not installed")
+                    tone: root.loaded || root.installed ? "success" : "neutral"
                 }
             }
-            StatusBadge {
-                Layout.alignment: Qt.AlignTop
-                text: root.loaded ? qsTr("Loaded") : root.installed ? qsTr("Installed") : qsTr("Not installed")
-                tone: root.loaded || root.installed ? "success" : "neutral"
+        }
+        Flow {
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            Layout.alignment: Qt.AlignVCenter
+            spacing: SemanticTokens.spacingSm
+            Text {
+                height: ComponentTokens.compactControlHeight
+                verticalAlignment: Text.AlignVCenter
+                text: qsTr("%1 GB").arg((root.fileSize / 1000000000).toFixed(2))
+                color: SemanticTokens.textMuted
+                font.pixelSize: SemanticTokens.captionSize
+            }
+            Text {
+                height: ComponentTokens.compactControlHeight
+                verticalAlignment: Text.AlignVCenter
+                text: qsTr("License: %1").arg(root.licenseName)
+                color: SemanticTokens.textMuted
+                font.pixelSize: SemanticTokens.captionSize
+            }
+            AppLinkButton {
+                objectName: "modelLicenseLink"
+                text: qsTr("License")
+                accessibleName: qsTr("Open model license")
+                enabled: root.licenseUrl.toString().length > 0
+                onClicked: root.licenseRequested(root.licenseUrl)
+            }
+            AppLinkButton {
+                objectName: "modelSourceLink"
+                text: qsTr("Source")
+                accessibleName: qsTr("Open model source")
+                enabled: root.sourceUrl.toString().length > 0
+                onClicked: root.sourceRequested(root.sourceUrl)
             }
         }
         DownloadProgress {

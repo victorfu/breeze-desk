@@ -1,6 +1,7 @@
 #include "breezedesk/ui/JobListModel.h"
 #include "breezedesk/ui/JobQueueViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
+#include "QmlTestApplication.h"
 
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -214,9 +215,19 @@ void JobQueueViewModelTest::queuePageConfirmsPermanentRemoval() {
     QObject* queuePage = root->findChild<QObject*>(QStringLiteral("queuePage"));
     QObject* confirmation = root->findChild<QObject*>(QStringLiteral("queueRemoveJobDialog"));
     QObject* finishedConfirmation = root->findChild<QObject*>(QStringLiteral("queueRemoveFinishedDialog"));
+    auto* clearCompletedButton =
+        root->findChild<QQuickItem*>(QStringLiteral("queueClearCompletedButton"));
     QVERIFY(queuePage);
     QVERIFY(confirmation);
     QVERIFY(finishedConfirmation);
+    QVERIFY(clearCompletedButton);
+    const QUrl trashIcon(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"));
+    QCOMPARE(clearCompletedButton->property("iconSource").toUrl(), trashIcon);
+    QVERIFY(clearCompletedButton->property("text").toString().isEmpty());
+    QVERIFY(clearCompletedButton->width() <= 48.0);
+    QVERIFY(clearCompletedButton->property("accessibleName")
+                .toString()
+                .contains(QStringLiteral("Permanently remove")));
     const QVariant jobIdArgument = failed;
     const QVariant titleArgument = QStringLiteral("Failed fixture");
     QVERIFY(QMetaObject::invokeMethod(queuePage, "requestJobRemoval", Qt::DirectConnection,
@@ -230,7 +241,7 @@ void JobQueueViewModelTest::queuePageConfirmsPermanentRemoval() {
     QCOMPARE(removed.constFirst().constFirst().toString(), failed);
     QCOMPARE(viewModel.jobs()->rowCount(), 1); // Persistence has not confirmed deletion yet.
 
-    QVERIFY(QMetaObject::invokeMethod(finishedConfirmation, "open"));
+    QVERIFY(QMetaObject::invokeMethod(clearCompletedButton, "clicked", Qt::DirectConnection));
     QTRY_VERIFY(finishedConfirmation->property("visible").toBool());
     QVERIFY(finishedConfirmation->property("destructive").toBool());
     QCOMPARE(clearRequested.count(), 0);
@@ -348,6 +359,10 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
     QVERIFY(failedCard);
     QVERIFY(removeButton);
     QVERIFY(removeButton->isVisible());
+    const QUrl trashIcon(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"));
+    QCOMPARE(removeButton->property("iconSource").toUrl(), trashIcon);
+    QVERIFY(removeButton->property("text").toString().isEmpty());
+    QVERIFY(removeButton->width() <= 48.0);
     QVERIFY(removeButton->property("accessibleName").toString().contains(QStringLiteral("Remove")));
     QVERIFY(queueMetadata->property("text").toString().contains(QStringLiteral("2")));
     QVERIFY(chunkStatus->property("text").toString().contains(QStringLiteral("2")));
@@ -470,5 +485,11 @@ void JobQueueViewModelTest::queuedCardCanBeDragReordered() {
     QCOMPARE(root->property("requestedDestination").toInt(), 1);
 }
 
-QTEST_MAIN(JobQueueViewModelTest)
+int main(int argc, char** argv) {
+    BreezeDesk::TestSupport::configureQmlTestProcess();
+    QGuiApplication app(argc, argv);
+    JobQueueViewModelTest test;
+    return QTest::qExec(&test, argc, argv);
+}
+
 #include "tst_JobQueueViewModel.moc"

@@ -40,11 +40,9 @@ Item {
                 checked: root.vm.pauseAfterCurrent
                 onToggled: root.vm.pauseAfterCurrent = checked
             }
-            AppButton {
+            RemoveButton {
                 objectName: "queueClearCompletedButton"
-                text: qsTr("Remove finished")
                 accessibleName: qsTr("Permanently remove completed and cancelled jobs")
-                danger: true
                 onClicked: removeFinishedDialog.open()
             }
         }

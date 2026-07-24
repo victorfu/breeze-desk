@@ -357,12 +357,10 @@ Rectangle {
                 text: qsTr("Resume")
                 onClicked: root.resumeRequested(root.jobId)
             }
-            AppButton {
+            RemoveButton {
                 objectName: "jobRemoveButton"
                 visible: root.canRemove
-                text: qsTr("Remove")
                 accessibleName: qsTr("Remove %1 permanently").arg(root.title)
-                danger: true
                 onClicked: root.removeRequested(root.jobId)
             }
         }

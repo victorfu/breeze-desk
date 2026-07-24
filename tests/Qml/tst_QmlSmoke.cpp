@@ -12,6 +12,7 @@
 #include "breezedesk/ui/BrandIcons.h"
 #include "breezedesk/ui/GlossaryViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
+#include "QmlTestApplication.h"
 
 #include <QAccessible>
 #include <QColor>
@@ -33,12 +34,14 @@
 #include <QtTest>
 
 #include <atomic>
+#include <cstdio>
 #include <tuple>
 #include <utility>
 
 namespace {
 
 QStringList qmlMessages;
+QtMessageHandler previousMessageHandler = nullptr;
 
 class EnvironmentVariableGuard final {
   public:
@@ -63,9 +66,16 @@ class EnvironmentVariableGuard final {
     QByteArray m_originalValue;
 };
 
-void messageHandler(QtMsgType type, const QMessageLogContext&, const QString& message) {
+void messageHandler(QtMsgType type, const QMessageLogContext& context, const QString& message) {
     if (type == QtWarningMsg || type == QtCriticalMsg || type == QtFatalMsg) {
         qmlMessages.append(message);
+    }
+    if (previousMessageHandler != nullptr) {
+        previousMessageHandler(type, context, message);
+    } else {
+        const QByteArray encodedMessage = message.toLocal8Bit();
+        std::fprintf(stderr, "%s\n", encodedMessage.constData());
+        std::fflush(stderr);
     }
 }
 
@@ -184,13 +194,17 @@ class tst_QmlSmoke final : public QObject {
 
   private slots:
     void initTestCase() {
-        qputenv("QT_QPA_PLATFORM", "offscreen");
         QStandardPaths::setTestModeEnabled(true);
         BreezeDesk::registerUiTypes();
-        qInstallMessageHandler(messageHandler);
+        previousMessageHandler = qInstallMessageHandler(messageHandler);
     }
 
     void cleanup() { qmlMessages.clear(); }
+
+    void cleanupTestCase() {
+        qInstallMessageHandler(previousMessageHandler);
+        previousMessageHandler = nullptr;
+    }
 
     void brandIconRendersAtNativeWindowsSizes() {
         const QList<QIcon> icons{BreezeDesk::brandIcon(), BreezeDesk::windowsTrayIcon()};
@@ -453,7 +467,7 @@ class tst_QmlSmoke final : public QObject {
 
             ApplicationWindow {
                 id: host
-                width: 800
+                width: 1000
                 height: 400
                 visible: true
                 property string fixtureState: "NotInstalled"
@@ -466,11 +480,11 @@ class tst_QmlSmoke final : public QObject {
                     quantization: "Q5"
                     fileSize: 1000000000
                     licenseName: "Fixture license"
-                    recommended: false
+                    recommended: true
                     defaultCandidate: true
                     installed: false
                     loaded: false
-                    isDefault: false
+                    isDefault: true
                     modelState: host.fixtureState
                     progress: 1.0
                     licenseUrl: ""
@@ -487,9 +501,29 @@ class tst_QmlSmoke final : public QObject {
         auto* downloadButton = root->findChild<QQuickItem*>(QStringLiteral("modelDownloadButton"));
         auto* downloadSpinner = root->findChild<QQuickItem*>(QStringLiteral("modelDownloadSpinner"));
         auto* displayName = root->findChild<QQuickItem*>(QStringLiteral("modelDisplayName"));
+        auto* summary = root->findChild<QQuickItem*>(QStringLiteral("modelSummaryLayout"));
+        auto* badges = root->findChild<QQuickItem*>(QStringLiteral("modelBadges"));
+        auto* recommendedBadge = root->findChild<QQuickItem*>(QStringLiteral("modelRecommendedBadge"));
+        auto* defaultBadge = root->findChild<QQuickItem*>(QStringLiteral("modelDefaultBadge"));
+        auto* quantizationBadge = root->findChild<QQuickItem*>(QStringLiteral("modelQuantizationBadge"));
+        auto* installBadge = root->findChild<QQuickItem*>(QStringLiteral("modelInstallBadge"));
         QVERIFY(downloadButton);
         QVERIFY(downloadSpinner);
         QVERIFY(displayName);
+        QVERIFY(summary);
+        QVERIFY(badges);
+        QVERIFY(recommendedBadge);
+        QVERIFY(defaultBadge);
+        QVERIFY(quantizationBadge);
+        QVERIFY(installBadge);
+        QVERIFY(!summary->property("stacked").toBool());
+        QCOMPARE(recommendedBadge->parentItem(), badges);
+        QCOMPARE(defaultBadge->parentItem(), badges);
+        QCOMPARE(quantizationBadge->parentItem(), badges);
+        QCOMPARE(installBadge->parentItem(), badges);
+        QTRY_COMPARE_WITH_TIMEOUT(qRound(recommendedBadge->y()), qRound(installBadge->y()), 1'000);
+        QCOMPARE(qRound(defaultBadge->y()), qRound(installBadge->y()));
+        QCOMPARE(qRound(quantizationBadge->y()), qRound(installBadge->y()));
         QCOMPARE(displayName->property("elide").toInt(), static_cast<int>(Qt::ElideNone));
         QVERIFY(downloadButton->property("visible").toBool());
         QVERIFY(downloadButton->property("enabled").toBool());
@@ -1484,7 +1518,8 @@ class tst_QmlSmoke final : public QObject {
                 if (timeColumnWidth < 0.0) {
                     timeColumnWidth = timeColumn->width();
                 } else {
-                    QVERIFY(qAbs(timeColumn->width() - timeColumnWidth) <= 0.5);
+                    QTRY_VERIFY_WITH_TIMEOUT(qAbs(timeColumn->width() - timeColumnWidth) <= 0.5,
+                                             1'000);
                 }
                 if (origin.y() >= -0.5 && origin.y() + editor->height() <= list->height() + 0.5) {
                     ++fullyVisibleEditors;
@@ -3081,6 +3116,7 @@ class tst_QmlSmoke final : public QObject {
 };
 
 int main(int argc, char** argv) {
+    BreezeDesk::TestSupport::configureQmlTestProcess();
     QGuiApplication app(argc, argv);
     tst_QmlSmoke test;
     return QTest::qExec(&test, argc, argv);

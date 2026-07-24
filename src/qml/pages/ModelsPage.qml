@@ -69,17 +69,6 @@ Item {
                     wrapMode: Text.WordWrap
                     font.pixelSize: SemanticTokens.bodySize
                 }
-                Text {
-                    id: runtimeVersion
-                    Layout.row: backendRow.stacked ? 2 : 0
-                    Layout.column: backendRow.stacked ? 0 : 2
-                    Layout.fillWidth: backendRow.stacked
-                    Layout.minimumWidth: 0
-                    text: qsTr("whisper.cpp: %1").arg(root.vm.runtimeVersion)
-                    color: SemanticTokens.textMuted
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: SemanticTokens.bodySize
-                }
             }
         }
         ListView {
