@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Hardened-runtime entitlements shared by the app and the ASR worker. -->
+
+    <!-- Live recording captures the microphone through Qt Multimedia; the
+         hardened runtime denies device access without this. -->
+    <key>com.apple.security.device.audio-input</key>
+    <true/>
+
+    <!-- The app loads dynamically deployed Qt frameworks and the Sparkle
+         framework that are signed with a different identity. -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- ggml/whisper.cpp allocate writable-executable memory for compute. -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- The QML engine JIT-compiles bindings. -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+</dict>
+</plist>

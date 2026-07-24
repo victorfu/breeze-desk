@@ -228,26 +228,41 @@ done < <(find "$app/Contents" -type f -print0)
 
 if [[ -n "${BREEZEDESK_CODESIGN_IDENTITY:-}" ]]; then
   command -v codesign >/dev/null 2>&1 || fail "codesign was not found"
+  entitlements="$project_dir/packaging/macos/entitlements.plist"
+  [[ -f "$entitlements" ]] || fail "the hardened-runtime entitlements file is missing: $entitlements"
   codesign_args=(
     --force
     --options runtime
     --timestamp
-    --preserve-metadata=entitlements,requirements
     --sign "$BREEZEDESK_CODESIGN_IDENTITY"
   )
+  # The main executable and the ASR worker carry the app's entitlements
+  # (microphone capture, Qt library loading, ggml executable memory, QML JIT).
+  # Every other Mach-O keeps whatever a prior signature declared.
+  sign_macho() {
+    local target="$1"
+    case "$(basename "$target")" in
+    "$release_executable_name" | "$worker_executable_name")
+      codesign "${codesign_args[@]}" --entitlements "$entitlements" "$target"
+      ;;
+    *)
+      codesign "${codesign_args[@]}" --preserve-metadata=entitlements,requirements "$target"
+      ;;
+    esac
+  }
   while IFS= read -r -d '' candidate; do
     if file "$candidate" | grep -q 'Mach-O'; then
-      codesign "${codesign_args[@]}" "$candidate"
+      sign_macho "$candidate"
     fi
   done < <(find "$app/Contents" -type f -print0)
   while IFS= read -r nested_bundle; do
-    codesign "${codesign_args[@]}" "$nested_bundle"
+    codesign "${codesign_args[@]}" --preserve-metadata=entitlements,requirements "$nested_bundle"
   done < <(find "$app/Contents" -type d \( -name '*.app' -o -name '*.xpc' \) -print | \
     awk '{ print length($0), $0 }' | sort -rn | cut -d' ' -f2-)
   while IFS= read -r framework; do
-    codesign "${codesign_args[@]}" "$framework"
+    codesign "${codesign_args[@]}" --preserve-metadata=entitlements,requirements "$framework"
   done < <(find "$app/Contents" -type d -name '*.framework' | sort -r)
-  codesign "${codesign_args[@]}" "$app"
+  codesign "${codesign_args[@]}" --entitlements "$entitlements" "$app"
   codesign --verify --deep --strict --verbose=2 "$app"
 elif [[ -n "${BREEZEDESK_NOTARY_PROFILE:-}" ]]; then
   fail "BREEZEDESK_CODESIGN_IDENTITY is required when notarization is requested"
@@ -257,7 +272,26 @@ cp -R "$app" "$dmg_root/"
 ln -s /Applications "$dmg_root/Applications"
 dmg="$dist_dir/$product_name-$version-macOS-arm64.dmg"
 cmake -E rm -f "$dmg" "$dmg.sha256"
-hdiutil create -volname "$product_name" -srcfolder "$dmg_root" -ov -format UDZO "$dmg"
+# create-dmg lays out the app beside an Applications drop target; its Finder
+# window styling can fail on a headless runner, so fall back to hdiutil, which
+# packages the same dmg-root (app plus Applications shortcut) plainly.
+if command -v create-dmg >/dev/null 2>&1; then
+  create-dmg \
+    --volname "$product_name" \
+    --window-pos 200 120 \
+    --window-size 640 400 \
+    --icon-size 100 \
+    --icon "$release_executable_name.app" 160 200 \
+    --hide-extension "$release_executable_name.app" \
+    --app-drop-link 480 200 \
+    "$dmg" "$app" || {
+    echo "$product_name macOS packaging: create-dmg failed; falling back to hdiutil" >&2
+    cmake -E rm -f "$dmg"
+    hdiutil create -volname "$product_name" -srcfolder "$dmg_root" -ov -format UDZO "$dmg"
+  }
+else
+  hdiutil create -volname "$product_name" -srcfolder "$dmg_root" -ov -format UDZO "$dmg"
+fi
 if [[ -n "${BREEZEDESK_CODESIGN_IDENTITY:-}" ]]; then
   codesign --force --timestamp --sign "$BREEZEDESK_CODESIGN_IDENTITY" "$dmg"
 fi
