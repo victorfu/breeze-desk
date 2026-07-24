@@ -168,7 +168,8 @@ int LibraryViewModel::importUrls(const QVariantList& urls) {
             continue;
         }
         if (m_repository == nullptr) {
-            m_source.addSource(url);
+            const QString recordingId = m_source.addSource(url);
+            emit recordingImported(recordingId, info.absoluteFilePath());
             ++imported;
             continue;
         }

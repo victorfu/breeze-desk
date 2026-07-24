@@ -1,4 +1,5 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 
 Rectangle {
@@ -35,6 +36,9 @@ Rectangle {
                                                         || root.modelState === "Paused"
                                                         || root.modelState === "Cancelled"
                                                         || root.modelState === "Failed")
+    readonly property bool downloadBusy: root.modelState === "Requested"
+                                         || root.modelState === "Downloading"
+                                         || root.modelState === "Verifying"
     implicitHeight: card.implicitHeight + SemanticTokens.spacingLg * 2
     color: SemanticTokens.surface
     radius: ComponentTokens.cardRadius
@@ -53,12 +57,13 @@ Rectangle {
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
+                        objectName: "modelDisplayName"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        Layout.maximumWidth: implicitWidth
                         text: root.displayName
                         color: SemanticTokens.text
-                        elide: Text.ElideRight
+                        elide: Text.ElideNone
+                        wrapMode: Text.WordWrap
                         font.pixelSize: SemanticTokens.headingSize
                         font.weight: SemanticTokens.weightSemiBold
                     }
@@ -130,6 +135,26 @@ Rectangle {
                      || root.modelState === "Testing"
             value: root.progress
             statusText: root.displayedModelState
+        }
+        RowLayout {
+            objectName: "modelDownloadSpinnerRow"
+            Layout.fillWidth: true
+            visible: root.downloadBusy
+            spacing: SemanticTokens.spacingSm
+
+            BusyIndicator {
+                objectName: "modelDownloadSpinner"
+                running: parent.visible
+                implicitWidth: 24
+                implicitHeight: 24
+                Accessible.name: qsTr("Downloading model")
+            }
+            Text {
+                Layout.fillWidth: true
+                text: root.displayedModelState
+                color: SemanticTokens.textMuted
+                font.pixelSize: SemanticTokens.captionSize
+            }
         }
         RowLayout {
             Layout.fillWidth: true

@@ -94,6 +94,10 @@ class ModelManagerViewModel final : public QObject {
     Q_PROPERTY(QAbstractItemModel* models READ models CONSTANT)
     Q_PROPERTY(QString defaultModelId READ defaultModelId NOTIFY defaultModelChanged)
     Q_PROPERTY(bool defaultModelReady READ defaultModelReady NOTIFY defaultModelReadyChanged)
+    Q_PROPERTY(bool defaultModelDownloadActive READ defaultModelDownloadActive NOTIFY
+                   defaultModelDownloadChanged)
+    Q_PROPERTY(qreal defaultModelDownloadProgress READ defaultModelDownloadProgress NOTIFY
+                   defaultModelDownloadChanged)
     Q_PROPERTY(QString selectedBackend READ selectedBackend NOTIFY backendChanged)
     Q_PROPERTY(QString actualBackend READ actualBackend NOTIFY backendChanged)
     Q_PROPERTY(QString runtimeVersion READ runtimeVersion NOTIFY backendChanged)
@@ -108,6 +112,8 @@ class ModelManagerViewModel final : public QObject {
     [[nodiscard]] QAbstractItemModel* models() noexcept;
     [[nodiscard]] QString defaultModelId() const;
     [[nodiscard]] bool defaultModelReady() const;
+    [[nodiscard]] bool defaultModelDownloadActive() const noexcept;
+    [[nodiscard]] qreal defaultModelDownloadProgress() const noexcept;
     [[nodiscard]] QString selectedBackend() const;
     [[nodiscard]] QString actualBackend() const;
     [[nodiscard]] QString runtimeVersion() const;
@@ -131,6 +137,7 @@ class ModelManagerViewModel final : public QObject {
   signals:
     void defaultModelChanged();
     void defaultModelReadyChanged();
+    void defaultModelDownloadChanged();
     void backendChanged();
     void downloadRequested(const QString& id);
     void pauseRequested(const QString& id);
@@ -142,16 +149,21 @@ class ModelManagerViewModel final : public QObject {
     void customImportRequested(const QUrl& file);
     void commandRejected(const QString& message);
     void operationSucceeded(const QString& message);
+    void downloadFinished(const QString& id, bool success, const QString& error);
 
   private:
     void refreshFromService();
     void refreshDefaultModelReady();
+    void refreshDefaultModelDownload();
+    void setDefaultModelDownload(const QString& id, bool active, qreal progress);
     void attachDownload(ModelDownloadOperation* operation);
     void persistDefaultModel();
 
     ModelListModel m_models;
     QString m_defaultModelId{"breeze-asr-25-q5"};
     bool m_defaultModelReady{false};
+    bool m_defaultModelDownloadActive{false};
+    qreal m_defaultModelDownloadProgress{0.0};
     QString m_selectedBackend{"Auto"};
     QString m_actualBackend{"Not loaded"};
     QString m_runtimeVersion{"Not loaded"};

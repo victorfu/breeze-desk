@@ -52,6 +52,12 @@ bool isTransientOperationState(const QString& state) {
            state == QLatin1String("Testing");
 }
 
+bool isActiveDownloadState(const ModelDownloadOperation::State state) {
+    return state == ModelDownloadOperation::State::Pending ||
+           state == ModelDownloadOperation::State::Downloading ||
+           state == ModelDownloadOperation::State::Verifying;
+}
+
 ModelListModel::ModelItem modelItem(const ModelManifestEntry& entry) {
     ModelListModel::ModelItem item;
     item.id = entry.id;
@@ -317,6 +323,8 @@ ModelManagerViewModel::ModelManagerViewModel(QObject* parent) : QObject(parent) 
             &ModelManagerViewModel::refreshDefaultModelReady);
     connect(this, &ModelManagerViewModel::defaultModelChanged, this,
             &ModelManagerViewModel::refreshDefaultModelReady);
+    connect(this, &ModelManagerViewModel::defaultModelChanged, this,
+            &ModelManagerViewModel::refreshDefaultModelDownload);
     refreshDefaultModelReady();
 }
 
@@ -369,6 +377,14 @@ bool ModelManagerViewModel::defaultModelReady() const {
     return m_defaultModelReady;
 }
 
+bool ModelManagerViewModel::defaultModelDownloadActive() const noexcept {
+    return m_defaultModelDownloadActive;
+}
+
+qreal ModelManagerViewModel::defaultModelDownloadProgress() const noexcept {
+    return m_defaultModelDownloadProgress;
+}
+
 void ModelManagerViewModel::refreshDefaultModelReady() {
     const bool ready = m_models.isInstalled(m_defaultModelId);
     if (m_defaultModelReady == ready) {
@@ -378,11 +394,37 @@ void ModelManagerViewModel::refreshDefaultModelReady() {
     emit defaultModelReadyChanged();
 }
 
+void ModelManagerViewModel::refreshDefaultModelDownload() {
+    const auto operation = m_downloads.value(m_defaultModelId);
+    if (operation == nullptr) {
+        setDefaultModelDownload(m_defaultModelId, false, 0.0);
+        return;
+    }
+    setDefaultModelDownload(operation->modelId(), isActiveDownloadState(operation->state()),
+                            operation->progress());
+}
+
+void ModelManagerViewModel::setDefaultModelDownload(const QString& id, const bool active,
+                                                    const qreal progress) {
+    if (normalizedModelId(id) != m_defaultModelId) {
+        return;
+    }
+    const qreal boundedProgress = qBound(0.0, progress, 1.0);
+    if (m_defaultModelDownloadActive == active &&
+        qFuzzyCompare(m_defaultModelDownloadProgress, boundedProgress)) {
+        return;
+    }
+    m_defaultModelDownloadActive = active;
+    m_defaultModelDownloadProgress = boundedProgress;
+    emit defaultModelDownloadChanged();
+}
+
 void ModelManagerViewModel::download(const QString& id) {
     const QString normalizedId = normalizedModelId(id);
     emit downloadRequested(normalizedId);
     if (m_modelManager == nullptr) {
         m_models.setState(normalizedId, QStringLiteral("Requested"), 0.0);
+        setDefaultModelDownload(normalizedId, true, 0.0);
         return;
     }
     if (const auto existing = m_downloads.value(normalizedId); existing != nullptr) {
@@ -393,7 +435,10 @@ void ModelManagerViewModel::download(const QString& id) {
     }
     ModelDownloadOperation* operation = m_modelManager->download(normalizedId);
     if (operation == nullptr) {
-        emit commandRejected(tr("This model is not present in the signed model manifest."));
+        const QString error = tr("This model is not present in the signed model manifest.");
+        setDefaultModelDownload(normalizedId, false, 0.0);
+        emit commandRejected(error);
+        emit downloadFinished(normalizedId, false, error);
         return;
     }
     attachDownload(operation);
@@ -406,6 +451,7 @@ void ModelManagerViewModel::pause(const QString& id) {
         operation->pause();
     } else if (m_modelManager == nullptr) {
         m_models.setState(normalizedId, QStringLiteral("Paused"), 0.0);
+        setDefaultModelDownload(normalizedId, false, 0.0);
     }
 }
 
@@ -426,6 +472,7 @@ void ModelManagerViewModel::cancel(const QString& id) {
         operation->cancel();
     } else if (m_modelManager == nullptr) {
         m_models.setState(normalizedId, QStringLiteral("Cancelled"), 0.0);
+        setDefaultModelDownload(normalizedId, false, 0.0);
     }
 }
 
@@ -534,6 +581,7 @@ void ModelManagerViewModel::setDefaultModel(const QString& id) {
     }
     if (m_defaultModelId == normalizedId) {
         persistDefaultModel();
+        refreshDefaultModelDownload();
         return;
     }
     m_defaultModelId = normalizedId;
@@ -542,7 +590,11 @@ void ModelManagerViewModel::setDefaultModel(const QString& id) {
 }
 
 void ModelManagerViewModel::updateDownload(const QString& id, const QString& state, qreal progress) {
-    m_models.setState(normalizedModelId(id), state, progress);
+    const QString normalizedId = normalizedModelId(id);
+    m_models.setState(normalizedId, state, progress);
+    const bool active = state == QLatin1String("Requested") || state == QLatin1String("Downloading") ||
+                        state == QLatin1String("Verifying");
+    setDefaultModelDownload(normalizedId, active, progress);
 }
 
 void ModelManagerViewModel::updateInstalled(const QString& id, bool installed, bool checksumValid) {
@@ -639,6 +691,8 @@ void ModelManagerViewModel::attachDownload(ModelDownloadOperation* operation) {
         m_models.setDownloadMetrics(operation->modelId(), downloadStateName(operation->state()),
                                     operation->progress(), qRound64(operation->bytesPerSecond()),
                                     operation->estimatedRemainingSeconds());
+        setDefaultModelDownload(operation->modelId(), isActiveDownloadState(operation->state()),
+                                operation->progress());
     };
     connect(operation, &ModelDownloadOperation::stateChanged, this, refresh);
     connect(operation, &ModelDownloadOperation::progressChanged, this, refresh);
@@ -653,6 +707,8 @@ void ModelManagerViewModel::attachDownload(ModelDownloadOperation* operation) {
                     emit commandRejected(operation->error());
                 }
                 m_downloads.remove(id);
+                setDefaultModelDownload(id, false, success && installed ? 1.0 : operation->progress());
+                emit downloadFinished(id, success && installed, operation->error());
             });
     refresh();
 }

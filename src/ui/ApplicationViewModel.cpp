@@ -25,8 +25,11 @@
 #include <algorithm>
 #include <atomic>
 #include <memory>
+#include <utility>
 
 namespace {
+
+constexpr auto RecommendedTranscriptionModelId = "breeze-asr-25-q5";
 
 struct WaveformLoadResult {
     QString recordingId;
@@ -209,6 +212,21 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
     connect(&m_player, &PlayerViewModel::positionChanged, this,
             [this] { m_transcript.updatePlaybackPosition(m_player.position()); });
     connect(&m_modelManager, &ModelManagerViewModel::commandRejected, this, &ApplicationViewModel::showToast);
+    connect(&m_modelManager, &ModelManagerViewModel::downloadFinished, this,
+            [this](const QString& id, const bool success, const QString&) {
+                if (id != QLatin1String(RecommendedTranscriptionModelId) ||
+                    m_pendingTranscriptionRecordingIds.isEmpty()) {
+                    return;
+                }
+                const QStringList pending = std::exchange(m_pendingTranscriptionRecordingIds, {});
+                if (!success) {
+                    return;
+                }
+                m_modelManager.setDefaultModel(QString::fromLatin1(RecommendedTranscriptionModelId));
+                for (const QString& recordingId : pending) {
+                    (void)enqueueTranscription(recordingId);
+                }
+            });
     connect(&m_transcript, &TranscriptViewModel::validationError, this, &ApplicationViewModel::showToast);
     connect(&m_transcriptRevisions, &TranscriptRevisionViewModel::operationFailed, this,
             &ApplicationViewModel::showToast);
@@ -319,13 +337,23 @@ void ApplicationViewModel::navigate(const QString& page) {
 }
 
 int ApplicationViewModel::importUrls(const QVariantList& urls) {
-    return importUrlsInternal(urls, 0);
+    return importUrlsInternal(urls, 0, urls.size() == 1);
 }
 
-int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const quint64 folderOperation) {
+int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const quint64 folderOperation,
+                                             const bool openSingleImport) {
     const bool trackedFolderImport = folderOperation != 0;
+    const bool openAfterImport = openSingleImport && urls.size() == 1;
     const auto cancellation =
         trackedFolderImport ? m_folderImportCancellation : std::shared_ptr<std::atomic_bool>{};
+    QStringList synchronouslyImportedIds;
+    const QMetaObject::Connection importedConnection =
+        openAfterImport
+            ? connect(&m_library, &LibraryViewModel::recordingImported, this,
+                      [&synchronouslyImportedIds](const QString& recordingId, const QString&) {
+                          synchronouslyImportedIds.append(recordingId);
+                      })
+            : QMetaObject::Connection{};
     QVariantList referencedUrls;
     int immediateCount = 0;
     int scheduledCount = 0;
@@ -379,7 +407,7 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
             ++m_folderImportActiveCopies;
         }
         connect(watcher, &QFutureWatcher<ManagedCopyResult>::finished, this,
-                [this, watcher, folderOperation, cancellation] {
+                [this, watcher, folderOperation, cancellation, openAfterImport] {
                     const ManagedCopyResult result = watcher->result();
                     watcher->deleteLater();
                     const bool tracked = folderOperation != 0 && folderOperation == m_folderImportGeneration;
@@ -407,7 +435,9 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                         }
                         return;
                     }
-                    if (m_library.importManagedCopy(result.originalUrl, result.managedPath).isEmpty()) {
+                    const QString recordingId =
+                        m_library.importManagedCopy(result.originalUrl, result.managedPath);
+                    if (recordingId.isEmpty()) {
                         if (isInsideDirectory(result.managedPath, StoragePaths::recordings())) {
                             (void)QFile::remove(result.managedPath);
                         }
@@ -420,6 +450,9 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                         completeFolderImportItems(folderOperation, 1, 1);
                     } else {
                         showToast(tr("Imported a managed media copy."));
+                        if (openAfterImport) {
+                            openRecording(recordingId);
+                        }
                     }
                 });
         watcher->setFuture(QtConcurrent::run(copyManagedMedia, url, destination, cancellation));
@@ -437,12 +470,17 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
     }
     if (immediateCount > 0) {
         showToast(tr("Imported %n media file(s).", nullptr, immediateCount));
-        navigate(QStringLiteral("Library"));
+        if (openAfterImport && synchronouslyImportedIds.size() == 1) {
+            openRecording(synchronouslyImportedIds.constFirst());
+        } else {
+            navigate(QStringLiteral("Library"));
+        }
     }
     if (scheduledCount > 0) {
         showToast(tr("Copying %n media file(s) into managed storage…", nullptr, scheduledCount));
         navigate(QStringLiteral("Library"));
     }
+    disconnect(importedConnection);
     return immediateCount + scheduledCount;
 }
 
@@ -664,6 +702,33 @@ void ApplicationViewModel::openRecording(const QString& recordingId) {
     reloadActiveTranscript();
     emit activeRecordingChanged();
     navigate(QStringLiteral("Recording"));
+}
+
+QString ApplicationViewModel::requestTranscription(const QString& recordingId) {
+    if (m_library.details(recordingId).isEmpty()) {
+        showToast(tr("Choose an imported recording first."));
+        return {};
+    }
+    if (m_modelManager.defaultModelReady()) {
+        return enqueueTranscription(recordingId);
+    }
+
+    const QString recommendedModel = QString::fromLatin1(RecommendedTranscriptionModelId);
+    m_modelManager.setDefaultModel(recommendedModel);
+    if (m_modelManager.defaultModelReady()) {
+        return enqueueTranscription(recordingId);
+    }
+
+    if (!m_pendingTranscriptionRecordingIds.contains(recordingId)) {
+        m_pendingTranscriptionRecordingIds.append(recordingId);
+    }
+    const bool downloadAlreadyActive = m_modelManager.defaultModelDownloadActive();
+    m_modelManager.download(recommendedModel);
+    if (!downloadAlreadyActive && m_modelManager.defaultModelDownloadActive()) {
+        showToast(tr("Downloading and verifying Breeze-ASR-25 Q5_K. Transcription will start "
+                     "automatically when it is ready."));
+    }
+    return {};
 }
 
 QString ApplicationViewModel::enqueueTranscription(const QString& recordingId) {

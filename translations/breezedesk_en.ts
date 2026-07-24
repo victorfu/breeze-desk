@@ -98,6 +98,10 @@
         <translation>Transcription added to the queue.</translation>
     </message>
     <message>
+        <source>Downloading and verifying Breeze-ASR-25 Q5_K. Transcription will start automatically when it is ready.</source>
+        <translation>Downloading and verifying Breeze-ASR-25 Q5_K. Transcription will start automatically when it is ready.</translation>
+    </message>
+    <message>
         <location filename="../src/ui/ApplicationViewModel.cpp" line="682"/>
         <source>Open a recording before exporting.</source>
         <translation>Open a recording before exporting.</translation>
@@ -1337,6 +1341,14 @@
 <context>
     <name>LibraryPage</name>
     <message>
+        <source>Downloading transcription model</source>
+        <translation>Downloading transcription model</translation>
+    </message>
+    <message>
+        <source>Downloading Breeze-ASR-25 Q5_K… %1%</source>
+        <translation>Downloading Breeze-ASR-25 Q5_K… %1%</translation>
+    </message>
+    <message>
         <location filename="../src/qml/pages/LibraryPage.qml" line="39"/>
         <source>Library</source>
         <translation>Library</translation>
@@ -1659,6 +1671,10 @@
 </context>
 <context>
     <name>ModelCard</name>
+    <message>
+        <source>Downloading model</source>
+        <translation>Downloading model</translation>
+    </message>
     <message>
         <location filename="../src/qml/components/ModelCard.qml" line="57"/>
         <source>Recommended</source>
@@ -2190,6 +2206,14 @@
 </context>
 <context>
     <name>RecordingPage</name>
+    <message>
+        <source>Downloading transcription model</source>
+        <translation>Downloading transcription model</translation>
+    </message>
+    <message>
+        <source>Downloading Q5_K…</source>
+        <translation>Downloading Q5_K…</translation>
+    </message>
     <message>
         <location filename="../src/qml/pages/RecordingPage.qml" line="383"/>
         <source>Transcribe</source>

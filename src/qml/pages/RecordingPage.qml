@@ -25,21 +25,13 @@ Item {
     onCompactInspectorChanged: if (!compactInspector) compactInspectorOpen = false
 
     function requestTranscription() {
-        if (root.vm.modelManager.defaultModelReady)
-            root.vm.enqueueTranscription(root.vm.activeRecordingId)
-        else
-            modelRequiredDialog.open()
+        root.vm.requestTranscription(root.vm.activeRecordingId)
     }
 
     function requestRevisionDeletion(jobId) {
         root.pendingDeleteRevisionId = jobId
         root.pendingDeleteRevision = root.vm.transcriptRevisionDetails(jobId)
         deleteRevisionDialog.open()
-    }
-
-    ModelRequiredDialog {
-        id: modelRequiredDialog
-        app: root.vm
     }
 
     AppDialog {
@@ -366,7 +358,22 @@ Item {
                     Text { text: root.detail.sourcePath; color: SemanticTokens.textMuted; elide: Text.ElideMiddle; font.pixelSize: SemanticTokens.captionSize; Layout.maximumWidth: 520 }
                 }
             }
-            AppButton { text: qsTr("Transcribe"); primary: true; onClicked: root.requestTranscription() }
+            BusyIndicator {
+                objectName: "recordingModelDownloadSpinner"
+                visible: root.vm.modelManager.defaultModelDownloadActive
+                running: visible
+                implicitWidth: 28
+                implicitHeight: 28
+                Accessible.name: qsTr("Downloading transcription model")
+            }
+            AppButton {
+                objectName: "recordingTranscribeButton"
+                text: root.vm.modelManager.defaultModelDownloadActive
+                      ? qsTr("Downloading Q5_K…") : qsTr("Transcribe")
+                enabled: !root.vm.modelManager.defaultModelDownloadActive
+                primary: true
+                onClicked: root.requestTranscription()
+            }
             AppButton { text: qsTr("Export"); onClicked: root.vm.exportActiveRecording() }
             AppButton {
                 objectName: "recordingInspectorButton"

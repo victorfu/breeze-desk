@@ -363,6 +363,70 @@ class LibraryWorkflowsTest final : public QObject {
         viewModel.revealRecording(alphaId);
         QCOMPARE(platform.revealedPath, QFileInfo(replacement).absoluteFilePath());
     }
+
+    void singleFileImportOpensTranscriptWorkspace() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("single-import.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteRecordingRepository repository(database);
+        const QString mediaPath = directory.filePath(QStringLiteral("meeting.wav"));
+        createFile(mediaPath);
+
+        BreezeDesk::ApplicationViewModel viewModel(&repository);
+        QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(mediaPath)}), 1);
+        QVERIFY(!viewModel.activeRecordingId().isEmpty());
+        QCOMPARE(viewModel.library()->selectedRecordingId(), viewModel.activeRecordingId());
+        QCOMPARE(viewModel.currentPage(), QStringLiteral("Recording"));
+    }
+
+    void missingTranscriptionModelDownloadsQ5AndContinuesPendingRequest() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("model-download.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteRecordingRepository repository(database);
+        const QString mediaPath = directory.filePath(QStringLiteral("meeting.wav"));
+        createFile(mediaPath);
+
+        BreezeDesk::ApplicationViewModel viewModel(&repository);
+        QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(mediaPath)}), 1);
+        const QString recordingId = viewModel.activeRecordingId();
+        QVERIFY(!recordingId.isEmpty());
+
+        viewModel.modelManager()->setDefaultModel(QStringLiteral("breeze-asr-25-q8"));
+        QSignalSpy downloadRequested(viewModel.modelManager(),
+                                     &BreezeDesk::ModelManagerViewModel::downloadRequested);
+        QSignalSpy transcriptionRequested(&viewModel,
+                                          &BreezeDesk::ApplicationViewModel::transcriptionJobRequested);
+        connect(&viewModel, &BreezeDesk::ApplicationViewModel::transcriptionJobRequested, &viewModel,
+                [&viewModel](const QString& jobId, const QString& id) {
+                    viewModel.jobQueue()->updateJob(jobId, id, QStringLiteral("Fixture job"),
+                                                    QStringLiteral("Queued"),
+                                                    QStringLiteral("Preparing"), 0.0);
+                });
+
+        QVERIFY(viewModel.requestTranscription(recordingId).isEmpty());
+        QCOMPARE(viewModel.modelManager()->defaultModelId(), QStringLiteral("breeze-asr-25-q5"));
+        QVERIFY(viewModel.modelManager()->defaultModelDownloadActive());
+        QCOMPARE(downloadRequested.count(), 1);
+        QCOMPARE(downloadRequested.constFirst().constFirst().toString(),
+                 QStringLiteral("breeze-asr-25-q5"));
+        QCOMPARE(transcriptionRequested.count(), 0);
+
+        viewModel.modelManager()->updateInstalled(QStringLiteral("breeze-asr-25-q5"), true, true);
+        viewModel.modelManager()->updateDownload(QStringLiteral("breeze-asr-25-q5"),
+                                                 QStringLiteral("Installed"), 1.0);
+        QVERIFY(QMetaObject::invokeMethod(viewModel.modelManager(), "downloadFinished",
+                                         Qt::DirectConnection,
+                                         Q_ARG(QString, QStringLiteral("breeze-asr-25-q5")),
+                                         Q_ARG(bool, true), Q_ARG(QString, QString{})));
+        QCOMPARE(transcriptionRequested.count(), 1);
+        QCOMPARE(viewModel.jobQueue()->jobs()->rowCount(), 1);
+        QCOMPARE(viewModel.currentPage(), QStringLiteral("Queue"));
+    }
 };
 
 QTEST_GUILESS_MAIN(LibraryWorkflowsTest)

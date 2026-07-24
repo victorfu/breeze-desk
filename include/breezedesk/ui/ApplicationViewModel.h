@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QStringList>
 #include <QTimer>
 #include <QUrl>
 #include <QVariantList>
@@ -78,6 +79,7 @@ class ApplicationViewModel : public QObject {
     Q_INVOKABLE void cancelFolderImport();
     Q_INVOKABLE void revealRecording(const QString& recordingId);
     Q_INVOKABLE void openRecording(const QString& recordingId);
+    Q_INVOKABLE QString requestTranscription(const QString& recordingId);
     Q_INVOKABLE QString enqueueTranscription(const QString& recordingId);
     Q_INVOKABLE void exportActiveRecording();
     Q_INVOKABLE void exportActiveRecordingTo(const QUrl& file, const QString& format,
@@ -111,7 +113,7 @@ class ApplicationViewModel : public QObject {
   private:
     [[nodiscard]] bool saveActiveTranscript();
     bool showTranscriptRevision(const QString& jobId, bool editingLocked, bool pinSelection);
-    int importUrlsInternal(const QVariantList& urls, quint64 folderOperation);
+    int importUrlsInternal(const QVariantList& urls, quint64 folderOperation, bool openSingleImport = false);
     void processFolderImportBatch();
     void completeFolderImportItems(quint64 operation, int processed, int succeeded);
     void finishFolderImport(quint64 operation, bool cancelled);
@@ -129,6 +131,7 @@ class ApplicationViewModel : public QObject {
     QString m_currentPage{"Library"};
     QString m_activeRecordingId;
     QString m_activeTranscriptJobId;
+    QStringList m_pendingTranscriptionRecordingIds;
     QString m_toastMessage;
     ITranscriptRepository* m_transcriptRepository{nullptr};
     IJobRepository* m_jobRepository{nullptr};

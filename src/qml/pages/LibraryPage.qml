@@ -126,6 +126,28 @@ Item {
                 AppButton { text: qsTr("Cancel"); onClicked: root.app.cancelFolderImport() }
             }
         }
+        RowLayout {
+            objectName: "libraryModelDownloadStatus"
+            Layout.fillWidth: true
+            visible: root.app.modelManager.defaultModelDownloadActive
+            spacing: SemanticTokens.spacingSm
+
+            BusyIndicator {
+                objectName: "libraryModelDownloadSpinner"
+                running: parent.visible
+                implicitWidth: 24
+                implicitHeight: 24
+                Accessible.name: qsTr("Downloading transcription model")
+            }
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("Downloading Breeze-ASR-25 Q5_K… %1%")
+                          .arg(Math.round(root.app.modelManager.defaultModelDownloadProgress * 100))
+                color: SemanticTokens.textMuted
+                wrapMode: Text.WordWrap
+                font.pixelSize: SemanticTokens.captionSize
+            }
+        }
         Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: SemanticTokens.border }
         EmptyState {
             Layout.fillWidth: true
@@ -161,10 +183,7 @@ Item {
                     root.vm.activateRecording(recordingId)
                 }
                 onTranscribeRequested: function(recordingId) {
-                    if (root.app.modelManager.defaultModelReady)
-                        root.app.enqueueTranscription(recordingId)
-                    else
-                        modelRequiredDialog.open()
+                    root.app.requestTranscription(recordingId)
                 }
                 onTrashRequested: function(recordingId) {
                     const libraryVm = root.vm
@@ -243,11 +262,6 @@ Item {
                 font.pixelSize: SemanticTokens.captionSize
             }
         }
-    }
-
-    ModelRequiredDialog {
-        id: modelRequiredDialog
-        app: root.app
     }
 
     FileDialog {

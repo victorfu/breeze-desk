@@ -461,7 +461,7 @@ class tst_QmlSmoke final : public QObject {
                 ModelCard {
                     anchors.fill: parent
                     modelId: "fixture-model"
-                    displayName: "Fixture model"
+                    displayName: "Fixture model with a complete name that must wrap instead of using an ellipsis"
                     description: "Fixture description"
                     quantization: "Q5"
                     fileSize: 1000000000
@@ -485,9 +485,15 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
 
         auto* downloadButton = root->findChild<QQuickItem*>(QStringLiteral("modelDownloadButton"));
+        auto* downloadSpinner = root->findChild<QQuickItem*>(QStringLiteral("modelDownloadSpinner"));
+        auto* displayName = root->findChild<QQuickItem*>(QStringLiteral("modelDisplayName"));
         QVERIFY(downloadButton);
+        QVERIFY(downloadSpinner);
+        QVERIFY(displayName);
+        QCOMPARE(displayName->property("elide").toInt(), static_cast<int>(Qt::ElideNone));
         QVERIFY(downloadButton->property("visible").toBool());
         QVERIFY(downloadButton->property("enabled").toBool());
+        QVERIFY(!downloadSpinner->property("visible").toBool());
 
         for (const QString& busyState :
              {QStringLiteral("Requested"), QStringLiteral("Downloading"), QStringLiteral("Verifying")}) {
@@ -497,6 +503,8 @@ class tst_QmlSmoke final : public QObject {
                      qPrintable(QStringLiteral("Download action stayed visible in state %1").arg(busyState)));
             QVERIFY2(!downloadButton->property("enabled").toBool(),
                      qPrintable(QStringLiteral("Download action stayed enabled in state %1").arg(busyState)));
+            QVERIFY(downloadSpinner->property("visible").toBool());
+            QVERIFY(downloadSpinner->property("running").toBool());
         }
 
         for (const QString& availableState :
@@ -505,6 +513,7 @@ class tst_QmlSmoke final : public QObject {
             QCoreApplication::processEvents();
             QVERIFY(downloadButton->property("visible").toBool());
             QVERIFY(downloadButton->property("enabled").toBool());
+            QVERIFY(!downloadSpinner->property("visible").toBool());
             QCOMPARE(downloadButton->property("text").toString(), availableState == QLatin1String("Paused")
                                                                       ? QStringLiteral("Resume")
                                                                       : QStringLiteral("Download"));
@@ -1932,6 +1941,8 @@ class tst_QmlSmoke final : public QObject {
         const QString id =
             vm.library()->recordings()->data(first, BreezeDesk::RecordingListModel::IdRole).toString();
         QVERIFY(!id.isEmpty());
+        QCOMPARE(vm.activeRecordingId(), id);
+        QCOMPARE(vm.currentPage(), QStringLiteral("Recording"));
         vm.openRecording(id);
         QCOMPARE(vm.activeRecordingId(), id);
         QCOMPARE(vm.currentPage(), QStringLiteral("Recording"));
