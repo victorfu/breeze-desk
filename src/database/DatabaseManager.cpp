@@ -361,7 +361,7 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         }
         currentVersion = query.value(0).toInt();
     }
-    constexpr int latestSchemaVersion = 7;
+    constexpr int latestSchemaVersion = 8;
     if (currentVersion > latestSchemaVersion) {
         return Result<void>::failure(
             UserFacingError::database(ErrorCode::DatabaseMigrationFailed,
@@ -392,6 +392,11 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         {7,
          {QStringLiteral("revision_history_and_execution_lease"),
           migrationChecksum(revisionHistorySchema())}},
+        {8,
+         {QStringLiteral("search_index_trigram"),
+          QString::fromLatin1(QCryptographicHash::hash(QByteArrayLiteral("fts5-trigram-or-fallback-v1"),
+                                                       QCryptographicHash::Sha256)
+                                  .toHex())}},
     };
     QSet<int> appliedVersions;
     QSqlQuery applied(database);
@@ -565,6 +570,74 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         if (!result)
             return result;
         currentVersion = 7;
+    }
+    if (currentVersion < 8) {
+        if (!database.transaction()) {
+            return Result<void>::failure(sqlError(
+                ErrorCode::DatabaseMigrationFailed,
+                QStringLiteral("The search reindex migration could not be started."), database.lastError()));
+        }
+        QSqlQuery drop(database);
+        // Tolerated: builds without the fts5 module cannot drop the old virtual table.
+        drop.exec(QStringLiteral("DROP TABLE IF EXISTS search_index"));
+        QSqlQuery fts(database);
+        // No IF NOT EXISTS: if the old table survived the drop, creation must fail so a stale
+        // unicode61 index is never mistaken for a trigram index.
+        m_hasFts5 = fts.exec(QStringLiteral("CREATE VIRTUAL TABLE search_index USING fts5("
+                                            "recording_id UNINDEXED, title, notes, tags, transcript, "
+                                            "tokenize='trigram')"));
+        QSqlQuery feature(database);
+        feature.prepare(QStringLiteral(
+            "INSERT OR REPLACE INTO database_features(name, enabled, detail) VALUES('fts5', ?, ?)"));
+        feature.addBindValue(m_hasFts5 ? 1 : 0);
+        feature.addBindValue(m_hasFts5 ? QStringLiteral("SQLite FTS5 trigram virtual table")
+                                       : fts.lastError().text());
+        if (!feature.exec()) {
+            database.rollback();
+            return Result<void>::failure(sqlError(
+                ErrorCode::DatabaseMigrationFailed,
+                QStringLiteral("The database capabilities could not be recorded."), feature.lastError()));
+        }
+        const QString indexSource = QStringLiteral(
+            "SELECT r.id, r.title, r.notes, "
+            "COALESCE((SELECT group_concat(t.name,' ') FROM tags t JOIN recording_tags rt ON "
+            "rt.tag_id=t.id WHERE rt.recording_id=r.id),''), "
+            "COALESCE((SELECT group_concat(CASE WHEN s.edited_text='' THEN s.original_text ELSE "
+            "s.edited_text END,' ') FROM transcript_segments s WHERE s.recording_id=r.id),'') "
+            "FROM recordings r");
+        QStringList reindexStatements = {
+            QStringLiteral("DELETE FROM search_index_fallback"),
+            QStringLiteral("INSERT INTO search_index_fallback(recording_id,title,notes,tags,transcript) ") +
+                indexSource};
+        if (m_hasFts5) {
+            reindexStatements.append(
+                QStringLiteral("INSERT INTO search_index(recording_id,title,notes,tags,transcript) ") +
+                indexSource);
+        }
+        for (const QString& statement : reindexStatements) {
+            QSqlQuery reindex(database);
+            if (!reindex.exec(statement)) {
+                database.rollback();
+                return Result<void>::failure(
+                    sqlError(ErrorCode::DatabaseMigrationFailed,
+                             QStringLiteral("The search index could not be rebuilt."), reindex.lastError()));
+            }
+        }
+        QSqlQuery record(database);
+        record.prepare(QStringLiteral("INSERT INTO schema_migrations(version, name, checksum, applied_at) "
+                                      "VALUES(8, 'search_index_trigram', ?, ?)"));
+        record.addBindValue(
+            QString::fromLatin1(QCryptographicHash::hash(QByteArrayLiteral("fts5-trigram-or-fallback-v1"),
+                                                         QCryptographicHash::Sha256)
+                                    .toHex()));
+        record.addBindValue(TimeUtils::nowStorageString());
+        if (!record.exec() || !database.commit()) {
+            database.rollback();
+            return Result<void>::failure(sqlError(
+                ErrorCode::DatabaseMigrationFailed,
+                QStringLiteral("The search reindex migration could not be committed."), record.lastError()));
+        }
+        currentVersion = 8;
     }
     m_schemaVersion = currentVersion;
     return Result<void>::success();
