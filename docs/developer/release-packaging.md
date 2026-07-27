@@ -73,7 +73,7 @@ available. `build-ffmpeg-lgpl.ps1` bootstraps checksum-pinned portable w64devkit
 archives when that directory must be built, so MSYS2 is not required.
 
 The public Partner Center values from **Product identity** are committed in
-`packaging/windows/msix-identity.psd1`, so both local and CI release builds use the official Store
+`packaging/windows/msix-identity.ps1`, so both local and CI release builds use the official Store
 identity by default:
 
 ```powershell
@@ -82,6 +82,11 @@ identity by default:
 
 The wrapper builds or reuses the pinned LGPL FFmpeg sidecars, then delegates to
 `packaging/windows/package.bat`. An existing `BREEZEDESK_FFMPEG_DIR` remains available as an override.
+It discovers Qt from `BREEZEDESK_QT_ROOT`, `QT_PATH`, `Qt6_DIR`, `CMAKE_PREFIX_PATH`, `PATH`, or a
+standard `C:\Qt\<version>\msvc*_64` installation. ImageMagick is resolved from `PATH`,
+`BREEZEDESK_MAGICK`, or its standard Program Files installation. The Vulkan SDK is resolved from
+`VULKAN_SDK`, `VK_SDK_PATH`, or `C:\VulkanSDK\<version>` and must provide headers, `vulkan-1.lib`, and
+`glslc.exe`.
 
 For a development package only, `BREEZEDESK_MSIX_IDENTITY_NAME`, `BREEZEDESK_MSIX_PUBLISHER`, and
 `BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME` may override the committed values when all three are set

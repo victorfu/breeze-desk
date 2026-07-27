@@ -30,7 +30,7 @@
       </uap:VisualElements>
       <Extensions>
         <uap:Extension Category="windows.fileTypeAssociation">
-          <uap:FileTypeAssociation Name="@PRODUCT_ID@media">
+          <uap:FileTypeAssociation Name="breezedesk.media">
             <uap:DisplayName>@PRODUCT_NAME@ media</uap:DisplayName>
             <uap:SupportedFileTypes>
               <uap:FileType>.wav</uap:FileType>

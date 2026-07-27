@@ -189,7 +189,7 @@ Retired: `WINDOWS_CERTIFICATE_PFX_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`, `WINS
 `WINSPARKLE_PUBLIC_KEY`, `MACOS_CODESIGN_IDENTITY`, `RUN_WINDOWS_CUDA_PACKAGE`.
 
 The BreezeDesk product was reserved in Partner Center on 2026-07-27. Its public identity name,
-publisher, and publisher display name are committed in `packaging/windows/msix-identity.psd1`; they are
+publisher, and publisher display name are committed in `packaging/windows/msix-identity.ps1`; they are
 package metadata rather than credentials. The matching environment variables remain optional local
 overrides and are not CI configuration.
 

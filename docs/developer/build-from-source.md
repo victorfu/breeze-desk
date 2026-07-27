@@ -97,7 +97,7 @@ Release package commands are:
 .\scripts\package-windows.ps1
 ```
 
-The official Store identity is read from `packaging/windows/msix-identity.psd1`. Optional
+The official Store identity is read from `packaging/windows/msix-identity.ps1`. Optional
 `BREEZEDESK_MSIX_IDENTITY_NAME`, `BREEZEDESK_MSIX_PUBLISHER`, and
 `BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME` environment variables override it for development packages
 when all three are set together.

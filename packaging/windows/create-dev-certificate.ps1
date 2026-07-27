@@ -14,11 +14,11 @@ if ([string]::IsNullOrWhiteSpace($Publisher)) {
     $Publisher = $env:BREEZEDESK_MSIX_PUBLISHER
 }
 if ([string]::IsNullOrWhiteSpace($Publisher)) {
-    $StoreIdentity = Import-PowerShellDataFile (Join-Path $PSScriptRoot "msix-identity.psd1")
+    $StoreIdentity = & (Join-Path $PSScriptRoot "msix-identity.ps1")
     $Publisher = [string]$StoreIdentity.Publisher
 }
 if ([string]::IsNullOrWhiteSpace($Publisher)) {
-    throw "The MSIX publisher is empty in msix-identity.psd1 and has no parameter or environment override."
+    throw "The MSIX publisher is empty in msix-identity.ps1 and has no parameter or environment override."
 }
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
     $OutputDirectory = Join-Path $ProjectDirectory "build\msix-dev-certificate"

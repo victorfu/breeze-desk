@@ -24,7 +24,7 @@ if (-not (Test-Path (Join-Path $StageDirectory "bin\$ExecutableName.exe"))) {
     throw "The staged executable bin\$ExecutableName.exe does not exist."
 }
 $PackageVersion = "$Version.0"
-$StoreIdentity = Import-PowerShellDataFile (Join-Path $PSScriptRoot "msix-identity.psd1")
+$StoreIdentity = & (Join-Path $PSScriptRoot "msix-identity.ps1")
 $IdentityOverrides = @{
     IdentityName = $env:BREEZEDESK_MSIX_IDENTITY_NAME
     Publisher = $env:BREEZEDESK_MSIX_PUBLISHER
@@ -44,7 +44,7 @@ foreach ($RequiredIdentity in @(
     @('PublisherDisplayName', $PublisherDisplayName)
 )) {
     if ([string]::IsNullOrWhiteSpace($RequiredIdentity[1])) {
-        throw "MSIX identity value '$($RequiredIdentity[0])' is empty in msix-identity.psd1 and has no environment override."
+        throw "MSIX identity value '$($RequiredIdentity[0])' is empty in msix-identity.ps1 and has no environment override."
     }
 }
 if ($IdentityName -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]{1,48}[A-Za-z0-9-]$') {
