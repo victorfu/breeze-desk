@@ -6,6 +6,24 @@
 #include <algorithm>
 
 namespace BreezeDesk {
+namespace {
+bool isActiveTranscriptionState(const QString& state) {
+    return state == QLatin1String("Preparing") || state == QLatin1String("Normalizing") ||
+           state == QLatin1String("WaitingForModel") || state == QLatin1String("LoadingModel") ||
+           state == QLatin1String("AnalyzingSpeech") || state == QLatin1String("Transcribing") ||
+           state == QLatin1String("Finalizing") || state == QLatin1String("Cancelling");
+}
+
+QString displayStatus(const ::BreezeDesk::Recording& recording) {
+    if (isActiveTranscriptionState(recording.latestJobState)) {
+        return QStringLiteral("Transcribing");
+    }
+    if (!recording.latestJobState.isEmpty()) {
+        return recording.latestJobState;
+    }
+    return recording.activeJobId.isEmpty() ? QStringLiteral("Imported") : QStringLiteral("Completed");
+}
+} // namespace
 
 RecordingListModel::RecordingListModel(QObject* parent) : QAbstractListModel(parent) {}
 
@@ -100,10 +118,7 @@ bool RecordingListModel::addRecording(const ::BreezeDesk::Recording& recording) 
     item.sourceUrl = QUrl::fromLocalFile(playbackPath);
     item.durationMs = recording.durationMs;
     item.createdAt = recording.createdAt;
-    item.status =
-        recording.latestJobState.isEmpty()
-            ? (recording.activeJobId.isEmpty() ? QStringLiteral("Imported") : QStringLiteral("Completed"))
-            : recording.latestJobState;
+    item.status = displayStatus(recording);
     item.model = recording.latestJobModelId;
     item.progress = qBound(0.0, recording.latestJobProgress, 1.0);
     item.tags = recording.tags;
@@ -138,10 +153,7 @@ void RecordingListModel::replaceRecordings(const QList<::BreezeDesk::Recording>&
         item.sourceUrl = QUrl::fromLocalFile(playbackPath);
         item.durationMs = recording.durationMs;
         item.createdAt = recording.createdAt;
-        item.status =
-            recording.latestJobState.isEmpty()
-                ? (recording.activeJobId.isEmpty() ? QStringLiteral("Imported") : QStringLiteral("Completed"))
-                : recording.latestJobState;
+        item.status = displayStatus(recording);
         item.model = recording.latestJobModelId;
         item.progress = qBound(0.0, recording.latestJobProgress, 1.0);
         item.tags = recording.tags;
@@ -243,6 +255,30 @@ bool RecordingListModel::setReviewState(const QString& id, const QString& state)
     }
     m_recordings[row].reviewState = state;
     emit dataChanged(index(row), index(row), {ReviewStateRole});
+    return true;
+}
+
+bool RecordingListModel::setJobStatus(const QString& id, const QString& status, const qreal progress) {
+    const int row = indexOf(id);
+    if (row < 0) {
+        return false;
+    }
+    Recording& recording = m_recordings[row];
+    const QString displayed = isActiveTranscriptionState(status) ? QStringLiteral("Transcribing") : status;
+    const qreal boundedProgress = qBound(0.0, progress, 1.0);
+    QList<int> roles;
+    if (recording.status != displayed) {
+        recording.status = displayed;
+        roles.append(StatusRole);
+    }
+    if (!qFuzzyCompare(recording.progress + 1.0, boundedProgress + 1.0)) {
+        recording.progress = boundedProgress;
+        roles.append(ProgressRole);
+    }
+    if (roles.isEmpty()) {
+        return false;
+    }
+    emit dataChanged(index(row), index(row), roles);
     return true;
 }
 

@@ -91,9 +91,12 @@ ItemDelegate {
                     enabled: false
                 }
                 StatusBadge {
+                    objectName: "recordingStatusBadge"
                     Layout.minimumWidth: implicitWidth
                     text: control.displayedStatus
-                    tone: control.status === "Completed" ? "success" : "neutral"
+                    tone: control.status === "Transcribing" ? "accent"
+                          : control.status === "Completed" ? "success"
+                          : control.status === "Failed" ? "danger" : "neutral"
                 }
                 StatusBadge {
                     Layout.minimumWidth: implicitWidth
@@ -138,8 +141,9 @@ ItemDelegate {
             }
 
             AppProgressBar {
+                objectName: "recordingTranscriptionProgress"
                 Layout.fillWidth: true
-                visible: control.progress > 0 && control.progress < 1
+                visible: control.status === "Transcribing" && control.progress > 0 && control.progress < 1
                 value: control.progress
             }
         }

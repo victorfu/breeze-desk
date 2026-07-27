@@ -69,6 +69,7 @@ class LibraryViewModel final : public QObject {
     Q_INVOKABLE void refresh();
 
     void setRepository(IRecordingRepository* repository);
+    void setRecordingJobStatus(const QString& recordingId, const QString& status, qreal progress);
 
   public slots:
     void setSearchText(const QString& text);

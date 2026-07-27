@@ -66,6 +66,7 @@ class RecordingListModel final : public QAbstractListModel {
     bool setTags(const QString& id, const QStringList& tags);
     bool setNotes(const QString& id, const QString& notes);
     bool setReviewState(const QString& id, const QString& state);
+    bool setJobStatus(const QString& id, const QString& status, qreal progress);
     [[nodiscard]] QVariantMap recording(const QString& id) const;
 
   private:

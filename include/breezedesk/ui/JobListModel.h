@@ -67,6 +67,7 @@ class JobListModel final : public QAbstractListModel {
     [[nodiscard]] int activeCount() const;
     [[nodiscard]] bool isWritingTranscript(const QString& id) const;
     [[nodiscard]] bool isWritingRecording(const QString& recordingId) const;
+    [[nodiscard]] qreal writingProgress(const QString& recordingId) const;
     [[nodiscard]] bool contains(const QString& id) const;
     [[nodiscard]] QString runningJobId() const;
     [[nodiscard]] int queuePosition(const QString& id) const;

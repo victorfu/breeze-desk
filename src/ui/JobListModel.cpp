@@ -302,6 +302,13 @@ bool JobListModel::isWritingRecording(const QString& recordingId) const {
     });
 }
 
+qreal JobListModel::writingProgress(const QString& recordingId) const {
+    const auto running = std::find_if(m_jobs.cbegin(), m_jobs.cend(), [&](const Job& job) {
+        return job.recordingId == recordingId && isRunningState(job.state);
+    });
+    return running == m_jobs.cend() ? 0.0 : running->progress;
+}
+
 bool JobListModel::contains(const QString& id) const {
     return indexOf(id) >= 0;
 }

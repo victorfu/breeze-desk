@@ -426,6 +426,25 @@ class LibraryWorkflowsTest final : public QObject {
         QCOMPARE(transcriptionRequested.count(), 1);
         QCOMPARE(viewModel.jobQueue()->jobs()->rowCount(), 1);
         QCOMPARE(viewModel.currentPage(), QStringLiteral("Queue"));
+
+        const QString jobId = transcriptionRequested.constFirst().at(0).toString();
+        QAbstractItemModel* recordings = viewModel.library()->recordings();
+        QCOMPARE(recordings->rowCount(), 1);
+        viewModel.jobQueue()->updateJob(jobId, recordingId, QStringLiteral("Fixture job"),
+                                        QStringLiteral("LoadingModel"), QStringLiteral("LoadingModel"),
+                                        0.35);
+        QCOMPARE(recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::StatusRole)
+                     .toString(),
+                 QStringLiteral("Transcribing"));
+        QCOMPARE(recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::ProgressRole)
+                     .toDouble(),
+                 0.35);
+
+        viewModel.jobQueue()->updateJob(jobId, recordingId, QStringLiteral("Fixture job"),
+                                        QStringLiteral("Completed"), QStringLiteral("Completed"), 1.0);
+        QCOMPARE(recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::StatusRole)
+                     .toString(),
+                 QStringLiteral("Completed"));
     }
 };
 

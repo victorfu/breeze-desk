@@ -63,6 +63,7 @@ class JobQueueViewModel final : public QObject {
     void removeRequested(const QString& jobId);
     void reorderRequested(const QString& jobId, int destination);
     void clearCompletedRequested();
+    void recordingJobStatusChanged(const QString& recordingId, const QString& status, qreal progress);
 
   private:
     JobListModel m_jobs;

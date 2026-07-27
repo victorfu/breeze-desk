@@ -184,6 +184,8 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
     connect(&m_library, &LibraryViewModel::importRejected, this,
             [this](const QUrl&, const QString& reason) { showToast(reason); });
     connect(&m_library, &LibraryViewModel::operationFailed, this, &ApplicationViewModel::showToast);
+    connect(&m_jobQueue, &JobQueueViewModel::recordingJobStatusChanged, &m_library,
+            &LibraryViewModel::setRecordingJobStatus);
     connect(&m_library, &LibraryViewModel::recordingAboutToBePermanentlyDeleted, this,
             [this](const QString& recordingId) {
                 if (m_activeRecordingId != recordingId) {

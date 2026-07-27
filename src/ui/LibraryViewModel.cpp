@@ -158,6 +158,13 @@ bool LibraryViewModel::trashEmpty() const {
     return m_trashProxy.rowCount() == 0;
 }
 
+void LibraryViewModel::setRecordingJobStatus(const QString& recordingId, const QString& status,
+                                             const qreal progress) {
+    if (m_source.setJobStatus(recordingId, status, progress)) {
+        emit recordingMetadataChanged(recordingId);
+    }
+}
+
 int LibraryViewModel::importUrls(const QVariantList& urls) {
     int imported = 0;
     for (const QVariant& value : urls) {

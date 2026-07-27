@@ -2808,11 +2808,11 @@ class tst_QmlSmoke final : public QObject {
                     title: "Fixture recording"
                     durationMs: 1000
                     createdAt: new Date(0)
-                    status: "Imported"
+                    status: "Transcribing"
                     modelName: ""
                     tags: []
                     reviewState: "Unreviewed"
-                    progress: 0
+                    progress: 0.42
                     sourceMissing: false
                     onTranscribeRequested: function(id) {
                         if (id === "recording-id") {
@@ -2830,7 +2830,15 @@ class tst_QmlSmoke final : public QObject {
 
         QObject* transcribeMenuItem =
             root->findChild<QObject*>(QStringLiteral("recordingTranscribeMenuItem"));
+        QObject* statusBadge = root->findChild<QObject*>(QStringLiteral("recordingStatusBadge"));
+        QObject* progressBar =
+            root->findChild<QObject*>(QStringLiteral("recordingTranscriptionProgress"));
         QVERIFY(transcribeMenuItem);
+        QVERIFY(statusBadge);
+        QVERIFY(progressBar);
+        QCOMPARE(statusBadge->property("text").toString(), QStringLiteral("Transcribing"));
+        QCOMPARE(statusBadge->property("tone").toString(), QStringLiteral("accent"));
+        QVERIFY(progressBar->property("visible").toBool());
         QVERIFY(QMetaObject::invokeMethod(transcribeMenuItem, "triggered", Qt::DirectConnection));
         QCOMPARE(root->property("transcribeRequests").toInt(), 1);
     }
