@@ -2570,6 +2570,7 @@ class tst_QmlSmoke final : public QObject {
             BreezeDesk::SettingsViewModel first;
             first.installManagers(
                 {&general, &appearance, &transcription, &audio, &models, &storage, &updates});
+            QVERIFY(first.vadEnabled());
             first.setLanguage(QStringLiteral("en"));
             first.setTheme(QStringLiteral("Dark"));
             first.setCloseBehavior(QStringLiteral("Quit"));
@@ -2598,6 +2599,7 @@ class tst_QmlSmoke final : public QObject {
         BreezeDesk::UpdateSettingsManager updates(store);
         BreezeDesk::SettingsViewModel second;
         second.installManagers({&general, &appearance, &transcription, &audio, &models, &storage, &updates});
+        QVERIFY(second.vadEnabled());
         QCOMPARE(second.language(), QStringLiteral("en"));
         QCOMPARE(second.theme(), QStringLiteral("Dark"));
         QCOMPARE(second.closeBehavior(), QStringLiteral("Quit"));
