@@ -47,8 +47,8 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
   with stable exit codes and `--json` output for automation.
 - 📤 **Six export formats** — TXT, Markdown, SRT, VTT, JSON, and CSV, written atomically so a failed
   export never destroys a previously valid file.
-- 📦 **Native distribution** — macOS and Windows packages with optional Sparkle/WinSparkle update
-  checks.
+- 📦 **Native distribution** — signed macOS DMGs with Sparkle updates and Windows MSIX packages updated
+  through the Microsoft Store.
 
 ## 🎯 Who is it for?
 
@@ -65,7 +65,7 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
 | Acceleration | Metal + Accelerate on macOS; Vulkan or CPU worker builds on Windows |
 | Media | LGPL FFmpeg sidecar for probing and normalization; Qt Multimedia for capture and playback |
 | Storage | SQLite for the library, jobs, chunk checkpoints, the current transcript, glossary, and audit data |
-| Updates | Optional Sparkle (macOS) and WinSparkle (Windows) update checks |
+| Updates | Sparkle on macOS; Microsoft Store updates on Windows |
 
 ## 🧠 Models
 
@@ -149,18 +149,18 @@ backends are configure-time choices.
 Unsigned local packages use the same deploy scripts as CI:
 
 ```sh
-export BREEZEDESK_FFMPEG_DIR="$(packaging/macos/build-ffmpeg-lgpl.sh)"
-packaging/macos/package.sh
+./scripts/package-macos.sh
 ```
 
 ```powershell
-$env:BREEZEDESK_FFMPEG_DIR = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
-cmd /c packaging\windows\package.bat Universal --msix
+.\scripts\package-windows.ps1
 ```
 
-Signing is environment-controlled and optional for local builds. See
-[release-packaging.md](docs/developer/release-packaging.md) for credentials, notarization, updater
-feeds, and the exact output names.
+The public Partner Center identity is committed in `packaging/windows/msix-identity.psd1`. The three
+`BREEZEDESK_MSIX_*` environment variables remain optional overrides for development packages.
+
+See [release-packaging.md](docs/developer/release-packaging.md) for macOS signing and notarization,
+Microsoft Store identity, local MSIX test signing, and exact output names.
 
 ## 📖 Documentation
 

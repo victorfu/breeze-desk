@@ -19,19 +19,13 @@ set "APP_EXE=%BREEZEDESK_RELEASE_EXECUTABLE_NAME%.exe"
 set "WORKER_EXE=%BREEZEDESK_WORKER_EXECUTABLE_NAME%.exe"
 set "CLI_EXE=%BREEZEDESK_CLI_EXECUTABLE_NAME%.exe"
 
-set "PACKAGE_VARIANT=%~1"
-if not defined PACKAGE_VARIANT set "PACKAGE_VARIANT=Universal"
-if /I "%PACKAGE_VARIANT%"=="Universal" (
-  set "PACKAGE_VARIANT=Universal"
-  set "BACKEND=VULKAN"
-  set "BACKEND_SLUG=vulkan"
-  set "PREFERRED_BUILD=%PROJECT_ROOT%\build\windows-universal"
-) else (
-  echo Usage: packaging\windows\package.bat [Universal] [--msix] 1>&2
+if not "%~1"=="" (
+  echo Usage: packaging\windows\package.bat 1>&2
   exit /b 2
 )
-set "BUILD_MSIX=%BREEZEDESK_BUILD_MSIX%"
-if /I "%~2"=="--msix" set "BUILD_MSIX=1"
+set "BACKEND=VULKAN"
+set "BACKEND_SLUG=vulkan"
+set "PREFERRED_BUILD=%PROJECT_ROOT%\build\windows-msix-vulkan"
 
 for %%T in (cmake.exe ninja.exe windeployqt.exe powershell.exe magick.exe dumpbin.exe) do (
   where %%T >nul 2>nul || (
@@ -49,14 +43,6 @@ if not exist "%BREEZEDESK_FFMPEG_DIR%\ffmpeg.exe" (
 )
 if not exist "%BREEZEDESK_FFMPEG_DIR%\ffprobe.exe" (
   echo Missing %BREEZEDESK_FFMPEG_DIR%\ffprobe.exe. 1>&2
-  exit /b 1
-)
-if "%BREEZEDESK_PACKAGE_UPDATES%"=="1" if not defined BREEZEDESK_WINSPARKLE_DIR (
-  echo BREEZEDESK_WINSPARKLE_DIR is required when updates are enabled. 1>&2
-  exit /b 1
-)
-if defined BREEZEDESK_SIGNTOOL_CERT if defined BREEZEDESK_SIGNTOOL_SHA1 (
-  echo Choose either BREEZEDESK_SIGNTOOL_CERT or BREEZEDESK_SIGNTOOL_SHA1, not both. 1>&2
   exit /b 1
 )
 call :verify_whisper_source || exit /b 1
@@ -111,7 +97,7 @@ set "CPU_BUILD=%PROJECT_ROOT%\build\windows-cpu"
 call :configure_build "%CPU_BUILD%" "CPU" || exit /b 1
 cmake --build "%CPU_BUILD%" --target breezedesk-asr-worker --parallel || exit /b 1
 
-set "STAGE_DIR=%PROJECT_ROOT%\build\package-windows-%PACKAGE_VARIANT%"
+set "STAGE_DIR=%PROJECT_ROOT%\build\package-windows-msix"
 if exist "%STAGE_DIR%" cmake -E remove_directory "%STAGE_DIR%"
 cmake -E make_directory "%STAGE_DIR%" "%PROJECT_ROOT%\dist" || exit /b 1
 cmake --install "%PREFERRED_BUILD%" --prefix "%STAGE_DIR%" || exit /b 1
@@ -176,27 +162,6 @@ if exist "%BREEZEDESK_FFMPEG_DIR%\..\SOURCE.txt" (
   ) > "%STAGE_DIR%\share\breezedesk\licenses\FFmpeg-SOURCE.txt"
 )
 
-if defined BREEZEDESK_WINSPARKLE_DIR (
-  if not "%BREEZEDESK_PACKAGE_UPDATES%"=="1" (
-    echo BREEZEDESK_WINSPARKLE_DIR requires BREEZEDESK_PACKAGE_UPDATES=1. 1>&2
-    exit /b 1
-  )
-  if not exist "%BREEZEDESK_WINSPARKLE_DIR%\WinSparkle.dll" (
-    echo BREEZEDESK_WINSPARKLE_DIR does not contain WinSparkle.dll. 1>&2
-    exit /b 1
-  )
-  cmake -E copy_if_different "%BREEZEDESK_WINSPARKLE_DIR%\WinSparkle.dll" "%STAGE_DIR%\bin\WinSparkle.dll" || exit /b 1
-  if exist "%BREEZEDESK_WINSPARKLE_DIR%\COPYING" (
-    cmake -E copy_if_different "%BREEZEDESK_WINSPARKLE_DIR%\COPYING" "%STAGE_DIR%\share\breezedesk\licenses\WinSparkle-LICENSE.txt" || exit /b 1
-  )
-  if exist "%BREEZEDESK_WINSPARKLE_DIR%\COPYING.expat" (
-    cmake -E copy_if_different "%BREEZEDESK_WINSPARKLE_DIR%\COPYING.expat" "%STAGE_DIR%\share\breezedesk\licenses\WinSparkle-Expat-LICENSE.txt" || exit /b 1
-  )
-  if exist "%BREEZEDESK_WINSPARKLE_DIR%\SOURCE.txt" (
-    cmake -E copy_if_different "%BREEZEDESK_WINSPARKLE_DIR%\SOURCE.txt" "%STAGE_DIR%\share\breezedesk\licenses\WinSparkle-SOURCE.txt" || exit /b 1
-  )
-)
-
 windeployqt --release --force --compiler-runtime --qmldir "%PROJECT_ROOT%\src\qml" --translations en,zh_TW "%STAGE_DIR%\bin\%APP_EXE%" "%STAGE_DIR%\bin\%CLI_EXE%" "%STAGE_DIR%\bin\%WORKER_EXE%" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-%BACKEND_SLUG%.exe" "%STAGE_DIR%\bin\workers\%BREEZEDESK_WORKER_EXECUTABLE_NAME%-cpu.exe" || exit /b 1
 if not exist "%STAGE_DIR%\bin\Qt6Network.dll" (
   echo Qt deployment did not produce Qt6Network.dll required by the ASR workers. 1>&2
@@ -210,33 +175,12 @@ if not exist "%STAGE_DIR%\bin\imageformats\qsvg.dll" (
   echo Qt deployment did not produce the SVG image plugin required by SVG-based UI icons. 1>&2
   exit /b 1
 )
-call :sign_if_requested "%STAGE_DIR%" || exit /b 1
+set "MSIX=%PROJECT_ROOT%\dist\%BREEZEDESK_PRODUCT_NAME%-%VERSION%-Windows-x64.msix"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\create-msix.ps1" -StageDirectory "%STAGE_DIR%" -OutputFile "%MSIX%" -Version "%VERSION%" -ProductName "%BREEZEDESK_PRODUCT_NAME%" -ExecutableName "%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" -ProductId "%BREEZEDESK_WINDOWS_PRODUCT_ID%" || exit /b 1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\write-checksum.ps1" "%MSIX%" || exit /b 1
 
-set "MAKENSIS=%ProgramFiles(x86)%\NSIS\makensis.exe"
-if not exist "%MAKENSIS%" for /f "delims=" %%I in ('where makensis.exe 2^>nul') do set "MAKENSIS=%%I"
-if not exist "%MAKENSIS%" (
-  echo NSIS makensis.exe is required to create the installer. 1>&2
-  exit /b 1
-)
-set "INSTALLER=%PROJECT_ROOT%\dist\%BREEZEDESK_PRODUCT_NAME%-%VERSION%-Windows-x64-%PACKAGE_VARIANT%-Setup.exe"
-"%MAKENSIS%" "/DPROJECT_ROOT=%PROJECT_ROOT%" "/DVERSION=%VERSION%" "/DVARIANT=%PACKAGE_VARIANT%" "/DSTAGE_DIR=%STAGE_DIR%" "/DOUTPUT_FILE=%INSTALLER%" "/DICON_FILE=%ICON_PATH%" "/DPRODUCT_NAME=%BREEZEDESK_PRODUCT_NAME%" "/DEXECUTABLE_NAME=%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" "/DPRODUCT_ID=%BREEZEDESK_WINDOWS_PRODUCT_ID%" "%PROJECT_ROOT%\packaging\windows\installer.nsi" || exit /b 1
-call :sign_if_requested "%INSTALLER%" || exit /b 1
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\write-checksum.ps1" "%INSTALLER%" || exit /b 1
-
-if "%BUILD_MSIX%"=="1" (
-  set "MSIX=%PROJECT_ROOT%\dist\%BREEZEDESK_PRODUCT_NAME%-%VERSION%-Windows-x64.msix"
-  powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\create-msix.ps1" -StageDirectory "%STAGE_DIR%" -OutputFile "%MSIX%" -Version "%VERSION%" -ProductName "%BREEZEDESK_PRODUCT_NAME%" -ExecutableName "%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" -ProductId "%BREEZEDESK_WINDOWS_PRODUCT_ID%" || exit /b 1
-  call :sign_if_requested "%MSIX%" || exit /b 1
-  powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\write-checksum.ps1" "%MSIX%" || exit /b 1
-)
-
-echo %INSTALLER%
+echo %MSIX%
 exit /b 0
-
-:sign_if_requested
-if not defined BREEZEDESK_SIGNTOOL_CERT if not defined BREEZEDESK_SIGNTOOL_SHA1 exit /b 0
-powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\sign-artifacts.ps1" "%~1"
-exit /b %ERRORLEVEL%
 
 :find_whisper_license
 set "WHISPER_LICENSE=%PREFERRED_BUILD%\_deps\whisper_cpp-src\LICENSE"
@@ -265,17 +209,5 @@ exit /b 0
 :configure_build
 set "CONFIGURE_DIR=%~1"
 set "CONFIGURE_BACKEND=%~2"
-if "%BREEZEDESK_PACKAGE_UPDATES%"=="1" (
-  if not defined BREEZEDESK_APPCAST_URL (
-    echo BREEZEDESK_APPCAST_URL is required when updates are enabled. 1>&2
-    exit /b 1
-  )
-  if not defined BREEZEDESK_EDDSA_PUBLIC_KEY (
-    echo BREEZEDESK_EDDSA_PUBLIC_KEY is required when updates are enabled. 1>&2
-    exit /b 1
-  )
-  cmake -S "%PROJECT_ROOT%" -B "%CONFIGURE_DIR%" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBREEZEDESK_BUILD_TESTS=OFF -DBREEZEDESK_ENABLE_WHISPER=ON "-DBREEZEDESK_PRODUCT_NAME=%BREEZEDESK_PRODUCT_NAME%" "-DBREEZEDESK_RELEASE_EXECUTABLE_NAME=%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" "-DBREEZEDESK_WORKER_EXECUTABLE_NAME=%BREEZEDESK_WORKER_EXECUTABLE_NAME%" "-DBREEZEDESK_CLI_EXECUTABLE_NAME=%BREEZEDESK_CLI_EXECUTABLE_NAME%" "-DBREEZEDESK_WINDOWS_PRODUCT_ID=%BREEZEDESK_WINDOWS_PRODUCT_ID%" "-DBREEZEDESK_WINDOWS_BACKEND=%CONFIGURE_BACKEND%" "-DBREEZEDESK_WINDOWS_ICON_PATH=%ICON_PATH%" -DBREEZEDESK_ENABLE_UPDATES=ON "-DBREEZEDESK_APPCAST_URL=%BREEZEDESK_APPCAST_URL%" "-DBREEZEDESK_EDDSA_PUBLIC_KEY=%BREEZEDESK_EDDSA_PUBLIC_KEY%" "-DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=%BREEZEDESK_WHISPER_CPP_SOURCE_DIR%"
-) else (
-  cmake -S "%PROJECT_ROOT%" -B "%CONFIGURE_DIR%" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBREEZEDESK_BUILD_TESTS=OFF -DBREEZEDESK_ENABLE_WHISPER=ON "-DBREEZEDESK_PRODUCT_NAME=%BREEZEDESK_PRODUCT_NAME%" "-DBREEZEDESK_RELEASE_EXECUTABLE_NAME=%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" "-DBREEZEDESK_WORKER_EXECUTABLE_NAME=%BREEZEDESK_WORKER_EXECUTABLE_NAME%" "-DBREEZEDESK_CLI_EXECUTABLE_NAME=%BREEZEDESK_CLI_EXECUTABLE_NAME%" "-DBREEZEDESK_WINDOWS_PRODUCT_ID=%BREEZEDESK_WINDOWS_PRODUCT_ID%" "-DBREEZEDESK_WINDOWS_BACKEND=%CONFIGURE_BACKEND%" "-DBREEZEDESK_WINDOWS_ICON_PATH=%ICON_PATH%" -DBREEZEDESK_ENABLE_UPDATES=OFF "-DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=%BREEZEDESK_WHISPER_CPP_SOURCE_DIR%"
-)
+cmake -S "%PROJECT_ROOT%" -B "%CONFIGURE_DIR%" -G Ninja -DCMAKE_BUILD_TYPE=Release -DBREEZEDESK_BUILD_TESTS=OFF -DBREEZEDESK_ENABLE_WHISPER=ON "-DBREEZEDESK_PRODUCT_NAME=%BREEZEDESK_PRODUCT_NAME%" "-DBREEZEDESK_RELEASE_EXECUTABLE_NAME=%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" "-DBREEZEDESK_WORKER_EXECUTABLE_NAME=%BREEZEDESK_WORKER_EXECUTABLE_NAME%" "-DBREEZEDESK_CLI_EXECUTABLE_NAME=%BREEZEDESK_CLI_EXECUTABLE_NAME%" "-DBREEZEDESK_WINDOWS_PRODUCT_ID=%BREEZEDESK_WINDOWS_PRODUCT_ID%" "-DBREEZEDESK_WINDOWS_BACKEND=%CONFIGURE_BACKEND%" "-DBREEZEDESK_WINDOWS_ICON_PATH=%ICON_PATH%" -DBREEZEDESK_ENABLE_UPDATES=OFF "-DBREEZEDESK_WHISPER_CPP_SOURCE_DIR=%BREEZEDESK_WHISPER_CPP_SOURCE_DIR%"
 exit /b %ERRORLEVEL%

@@ -26,7 +26,7 @@ See [ADR 0002](../adr/0002-native-whisper-worker.md) and the
 | `breezedesk_jobs` | Queue, state machine, repositories and interrupted-job recovery. |
 | `breezedesk_asr` | Presets, chunk planning, VAD, libwhisper RAII adapters and deduplication. |
 | `breezedesk_platform` | Capabilities and native macOS/Windows services. |
-| `breezedesk_update` | Update coordinator plus Null/Sparkle/WinSparkle implementations. |
+| `breezedesk_update` | Update coordinator plus Null and macOS Sparkle implementations. Windows uses Store updates. |
 | `breezedesk_ui` | ViewModels, list models, design system, waveform item and QML module. |
 
 Static libraries form an acyclic graph. Core never depends on UI; UI is a leaf over domain interfaces.

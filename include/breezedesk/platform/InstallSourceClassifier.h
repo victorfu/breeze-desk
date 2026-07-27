@@ -4,7 +4,6 @@
 
 namespace BreezeDesk {
 
-[[nodiscard]] QString classifyWindowsInstallSource(const QString& applicationDirectory,
-                                                   const QString& registeredInstallDirectory);
+[[nodiscard]] QString classifyWindowsInstallSource(const QString& applicationDirectory);
 
 } // namespace BreezeDesk

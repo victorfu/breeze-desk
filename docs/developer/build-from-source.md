@@ -36,7 +36,7 @@ Important cache variables are:
 | `BREEZEDESK_WINDOWS_BACKEND` | `CPU` | `VULKAN` or `CPU` worker build. Release packaging selects its backend explicitly. |
 | `BREEZEDESK_BUILD_TESTS` | `ON` | Configure Qt Test targets. |
 | `BREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS` | `OFF` | Enable checksum-pinned tiny-model integration. |
-| `BREEZEDESK_ENABLE_UPDATES` | `OFF` | Compile native updater adapters for a configured package. |
+| `BREEZEDESK_ENABLE_UPDATES` | `OFF` | Compile the macOS Sparkle adapter. Enabling this on Windows is rejected. |
 | `BREEZEDESK_WARNINGS_AS_ERRORS` | `ON` | Strict warnings for BreezeDesk-owned targets only. |
 
 `CMakeLists.txt` centralizes product name, executable names, bundle ids, Windows product id, and Release/
@@ -72,7 +72,7 @@ subdirectories. On macOS the application is a bundle and the post-build rule cop
 
 `BREEZEDESK_WINDOWS_BACKEND` is `VULKAN` or `CPU` and must use a separate build tree. The normal
 Debug and Release source presets use CPU so transcription works without an optional GPU SDK; the
-`windows-universal` preset opts into Vulkan. ccache is selected before
+`windows-vulkan` preset opts into Vulkan. ccache is selected before
 sccache. Compile commands are exported, Unity builds are disabled, project targets use strict warnings as
 errors, and third-party targets do not inherit that policy.
 
@@ -90,14 +90,17 @@ do not inherit BreezeDesk's warnings-as-errors policy.
 Release package commands are:
 
 ```sh
-export BREEZEDESK_FFMPEG_DIR="$(packaging/macos/build-ffmpeg-lgpl.sh)"
-packaging/macos/package.sh
+./scripts/package-macos.sh
 ```
 
 ```powershell
-$env:BREEZEDESK_FFMPEG_DIR = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
-cmd /c packaging\windows\package.bat Universal
+.\scripts\package-windows.ps1
 ```
 
-See [release-packaging.md](release-packaging.md) for unsigned versus signed builds, MSIX, updater
-dependencies, notarization, output names, and required CI variables.
+The official Store identity is read from `packaging/windows/msix-identity.psd1`. Optional
+`BREEZEDESK_MSIX_IDENTITY_NAME`, `BREEZEDESK_MSIX_PUBLISHER`, and
+`BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME` environment variables override it for development packages
+when all three are set together.
+
+See [release-packaging.md](release-packaging.md) for macOS signing and notarization, Microsoft Store
+identity, local MSIX test signing, output names, and required CI variables.

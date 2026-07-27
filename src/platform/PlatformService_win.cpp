@@ -59,11 +59,7 @@ class WindowsPlatformService final : public IPlatformService {
     }
 
     QString installSource() const override {
-        QSettings installation(QStringLiteral("HKEY_CURRENT_USER\\Software\\%1")
-                                   .arg(QString::fromLatin1(AppConfig::WindowsProductId)),
-                               QSettings::NativeFormat);
-        return classifyWindowsInstallSource(QCoreApplication::applicationDirPath(),
-                                            installation.value(QStringLiteral("InstallLocation")).toString());
+        return classifyWindowsInstallSource(QCoreApplication::applicationDirPath());
     }
 
     QString gpuDescription() const override {

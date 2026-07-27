@@ -1,8 +1,6 @@
 set(BREEZEDESK_UPDATE_SOURCES NullUpdateService.cpp UpdateCoordinator.cpp)
 if(APPLE)
     list(APPEND BREEZEDESK_UPDATE_SOURCES SparkleUpdateService_mac.mm)
-elseif(WIN32)
-    list(APPEND BREEZEDESK_UPDATE_SOURCES WinSparkleUpdateService_win.cpp)
 endif()
 
 add_library(breezedesk_update STATIC

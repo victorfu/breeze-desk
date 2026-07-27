@@ -44,7 +44,8 @@ C API,不執行 `whisper-cli`,也沒有雲端 ASR、Python runtime 或遙測。�
   穩定 exit codes 與 `--json` 輸出,便於自動化。
 - 📤 **六種匯出格式** — TXT、Markdown、SRT、VTT、JSON、CSV;原子寫入確保匯出失敗不會毀損
   既有的有效檔案。
-- 📦 **原生安裝包** — macOS 與 Windows 套件,可選用 Sparkle/WinSparkle 更新檢查。
+- 📦 **原生安裝包** — macOS 使用簽章 DMG 與 Sparkle 更新；Windows 使用由 Microsoft Store
+  更新的 MSIX。
 
 ## 🎯 適合誰?
 
@@ -61,7 +62,7 @@ C API,不執行 `whisper-cli`,也沒有雲端 ASR、Python runtime 或遙測。�
 | 加速 | macOS 使用 Metal + Accelerate;Windows 提供 Vulkan 或 CPU Worker 版本 |
 | 媒體 | LGPL FFmpeg sidecar 負責探測與正規化;Qt Multimedia 負責錄音與播放 |
 | 儲存 | SQLite 保存 Library、jobs、chunk checkpoints、最新逐字稿、Glossary 與稽核資料 |
-| 更新 | 可選用的 Sparkle(macOS)/WinSparkle(Windows)更新檢查 |
+| 更新 | macOS 使用 Sparkle；Windows 使用 Microsoft Store 更新 |
 
 ## 🧠 模型
 
@@ -143,17 +144,18 @@ CPU 兩種 Worker。
 本機未簽章套件與 CI 使用同一組部署腳本:
 
 ```sh
-export BREEZEDESK_FFMPEG_DIR="$(packaging/macos/build-ffmpeg-lgpl.sh)"
-packaging/macos/package.sh
+./scripts/package-macos.sh
 ```
 
 ```powershell
-$env:BREEZEDESK_FFMPEG_DIR = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
-cmd /c packaging\windows\package.bat Universal --msix
+.\scripts\package-windows.ps1
 ```
 
-簽章完全由環境變數控制;本機不提供憑證仍可建立 unsigned package。簽章、notarization、
-update feed 與產物名稱請見[發行打包文件](docs/developer/release-packaging.md)。
+公開的 Partner Center identity 固定於 `packaging/windows/msix-identity.psd1`。如需建立開發測試套件，仍可用
+三個 `BREEZEDESK_MSIX_*` 環境變數暫時覆寫。
+
+macOS 簽章與 notarization、Microsoft Store identity、本機 MSIX 測試簽章及產物名稱請見
+[發行打包文件](docs/developer/release-packaging.md)。
 
 ## 📖 文件
 

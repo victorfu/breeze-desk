@@ -24,9 +24,32 @@ if (-not (Test-Path (Join-Path $StageDirectory "bin\$ExecutableName.exe"))) {
     throw "The staged executable bin\$ExecutableName.exe does not exist."
 }
 $PackageVersion = "$Version.0"
-$IdentityName = if ($env:BREEZEDESK_MSIX_IDENTITY_NAME) { $env:BREEZEDESK_MSIX_IDENTITY_NAME } else { "VictorFu.$ProductId" }
-$Publisher = if ($env:BREEZEDESK_MSIX_PUBLISHER) { $env:BREEZEDESK_MSIX_PUBLISHER } else { "CN=$ProductName Development" }
-$PublisherDisplayName = if ($env:BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME) { $env:BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME } else { $ProductName }
+$StoreIdentity = Import-PowerShellDataFile (Join-Path $PSScriptRoot "msix-identity.psd1")
+$IdentityOverrides = @{
+    IdentityName = $env:BREEZEDESK_MSIX_IDENTITY_NAME
+    Publisher = $env:BREEZEDESK_MSIX_PUBLISHER
+    PublisherDisplayName = $env:BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME
+}
+$OverrideCount = @($IdentityOverrides.Values | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count
+if ($OverrideCount -ne 0 -and $OverrideCount -ne $IdentityOverrides.Count) {
+    throw "Set all three BREEZEDESK_MSIX identity environment variables together, or leave all three unset."
+}
+$ResolvedIdentity = if ($OverrideCount -eq $IdentityOverrides.Count) { $IdentityOverrides } else { $StoreIdentity }
+$IdentityName = [string]$ResolvedIdentity.IdentityName
+$Publisher = [string]$ResolvedIdentity.Publisher
+$PublisherDisplayName = [string]$ResolvedIdentity.PublisherDisplayName
+foreach ($RequiredIdentity in @(
+    @('IdentityName', $IdentityName),
+    @('Publisher', $Publisher),
+    @('PublisherDisplayName', $PublisherDisplayName)
+)) {
+    if ([string]::IsNullOrWhiteSpace($RequiredIdentity[1])) {
+        throw "MSIX identity value '$($RequiredIdentity[0])' is empty in msix-identity.psd1 and has no environment override."
+    }
+}
+if ($IdentityName -notmatch '^[A-Za-z0-9][A-Za-z0-9.-]{1,48}[A-Za-z0-9-]$') {
+    throw "The resolved MSIX IdentityName must be a 3-50 character package name."
+}
 
 function Escape-XmlAttribute([string]$Value) {
     return [Security.SecurityElement]::Escape($Value)

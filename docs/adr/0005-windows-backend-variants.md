@@ -13,6 +13,10 @@ Windows now ships one variant — Universal, a Vulkan preferred worker plus a CP
 configure-time-choice rationale below still holds; only the CUDA option is withdrawn.
 `BREEZEDESK_WINDOWS_BACKEND` accepts `VULKAN` or `CPU` for source builds.
 
+The Windows distribution channel was subsequently changed from NSIS to a Microsoft Store MSIX by
+[ADR 0007](0007-windows-store-msix.md). The backend composition remains the same, but the original NSIS
+and optional-MSIX packaging statements below are historical only.
+
 The original decision is preserved unchanged for the record.
 
 ## Context

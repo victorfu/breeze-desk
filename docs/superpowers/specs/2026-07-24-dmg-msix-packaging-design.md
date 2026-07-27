@@ -1,6 +1,6 @@
 # Shipping design: macOS DMG and Windows Store MSIX
 
-Status: Proposed — 2026-07-24
+Status: Partially implemented — Windows Store path completed 2026-07-27
 
 ## Goal
 
@@ -150,7 +150,8 @@ is never used by CI.
 - `windows-universal` becomes `windows-msix`; the Authenticode secret validation and the
   `Decode Authenticode certificate` step are removed, along with `choco install nsis`;
 - the `windows-cuda` job and the `RUN_WINDOWS_CUDA_PACKAGE` variable are removed;
-- the MSIX identity variables are validated before building;
+- the committed MSIX Store identity is loaded before building, with environment overrides available for
+  development packages;
 - `publish` requires exactly the macOS artifacts; the `artifacts >= 3` check becomes a DMG-present check;
 - the MSIX is uploaded as a workflow artifact and excluded from the release.
 
@@ -175,7 +176,6 @@ Reusable from snap-tray, which already ships signed and notarized macOS builds:
 | `MACOS_CERTIFICATE_P12_BASE64` | secret | snap-tray's `APPLE_CERTIFICATE` |
 | `MACOS_CERTIFICATE_PASSWORD` | secret | snap-tray's `APPLE_CERTIFICATE_PASSWORD` |
 | `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | secret | copied unchanged |
-| `WINDOWS_MSIX_PUBLISHER` | variable | `CN=88BB68F4-693F-45D9-BF2F-3CF9C709619F`, a Partner Center account value shared by all of the account's apps |
 
 New:
 
@@ -184,14 +184,14 @@ New:
 | `SPARKLE_PRIVATE_KEY` | secret | Sparkle `generate_keys` |
 | `SPARKLE_PUBLIC_KEY` | variable | the same key pair |
 | `BREEZEDESK_UPDATE_FEED_BASE_URL` | variable | `https://github.com/victorfu/breeze-desk/releases/latest/download` |
-| `BREEZEDESK_MSIX_IDENTITY_NAME` | variable | assigned by Partner Center after reserving the BreezeDesk name |
-| `BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME` | variable | Partner Center publisher display name |
 
 Retired: `WINDOWS_CERTIFICATE_PFX_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`, `WINSPARKLE_PRIVATE_KEY`,
 `WINSPARKLE_PUBLIC_KEY`, `MACOS_CODESIGN_IDENTITY`, `RUN_WINDOWS_CUDA_PACKAGE`.
 
-`BREEZEDESK_MSIX_IDENTITY_NAME` is the only unobtainable value today. It blocks Store submission but not
-the macOS release or MSIX build mechanics, which run against a development identity until it exists.
+The BreezeDesk product was reserved in Partner Center on 2026-07-27. Its public identity name,
+publisher, and publisher display name are committed in `packaging/windows/msix-identity.psd1`; they are
+package metadata rather than credentials. The matching environment variables remain optional local
+overrides and are not CI configuration.
 
 ## Verification
 

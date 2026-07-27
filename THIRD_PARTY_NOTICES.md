@@ -56,12 +56,6 @@ Direct-download macOS packages use Sparkle 2.9.2 at revision
 permissive licenses; the complete upstream `LICENSE` file is copied into the application bundle.
 https://github.com/sparkle-project/Sparkle
 
-## WinSparkle
-
-Direct-download Windows packages use WinSparkle 0.9.3 at revision
-`8ca58d903779b866eb9ed4628b0a36e4d488b623`. Its MIT notice, Expat notice, and upstream acknowledgements
-are copied into the installed license directory. https://github.com/vslavik/winsparkle
-
 ## Breeze-ASR-25 models
 
 Models are downloaded separately and are not part of the application distribution. The MediaTek base

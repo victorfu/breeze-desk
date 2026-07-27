@@ -13,8 +13,6 @@ Release tooling verifies every downloaded archive before use:
   `464beb5e7bf0c311e68b45ae2f04e9cc2af88851abb4082231742a74d97b524c`;
 - Sparkle 2.9.2 revision `6276ba2b404829d139c45ff98427cf90e2efc59b`, release archive SHA-256
   `1cb340cbbef04c6c0d162078610c25e2221031d794a3449d89f2f56f4df77c95`;
-- WinSparkle 0.9.3 revision `8ca58d903779b866eb9ed4628b0a36e4d488b623`, binary archive SHA-256
-  `745985f41d2ab26b2d5a1cf87d76e4ed851039db19038e50610eb25ea0b73772`;
 - vendored Lucide 1.16.0 icons at commit `2214caa407f4147449c81ac27e30d36edfb7b40f`, source
   archive SHA-256 `b831bb343805685d2afefb19aa30ee1cbaf2972c1af75ab501f58fbe01b77183`.
 
@@ -69,19 +67,27 @@ Output is `dist/BreezeDesk-<version>-macOS-arm64.dmg` plus `.sha256` and, for re
 
 ## Windows x64
 
-Run from a Visual Studio 2022 developer command prompt with Qt, Ninja, NSIS, ImageMagick, Windows SDK,
-and an LGPL FFmpeg directory available. `build-ffmpeg-lgpl.ps1` bootstraps checksum-pinned portable
-w64devkit and native Windows NASM archives when that directory must be built, so MSYS2 is not required.
-The package script
-renders the canonical and tray-sized repository PNGs to a multi-resolution ICO before CMake
-configures the executable resource and NSIS branding:
+The Microsoft Store MSIX is the only Windows distribution. Run from a Visual Studio 2022 developer
+command prompt with Qt, Ninja, ImageMagick, Windows SDK, Vulkan SDK, and an LGPL FFmpeg directory
+available. `build-ffmpeg-lgpl.ps1` bootstraps checksum-pinned portable w64devkit and native Windows NASM
+archives when that directory must be built, so MSYS2 is not required.
 
-```bat
-set BREEZEDESK_FFMPEG_DIR=C:\path\to\ffmpeg\bin
-packaging\windows\package.bat Universal
+The public Partner Center values from **Product identity** are committed in
+`packaging/windows/msix-identity.psd1`, so both local and CI release builds use the official Store
+identity by default:
+
+```powershell
+.\scripts\package-windows.ps1
 ```
 
-Universal configures separate Vulkan and CPU whisper.cpp build trees. The installed layout preserves an
+The wrapper builds or reuses the pinned LGPL FFmpeg sidecars, then delegates to
+`packaging/windows/package.bat`. An existing `BREEZEDESK_FFMPEG_DIR` remains available as an override.
+
+For a development package only, `BREEZEDESK_MSIX_IDENTITY_NAME`, `BREEZEDESK_MSIX_PUBLISHER`, and
+`BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME` may override the committed values when all three are set
+together. Never use an overridden identity for a Store update.
+
+The script configures separate Vulkan and CPU whisper.cpp build trees. The staged layout preserves an
 unqualified preferred worker for compatibility and explicit variants for runtime selection:
 
 ```text
@@ -94,55 +100,27 @@ bin/ffmpeg.exe
 bin/ffprobe.exe
 ```
 
-Qt, WinSparkle, and third-party DLL signatures are preserved; the signing hook signs BreezeDesk/FFmpeg executables and the final
-installers rather than rewriting third-party DLL signatures.
+ImageMagick builds the scale-, target-size-, and theme-qualified assets from the repository PNGs,
+Windows SDK `makepri` indexes them, and `makeappx` creates the unsigned Store submission artifact.
+Outputs are `dist/BreezeDesk-<version>-Windows-x64.msix` and its `.sha256` sidecar.
 
-Generate the Universal MSIX by passing `--msix`; ImageMagick builds the scale-, target-size-, and
-theme-qualified assets from the repository PNGs, then Windows SDK `makepri` indexes them and
-`makeappx` packages them:
+The Microsoft Store signs the package after certification. CI therefore does not use or retain a
+Windows code-signing certificate, and the unsigned MSIX is never published as a GitHub Release asset.
+Download the `windows-msix` workflow artifact and upload it manually in Partner Center.
 
-```bat
-packaging\windows\package.bat Universal --msix
-```
-
-MSIX identity values are supplied through `BREEZEDESK_MSIX_IDENTITY_NAME`,
-`BREEZEDESK_MSIX_PUBLISHER`, and `BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME`. The publisher must match the
-certificate subject. An unsigned local MSIX can be created but cannot be installed without a trusted
-development or production signature.
-
-Set `BREEZEDESK_SIGNTOOL_CERT` to a PFX path and `BREEZEDESK_SIGNTOOL_PASSWORD` to sign staged EXEs,
-the NSIS installer, and the MSIX. `BREEZEDESK_SIGNTOOL_SHA1` selects an already installed certificate
-instead. Signing uses SHA-256, an RFC 3161 timestamp, and immediate `signtool verify /pa` validation.
-Unsigned local NSIS builds remain supported when neither variable is present.
-
-For direct-download updates, obtain the pinned runtime and enable the configured feed:
+An unsigned MSIX cannot be installed locally. For an installation smoke test, generate a development
+certificate whose subject matches the manifest publisher, sign the package, trust only the exported
+public certificate in the test machine's `LocalMachine\TrustedPeople` store, and install it:
 
 ```powershell
-$env:BREEZEDESK_WINSPARKLE_DIR = packaging/windows/fetch-winsparkle.ps1 | Select-Object -Last 1
-$env:BREEZEDESK_PACKAGE_UPDATES = '1'
-$env:BREEZEDESK_APPCAST_URL = 'https://example.invalid/updates/appcast-windows-universal.xml'
-$env:BREEZEDESK_EDDSA_PUBLIC_KEY = 'base64-public-key'
-packaging\windows\package.bat Universal
+packaging/windows/create-dev-certificate.ps1 `
+  -MsixPath dist/BreezeDesk-<version>-Windows-x64.msix
+# Run the printed Import-Certificate command from elevated PowerShell, then:
+Add-AppxPackage dist/BreezeDesk-<version>-Windows-x64.msix
 ```
 
-The per-user NSIS installer records its install location under `HKCU\Software\BreezeDesk`; the app uses
-that marker to classify the LocalAppData installation as direct-download and enable WinSparkle. An MSIX
-path under `WindowsApps` always takes precedence and keeps the native updater disabled.
-
-After Authenticode signing, use the pinned companion tool to generate the enclosure signature. The
-private key exists only in a temporary file for the duration of the signing process:
-
-```powershell
-$env:BREEZEDESK_WINSPARKLE_TOOL = "$env:BREEZEDESK_WINSPARKLE_DIR\winsparkle-tool.exe"
-$env:BREEZEDESK_WINSPARKLE_PRIVATE_KEY = Get-Content .\private.key -Raw
-packaging/windows/sign-winsparkle-update.ps1 dist/BreezeDesk-<version>-Windows-x64-Universal-Setup.exe
-```
-
-Outputs are:
-
-- `dist/BreezeDesk-<version>-Windows-x64-Universal-Setup.exe`;
-- `dist/BreezeDesk-<version>-Windows-x64.msix` when requested;
-- SHA-256 sidecars for every generated installer.
+The development certificate is for controlled test machines only. It is not uploaded to Partner Center
+and is not a public distribution credential.
 
 ## Tag release workflow
 
@@ -152,17 +130,16 @@ The release workflow fails with the missing variable names before doing expensiv
 - macOS secrets: `MACOS_CERTIFICATE_P12_BASE64`, `MACOS_CERTIFICATE_PASSWORD`,
   `MACOS_CODESIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`,
   `SPARKLE_PRIVATE_KEY`;
-- Windows secrets: `WINDOWS_CERTIFICATE_PFX_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`,
-  `WINSPARKLE_PRIVATE_KEY`;
-- repository variables: `SPARKLE_PUBLIC_KEY`, `WINSPARKLE_PUBLIC_KEY`,
-  `BREEZEDESK_UPDATE_FEED_BASE_URL`, `WINDOWS_MSIX_PUBLISHER`.
+- repository variables for macOS: `SPARKLE_PUBLIC_KEY`, `BREEZEDESK_UPDATE_FEED_BASE_URL`.
+
+Windows needs no CI secret or repository variable: its public Store identity is versioned with the
+packaging source, while Store certification supplies the public distribution signature.
 
 `BREEZEDESK_UPDATE_FEED_BASE_URL` is a stable HTTPS directory such as the GitHub
-`releases/latest/download` URL and must not end in `/`. Release publication creates separate
-`appcast-macos.xml` and `appcast-windows-universal.xml`, plus a
-machine-readable release manifest and aggregate checksums. Sparkle update signatures are mandatory for
-every DMG or NSIS enclosure. No credential, private key, or certificate is committed or uploaded as an
-artifact.
+`releases/latest/download` URL and must not end in `/`. GitHub Release publication contains the signed,
+notarized DMG, `appcast-macos.xml`, a machine-readable release manifest, and aggregate checksums. The
+Windows MSIX remains a workflow artifact for manual Store submission. No credential, private key, or
+certificate is committed or uploaded as an artifact.
 
 The workflows validate build and package mechanics, not backend performance. Metal is exercised by the
 optional tiny-model nightly test. Vulkan and CPU are built in hosted Windows CI. The full Breeze

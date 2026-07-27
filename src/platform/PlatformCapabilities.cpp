@@ -17,7 +17,7 @@ PlatformCapabilities PlatformCapabilities::current() {
     result.supportsVulkan = true;
     result.supportsAutoLaunch = true;
     result.supportsTray = true;
-    result.supportsNativeUpdate = BREEZEDESK_ENABLE_UPDATES != 0;
+    result.supportsNativeUpdate = false;
     result.supportsFileAssociations = true;
     result.supportsMicrophonePermission = true;
 #endif

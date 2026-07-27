@@ -25,7 +25,7 @@ set(BREEZEDESK_WORKER_EXECUTABLE_NAME "breezedesk-asr-worker" CACHE STRING "ASR 
 set(BREEZEDESK_CLI_EXECUTABLE_NAME "breezedesk-cli" CACHE STRING "CLI executable name")
 set(BREEZEDESK_RELEASE_BUNDLE_ID "com.victorfu.breezedesk" CACHE STRING "Release bundle identifier")
 set(BREEZEDESK_DEBUG_BUNDLE_ID "com.victorfu.breezedesk.debug" CACHE STRING "Debug bundle identifier")
-set(BREEZEDESK_WINDOWS_PRODUCT_ID "BreezeDesk" CACHE STRING "Windows registry and file-association identifier")
+set(BREEZEDESK_WINDOWS_PRODUCT_ID "BreezeDesk" CACHE STRING "Windows application and file-association identifier")
 set(BREEZEDESK_RELEASE_DATA_DIRECTORY_NAME "BreezeDesk" CACHE STRING "Release data directory name")
 set(BREEZEDESK_DEBUG_DATA_DIRECTORY_NAME "BreezeDesk-Debug" CACHE STRING "Debug data directory name")
 
@@ -44,6 +44,10 @@ option(BREEZEDESK_ENABLE_WHISPER "Build the native libwhisper ASR worker" ON)
 option(BREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS "Enable tests which download a tiny whisper model" OFF)
 option(BREEZEDESK_ENABLE_UPDATES "Enable native update framework adapters" OFF)
 option(BREEZEDESK_WARNINGS_AS_ERRORS "Treat warnings in BreezeDesk code as errors" ON)
+if(WIN32 AND BREEZEDESK_ENABLE_UPDATES)
+    message(FATAL_ERROR
+        "BREEZEDESK_ENABLE_UPDATES is not supported on Windows; Microsoft Store packages use Store updates.")
+endif()
 set(BREEZEDESK_WHISPER_CPP_REF "f049fff95a089aa9969deb009cdd4892b3e74916" CACHE STRING "Immutable whisper.cpp commit")
 set(BREEZEDESK_WHISPER_CPP_SOURCE_DIR "" CACHE PATH "Optional local whisper.cpp checkout")
 # Keep source builds usable with only the documented Visual Studio and Windows SDK
@@ -51,7 +55,7 @@ set(BREEZEDESK_WHISPER_CPP_SOURCE_DIR "" CACHE PATH "Optional local whisper.cpp 
 # CPU fallback worker.
 set(BREEZEDESK_WINDOWS_BACKEND "CPU" CACHE STRING "Windows worker backend: VULKAN or CPU")
 set_property(CACHE BREEZEDESK_WINDOWS_BACKEND PROPERTY STRINGS VULKAN CPU)
-set(BREEZEDESK_APPCAST_URL "" CACHE STRING "Sparkle/WinSparkle appcast URL")
+set(BREEZEDESK_APPCAST_URL "" CACHE STRING "Sparkle appcast URL")
 set(BREEZEDESK_EDDSA_PUBLIC_KEY "" CACHE STRING "Sparkle EdDSA public key")
 set(_breezedesk_default_windows_icon "")
 if(WIN32)

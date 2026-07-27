@@ -34,7 +34,7 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BREEZEDESK_BUILD_TESTS": "OFF" }
     },
     {
-      "name": "windows-universal",
+      "name": "windows-vulkan",
       "inherits": "release",
       "cacheVariables": { "BREEZEDESK_WINDOWS_BACKEND": "VULKAN" }
     },
@@ -48,7 +48,7 @@
     { "name": "debug", "configurePreset": "debug" },
     { "name": "debug-runtime-off", "configurePreset": "debug-runtime-off" },
     { "name": "release", "configurePreset": "release" },
-    { "name": "windows-universal", "configurePreset": "windows-universal" },
+    { "name": "windows-vulkan", "configurePreset": "windows-vulkan" },
     { "name": "windows-cpu", "configurePreset": "windows-cpu" }
   ],
   "testPresets": [
