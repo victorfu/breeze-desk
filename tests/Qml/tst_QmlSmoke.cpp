@@ -2035,7 +2035,7 @@ class tst_QmlSmoke final : public QObject {
         // Enqueue is persistence-first: this standalone test simulates the coordinator's
         // durable job confirmation in the signal handler above.
         QCOMPARE(vm.jobQueue()->jobs()->rowCount(), 1);
-        QCOMPARE(vm.currentPage(), QStringLiteral("Queue"));
+        QCOMPARE(vm.currentPage(), QStringLiteral("Recording"));
         const QModelIndex queuedJob = vm.jobQueue()->jobs()->index(0, 0);
         QCOMPARE(vm.jobQueue()->jobs()->data(queuedJob, BreezeDesk::JobListModel::IdRole).toString(), jobId);
         vm.jobQueue()->updateJob(jobId, id, QStringLiteral("Fixture job"), QStringLiteral("Failed"),
@@ -2801,6 +2801,7 @@ class tst_QmlSmoke final : public QObject {
                 property int transcribeRequests: 0
 
                 RecordingCard {
+                    objectName: "fixtureRecordingCard"
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
@@ -2830,15 +2831,24 @@ class tst_QmlSmoke final : public QObject {
 
         QObject* transcribeMenuItem =
             root->findChild<QObject*>(QStringLiteral("recordingTranscribeMenuItem"));
+        QObject* recordingCard =
+            root->findChild<QObject*>(QStringLiteral("fixtureRecordingCard"));
         QObject* statusBadge = root->findChild<QObject*>(QStringLiteral("recordingStatusBadge"));
         QObject* progressBar =
             root->findChild<QObject*>(QStringLiteral("recordingTranscriptionProgress"));
         QVERIFY(transcribeMenuItem);
+        QVERIFY(recordingCard);
         QVERIFY(statusBadge);
         QVERIFY(progressBar);
         QCOMPARE(statusBadge->property("text").toString(), QStringLiteral("Transcribing"));
         QCOMPARE(statusBadge->property("tone").toString(), QStringLiteral("accent"));
         QVERIFY(progressBar->property("visible").toBool());
+        QVERIFY(!transcribeMenuItem->property("enabled").toBool());
+
+        QVERIFY(recordingCard->setProperty("status", QStringLiteral("Completed")));
+        QTRY_COMPARE_WITH_TIMEOUT(transcribeMenuItem->property("text").toString(),
+                                  QStringLiteral("Transcribe Again…"), 1'000);
+        QVERIFY(transcribeMenuItem->property("enabled").toBool());
         QVERIFY(QMetaObject::invokeMethod(transcribeMenuItem, "triggered", Qt::DirectConnection));
         QCOMPARE(root->property("transcribeRequests").toInt(), 1);
     }
@@ -3003,7 +3013,7 @@ class tst_QmlSmoke final : public QObject {
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
         FakeRecorder recorder;
         BreezeDesk::ApplicationViewModel appViewModel;
-        QVERIFY(!appViewModel.settings()->autoTranscribeRecording());
+        QVERIFY(appViewModel.settings()->autoTranscribeRecording());
 
         QQmlComponent component(&engine);
         component.setData(R"(
@@ -3050,10 +3060,10 @@ class tst_QmlSmoke final : public QObject {
 
         QVERIFY(root->setProperty("settingsVm", QVariant::fromValue<QObject*>(appViewModel.settings())));
         QTRY_VERIFY_WITH_TIMEOUT(toggle->property("visible").toBool(), 1'000);
-        QVERIFY(!toggle->property("checked").toBool());
+        QVERIFY(toggle->property("checked").toBool());
 
         QVERIFY(QMetaObject::invokeMethod(toggle, "click"));
-        QTRY_VERIFY_WITH_TIMEOUT(appViewModel.settings()->autoTranscribeRecording(), 1'000);
+        QTRY_VERIFY_WITH_TIMEOUT(!appViewModel.settings()->autoTranscribeRecording(), 1'000);
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));

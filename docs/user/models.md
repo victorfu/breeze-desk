@@ -1,8 +1,9 @@
 # Models
 
-Models are downloaded separately and are never embedded in the repository or installer. The Models page
-uses the versioned manifest shipped with BreezeDesk and shows source, immutable revision, license,
-quantization, expected size, installation state, and whether a model is loaded.
+Models are downloaded separately and are never embedded in the repository or installer. BreezeDesk
+automatically downloads the recommended Q5 model when transcription first needs it. Open
+**Settings > Transcription > Manage Models** for source, immutable revision, license, quantization,
+expected size, installation state, and whether a model is loaded.
 
 | Model | Expected size | Use |
 | --- | ---: | --- |
@@ -12,7 +13,8 @@ quantization, expected size, installation state, and whether a model is loaded.
 
 ## Download and verify
 
-Choose **Download** on a model card. The operation follows HTTPS redirects, writes only to a `.part`
+The recommended model uses this flow automatically. You can also choose **Download** on a model card.
+The operation follows HTTPS redirects, writes only to a `.part`
 file, displays bytes/s and estimated time remaining, and supports pause, resume, cancel, and retry. A
 resumed server response is accepted only when its range matches the local partial file; otherwise the
 download restarts safely.
@@ -28,7 +30,7 @@ it is a load/integration check, not a recognition-quality benchmark.
 
 ## Default, deletion, and custom files
 
-Set one installed ASR model as the default under Models or **Settings > Transcription**. A file currently
+Set one installed ASR model as the default under Models or **Settings > Transcription > Show Advanced**. A file currently
 held by the worker cannot be deleted. Finish/cancel active work and unload it before trying again; the UI
 explains the in-use state rather than removing a mapped file.
 

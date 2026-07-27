@@ -47,6 +47,14 @@ Item {
     onCompactInspectorChanged: if (!compactInspector) compactInspectorOpen = false
 
     function requestTranscription() {
+        if (root.transcript.segmentCount > 0) {
+            replaceTranscriptDialog.open()
+            return
+        }
+        startTranscription()
+    }
+
+    function startTranscription() {
         root.vm.requestTranscription(root.vm.activeRecordingId)
     }
 
@@ -157,8 +165,13 @@ Item {
             AppButton {
                 objectName: "recordingTranscribeButton"
                 text: root.vm.modelManager.defaultModelDownloadActive
-                      ? qsTr("Downloading Q5_K…") : qsTr("Transcribe")
+                      ? qsTr("Downloading Q5_K…")
+                      : root.transcript.editingLocked
+                        ? qsTr("Transcribing…")
+                        : root.transcript.segmentCount > 0
+                          ? qsTr("Transcribe Again…") : qsTr("Start Transcription")
                 enabled: !root.vm.modelManager.defaultModelDownloadActive
+                         && !root.transcript.editingLocked
                 primary: true
                 onClicked: root.requestTranscription()
             }
@@ -475,8 +488,8 @@ Item {
                     title: qsTr("No completed transcript yet")
                     description: root.transcript.editingLocked
                                  ? qsTr("Transcription is in progress. The transcript will appear when processing completes.")
-                                 : qsTr("Add this recording to the queue to create its transcript.")
-                    actionText: root.transcript.editingLocked ? "" : qsTr("Add to Queue")
+                                 : qsTr("Start transcription to create an editable transcript.")
+                    actionText: root.transcript.editingLocked ? "" : qsTr("Start Transcription")
                     onActionTriggered: root.requestTranscription()
                 }
                 EmptyState {
@@ -580,6 +593,16 @@ Item {
                 }
             }
         }
+    }
+
+    AppDialog {
+        id: replaceTranscriptDialog
+        objectName: "replaceTranscriptDialog"
+        title: qsTr("Replace the current transcript?")
+        subtitle: qsTr("Transcribing this recording again will replace the current transcript when the new one is ready.")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        onAccepted: root.startTranscription()
     }
 
     Item {

@@ -228,11 +228,22 @@ ApplicationWindow {
                     objectName: "sidebarNavigation"
                     Layout.fillWidth: true
                     spacing: SemanticTokens.spacingXs
-                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/library.svg"; text: qsTr("Library"); selected: window.vm.currentPage === "Library" || window.vm.currentPage === "Recording"; onClicked: window.vm.navigate("Library") }
-                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"; text: qsTr("Queue"); badgeText: window.vm.jobQueue.activeCount > 0 ? window.vm.jobQueue.activeCount.toString() : ""; selected: window.vm.currentPage === "Queue"; onClicked: window.vm.navigate("Queue") }
-                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"; text: qsTr("Trash"); selected: window.vm.currentPage === "Trash"; onClicked: window.vm.navigate("Trash") }
-                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/box.svg"; text: qsTr("Models"); selected: window.vm.currentPage === "Models"; onClicked: window.vm.navigate("Models") }
-                    SidebarItem { Layout.fillWidth: true; iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"; text: qsTr("Glossary"); selected: window.vm.currentPage === "Glossary"; onClicked: window.vm.navigate("Glossary") }
+                    SidebarItem {
+                        Layout.fillWidth: true
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/library.svg"
+                        text: qsTr("Library")
+                        badgeText: window.vm.jobQueue.activeCount > 0
+                                   ? window.vm.jobQueue.activeCount.toString() : ""
+                        selected: ["Library", "Recording", "Queue", "Trash"].includes(window.vm.currentPage)
+                        onClicked: window.vm.navigate("Library")
+                    }
+                    SidebarItem {
+                        Layout.fillWidth: true
+                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
+                        text: qsTr("Name Dictionary")
+                        selected: window.vm.currentPage === "Glossary"
+                        onClicked: window.vm.navigate("Glossary")
+                    }
                 }
                 Item {
                     Layout.fillHeight: true
@@ -276,7 +287,7 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/settings.svg"
                         text: qsTr("Settings")
-                        selected: window.vm.currentPage === "Settings"
+                        selected: window.vm.currentPage === "Settings" || window.vm.currentPage === "Models"
                         onClicked: window.vm.navigate("Settings")
                     }
                 }
@@ -300,6 +311,8 @@ ApplicationWindow {
                 app: window.vm
                 onImportRequested: importDialog.open()
                 onFolderImportRequested: importFolderDialog.open()
+                onActivityRequested: window.vm.navigate("Queue")
+                onTrashRequested: window.vm.navigate("Trash")
                 onToastRequested: function(message, severity, actionText, action) {
                     window.showToast(message, severity, actionText, action)
                 }
@@ -308,7 +321,11 @@ ApplicationWindow {
             TrashPage { vm: window.vm.library }
             ModelsPage { vm: window.vm.modelManager; onCustomImportRequested: customModelDialog.open() }
             GlossaryPage { vm: window.vm.glossary }
-            SettingsPage { vm: window.vm.settings; diagnostics: window.vm.diagnostics }
+            SettingsPage {
+                vm: window.vm.settings
+                diagnostics: window.vm.diagnostics
+                onManageModelsRequested: window.vm.navigate("Models")
+            }
             RecordingPage { id: recordingPage; vm: window.vm }
         }
     }

@@ -190,7 +190,7 @@ class SettingsViewModel final : public QObject {
     QString m_microphoneDevice{"Default"};
     QString m_playbackDevice{"Default"};
     QString m_recordingFormat{"PCM WAV"};
-    bool m_autoTranscribeRecording{false};
+    bool m_autoTranscribeRecording{true};
     QString m_managedMediaPolicy{"ReferenceOriginal"};
     bool m_automaticUpdates{false};
     QString m_updateChannel{"Stable"};

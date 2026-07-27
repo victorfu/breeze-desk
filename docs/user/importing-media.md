@@ -11,7 +11,7 @@ selected files use native paths without constructing a shell command.
 - **Copy into managed storage** writes a hash-named copy under BreezeDesk's application-data directory
   before adding the recording. The original remains untouched.
 
-Choose the default under **Settings > General > Import behavior**. A folder scan reports how many files
+Choose the default under **Settings > Storage > Managed media**. A folder scan reports how many files
 have been found and copied and can be cancelled. Duplicate titles receive a safe distinct title; existing
 source records and unsupported entries are reported rather than silently replacing library data.
 
@@ -24,7 +24,7 @@ source records and unsupported entries are reported rather than silently replaci
 5. The file is atomically committed and multiresolution waveform peaks are generated.
 
 Cancelling or a conversion failure removes the temporary output and preserves any previously valid
-cache. The source is never rewritten. Normalization progress appears in Queue and cannot block playback
+cache. The source is never rewritten. Normalization progress appears under **Library > Activity** and cannot block playback
 or navigation.
 
 ## Missing and removed media

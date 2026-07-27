@@ -375,6 +375,7 @@ class LibraryWorkflowsTest final : public QObject {
         createFile(mediaPath);
 
         BreezeDesk::ApplicationViewModel viewModel(&repository);
+        viewModel.settings()->setAutoTranscribeRecording(false);
         QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(mediaPath)}), 1);
         QVERIFY(!viewModel.activeRecordingId().isEmpty());
         QCOMPARE(viewModel.library()->selectedRecordingId(), viewModel.activeRecordingId());
@@ -392,10 +393,6 @@ class LibraryWorkflowsTest final : public QObject {
         createFile(mediaPath);
 
         BreezeDesk::ApplicationViewModel viewModel(&repository);
-        QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(mediaPath)}), 1);
-        const QString recordingId = viewModel.activeRecordingId();
-        QVERIFY(!recordingId.isEmpty());
-
         viewModel.modelManager()->setDefaultModel(QStringLiteral("breeze-asr-25-q8"));
         QSignalSpy downloadRequested(viewModel.modelManager(),
                                      &BreezeDesk::ModelManagerViewModel::downloadRequested);
@@ -408,7 +405,9 @@ class LibraryWorkflowsTest final : public QObject {
                                                     QStringLiteral("Preparing"), 0.0);
                 });
 
-        QVERIFY(viewModel.requestTranscription(recordingId).isEmpty());
+        QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(mediaPath)}), 1);
+        const QString recordingId = viewModel.activeRecordingId();
+        QVERIFY(!recordingId.isEmpty());
         QCOMPARE(viewModel.modelManager()->defaultModelId(), QStringLiteral("breeze-asr-25-q5"));
         QVERIFY(viewModel.modelManager()->defaultModelDownloadActive());
         QCOMPARE(downloadRequested.count(), 1);
@@ -425,7 +424,7 @@ class LibraryWorkflowsTest final : public QObject {
                                          Q_ARG(bool, true), Q_ARG(QString, QString{})));
         QCOMPARE(transcriptionRequested.count(), 1);
         QCOMPARE(viewModel.jobQueue()->jobs()->rowCount(), 1);
-        QCOMPARE(viewModel.currentPage(), QStringLiteral("Queue"));
+        QCOMPARE(viewModel.currentPage(), QStringLiteral("Recording"));
 
         const QString jobId = transcriptionRequested.constFirst().at(0).toString();
         QAbstractItemModel* recordings = viewModel.library()->recordings();

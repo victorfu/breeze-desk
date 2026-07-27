@@ -1,36 +1,38 @@
 # Getting started
 
-BreezeDesk needs no account and performs transcription on this computer. Before the first job, open
-**Models** and install an ASR model. Q5 is the recommended memory/speed balance; Q8 uses more memory. A
-download is not usable until its exact size and SHA-256 state is **Verified**. Packaged media-tool
-availability is checked when preparation starts and can be refreshed in Diagnostics.
+BreezeDesk needs no account and performs transcription on this computer. The first time transcription
+needs a model, BreezeDesk automatically downloads and verifies the recommended Q5 model. This is a
+one-time download of about 1 GB; the recording stays on this computer. Q8 and custom models remain
+available from **Settings > Transcription > Manage Models**.
 
 ## Create the first transcript
 
-1. Choose **Import Files**, drag local media into Library, or press Ctrl/Cmd+O. **Open Folder** scans a
-   selected folder for supported media and shows cancellable progress.
-2. Select the recording card. The recording view loads the source into the player and shows any existing
-   transcript.
-3. Review **Settings > Transcription**. Balanced, language `zh`, automatic backend selection, and Silero
-   VAD are the normal starting point for a long Taiwan Mandarin meeting.
-4. Optionally maintain the shared Glossary and enable the terms needed for recognition, then choose
-   **Transcribe**. The enabled terms are snapshotted into the job. The job appears in Queue;
-   normalization and inference run outside the UI thread.
+1. Optionally add important names under **Name Dictionary**. Enabled names are included when a new
+   transcription starts.
+2. Choose **Import Files**, drag local media into Library, or press Ctrl/Cmd+O. Use the Library's more
+   menu and choose **Import Folder…** to scan a folder with cancellable progress.
+3. New media starts transcribing automatically by default. You can keep browsing the Library while the
+   recommended model downloads and the work runs. Choose **Activity** to see progress, cancel, retry, or
+   resume work.
+4. Select a recording card to play the source and view its latest transcript. If automatic transcription
+   is disabled, choose **Start Transcription**. Choose **Transcribe Again…** to replace an existing
+   transcript after the new result is ready.
 5. For a recording without a completed transcript, partial segments can appear as units complete.
    Editing stays locked during processing, then unlocks for correction, review, playback, and export.
 
-If the model is absent, corrupt, or already being removed, transcription remains disabled and Models
-shows the action to take. See [Models](models.md) for download and custom-model handling.
+The normal defaults are Balanced quality, Chinese recognition, automatic backend selection, and Silero
+VAD. Technical tuning is available under **Settings > Transcription > Show Advanced**. See
+[Models](models.md) for model verification and custom-model handling.
 
 ## Long jobs and application exit
 
-Queue shows the current stage, progress, and retry/cancel controls. Cancelling retains durable completed
+**Library > Activity** shows the current stage, progress, and retry/cancel controls. Cancelling retains durable completed
 chunks and diagnostics. An unexpected worker exit marks the job **Interrupted**; after the worker
 restarts, **Resume** continues with the first incomplete chunk rather than repeating finished work.
 
 Closing the window may hide it in the tray when **Settings > General > Close behavior** is set to
-**Minimize to tray**. Choosing Quit stops the helper safely and leaves an active job resumable. Always
-check Queue before shutting down a machine during a long job.
+**Minimize to tray**. Choosing Quit stops the helper safely and leaves an active job resumable. Check
+**Activity** before shutting down a machine during a long job.
 
 ## Files and privacy
 

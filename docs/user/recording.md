@@ -13,9 +13,10 @@ start capture.
 5. Choose **Stop and Save**. BreezeDesk finalizes a local PCM WAV, commits it atomically, and adds it to
    Library.
 
-Enable **Settings > Audio > Transcribe new recordings automatically** to enqueue the new recording after
-it is saved. Otherwise, open it in Library and choose **Transcribe** manually. Closing the dialog is
-disabled while capture is active; stop the recording first so the WAV header can be finalized.
+**Transcribe automatically after saving** is enabled by default in the recording dialog and can also be
+changed under **Settings > Transcription**. If it is disabled, open the saved recording in Library and
+choose **Start Transcription**. Closing the dialog is disabled while capture is active; stop the recording
+first so the WAV header can be finalized.
 
 ## Permissions and device errors
 

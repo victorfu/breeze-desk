@@ -33,7 +33,7 @@ Item {
             Layout.fillWidth: true
             stackWidth: root.headerStackWidth
             title: qsTr("Job Queue")
-            subtitle: qsTr("One transcription runs at a time; completed chunks are saved immediately.")
+            subtitle: qsTr("Transcriptions run one at a time. You can continue using the app while they finish.")
             Toggle {
                 objectName: "queuePauseAfterCurrentToggle"
                 text: qsTr("Pause after current job")
@@ -52,7 +52,7 @@ Item {
             visible: root.vm.empty
             iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
             title: qsTr("The queue is empty")
-            description: qsTr("Open a recording from Library and add it to the transcription queue.")
+            description: qsTr("New automatic transcriptions and manual retries will appear here.")
         }
         ListView {
             objectName: "jobList"
@@ -85,7 +85,7 @@ Item {
         title: root.pendingRemoveJobTitle.length > 0
                ? qsTr("Remove %1 permanently?").arg(root.pendingRemoveJobTitle)
                : qsTr("Remove this job permanently?")
-        subtitle: qsTr("Its transcript version, partial results, and activity history will be deleted. This cannot be undone.")
+        subtitle: qsTr("Its partial transcript and activity history will be deleted. This cannot be undone.")
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
         destructive: true
         standardButtons: Dialog.Cancel | Dialog.Ok
@@ -100,7 +100,7 @@ Item {
         id: removeFinishedDialog
         objectName: "queueRemoveFinishedDialog"
         title: qsTr("Remove finished jobs permanently?")
-        subtitle: qsTr("Completed and cancelled transcript versions and their activity history will be deleted. This cannot be undone.")
+        subtitle: qsTr("Completed and cancelled activity history will be deleted. Finished transcripts remain in the Library.")
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
         destructive: true
         standardButtons: Dialog.Cancel | Dialog.Ok

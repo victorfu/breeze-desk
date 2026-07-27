@@ -11,6 +11,8 @@ Item {
     required property var app
     signal importRequested
     signal folderImportRequested
+    signal activityRequested
+    signal trashRequested
     signal toastRequested(string message, string severity, string actionText, var action)
     objectName: "libraryPage"
     readonly property int headerStackWidth: 760
@@ -43,9 +45,35 @@ Item {
                 onClicked: root.importRequested()
             }
             AppButton {
-                objectName: "libraryOpenFolderButton"
-                text: qsTr("Open Folder")
-                onClicked: root.folderImportRequested()
+                objectName: "libraryActivityButton"
+                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
+                text: root.app.jobQueue.activeCount > 0
+                      ? qsTr("Activity (%1)").arg(root.app.jobQueue.activeCount)
+                      : qsTr("Activity")
+                onClicked: root.activityRequested()
+            }
+            IconButton {
+                id: libraryMoreButton
+                objectName: "libraryMoreButton"
+                accessibleName: qsTr("More library actions")
+                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/ellipsis.svg"
+                onClicked: libraryMoreMenu.popup(
+                               libraryMoreButton,
+                               libraryMoreButton.width - libraryMoreMenu.implicitWidth,
+                               libraryMoreButton.height + SemanticTokens.spacingXs)
+            }
+            AppMenu {
+                id: libraryMoreMenu
+                AppMenuItem {
+                    objectName: "libraryOpenFolderButton"
+                    text: qsTr("Import Folder…")
+                    onTriggered: root.folderImportRequested()
+                }
+                AppMenuItem {
+                    objectName: "libraryOpenTrashButton"
+                    text: qsTr("Trash")
+                    onTriggered: root.trashRequested()
+                }
             }
         }
         GridLayout {
@@ -177,13 +205,19 @@ Item {
             Keys.onEnterPressed: if (currentItem) currentItem.clicked()
             ScrollBar.vertical: ScrollBar { }
             delegate: RecordingCard {
+                id: recordingCard
                 width: ListView.view.width
                 highlighted: ListView.isCurrentItem
                 onOpenRequested: function(recordingId) {
                     root.vm.activateRecording(recordingId)
                 }
                 onTranscribeRequested: function(recordingId) {
-                    root.app.requestTranscription(recordingId)
+                    if (recordingCard.status === "Completed") {
+                        root.pendingRetranscriptionId = recordingId
+                        replaceTranscriptDialog.open()
+                    } else {
+                        root.app.requestTranscription(recordingId)
+                    }
                 }
                 onTrashRequested: function(recordingId) {
                     const libraryVm = root.vm
@@ -216,6 +250,18 @@ Item {
     }
 
     property string pendingRecordingId: ""
+    property string pendingRetranscriptionId: ""
+
+    AppDialog {
+        id: replaceTranscriptDialog
+        objectName: "libraryReplaceTranscriptDialog"
+        title: qsTr("Replace the current transcript?")
+        subtitle: qsTr("Transcribing this recording again will replace the current transcript when the new one is ready.")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
+        standardButtons: Dialog.Cancel | Dialog.Ok
+        onAccepted: root.app.requestTranscription(root.pendingRetranscriptionId)
+        onClosed: root.pendingRetranscriptionId = ""
+    }
 
     AppDialog {
         id: renameDialog

@@ -22,8 +22,8 @@ Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
             stackWidth: root.termsHeaderStackWidth
-            title: qsTr("Terms")
-            subtitle: qsTr("Add canonical names and aliases so transcripts use your preferred spelling.")
+            title: qsTr("Name Dictionary")
+            subtitle: qsTr("Teach transcripts the correct spelling of important names and terms.")
 
             AppSearchField {
                 objectName: "glossarySearchField"
@@ -35,7 +35,7 @@ Item {
             }
             AppButton {
                 objectName: "glossaryAddTermButton"
-                text: qsTr("Add Term")
+                text: qsTr("Add Name")
                 primary: true
                 onClicked: termDialog.open()
             }
@@ -46,11 +46,11 @@ Item {
             Layout.fillHeight: true
             visible: termsList.count === 0
             iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
-            title: root.vm.termSearch.length > 0 ? qsTr("No matching terms") : qsTr("No terms yet")
+            title: root.vm.termSearch.length > 0 ? qsTr("No matching terms") : qsTr("No names yet")
             description: root.vm.termSearch.length > 0
                          ? qsTr("Try a different canonical name or alias.")
-                         : qsTr("Add canonical names and aliases so transcripts use your preferred spelling.")
-            actionText: root.vm.termSearch.length > 0 ? "" : qsTr("Add Term")
+                         : qsTr("Add an important name and, optionally, other ways it may be recognized.")
+            actionText: root.vm.termSearch.length > 0 ? "" : qsTr("Add Name")
             onActionTriggered: termDialog.open()
         }
 
@@ -108,7 +108,8 @@ Item {
                         }
                     }
                     StatusBadge {
-                        visible: termRow.width >= 560 * DesignSystem.textScale
+                        visible: termCard.priority !== 80
+                                 && termRow.width >= 560 * DesignSystem.textScale
                         text: qsTr("Priority %1").arg(termCard.priority)
                         tone: termCard.priority >= 80 ? "accent" : "neutral"
                     }
@@ -134,8 +135,8 @@ Item {
         objectName: "glossaryTermDialog"
         surfaceObjectName: "glossaryTermDialogSurface"
         headerObjectName: "glossaryTermDialogHeader"
-        title: qsTr("Add Glossary Term")
-        subtitle: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
+        title: qsTr("Add Name")
+        subtitle: qsTr("Enter the spelling you want to appear in transcripts.")
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
         standardButtons: Dialog.NoButton
 
@@ -143,6 +144,7 @@ Item {
             canonicalText.clear()
             aliasText.clear()
             priority.value = 80
+            advancedTermOptions.visible = false
         }
 
         function addTerm() {
@@ -169,7 +171,7 @@ Item {
                 spacing: SemanticTokens.spacingXs
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("Canonical term")
+                    text: qsTr("Preferred spelling")
                     color: SemanticTokens.text
                     font.pixelSize: SemanticTokens.bodySize
                     font.weight: SemanticTokens.weightSemiBold
@@ -178,8 +180,8 @@ Item {
                     id: canonicalText
                     objectName: "glossaryCanonicalTermField"
                     Layout.fillWidth: true
-                    accessibleName: qsTr("Canonical term")
-                    placeholderText: qsTr("Canonical term")
+                    accessibleName: qsTr("Preferred spelling")
+                    placeholderText: qsTr("For example, BreezeDesk")
                     onAccepted: termDialog.addTerm()
                 }
             }
@@ -189,7 +191,7 @@ Item {
                 spacing: SemanticTokens.spacingXs
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("Aliases")
+                    text: qsTr("Other spellings (optional)")
                     color: SemanticTokens.text
                     font.pixelSize: SemanticTokens.bodySize
                     font.weight: SemanticTokens.weightSemiBold
@@ -198,18 +200,27 @@ Item {
                     id: aliasText
                     objectName: "glossaryAliasesField"
                     Layout.fillWidth: true
-                    accessibleName: qsTr("Aliases")
-                    placeholderText: qsTr("Aliases separated by commas")
+                    accessibleName: qsTr("Other spellings")
+                    placeholderText: qsTr("Separate multiple spellings with commas")
                     onAccepted: termDialog.addTerm()
                 }
             }
 
+            AppButton {
+                objectName: "glossaryAdvancedOptionsButton"
+                text: advancedTermOptions.visible ? qsTr("Hide Advanced") : qsTr("Show Advanced")
+                onClicked: advancedTermOptions.visible = !advancedTermOptions.visible
+            }
+
             ColumnLayout {
+                id: advancedTermOptions
+                objectName: "glossaryAdvancedOptions"
                 Layout.fillWidth: true
                 spacing: SemanticTokens.spacingXs
+                visible: false
                 Text {
                     Layout.fillWidth: true
-                    text: qsTr("Priority")
+                    text: qsTr("Recognition priority")
                     color: SemanticTokens.text
                     font.pixelSize: SemanticTokens.bodySize
                     font.weight: SemanticTokens.weightSemiBold
@@ -263,7 +274,7 @@ Item {
                 }
                 AppButton {
                     objectName: "glossaryTermCreateButton"
-                    text: qsTr("Add Term")
+                    text: qsTr("Add Name")
                     primary: true
                     enabled: canonicalText.text.trim().length > 0
                     onClicked: termDialog.addTerm()

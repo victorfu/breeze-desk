@@ -109,7 +109,7 @@ AppDialog {
             objectName: "recordingAutoTranscribeToggle"
             Layout.fillWidth: true
             visible: control.settings !== null
-            text: qsTr("Transcribe automatically after recording")
+            text: qsTr("Transcribe automatically after saving")
             checked: control.settings ? control.settings.autoTranscribeRecording : false
             onToggled: if (control.settings) control.settings.autoTranscribeRecording = checked
         }

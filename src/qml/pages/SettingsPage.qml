@@ -7,6 +7,8 @@ Item {
     id: root
     required property var vm
     required property var diagnostics
+    signal manageModelsRequested
+    property bool advancedTranscriptionVisible: false
     objectName: "settingsPage"
 
     readonly property real contentMaximumWidth: ComponentTokens.inspectorWidth * 3
@@ -93,16 +95,6 @@ Item {
                         onActivated: root.vm.closeBehavior = currentIndex === 0 ? "MinimizeToTray" : currentIndex === 1 ? "CloseWindow" : "Quit"
                     }
                 }
-                SettingRow {
-                    label: qsTr("Import behavior")
-                    AppComboBox {
-                        Layout.fillWidth: true
-                        Accessible.name: qsTr("Import behavior")
-                        model: [qsTr("Reference original"), qsTr("Copy into managed storage")]
-                        currentIndex: root.vm.importBehavior === "ReferenceOriginal" ? 0 : 1
-                        onActivated: root.vm.importBehavior = currentIndex === 0 ? "ReferenceOriginal" : "CopyManaged"
-                    }
-                }
             }
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: SemanticTokens.border }
             InspectorSection {
@@ -151,6 +143,17 @@ Item {
                 Layout.fillWidth: true
                 title: qsTr("Transcription")
                 SettingRow {
+                    label: qsTr("Transcribe new media automatically")
+                    description: qsTr("Starts transcription after files are imported or a microphone recording is saved.")
+                    Toggle {
+                        objectName: "autoTranscribeNewMediaToggle"
+                        checked: root.vm.autoTranscribeRecording
+                        Accessible.name: qsTr("Transcribe new media automatically")
+                        onToggled: root.vm.autoTranscribeRecording = checked
+                    }
+                }
+                SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Default model")
                     AppComboBox {
                         Layout.fillWidth: true
@@ -171,16 +174,36 @@ Item {
                     }
                 }
                 SettingRow {
-                    label: qsTr("Preset")
+                    label: qsTr("Transcription quality")
                     AppComboBox {
                         Layout.fillWidth: true
-                        accessibleName: qsTr("Preset")
+                        accessibleName: qsTr("Transcription quality")
                         model: [qsTr("Fast"), qsTr("Balanced"), qsTr("Accurate")]
                         currentIndex: root.vm.preset === "Fast" ? 0 : root.vm.preset === "Balanced" ? 1 : 2
                         onActivated: root.vm.preset = currentIndex === 0 ? "Fast" : currentIndex === 1 ? "Balanced" : "Accurate"
                     }
                 }
                 SettingRow {
+                    label: qsTr("Transcription models")
+                    description: qsTr("The recommended model downloads automatically when it is first needed.")
+                    AppButton {
+                        objectName: "manageModelsButton"
+                        text: qsTr("Manage Models")
+                        onClicked: root.manageModelsRequested()
+                    }
+                }
+                SettingRow {
+                    label: qsTr("Advanced settings")
+                    description: qsTr("Performance tuning and transcript analysis options.")
+                    AppButton {
+                        objectName: "toggleAdvancedTranscriptionButton"
+                        text: root.advancedTranscriptionVisible
+                              ? qsTr("Hide Advanced") : qsTr("Show Advanced")
+                        onClicked: root.advancedTranscriptionVisible = !root.advancedTranscriptionVisible
+                    }
+                }
+                SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Silero VAD")
                     description: qsTr("Finds speech boundaries before long recordings are divided into resumable units.")
                     Toggle {
@@ -190,6 +213,7 @@ Item {
                     }
                 }
                 SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Initial prompt")
                     description: qsTr("Uses enabled glossary terms and the previous chunk within the model token budget.")
                     AppComboBox {
@@ -201,6 +225,7 @@ Item {
                     }
                 }
                 SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Backend")
                     AppComboBox {
                         Layout.fillWidth: true
@@ -212,6 +237,7 @@ Item {
                     }
                 }
                 SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Flash attention")
                     Toggle {
                         accessibleName: qsTr("Flash attention")
@@ -220,6 +246,7 @@ Item {
                     }
                 }
                 SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Token timestamps")
                     Toggle {
                         accessibleName: qsTr("Token timestamps")
@@ -228,6 +255,7 @@ Item {
                     }
                 }
                 SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Worker threads")
                     AppSpinBox {
                         Layout.fillWidth: true
@@ -240,6 +268,7 @@ Item {
                     }
                 }
                 SettingRow {
+                    visible: root.advancedTranscriptionVisible
                     label: qsTr("Low-confidence threshold")
                     AppSlider { Layout.fillWidth: true; from: 0; to: 1; stepSize: 0.05; value: root.vm.lowConfidenceThreshold; Accessible.name: qsTr("Low-confidence threshold"); onMoved: root.vm.lowConfidenceThreshold = value }
                 }
@@ -278,15 +307,6 @@ Item {
                         Layout.fillWidth: true
                         accessibleName: qsTr("Recording format")
                         model: [qsTr("PCM WAV")]
-                    }
-                }
-                SettingRow {
-                    label: qsTr("Transcribe new recordings automatically")
-                    description: qsTr("Starts a queued transcription after microphone recording stops.")
-                    Toggle {
-                        checked: root.vm.autoTranscribeRecording
-                        Accessible.name: qsTr("Transcribe new recordings automatically")
-                        onToggled: root.vm.autoTranscribeRecording = checked
                     }
                 }
             }

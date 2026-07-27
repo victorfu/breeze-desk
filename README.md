@@ -69,11 +69,12 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
 
 ## 🧠 Models
 
-Models are never bundled in the repository or installer. The Models page (or `breezedesk-cli models
-download`) fetches them from immutable source revisions, supports pause/resume, and verifies the
-exact byte size and SHA-256 before a file can reach the worker. License and provenance stay visible
-in the app, and a local whisper.cpp GGML `.bin` can be imported as a custom model. A queued
-transcription that requires Silero VAD automatically uses this same verified download path and resumes
+Models are never bundled in the repository or installer. The first transcription automatically fetches
+the recommended Q5 model; **Settings > Transcription > Manage Models** (or `breezedesk-cli models
+download`) provides manual control. Downloads come from immutable source revisions, support
+pause/resume, and verify the exact byte size and SHA-256 before a file can reach the worker. License and
+provenance stay visible in the app, and a local whisper.cpp GGML `.bin` can be imported as a custom model.
+A transcription that requires Silero VAD automatically uses this same verified download path and resumes
 after the model is installed.
 
 | Model | Quantization | Size | Purpose |

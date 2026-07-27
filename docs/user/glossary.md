@@ -1,7 +1,8 @@
-# Glossary
+# Name Dictionary
 
-BreezeDesk keeps one shared glossary. Add a canonical term and any explicit aliases, then use the switch
-on that term to include or exclude it from future transcription jobs. Existing installations consolidate
+BreezeDesk keeps one shared name dictionary. Add the spelling you want in transcripts and, optionally,
+other ways the name may be recognized. Use the switch on each name to include or exclude it from future
+transcription jobs. Existing installations consolidate
 terms from older glossary profiles into this shared list during database migration. Unique terms keep
 their IDs and enabled states; same-name entries are consolidated deterministically.
 

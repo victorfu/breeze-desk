@@ -7,7 +7,7 @@ Sanitized Diagnostics** over screenshots containing local paths or transcript te
 
 | Symptom | Action |
 | --- | --- |
-| Model not installed | Install Q5/Q8 in Models, wait for **Verified**, then retry. |
+| Model not installed | Start transcription to download Q5 automatically, or open **Settings > Transcription > Manage Models**. Wait for **Verified**, then retry. |
 | Checksum mismatch | Verify or redownload. A corrupt `.part`, installed model, or custom-model sidecar is never loaded. |
 | Model load failed | Run **Test Model**, confirm available memory and backend, then try Q5 or CPU. |
 | GPU initialization failed | Select CPU, or use the Vulkan-enabled Windows package and update the GPU driver. |

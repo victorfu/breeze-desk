@@ -14,7 +14,7 @@ AppDialog {
         spacing: SemanticTokens.spacingLg
         Text {
             Layout.fillWidth: true
-            text: qsTr("Download the recommended model or import a GGML model before adding recordings to the queue.")
+            text: qsTr("The recommended model will download automatically when you start transcription for the first time.")
             color: SemanticTokens.text
             wrapMode: Text.Wrap
             font.pixelSize: SemanticTokens.bodySize
@@ -29,7 +29,7 @@ AppDialog {
             }
             AppButton {
                 objectName: "modelRequiredGoToModelsButton"
-                text: qsTr("Go to Models")
+                text: qsTr("Manage Models")
                 primary: true
                 onClicked: {
                     control.close()

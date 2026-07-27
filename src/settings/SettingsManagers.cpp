@@ -225,7 +225,7 @@ void AudioSettingsManager::setRecordingFormat(const QString& v) {
           v == QStringLiteral("pcm16-wav") ? v : QStringLiteral("pcm16-wav"));
 }
 bool AudioSettingsManager::autoTranscribeRecording() const {
-    return read(QStringLiteral("autoTranscribe"), false).toBool();
+    return read(QStringLiteral("autoTranscribe"), true).toBool();
 }
 void AudioSettingsManager::setAutoTranscribeRecording(bool v) {
     write(QStringLiteral("autoTranscribe"), v);

@@ -202,9 +202,6 @@ int main(int argc, char* argv[]) {
     applyManagedMediaPolicy();
     viewModel->modelManager()->installServices(&modelManager, &modelSettings);
     viewModel->glossary()->installRepository(&glossaryRepository);
-    if (!modelManager.isInstalled(modelManager.defaultModelId())) {
-        viewModel->navigate(QStringLiteral("Models"));
-    }
     BreezeDesk::TranscriptionCoordinator transcriptionCoordinator(recordingRepository, jobRepository,
                                                                   transcriptRepository, modelManager, worker,
                                                                   &transcriptionSettings, &application);
@@ -556,7 +553,7 @@ int main(int argc, char* argv[]) {
                      });
     QObject::connect(
         &microphoneRecorder, &BreezeDesk::MicrophoneRecorder::recordingFinished, &application,
-        [viewModel = viewModel.get(), &recordingRepository, &audioSettings, showWindow](const QString& path) {
+        [viewModel = viewModel.get(), &recordingRepository, showWindow](const QString& path) {
             showWindow();
             const int imported = viewModel->importUrls({QUrl::fromLocalFile(path)});
             if (imported == 0) {
@@ -569,9 +566,6 @@ int main(int argc, char* argv[]) {
             }
             const QString recordingId = recording.value()->id;
             viewModel->openRecording(recordingId);
-            if (audioSettings.autoTranscribeRecording()) {
-                viewModel->enqueueTranscription(recordingId);
-            }
         });
     QObject::connect(&instanceGuard, &BreezeDesk::Ipc::SingleInstanceGuard::activationRequested, &application,
                      [showWindow, importPaths](const QStringList& paths) {

@@ -181,6 +181,12 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
     m_transcriptAutosaveTimer.setSingleShot(true);
     m_transcriptAutosaveTimer.setInterval(750);
     connect(&m_library, &LibraryViewModel::recordingActivated, this, &ApplicationViewModel::openRecording);
+    connect(&m_library, &LibraryViewModel::recordingImported, this,
+            [this](const QString& recordingId, const QString&) {
+                if (m_settings.autoTranscribeRecording()) {
+                    (void)requestTranscription(recordingId);
+                }
+            });
     connect(&m_library, &LibraryViewModel::importRejected, this,
             [this](const QUrl&, const QString& reason) { showToast(reason); });
     connect(&m_library, &LibraryViewModel::operationFailed, this, &ApplicationViewModel::showToast);
@@ -732,8 +738,7 @@ QString ApplicationViewModel::enqueueTranscription(const QString& recordingId) {
     if (!m_jobQueue.containsJob(jobId)) {
         return {};
     }
-    showToast(tr("Transcription added to the queue."));
-    navigate(QStringLiteral("Queue"));
+    showToast(tr("Transcription started. You can continue using the app."));
     return jobId;
 }
 

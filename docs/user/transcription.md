@@ -1,8 +1,13 @@
 # Transcription
 
-A job requires a verified ASR model and a readable media source. Open a recording and choose
-**Transcribe**, or enqueue several recordings and manage their order in Queue. One ASR job runs at a
-time; media preparation may proceed separately without freezing the interface.
+A job requires a verified ASR model and a readable media source. Importing new media starts transcription
+automatically by default; BreezeDesk downloads and verifies the recommended model the first time it is
+needed. Open **Library > Activity** to manage several recordings. One ASR job runs at a time, and media
+preparation does not freeze the interface.
+
+If automatic transcription is disabled in Settings, open a recording and choose **Start Transcription**.
+Choosing **Transcribe Again…** asks for confirmation, then replaces the current transcript only after the
+new result completes successfully.
 
 ## Recognition settings
 
@@ -29,7 +34,7 @@ when a hard speech cut is unavoidable.
 
 Each unit is a durable `job_chunks` record. Its segments are committed to SQLite before the next unit
 starts, so completed work survives a GUI, worker, or system interruption. The transcript view displays
-partial units, but locks editing while its active revision is still receiving worker results.
+partial units, but locks editing while the active transcription is still receiving worker results.
 
 ## Cancel, retry, and resume
 
@@ -44,6 +49,6 @@ worker within its bounded restart policy. It never shares one whisper context ac
 inferences.
 
 Settings Diagnostics reports selected/actual backend and the detected whisper.cpp/worker runtime after a
-refresh or model load. Queue and the recording revision retain model, backend, progress, and failure
+refresh or model load. Activity and the latest transcript retain model, backend, progress, and failure
 diagnostics for the job. For checksum, GPU, memory, or media failures, follow
 [Troubleshooting](troubleshooting.md).

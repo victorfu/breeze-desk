@@ -182,7 +182,9 @@ ItemDelegate {
             }
             AppMenuItem {
                 objectName: "recordingTranscribeMenuItem"
-                text: qsTr("Transcribe")
+                text: control.status === "Completed"
+                      ? qsTr("Transcribe Again…") : qsTr("Start Transcription")
+                enabled: control.status !== "Transcribing"
                 onTriggered: control.transcribeRequested(control.recordingId)
             }
             AppMenuSeparator { }
