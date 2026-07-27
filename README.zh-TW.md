@@ -34,8 +34,8 @@ C API,不執行 `whisper-cli`,也沒有雲端 ASR、Python runtime 或遙測。�
   不會拖垮主程式或你的資料庫。
 - ⏳ **為數小時的長錄音而生** — VAD 對齊分塊、partial segments 即時保存、取消、重試、中斷後
   resume,以及確定性的重疊去重。
-- 🗂️ **完整的逐字稿 Library** — SQLite 儲存、revisions 與編輯、標籤、搜尋、Trash、Glossary
-  profiles、prompt token 預算與可稽核的 alias replacement。
+- 🗂️ **完整的逐字稿 Library** — SQLite 儲存、revisions 與編輯、標籤、搜尋、Trash、單一專有
+  名詞清單與逐詞啟用控制、prompt token 預算與可稽核的 alias replacement。
 - 🎨 **精緻的 QML 介面** — 語意化 Design Tokens、System/Light/Dark 主題、中英文介面、鍵盤
   操作、波形與播放器同步、無障礙控制項。
 - 🧠 **可驗證的模型管理** — Q5/Q8/自訂 GGML 模型,下載可暫停續傳,載入前驗證真實位元組

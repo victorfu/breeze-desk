@@ -76,8 +76,6 @@ class TranscriptionSettingsManager final : public SettingsManagerBase {
     void setVadEnabled(bool value);
     [[nodiscard]] QString initialPromptBehavior() const;
     void setInitialPromptBehavior(const QString& value);
-    [[nodiscard]] QString glossaryProfileId() const;
-    void setGlossaryProfileId(const QString& value);
     [[nodiscard]] int threadCount() const;
     void setThreadCount(int value);
     [[nodiscard]] BackendPreference backend() const;

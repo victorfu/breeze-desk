@@ -1,11 +1,7 @@
 #include "breezedesk/ui/GlossaryViewModel.h"
 
-#include "breezedesk/glossary/GlossarySerializer.h"
 #include "breezedesk/glossary/IGlossaryRepository.h"
 
-#include <QFile>
-#include <QFileInfo>
-#include <QSaveFile>
 #include <QUuid>
 
 namespace BreezeDesk {
@@ -331,22 +327,18 @@ bool GlossaryTermFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelI
 
 GlossaryViewModel::GlossaryViewModel(QObject* parent) : QObject(parent), m_termProxy(this) {
     m_termProxy.setSourceModel(&m_terms);
-    connect(&m_terms, &QAbstractItemModel::rowsInserted, this, &GlossaryViewModel::rebuildPromptPreview);
-    connect(&m_terms, &QAbstractItemModel::rowsRemoved, this, &GlossaryViewModel::rebuildPromptPreview);
-    connect(&m_terms, &QAbstractItemModel::dataChanged, this, &GlossaryViewModel::rebuildPromptPreview);
-    connect(&m_terms, &QAbstractItemModel::modelReset, this, &GlossaryViewModel::rebuildPromptPreview);
+    m_profiles.replaceProfiles(
+        {{DefaultGlossaryProfileId, QStringLiteral("Glossary"), {}, {}, 0}});
+    setSelectedProfileId(DefaultGlossaryProfileId);
 }
 
 void GlossaryViewModel::installRepository(IGlossaryRepository* repository) {
     m_repository = repository;
     if (m_repository != nullptr) {
-        reloadProfiles(m_selectedProfileId);
+        reloadProfiles();
     }
 }
 
-QAbstractItemModel* GlossaryViewModel::profiles() noexcept {
-    return &m_profiles;
-}
 QAbstractItemModel* GlossaryViewModel::terms() noexcept {
     return &m_termProxy;
 }
@@ -356,78 +348,6 @@ QString GlossaryViewModel::selectedProfileId() const {
 QString GlossaryViewModel::termSearch() const {
     return m_termSearch;
 }
-QString GlossaryViewModel::promptPreview() const {
-    return m_promptPreview;
-}
-int GlossaryViewModel::promptTokenCount() const noexcept {
-    return m_promptTokenCount;
-}
-int GlossaryViewModel::promptTokenMaximum() const noexcept {
-    return PromptTokenMaximum;
-}
-
-QString GlossaryViewModel::createProfile(const QString& name, const QString& description,
-                                         const QString& context) {
-    if (m_repository != nullptr) {
-        GlossaryProfile profile;
-        profile.name = name.trimmed();
-        profile.description = description.trimmed();
-        profile.projectContext = context.trimmed();
-        const auto result = m_repository->createProfile(profile);
-        if (!result) {
-            emit validationError(errorMessage(result.error()));
-            return {};
-        }
-        reloadProfiles(result.value());
-        return result.value();
-    }
-    const QString id = m_profiles.add(name, description, context);
-    if (id.isEmpty()) {
-        emit validationError(tr("Profile name cannot be empty."));
-    } else {
-        setSelectedProfileId(id);
-    }
-    return id;
-}
-
-void GlossaryViewModel::duplicateProfile(const QString& id) {
-    if (m_repository != nullptr) {
-        const QVariantMap source = m_profiles.profile(id);
-        if (source.isEmpty()) {
-            emit validationError(tr("The glossary profile no longer exists."));
-            return;
-        }
-        const auto result = m_repository->duplicateProfile(
-            id, tr("%1 Copy").arg(source.value(QStringLiteral("name")).toString()));
-        if (!result) {
-            emit validationError(errorMessage(result.error()));
-            return;
-        }
-        reloadProfiles(result.value());
-        return;
-    }
-    const QString duplicateId = m_profiles.duplicate(id);
-    if (!duplicateId.isEmpty()) {
-        setSelectedProfileId(duplicateId);
-    }
-}
-
-void GlossaryViewModel::deleteProfile(const QString& id) {
-    if (m_repository != nullptr) {
-        const auto result = m_repository->deleteProfile(id);
-        if (!result) {
-            emit validationError(errorMessage(result.error()));
-            return;
-        }
-        reloadProfiles();
-        return;
-    }
-    if (m_profiles.remove(id)) {
-        m_terms.removeProfileTerms(id);
-        setSelectedProfileId(m_profiles.firstId());
-    }
-}
-
 QString GlossaryViewModel::addTerm(const QString& canonicalText, const QStringList& aliases, int priority) {
     if (m_repository != nullptr) {
         GlossaryTerm term;
@@ -441,7 +361,8 @@ QString GlossaryViewModel::addTerm(const QString& canonicalText, const QStringLi
             emit validationError(errorMessage(result.error()));
             return {};
         }
-        reloadProfiles(m_selectedProfileId);
+        m_profiles.adjustTermCount(m_selectedProfileId, 1);
+        reloadTerms();
         return result.value();
     }
     GlossaryTermListModel::Term term;
@@ -451,7 +372,7 @@ QString GlossaryViewModel::addTerm(const QString& canonicalText, const QStringLi
     term.priority = priority;
     const QString id = m_terms.add(term);
     if (id.isEmpty()) {
-        emit validationError(tr("Choose a profile and enter a canonical term."));
+        emit validationError(tr("Enter a canonical term."));
     } else {
         m_profiles.adjustTermCount(m_selectedProfileId, 1);
     }
@@ -465,7 +386,8 @@ void GlossaryViewModel::deleteTerm(const QString& id) {
             emit validationError(errorMessage(result.error()));
             return;
         }
-        reloadProfiles(m_selectedProfileId);
+        m_profiles.adjustTermCount(m_selectedProfileId, -1);
+        reloadTerms();
         return;
     }
     if (m_terms.remove(id)) {
@@ -485,130 +407,14 @@ void GlossaryViewModel::setTermEnabled(const QString& id, bool enabled) {
     }
     m_terms.setEnabled(id, enabled);
 }
-void GlossaryViewModel::importFile(const QUrl& file) {
-    if (m_repository == nullptr) {
-        emit importRequested(file);
-        return;
-    }
-    QFile input(file.toLocalFile());
-    if (!input.open(QIODevice::ReadOnly)) {
-        emit validationError(tr("The glossary file could not be opened: %1").arg(input.errorString()));
-        return;
-    }
-    const QByteArray data = input.readAll();
-    const QString suffix = QFileInfo(input.fileName()).suffix().toLower();
-    if (suffix == QLatin1String("json")) {
-        auto documentResult = GlossarySerializer::fromJson(data);
-        if (!documentResult) {
-            emit validationError(errorMessage(documentResult.error()));
-            return;
-        }
-        GlossaryDocument document = std::move(documentResult).value();
-        document.profile.id.clear();
-        auto profileResult = m_repository->createProfile(document.profile);
-        if (!profileResult) {
-            emit validationError(errorMessage(profileResult.error()));
-            return;
-        }
-        QStringList createdTerms;
-        for (GlossaryTerm term : std::as_const(document.terms)) {
-            term.id.clear();
-            term.profileId = profileResult.value();
-            auto termResult = m_repository->createTerm(term);
-            if (!termResult) {
-                for (const QString& createdId : std::as_const(createdTerms)) {
-                    const auto ignored = m_repository->deleteTerm(createdId);
-                    Q_UNUSED(ignored)
-                }
-                const auto ignored = m_repository->deleteProfile(profileResult.value());
-                Q_UNUSED(ignored)
-                emit validationError(errorMessage(termResult.error()));
-                return;
-            }
-            createdTerms.append(termResult.value());
-        }
-        reloadProfiles(profileResult.value());
-        emit operationSucceeded(tr("Glossary profile imported."));
-        return;
-    }
-    if (suffix == QLatin1String("csv")) {
-        if (m_selectedProfileId.isEmpty()) {
-            emit validationError(tr("Choose a glossary profile before importing CSV terms."));
-            return;
-        }
-        auto termsResult = GlossarySerializer::termsFromCsv(data, m_selectedProfileId);
-        if (!termsResult) {
-            emit validationError(errorMessage(termsResult.error()));
-            return;
-        }
-        QStringList createdTerms;
-        for (GlossaryTerm term : termsResult.value()) {
-            auto termResult = m_repository->createTerm(term);
-            if (!termResult) {
-                for (const QString& createdId : std::as_const(createdTerms)) {
-                    const auto ignored = m_repository->deleteTerm(createdId);
-                    Q_UNUSED(ignored)
-                }
-                emit validationError(errorMessage(termResult.error()));
-                reloadProfiles(m_selectedProfileId);
-                return;
-            }
-            createdTerms.append(termResult.value());
-        }
-        reloadProfiles(m_selectedProfileId);
-        emit operationSucceeded(tr("Glossary terms imported."));
-        return;
-    }
-    emit validationError(tr("Glossary import supports JSON and CSV files."));
-}
-void GlossaryViewModel::exportFile(const QUrl& file, const QString& format) {
-    if (m_repository == nullptr) {
-        emit exportRequested(file, format);
-        return;
-    }
-    const auto profileResult = m_repository->profile(m_selectedProfileId);
-    if (!profileResult) {
-        emit validationError(errorMessage(profileResult.error()));
-        return;
-    }
-    if (!profileResult.value()) {
-        emit validationError(tr("Choose a glossary profile before exporting."));
-        return;
-    }
-    const auto termsResult = m_repository->terms(m_selectedProfileId);
-    if (!termsResult) {
-        emit validationError(errorMessage(termsResult.error()));
-        return;
-    }
-    QByteArray contents;
-    const QString normalizedFormat = format.toLower();
-    if (normalizedFormat == QLatin1String("json")) {
-        contents = GlossarySerializer::toJson({*profileResult.value(), termsResult.value()});
-    } else if (normalizedFormat == QLatin1String("csv")) {
-        contents = GlossarySerializer::termsToCsv(termsResult.value());
-    } else {
-        emit validationError(tr("Glossary export supports JSON and CSV files."));
-        return;
-    }
-    QSaveFile output(file.toLocalFile());
-    if (!output.open(QIODevice::WriteOnly) || output.write(contents) != contents.size() || !output.commit()) {
-        emit validationError(tr("The glossary export could not be saved: %1").arg(output.errorString()));
-        return;
-    }
-    emit operationSucceeded(tr("Glossary exported."));
-}
-
 void GlossaryViewModel::setSelectedProfileId(const QString& id) {
     if (m_selectedProfileId == id) {
         return;
     }
     m_selectedProfileId = id;
     m_termProxy.setProfileId(id);
-    emit selectedProfileIdChanged();
     if (m_repository != nullptr) {
         reloadTerms();
-    } else {
-        rebuildPromptPreview();
     }
 }
 
@@ -621,7 +427,7 @@ void GlossaryViewModel::setTermSearch(const QString& text) {
     emit termSearchChanged();
 }
 
-bool GlossaryViewModel::reloadProfiles(const QString& preferredProfileId) {
+bool GlossaryViewModel::reloadProfiles() {
     if (m_repository == nullptr) {
         return false;
     }
@@ -631,8 +437,10 @@ bool GlossaryViewModel::reloadProfiles(const QString& preferredProfileId) {
         return false;
     }
     QList<GlossaryProfileListModel::Profile> profiles;
-    profiles.reserve(result.value().size());
     for (const GlossaryProfile& profile : result.value()) {
+        if (profile.id != DefaultGlossaryProfileId) {
+            continue;
+        }
         const auto termsResult = m_repository->terms(profile.id);
         if (!termsResult) {
             emit validationError(errorMessage(termsResult.error()));
@@ -641,10 +449,7 @@ bool GlossaryViewModel::reloadProfiles(const QString& preferredProfileId) {
         profiles.append(uiProfile(profile, static_cast<int>(termsResult.value().size())));
     }
     m_profiles.replaceProfiles(std::move(profiles));
-    QString selected = preferredProfileId.isEmpty() ? m_selectedProfileId : preferredProfileId;
-    if (m_profiles.profile(selected).isEmpty()) {
-        selected = m_profiles.firstId();
-    }
+    const QString selected = m_profiles.firstId();
     if (selected != m_selectedProfileId) {
         setSelectedProfileId(selected);
     } else {
@@ -673,28 +478,6 @@ bool GlossaryViewModel::reloadTerms() {
     }
     m_terms.replaceTerms(std::move(terms));
     return true;
-}
-
-void GlossaryViewModel::rebuildPromptPreview() {
-    const QVariantMap profile = m_profiles.profile(m_selectedProfileId);
-    QStringList terms;
-    for (int row = 0; row < m_termProxy.rowCount() && terms.size() < 40; ++row) {
-        const QModelIndex item = m_termProxy.index(row, 0);
-        if (m_termProxy.data(item, GlossaryTermListModel::EnabledRole).toBool()) {
-            terms.append(m_termProxy.data(item, GlossaryTermListModel::CanonicalTextRole).toString());
-        }
-    }
-    const QString context = profile.value("projectContext").toString();
-    if (profile.isEmpty()) {
-        m_promptPreview.clear();
-    } else if (terms.isEmpty()) {
-        m_promptPreview = context;
-    } else {
-        m_promptPreview =
-            tr("Context: %1. Important terms: %2.").arg(context, terms.join(QStringLiteral(", ")));
-    }
-    m_promptTokenCount = qMin(PromptTokenMaximum, static_cast<int>((m_promptPreview.size() + 2) / 3));
-    emit promptPreviewChanged();
 }
 
 } // namespace BreezeDesk

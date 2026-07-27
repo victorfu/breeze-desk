@@ -70,6 +70,7 @@ class DatabaseTest final : public QObject {
     void migrationBackupAndIntegrityCheckWork();
     void upgradeMigrationCreatesBackup();
     void revisionMigrationNormalizesLegacyHistory();
+    void singleGlossaryMigrationConsolidatesProfiles();
     void migrationChecksumMismatchIsRejected();
 };
 
@@ -78,7 +79,7 @@ void DatabaseTest::cleanMigrationConfiguresSQLite() {
     QVERIFY(directory.isValid());
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
-    QCOMPARE(manager.schemaVersion(), 8);
+    QCOMPARE(manager.schemaVersion(), 9);
     auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery foreignKeys(connection.value());
@@ -276,11 +277,11 @@ void DatabaseTest::searchIndexMigrationRebuildsWithTrigram() {
         QVERIFY(query.exec(QStringLiteral(
             "CREATE VIRTUAL TABLE search_index USING fts5(recording_id UNINDEXED, title, notes, tags, "
             "transcript, tokenize='unicode61 remove_diacritics 2')")));
-        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version=8")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (8,9)")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 8);
+    QCOMPARE(upgraded.schemaVersion(), 9);
     QVERIFY(upgraded.hasFts5());
     auto connection = upgraded.connection();
     QVERIFY(connection);
@@ -321,13 +322,13 @@ void DatabaseTest::upgradeMigrationCreatesBackup() {
         QSqlQuery removeReviewed(connection.value());
         QVERIFY(removeReviewed.exec(QStringLiteral("ALTER TABLE transcript_segments DROP COLUMN reviewed")));
         QVERIFY(
-            removeVersion.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8)")));
+            removeVersion.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8,9)")));
         QSqlQuery removeIndex(connection.value());
         QVERIFY(removeIndex.exec(QStringLiteral("DROP INDEX idx_recordings_source_path")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 8);
+    QCOMPARE(upgraded.schemaVersion(), 9);
     const QStringList backups =
         QDir(directory.path()).entryList({QStringLiteral("library.sqlite.backup-*")}, QDir::Files);
     QCOMPARE(backups.size(), 1);
@@ -353,7 +354,7 @@ void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
         QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_jobs_single_execution")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE asr_execution_lease")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE transcription_job_events")));
-        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (7,8)")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (7,8,9)")));
 
         const auto insertJob = [&](const QString& id, const QString& state, const int queuePosition,
                                    const QString& createdAt) {
@@ -383,7 +384,7 @@ void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
 
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 8);
+    QCOMPARE(upgraded.schemaVersion(), 9);
     auto connection = upgraded.connection();
     QVERIFY(connection);
     QSqlQuery jobs(connection.value());
@@ -423,6 +424,50 @@ void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
     QCOMPARE(eventCounts.value(QStringLiteral("enqueued")), 5);
     QCOMPARE(eventCounts.value(QStringLiteral("completed")), 2);
     QCOMPARE(eventCounts.value(QStringLiteral("interrupted")), 1);
+}
+
+void DatabaseTest::singleGlossaryMigrationConsolidatesProfiles() {
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("library.sqlite"));
+    {
+        DatabaseManager manager({path});
+        QVERIFY(manager.initialize());
+        auto connection = manager.connection();
+        QVERIFY(connection);
+        QSqlQuery setup(connection.value());
+        QVERIFY(setup.exec(QStringLiteral(
+            "INSERT INTO glossary_profiles(id,name,created_at,updated_at) VALUES"
+            "('product','Product','now','now'),('customer','Customer','now','now')")));
+        QVERIFY(setup.exec(QStringLiteral(
+            "INSERT INTO glossary_terms(id,profile_id,canonical_text,enabled,created_at,updated_at) "
+            "VALUES('term-1','product','BreezeDesk',1,'now','now'),"
+            "('term-duplicate','customer','breezedesk',0,'now','now'),"
+            "('term-2','customer','MediaTek',0,'now','now')")));
+        QVERIFY(setup.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version=9")));
+    }
+
+    DatabaseManager upgraded({path});
+    QVERIFY(upgraded.initialize());
+    QCOMPARE(upgraded.schemaVersion(), 9);
+    auto connection = upgraded.connection();
+    QVERIFY(connection);
+    QSqlQuery profiles(connection.value());
+    QVERIFY(profiles.exec(QStringLiteral("SELECT id FROM glossary_profiles")));
+    QVERIFY(profiles.next());
+    QCOMPARE(profiles.value(0).toString(), QStringLiteral("default"));
+    QVERIFY(!profiles.next());
+    QSqlQuery terms(connection.value());
+    QVERIFY(terms.exec(QStringLiteral(
+        "SELECT id,profile_id,enabled FROM glossary_terms ORDER BY id")));
+    QVERIFY(terms.next());
+    QCOMPARE(terms.value(0).toString(), QStringLiteral("term-1"));
+    QCOMPARE(terms.value(1).toString(), QStringLiteral("default"));
+    QVERIFY(terms.value(2).toBool());
+    QVERIFY(terms.next());
+    QCOMPARE(terms.value(0).toString(), QStringLiteral("term-2"));
+    QCOMPARE(terms.value(1).toString(), QStringLiteral("default"));
+    QVERIFY(!terms.value(2).toBool());
+    QVERIFY(!terms.next());
 }
 
 void DatabaseTest::migrationChecksumMismatchIsRejected() {

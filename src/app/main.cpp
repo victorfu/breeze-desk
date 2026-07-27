@@ -203,19 +203,6 @@ int main(int argc, char* argv[]) {
     applyManagedMediaPolicy();
     viewModel->modelManager()->installServices(&modelManager, &modelSettings);
     viewModel->glossary()->installRepository(&glossaryRepository);
-    const QString configuredGlossary = transcriptionSettings.glossaryProfileId();
-    if (!configuredGlossary.isEmpty()) {
-        const auto configuredProfile = glossaryRepository.profile(configuredGlossary);
-        if (configuredProfile && configuredProfile.value().has_value()) {
-            viewModel->glossary()->setSelectedProfileId(configuredGlossary);
-        }
-    }
-    transcriptionSettings.setGlossaryProfileId(viewModel->glossary()->selectedProfileId());
-    QObject::connect(viewModel->glossary(), &BreezeDesk::GlossaryViewModel::selectedProfileIdChanged,
-                     &application, [viewModel = viewModel.get(), &transcriptionSettings] {
-                         transcriptionSettings.setGlossaryProfileId(
-                             viewModel->glossary()->selectedProfileId());
-                     });
     if (!modelManager.isInstalled(modelManager.defaultModelId())) {
         viewModel->navigate(QStringLiteral("Models"));
     }
@@ -446,8 +433,6 @@ int main(int argc, char* argv[]) {
                      viewModel.get(), &BreezeDesk::ApplicationViewModel::showToast);
     QObject::connect(viewModel->glossary(), &BreezeDesk::GlossaryViewModel::validationError, viewModel.get(),
                      &BreezeDesk::ApplicationViewModel::showToast);
-    QObject::connect(viewModel->glossary(), &BreezeDesk::GlossaryViewModel::operationSucceeded,
-                     viewModel.get(), &BreezeDesk::ApplicationViewModel::showToast);
     QObject::connect(viewModel->modelManager(), &BreezeDesk::ModelManagerViewModel::defaultModelChanged,
                      &application, [viewModel = viewModel.get(), &transcriptionSettings, &modelManager] {
                          const QString id = viewModel->modelManager()->defaultModelId();

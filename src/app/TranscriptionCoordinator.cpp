@@ -394,7 +394,9 @@ void TranscriptionCoordinator::enqueue(const QString& jobId, const QString& reco
         job.parameters.insert(QStringLiteral("tokenTimestamps"), m_settings->tokenTimestamps());
         job.parameters.insert(QStringLiteral("lowConfidenceThreshold"), m_settings->lowConfidenceThreshold());
         job.parameters.insert(QStringLiteral("initialPromptBehavior"), m_settings->initialPromptBehavior());
-        job.glossaryProfileId = m_settings->glossaryProfileId();
+    }
+    if (m_glossaryRepository != nullptr) {
+        job.glossaryProfileId = DefaultGlossaryProfileId;
     }
     if (m_glossaryRepository != nullptr && !job.glossaryProfileId.isEmpty() &&
         job.parameters.value(QStringLiteral("initialPromptBehavior")).toString() !=
@@ -405,7 +407,7 @@ void TranscriptionCoordinator::enqueue(const QString& jobId, const QString& reco
             return;
         }
         if (!profile.value().has_value()) {
-            emit errorOccurred(tr("The selected glossary profile no longer exists."));
+            emit errorOccurred(tr("The glossary could not be loaded."));
             return;
         }
         job.meetingContext = profile.value()->projectContext;

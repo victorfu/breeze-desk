@@ -3,7 +3,6 @@
 #include <QAbstractListModel>
 #include <QObject>
 #include <QSortFilterProxyModel>
-#include <QUrl>
 
 namespace BreezeDesk {
 
@@ -107,14 +106,8 @@ class GlossaryTermFilterProxyModel final : public QSortFilterProxyModel {
 
 class GlossaryViewModel final : public QObject {
     Q_OBJECT
-    Q_PROPERTY(QAbstractItemModel* profiles READ profiles CONSTANT)
     Q_PROPERTY(QAbstractItemModel* terms READ terms CONSTANT)
-    Q_PROPERTY(QString selectedProfileId READ selectedProfileId WRITE setSelectedProfileId NOTIFY
-                   selectedProfileIdChanged)
     Q_PROPERTY(QString termSearch READ termSearch WRITE setTermSearch NOTIFY termSearchChanged)
-    Q_PROPERTY(QString promptPreview READ promptPreview NOTIFY promptPreviewChanged)
-    Q_PROPERTY(int promptTokenCount READ promptTokenCount NOTIFY promptPreviewChanged)
-    Q_PROPERTY(int promptTokenMaximum READ promptTokenMaximum CONSTANT)
 
   public:
     explicit GlossaryViewModel(QObject* parent = nullptr);
@@ -123,41 +116,25 @@ class GlossaryViewModel final : public QObject {
     // outlive this view model. A null repository keeps isolated QML behavior.
     void installRepository(IGlossaryRepository* repository);
 
-    [[nodiscard]] QAbstractItemModel* profiles() noexcept;
     [[nodiscard]] QAbstractItemModel* terms() noexcept;
     [[nodiscard]] QString selectedProfileId() const;
     [[nodiscard]] QString termSearch() const;
-    [[nodiscard]] QString promptPreview() const;
-    [[nodiscard]] int promptTokenCount() const noexcept;
-    [[nodiscard]] int promptTokenMaximum() const noexcept;
 
-    Q_INVOKABLE QString createProfile(const QString& name, const QString& description,
-                                      const QString& context);
-    Q_INVOKABLE void duplicateProfile(const QString& id);
-    Q_INVOKABLE void deleteProfile(const QString& id);
     Q_INVOKABLE QString addTerm(const QString& canonicalText, const QStringList& aliases, int priority);
     Q_INVOKABLE void deleteTerm(const QString& id);
     Q_INVOKABLE void setTermEnabled(const QString& id, bool enabled);
-    Q_INVOKABLE void importFile(const QUrl& file);
-    Q_INVOKABLE void exportFile(const QUrl& file, const QString& format);
 
   public slots:
-    void setSelectedProfileId(const QString& id);
     void setTermSearch(const QString& text);
 
   signals:
-    void selectedProfileIdChanged();
     void termSearchChanged();
-    void promptPreviewChanged();
-    void importRequested(const QUrl& file);
-    void exportRequested(const QUrl& file, const QString& format);
     void validationError(const QString& message);
-    void operationSucceeded(const QString& message);
 
   private:
-    bool reloadProfiles(const QString& preferredProfileId = {});
+    void setSelectedProfileId(const QString& id);
+    bool reloadProfiles();
     bool reloadTerms();
-    void rebuildPromptPreview();
 
     GlossaryProfileListModel m_profiles;
     GlossaryTermListModel m_terms;
@@ -165,9 +142,6 @@ class GlossaryViewModel final : public QObject {
     IGlossaryRepository* m_repository{nullptr};
     QString m_selectedProfileId;
     QString m_termSearch;
-    QString m_promptPreview;
-    int m_promptTokenCount{0};
-    static constexpr int PromptTokenMaximum = 512;
 };
 
 } // namespace BreezeDesk

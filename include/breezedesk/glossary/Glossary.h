@@ -6,6 +6,8 @@
 
 namespace BreezeDesk {
 
+inline const QString DefaultGlossaryProfileId = QStringLiteral("default");
+
 struct GlossaryProfile {
     QString id;
     QString name;

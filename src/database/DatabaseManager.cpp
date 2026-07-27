@@ -219,6 +219,22 @@ QStringList revisionHistorySchema() {
     };
 }
 
+QStringList singleGlossarySchema() {
+    return {
+        QStringLiteral(
+            "INSERT OR IGNORE INTO glossary_profiles(id,name,description,project_context,created_at,"
+            "updated_at) VALUES('default','Glossary','','',strftime('%Y-%m-%dT%H:%M:%fZ','now'),"
+            "strftime('%Y-%m-%dT%H:%M:%fZ','now'))"),
+        QStringLiteral(
+            "DELETE FROM glossary_terms WHERE id IN (SELECT id FROM (SELECT id,ROW_NUMBER() OVER ("
+            "PARTITION BY canonical_text COLLATE NOCASE ORDER BY CASE WHEN profile_id='default' THEN 0 "
+            "ELSE 1 END,enabled DESC,priority DESC,updated_at DESC,id) AS duplicate_rank FROM "
+            "glossary_terms) WHERE duplicate_rank>1)"),
+        QStringLiteral("UPDATE glossary_terms SET profile_id='default' WHERE profile_id<>'default'"),
+        QStringLiteral("DELETE FROM glossary_profiles WHERE id<>'default'"),
+    };
+}
+
 QString migrationChecksum(const QStringList& statements) {
     return QString::fromLatin1(
         QCryptographicHash::hash(statements.join(QLatin1Char('\n')).toUtf8(), QCryptographicHash::Sha256)
@@ -361,7 +377,7 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         }
         currentVersion = query.value(0).toInt();
     }
-    constexpr int latestSchemaVersion = 8;
+    constexpr int latestSchemaVersion = 9;
     if (currentVersion > latestSchemaVersion) {
         return Result<void>::failure(
             UserFacingError::database(ErrorCode::DatabaseMigrationFailed,
@@ -397,6 +413,8 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
           QString::fromLatin1(QCryptographicHash::hash(QByteArrayLiteral("fts5-trigram-or-fallback-v1"),
                                                        QCryptographicHash::Sha256)
                                   .toHex())}},
+        {9,
+         {QStringLiteral("single_glossary"), migrationChecksum(singleGlossarySchema())}},
     };
     QSet<int> appliedVersions;
     QSqlQuery applied(database);
@@ -638,6 +656,13 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
                 QStringLiteral("The search reindex migration could not be committed."), record.lastError()));
         }
         currentVersion = 8;
+    }
+    if (currentVersion < 9) {
+        auto result =
+            applyStatements(9, QStringLiteral("single_glossary"), singleGlossarySchema());
+        if (!result)
+            return result;
+        currentVersion = 9;
     }
     m_schemaVersion = currentVersion;
     return Result<void>::success();

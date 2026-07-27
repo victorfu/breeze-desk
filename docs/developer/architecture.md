@@ -21,7 +21,7 @@ See [ADR 0002](../adr/0002-native-whisper-worker.md) and the
 | `breezedesk_database` | SQLite lifecycle, migrations, repositories, paged search. |
 | `breezedesk_audio` | FFprobe/FFmpeg, normalized audio validation, recording, waveform/cache. |
 | `breezedesk_models` | Immutable manifest, resumable download, checksum and custom-model storage. |
-| `breezedesk_glossary` | Profiles/terms, import/export, prompt composition and replacement audit. |
+| `breezedesk_glossary` | Shared terms, prompt composition and replacement audit. |
 | `breezedesk_transcript` | Segment persistence/editing/autosave/export. |
 | `breezedesk_jobs` | Queue, state machine, repositories and interrupted-job recovery. |
 | `breezedesk_asr` | Presets, chunk planning, VAD, libwhisper RAII adapters and deduplication. |

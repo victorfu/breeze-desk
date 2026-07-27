@@ -27,7 +27,7 @@ must request a connection on the thread that uses it and release queries before 
 
 ## Schema and migrations
 
-Schema version 6 contains these durable groups:
+Schema version 9 contains these durable groups:
 
 - `recordings`, tags, and `recording_tags` for Library/Trash metadata;
 - `transcription_jobs`, `job_chunks`, and `transcript_segments` for revision and resume state;
@@ -45,6 +45,9 @@ Migration history is checksummed and verified at every startup:
 | 4 | `queue_visibility` | `transcription_jobs.queue_hidden`. |
 | 5 | `recording_source_index` | Index for exact source-path lookup. |
 | 6 | `segment_review_state` | Per-segment `reviewed` flag. |
+| 7 | `revision_history_and_execution_lease` | Revision history, job events, and one ASR execution lease. |
+| 8 | `search_index_trigram` | Trigram FTS5 index with a rebuilt fallback index. |
+| 9 | `single_glossary` | Consolidates profile terms into one shared glossary and removes duplicate names. |
 
 Before upgrading a non-empty older schema, `VACUUM INTO` creates a consistent timestamped backup.
 Statements and migration-row insertion share one transaction; failure rolls back. A database newer than

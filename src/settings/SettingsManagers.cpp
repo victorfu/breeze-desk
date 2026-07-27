@@ -171,12 +171,6 @@ QString TranscriptionSettingsManager::initialPromptBehavior() const {
 void TranscriptionSettingsManager::setInitialPromptBehavior(const QString& v) {
     write(QStringLiteral("initialPromptBehavior"), v);
 }
-QString TranscriptionSettingsManager::glossaryProfileId() const {
-    return read(QStringLiteral("glossaryProfile"), QString()).toString();
-}
-void TranscriptionSettingsManager::setGlossaryProfileId(const QString& v) {
-    write(QStringLiteral("glossaryProfile"), v);
-}
 int TranscriptionSettingsManager::threadCount() const {
     return qBound(0, read(QStringLiteral("threadCount"), 0).toInt(), 256);
 }

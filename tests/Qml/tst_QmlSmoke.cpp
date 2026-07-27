@@ -1067,7 +1067,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 
-    void glossaryProfileDialogIsAccessibleAndResponsive() {
+    void glossaryTermDialogIsAccessibleAndResponsive() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
         BreezeDesk::GlossaryViewModel glossaryViewModel;
@@ -1112,18 +1112,17 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
 
         auto* window = qobject_cast<QQuickWindow*>(root.data());
-        auto* newProfileButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryNewProfileButton"));
-        QObject* dialog = root->findChild<QObject*>(QStringLiteral("glossaryProfileDialog"));
-        auto* surface = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogSurface"));
-        auto* header = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogHeader"));
-        auto* content = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogContent"));
-        auto* footer = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDialogFooter"));
-        auto* nameField = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileNameField"));
-        auto* descriptionField =
-            root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileDescriptionField"));
-        auto* contextField = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileContextField"));
-        auto* cancelButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileCancelButton"));
-        auto* createButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryProfileCreateButton"));
+        auto* newProfileButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryAddTermButton"));
+        QObject* dialog = root->findChild<QObject*>(QStringLiteral("glossaryTermDialog"));
+        auto* surface = root->findChild<QQuickItem*>(QStringLiteral("glossaryTermDialogSurface"));
+        auto* header = root->findChild<QQuickItem*>(QStringLiteral("glossaryTermDialogHeader"));
+        auto* content = root->findChild<QQuickItem*>(QStringLiteral("glossaryTermDialogContent"));
+        auto* footer = root->findChild<QQuickItem*>(QStringLiteral("glossaryTermDialogFooter"));
+        auto* nameField = root->findChild<QQuickItem*>(QStringLiteral("glossaryCanonicalTermField"));
+        auto* descriptionField = root->findChild<QQuickItem*>(QStringLiteral("glossaryAliasesField"));
+        auto* contextField = root->findChild<QQuickItem*>(QStringLiteral("glossaryPrioritySlider"));
+        auto* cancelButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryTermCancelButton"));
+        auto* createButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryTermCreateButton"));
         QVERIFY(window);
         QVERIFY(newProfileButton);
         QVERIFY(dialog);
@@ -1140,16 +1139,13 @@ class tst_QmlSmoke final : public QObject {
         window->show();
         QCoreApplication::processEvents();
         QVERIFY2(QMetaObject::invokeMethod(newProfileButton, "clicked", Qt::DirectConnection),
-                 "The New Profile action does not expose its click boundary.");
+                 "The Add Term action does not expose its click boundary.");
         QTRY_VERIFY_WITH_TIMEOUT(dialog->property("visible").toBool(), 1'000);
 
         for (QObject* accessibleControl :
              {static_cast<QObject*>(nameField), static_cast<QObject*>(descriptionField),
               static_cast<QObject*>(contextField), static_cast<QObject*>(cancelButton),
               static_cast<QObject*>(createButton)}) {
-            QVERIFY2(
-                !accessibleControl->property("accessibleName").toString().trimmed().isEmpty(),
-                qPrintable(accessibleControl->objectName() + QStringLiteral(" has no accessible name.")));
             QAccessibleInterface* interface = QAccessible::queryAccessibleInterface(accessibleControl);
             QVERIFY2(interface, qPrintable(accessibleControl->objectName() +
                                            QStringLiteral(" has no accessibility interface.")));
@@ -1213,10 +1209,10 @@ class tst_QmlSmoke final : public QObject {
                         verifyContained(surface, header, QStringLiteral("dialog header"));
                         verifyContained(surface, content, QStringLiteral("dialog content"));
                         verifyContained(surface, footer, QStringLiteral("dialog footer"));
-                        verifyContained(content, nameField, QStringLiteral("profile name field"));
+                        verifyContained(content, nameField, QStringLiteral("canonical term field"));
                         verifyContained(content, descriptionField,
-                                        QStringLiteral("profile description field"));
-                        verifyContained(content, contextField, QStringLiteral("profile context field"));
+                                        QStringLiteral("aliases field"));
+                        verifyContained(content, contextField, QStringLiteral("priority slider"));
                         verifyContained(footer, cancelButton, QStringLiteral("dialog cancel button"));
                         verifyContained(footer, createButton, QStringLiteral("dialog create button"));
 
@@ -1231,7 +1227,7 @@ class tst_QmlSmoke final : public QObject {
         }
 
         QCOMPARE(createButton->property("enabled").toBool(), false);
-        nameField->setProperty("text", QStringLiteral("Fixture profile"));
+        nameField->setProperty("text", QStringLiteral("Fixture term"));
         QTRY_COMPARE_WITH_TIMEOUT(createButton->property("enabled").toBool(), true, 1'000);
         QVERIFY2(QMetaObject::invokeMethod(cancelButton, "clicked", Qt::DirectConnection),
                  "The Cancel action does not expose its click boundary.");
@@ -2978,7 +2974,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(viewModel.defaultModelReady());
     }
 
-    void glossaryProfileDeleteRequiresConfirmation() {
+    void glossaryUsesSingleListAndPersistsTermState() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         BreezeDesk::DatabaseManager database(
@@ -2987,10 +2983,9 @@ class tst_QmlSmoke final : public QObject {
         BreezeDesk::SqliteGlossaryRepository repository(database);
         BreezeDesk::GlossaryViewModel glossaryViewModel;
         glossaryViewModel.installRepository(&repository);
-        const QString profileId =
-            glossaryViewModel.createProfile(QStringLiteral("Product"), QString(), QString());
-        QVERIFY(!profileId.isEmpty());
-        glossaryViewModel.setProperty("selectedProfileId", profileId);
+        const QString termId = glossaryViewModel.addTerm(
+            QStringLiteral("BreezeDesk"), {QStringLiteral("Breeze Desk")}, 90);
+        QVERIFY(!termId.isEmpty());
 
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
@@ -3013,27 +3008,34 @@ class tst_QmlSmoke final : public QObject {
                 }
             }
         )",
-                          QUrl(QStringLiteral("inline:GlossaryDeleteConfirmHost.qml")));
+                          QUrl(QStringLiteral("inline:GlossaryToggleHost.qml")));
         QTRY_VERIFY_WITH_TIMEOUT(component.status() != QQmlComponent::Loading, 1'000);
         QVERIFY2(component.isReady(), qPrintable(component.errorString()));
         QScopedPointer<QObject> root(component.createWithInitialProperties(
             {{QStringLiteral("glossaryVm"), QVariant::fromValue<QObject*>(&glossaryViewModel)}}));
         QVERIFY2(root, qPrintable(component.errorString() + qmlMessages.join(QLatin1Char('\n'))));
 
-        auto* deleteButton = root->findChild<QQuickItem*>(QStringLiteral("glossaryDeleteProfileButton"));
-        QObject* confirmDialog = root->findChild<QObject*>(QStringLiteral("glossaryDeleteProfileDialog"));
-        QVERIFY(deleteButton);
-        QVERIFY(confirmDialog);
-        QVERIFY(deleteButton->property("enabled").toBool());
+        auto* window = qobject_cast<QQuickWindow*>(root.data());
+        auto* termsList = root->findChild<QQuickItem*>(QStringLiteral("glossaryTermsList"));
+        QVERIFY(window);
+        QVERIFY(termsList);
+        window->show();
+        QTRY_COMPARE_WITH_TIMEOUT(termsList->property("count").toInt(), 1, 1'000);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("glossaryNewProfileButton")) == nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("glossaryDuplicateProfileButton")) == nullptr);
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("glossaryProfileTransferActions")) == nullptr);
 
-        QVERIFY(QMetaObject::invokeMethod(deleteButton, "clicked", Qt::DirectConnection));
-        QTRY_VERIFY_WITH_TIMEOUT(confirmDialog->property("visible").toBool(), 1'000);
-        QCOMPARE(glossaryViewModel.profiles()->rowCount(), 1);
-        QVERIFY2(confirmDialog->property("destructive").toBool(),
-                 "The profile delete confirmation must use the destructive dialog style.");
-
-        QVERIFY(QMetaObject::invokeMethod(confirmDialog, "accept"));
-        QTRY_COMPARE_WITH_TIMEOUT(glossaryViewModel.profiles()->rowCount(), 0, 1'000);
+        glossaryViewModel.setTermEnabled(termId, false);
+        QTRY_COMPARE_WITH_TIMEOUT(
+            glossaryViewModel.terms()
+                ->data(glossaryViewModel.terms()->index(0, 0),
+                       BreezeDesk::GlossaryTermListModel::EnabledRole)
+                .toBool(),
+            false, 1'000);
+        const auto storedTerms = repository.terms(BreezeDesk::DefaultGlossaryProfileId);
+        QVERIFY(storedTerms);
+        QCOMPARE(storedTerms.value().size(), 1);
+        QVERIFY(!storedTerms.value().constFirst().enabled);
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
@@ -3174,28 +3176,24 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(database.initialize());
         BreezeDesk::SqliteGlossaryRepository repository(database);
 
-        QString profileId;
         QString termId;
         {
             BreezeDesk::GlossaryViewModel first;
             first.installRepository(&repository);
-            profileId = first.createProfile(QStringLiteral("Product"), QStringLiteral("Names"),
-                                            QStringLiteral("Engineering meeting"));
-            QVERIFY(!profileId.isEmpty());
+            QCOMPARE(first.selectedProfileId(), BreezeDesk::DefaultGlossaryProfileId);
             termId = first.addTerm(QStringLiteral("BreezeDesk"), {QStringLiteral("Breeze Desk")}, 90);
             QVERIFY(!termId.isEmpty());
         }
 
         BreezeDesk::GlossaryViewModel second;
         second.installRepository(&repository);
-        QCOMPARE(second.selectedProfileId(), profileId);
-        QCOMPARE(second.profiles()->rowCount(), 1);
+        QCOMPARE(second.selectedProfileId(), BreezeDesk::DefaultGlossaryProfileId);
         QCOMPARE(second.terms()->rowCount(), 1);
         const QModelIndex term = second.terms()->index(0, 0);
         QCOMPARE(second.terms()->data(term, BreezeDesk::GlossaryTermListModel::CanonicalTextRole).toString(),
                  QStringLiteral("BreezeDesk"));
         second.setTermEnabled(termId, false);
-        const auto storedTerms = repository.terms(profileId);
+        const auto storedTerms = repository.terms(BreezeDesk::DefaultGlossaryProfileId);
         QVERIFY(storedTerms);
         QCOMPARE(storedTerms.value().constFirst().enabled, false);
     }

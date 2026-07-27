@@ -2,431 +2,138 @@ pragma ComponentBehavior: Bound
 
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Dialogs
 import QtQuick.Layouts
 
 Item {
     id: root
     required property var vm
     objectName: "glossaryPage"
-    readonly property int narrowPanelStackWidth: 260
-    readonly property int profileActionsStackWidth: 210
     readonly property int termsHeaderStackWidth: 640
-    RowLayout {
+
+    ColumnLayout {
         anchors.fill: parent
         anchors.margins: SemanticTokens.spacingLg
         spacing: SemanticTokens.spacingMd
-        Rectangle {
-            id: profilesPanel
-            objectName: "glossaryProfilesPanel"
-            Layout.preferredWidth: 260
-            Layout.minimumWidth: 240
-            Layout.fillHeight: true
-            color: SemanticTokens.surfaceMuted
-            radius: SemanticTokens.radiusMd
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: SemanticTokens.spacingMd
-                spacing: SemanticTokens.spacingSm
-                PageHeader {
-                    id: profilesHeader
-                    objectName: "glossaryProfilesHeader"
-                    Layout.fillWidth: true
-                    stackWidth: root.narrowPanelStackWidth
-                    titlePixelSize: SemanticTokens.headingSize
-                    columnSpacing: SemanticTokens.spacingSm
-                    rowSpacing: SemanticTokens.spacingXs
-                    title: qsTr("Glossary Profiles")
-                    AppButton {
-                        objectName: "glossaryNewProfileButton"
-                        Layout.fillWidth: profilesHeader.stacked
-                        text: qsTr("New")
-                        onClicked: profileDialog.open()
-                    }
-                }
-                ListView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    model: root.vm.profiles
-                    clip: true
-                    spacing: SemanticTokens.spacingXs
-                    keyNavigationEnabled: true
-                    delegate: ItemDelegate {
-                        id: profileRow
-                        required property string profileId
-                        required property string name
-                        required property int termCount
-                        width: ListView.view.width
-                        highlighted: root.vm.selectedProfileId === profileId
-                        text: name
-                        Accessible.name: qsTr("%1, %n term(s)", "", termCount).arg(name)
-                        onClicked: root.vm.selectedProfileId = profileId
-                        background: Rectangle {
-                            radius: SemanticTokens.radiusSm
-                            color: profileRow.highlighted ? SemanticTokens.accentMuted
-                                 : profileRow.down ? SemanticTokens.pressedTint
-                                 : profileRow.hovered ? SemanticTokens.hoverTint : "transparent"
-                            border.width: profileRow.activeFocus ? ComponentTokens.focusWidth : 0
-                            border.color: SemanticTokens.focusRing
-                        }
-                        contentItem: Column {
-                            Text {
-                                width: parent.width
-                                text: profileRow.name
-                                color: SemanticTokens.text
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.bodySize
-                            }
-                            Text {
-                                text: qsTr("%n term(s)", "", profileRow.termCount)
-                                color: SemanticTokens.textMuted
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
-                        }
-                    }
-                }
-                GridLayout {
-                    id: profileActions
-                    objectName: "glossaryProfileActions"
-                    Layout.fillWidth: true
-                    columns: stacked ? 1 : 2
-                    columnSpacing: SemanticTokens.spacingSm
-                    rowSpacing: SemanticTokens.spacingXs
-                    readonly property bool stacked: width < root.profileActionsStackWidth
-                                                           * DesignSystem.textScale
-                    AppButton {
-                        id: duplicateProfileButton
-                        objectName: "glossaryDuplicateProfileButton"
-                        Layout.fillWidth: true
-                        enabled: root.vm.selectedProfileId.length > 0
-                        text: qsTr("Duplicate")
-                        onClicked: root.vm.duplicateProfile(root.vm.selectedProfileId)
-                    }
-                    RemoveButton {
-                        id: deleteProfileButton
-                        objectName: "glossaryDeleteProfileButton"
-                        Layout.row: profileActions.stacked ? 1 : 0
-                        Layout.column: profileActions.stacked ? 0 : 1
-                        Layout.alignment: Qt.AlignRight
-                        enabled: root.vm.selectedProfileId.length > 0
-                        accessibleName: qsTr("Delete glossary profile")
-                        onClicked: confirmDeleteProfile.open()
-                    }
-                }
-                GridLayout {
-                    id: profileTransferActions
-                    objectName: "glossaryProfileTransferActions"
-                    Layout.fillWidth: true
-                    columns: stacked ? 1 : 2
-                    columnSpacing: SemanticTokens.spacingSm
-                    rowSpacing: SemanticTokens.spacingXs
-                    readonly property bool stacked: width < root.narrowPanelStackWidth
-                                                           * DesignSystem.textScale
-                    AppButton {
-                        id: importProfileButton
-                        Layout.fillWidth: true
-                        text: qsTr("Import")
-                        onClicked: glossaryImportDialog.open()
-                    }
-                    AppButton {
-                        id: exportJsonButton
-                        Layout.row: profileTransferActions.stacked ? 1 : 0
-                        Layout.column: profileTransferActions.stacked ? 0 : 1
-                        Layout.fillWidth: true
-                        enabled: root.vm.selectedProfileId.length > 0
-                        text: qsTr("Export JSON")
-                        onClicked: glossaryJsonExportDialog.open()
-                    }
-                    AppButton {
-                        Layout.row: profileTransferActions.stacked ? 2 : 1
-                        Layout.column: 0
-                        Layout.columnSpan: profileTransferActions.stacked ? 1 : 2
-                        Layout.fillWidth: true
-                        enabled: root.vm.selectedProfileId.length > 0
-                        text: qsTr("Export CSV")
-                        onClicked: glossaryCsvExportDialog.open()
-                    }
-                }
+
+        PageHeader {
+            id: glossaryHeader
+            objectName: "glossaryHeader"
+            actionsObjectName: "glossaryHeaderActions"
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            stackWidth: root.termsHeaderStackWidth
+            title: qsTr("Terms")
+            subtitle: qsTr("Add canonical names and aliases so transcripts use your preferred spelling.")
+
+            AppSearchField {
+                objectName: "glossarySearchField"
+                Layout.fillWidth: glossaryHeader.stacked
+                Layout.minimumWidth: 160
+                Layout.preferredWidth: 230
+                text: root.vm.termSearch
+                onTextEdited: root.vm.termSearch = text
+            }
+            AppButton {
+                objectName: "glossaryAddTermButton"
+                text: qsTr("Add Term")
+                primary: true
+                onClicked: termDialog.open()
             }
         }
-        ColumnLayout {
+
+        EmptyState {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            Layout.minimumWidth: 0
-            spacing: SemanticTokens.spacingMd
-            PageHeader {
-                id: glossaryHeader
-                objectName: "glossaryHeader"
-                actionsObjectName: "glossaryHeaderActions"
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                stackWidth: root.termsHeaderStackWidth
-                title: qsTr("Terms")
-                subtitle: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
-                AppSearchField {
-                    objectName: "glossarySearchField"
-                    Layout.fillWidth: glossaryHeader.stacked
-                    Layout.minimumWidth: 160
-                    Layout.preferredWidth: 230
-                    enabled: root.vm.selectedProfileId.length > 0
-                    text: root.vm.termSearch
-                    onTextEdited: root.vm.termSearch = text
-                }
-                AppButton {
-                    objectName: "glossaryAddTermButton"
-                    enabled: root.vm.selectedProfileId.length > 0
-                    text: qsTr("Add Term")
-                    primary: true
-                    onClicked: termDialog.open()
-                }
-            }
-            EmptyState {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                visible: root.vm.selectedProfileId.length === 0
-                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
-                title: qsTr("Create a glossary profile")
-                description: qsTr("Profiles keep project context and important names scoped to a meeting or recording.")
-                actionText: qsTr("New Profile")
-                onActionTriggered: profileDialog.open()
-            }
-            EmptyState {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                visible: root.vm.selectedProfileId.length > 0 && termsList.count === 0
-                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
-                title: root.vm.termSearch.length > 0 ? qsTr("No matching terms") : qsTr("No terms yet")
-                description: root.vm.termSearch.length > 0
-                             ? qsTr("Try a different canonical name or alias.")
-                             : qsTr("Add canonical names and aliases so transcripts use your preferred spelling.")
-                actionText: root.vm.termSearch.length > 0 ? "" : qsTr("Add Term")
-                onActionTriggered: termDialog.open()
-            }
-            ListView {
-                id: termsList
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                visible: root.vm.selectedProfileId.length > 0 && count > 0
-                model: root.vm.terms
-                spacing: SemanticTokens.spacingSm
-                clip: true
-                reuseItems: true
-                delegate: Rectangle {
-                    id: termCard
-                    required property string termId
-                    required property string canonicalText
-                    required property var aliases
-                    required property int priority
-                    required property bool termEnabled
-                    width: ListView.view.width
-                    height: Math.max(68, termRow.implicitHeight + SemanticTokens.spacingMd * 2)
-                    color: SemanticTokens.surface
-                    radius: SemanticTokens.radiusMd
-                    border.color: SemanticTokens.border
-                    RowLayout {
-                        id: termRow
-                        anchors.fill: parent
-                        anchors.margins: SemanticTokens.spacingMd
-                        ColumnLayout {
+            visible: termsList.count === 0
+            iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
+            title: root.vm.termSearch.length > 0 ? qsTr("No matching terms") : qsTr("No terms yet")
+            description: root.vm.termSearch.length > 0
+                         ? qsTr("Try a different canonical name or alias.")
+                         : qsTr("Add canonical names and aliases so transcripts use your preferred spelling.")
+            actionText: root.vm.termSearch.length > 0 ? "" : qsTr("Add Term")
+            onActionTriggered: termDialog.open()
+        }
+
+        ListView {
+            id: termsList
+            objectName: "glossaryTermsList"
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            visible: count > 0
+            model: root.vm.terms
+            spacing: SemanticTokens.spacingSm
+            clip: true
+            reuseItems: true
+
+            delegate: Rectangle {
+                id: termCard
+                required property string termId
+                required property string canonicalText
+                required property var aliases
+                required property int priority
+                required property bool termEnabled
+                width: ListView.view.width
+                height: Math.max(ComponentTokens.clickTarget,
+                                 termRow.implicitHeight + SemanticTokens.spacingMd * 2)
+                color: SemanticTokens.surface
+                opacity: termEnabled ? 1.0 : 0.68
+                radius: SemanticTokens.radiusMd
+                border.color: SemanticTokens.border
+
+                RowLayout {
+                    id: termRow
+                    anchors.fill: parent
+                    anchors.margins: SemanticTokens.spacingMd
+                    spacing: SemanticTokens.spacingMd
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Text {
                             Layout.fillWidth: true
-                            Layout.minimumWidth: 0
-                            Text {
-                                Layout.fillWidth: true
-                                text: termCard.canonicalText
-                                color: SemanticTokens.text
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.bodySize
-                                font.weight: SemanticTokens.weightSemiBold
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                text: termCard.aliases.length > 0
-                                      ? qsTr("Aliases: %1").arg(termCard.aliases.join(", "))
-                                      : qsTr("No aliases")
-                                color: SemanticTokens.textMuted
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
+                            text: termCard.canonicalText
+                            color: SemanticTokens.text
+                            elide: Text.ElideRight
+                            font.pixelSize: SemanticTokens.bodySize
+                            font.weight: SemanticTokens.weightSemiBold
                         }
-                        StatusBadge {
-                            text: qsTr("Priority %1").arg(termCard.priority)
-                            tone: termCard.priority >= 80 ? "accent" : "neutral"
-                        }
-                        Toggle {
-                            text: qsTr("Enabled")
-                            checked: termCard.termEnabled
-                            onToggled: root.vm.setTermEnabled(termCard.termId, checked)
-                        }
-                        RemoveButton {
-                            objectName: "glossaryDeleteTermButton"
-                            accessibleName: qsTr("Delete glossary term %1").arg(termCard.canonicalText)
-                            onClicked: root.vm.deleteTerm(termCard.termId)
+                        Text {
+                            Layout.fillWidth: true
+                            text: termCard.aliases.length > 0
+                                  ? qsTr("Aliases: %1").arg(termCard.aliases.join(", "))
+                                  : qsTr("No aliases")
+                            color: SemanticTokens.textMuted
+                            elide: Text.ElideRight
+                            font.pixelSize: SemanticTokens.captionSize
                         }
                     }
-                }
-            }
-            InspectorSection {
-                visible: root.vm.selectedProfileId.length > 0
-                Layout.fillWidth: true
-                title: qsTr("Prompt Preview")
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: preview.implicitHeight + SemanticTokens.spacingMd * 2
-                    color: SemanticTokens.surfaceMuted
-                    radius: SemanticTokens.radiusSm
-                    Text {
-                        id: preview
-                        anchors.fill: parent
-                        anchors.margins: SemanticTokens.spacingMd
-                        text: root.vm.promptPreview.length > 0 ? root.vm.promptPreview : qsTr("No enabled terms are selected for this prompt.")
-                        color: SemanticTokens.textMuted
-                        wrapMode: Text.Wrap
-                        font.pixelSize: SemanticTokens.bodySize
+                    StatusBadge {
+                        visible: termRow.width >= 560 * DesignSystem.textScale
+                        text: qsTr("Priority %1").arg(termCard.priority)
+                        tone: termCard.priority >= 80 ? "accent" : "neutral"
                     }
-                }
-                Text {
-                    text: qsTr("Estimated tokens: %1 / %2").arg(root.vm.promptTokenCount).arg(root.vm.promptTokenMaximum)
-                    color: SemanticTokens.textMuted
-                    font.pixelSize: SemanticTokens.captionSize
+                    Toggle {
+                        objectName: "glossaryTermToggle"
+                        text: qsTr("Enabled")
+                        accessibleName: qsTr("Enable glossary term %1").arg(termCard.canonicalText)
+                        checked: termCard.termEnabled
+                        onToggled: root.vm.setTermEnabled(termCard.termId, checked)
+                    }
+                    RemoveButton {
+                        objectName: "glossaryDeleteTermButton"
+                        accessibleName: qsTr("Delete glossary term %1").arg(termCard.canonicalText)
+                        onClicked: root.vm.deleteTerm(termCard.termId)
+                    }
                 }
             }
         }
     }
-    AppDialog {
-        id: profileDialog
-        objectName: "glossaryProfileDialog"
-        surfaceObjectName: "glossaryProfileDialogSurface"
-        headerObjectName: "glossaryProfileDialogHeader"
-        title: qsTr("New Glossary Profile")
-        subtitle: qsTr("Profiles keep project context and important names scoped to a meeting or recording.")
-        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
-        standardButtons: Dialog.NoButton
 
-        function clearFields() {
-            profileName.clear()
-            profileDescription.clear()
-            profileContext.clear()
-        }
-
-        function createProfile() {
-            if (profileName.text.trim().length === 0)
-                return
-
-            if (root.vm.createProfile(profileName.text.trim(),
-                                      profileDescription.text.trim(),
-                                      profileContext.text.trim()).length > 0) {
-                profileDialog.close()
-            }
-        }
-
-        onOpened: profileName.forceActiveFocus()
-        onClosed: clearFields()
-
-        ColumnLayout {
-            id: profileDialogContent
-            objectName: "glossaryProfileDialogContent"
-            width: parent.width
-            spacing: SemanticTokens.spacingMd
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: SemanticTokens.spacingXs
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("Profile name")
-                    color: SemanticTokens.text
-                    font.pixelSize: SemanticTokens.bodySize
-                    font.weight: SemanticTokens.weightSemiBold
-                }
-                AppTextField {
-                    id: profileName
-                    objectName: "glossaryProfileNameField"
-                    Layout.fillWidth: true
-                    accessibleName: qsTr("Profile name")
-                    placeholderText: qsTr("Profile name")
-                    onAccepted: profileDialog.createProfile()
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: SemanticTokens.spacingXs
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("Description")
-                    color: SemanticTokens.text
-                    font.pixelSize: SemanticTokens.bodySize
-                    font.weight: SemanticTokens.weightSemiBold
-                }
-                AppTextField {
-                    id: profileDescription
-                    objectName: "glossaryProfileDescriptionField"
-                    Layout.fillWidth: true
-                    accessibleName: qsTr("Description")
-                    placeholderText: qsTr("Description")
-                    onAccepted: profileDialog.createProfile()
-                }
-            }
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: SemanticTokens.spacingXs
-                Text {
-                    Layout.fillWidth: true
-                    text: qsTr("Project context")
-                    color: SemanticTokens.text
-                    font.pixelSize: SemanticTokens.bodySize
-                    font.weight: SemanticTokens.weightSemiBold
-                }
-                AppTextField {
-                    id: profileContext
-                    objectName: "glossaryProfileContextField"
-                    Layout.fillWidth: true
-                    accessibleName: qsTr("Project context")
-                    placeholderText: qsTr("Project or meeting context")
-                    onAccepted: profileDialog.createProfile()
-                }
-            }
-        }
-
-        footer: Rectangle {
-            objectName: "glossaryProfileDialogFooter"
-            implicitHeight: profileFooterLayout.implicitHeight + SemanticTokens.spacingMd * 2
-            color: SemanticTokens.surfaceRaised
-
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: 1
-                color: SemanticTokens.border
-            }
-
-            RowLayout {
-                id: profileFooterLayout
-                anchors.fill: parent
-                anchors.margins: SemanticTokens.spacingMd
-                spacing: SemanticTokens.spacingSm
-
-                Item { Layout.fillWidth: true }
-                AppButton {
-                    objectName: "glossaryProfileCancelButton"
-                    text: qsTr("Cancel")
-                    onClicked: profileDialog.close()
-                }
-                AppButton {
-                    objectName: "glossaryProfileCreateButton"
-                    text: qsTr("New Profile")
-                    primary: true
-                    enabled: profileName.text.trim().length > 0
-                    onClicked: profileDialog.createProfile()
-                }
-            }
-        }
-    }
     AppDialog {
         id: termDialog
         objectName: "glossaryTermDialog"
+        surfaceObjectName: "glossaryTermDialogSurface"
+        headerObjectName: "glossaryTermDialogHeader"
         title: qsTr("Add Glossary Term")
         subtitle: qsTr("Explicit aliases can be applied conservatively and remain auditable.")
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
@@ -442,7 +149,9 @@ Item {
             if (canonicalText.text.trim().length === 0)
                 return
 
-            const aliases = aliasText.text.length > 0 ? aliasText.text.split(",").map(function(value) { return value.trim() }) : []
+            const aliases = aliasText.text.length > 0
+                            ? aliasText.text.split(",").map(function(value) { return value.trim() })
+                            : []
             if (root.vm.addTerm(canonicalText.text.trim(), aliases, priority.value).length > 0)
                 termDialog.close()
         }
@@ -451,6 +160,7 @@ Item {
         onClosed: clearFields()
 
         ColumnLayout {
+            objectName: "glossaryTermDialogContent"
             width: parent.width
             spacing: SemanticTokens.spacingMd
 
@@ -466,6 +176,7 @@ Item {
                 }
                 AppTextField {
                     id: canonicalText
+                    objectName: "glossaryCanonicalTermField"
                     Layout.fillWidth: true
                     accessibleName: qsTr("Canonical term")
                     placeholderText: qsTr("Canonical term")
@@ -485,6 +196,7 @@ Item {
                 }
                 AppTextField {
                     id: aliasText
+                    objectName: "glossaryAliasesField"
                     Layout.fillWidth: true
                     accessibleName: qsTr("Aliases")
                     placeholderText: qsTr("Aliases separated by commas")
@@ -507,6 +219,7 @@ Item {
                     spacing: SemanticTokens.spacingMd
                     AppSlider {
                         id: priority
+                        objectName: "glossaryPrioritySlider"
                         Layout.fillWidth: true
                         from: 0
                         to: 100
@@ -524,6 +237,7 @@ Item {
         }
 
         footer: Rectangle {
+            objectName: "glossaryTermDialogFooter"
             implicitHeight: termFooterLayout.implicitHeight + SemanticTokens.spacingMd * 2
             color: SemanticTokens.surfaceRaised
 
@@ -543,55 +257,18 @@ Item {
 
                 Item { Layout.fillWidth: true }
                 AppButton {
+                    objectName: "glossaryTermCancelButton"
                     text: qsTr("Cancel")
                     onClicked: termDialog.close()
                 }
                 AppButton {
+                    objectName: "glossaryTermCreateButton"
                     text: qsTr("Add Term")
                     primary: true
                     enabled: canonicalText.text.trim().length > 0
                     onClicked: termDialog.addTerm()
                 }
             }
-        }
-    }
-    FileDialog {
-        id: glossaryImportDialog
-        title: qsTr("Import Glossary")
-        fileMode: FileDialog.OpenFile
-        nameFilters: [qsTr("Glossary files (*.json *.csv)"), qsTr("All files (*)")]
-        onAccepted: root.vm.importFile(selectedFile)
-    }
-    FileDialog {
-        id: glossaryJsonExportDialog
-        title: qsTr("Export Glossary as JSON")
-        fileMode: FileDialog.SaveFile
-        nameFilters: [qsTr("JSON file (*.json)")]
-        defaultSuffix: "json"
-        onAccepted: root.vm.exportFile(selectedFile, "json")
-    }
-    FileDialog {
-        id: glossaryCsvExportDialog
-        title: qsTr("Export Glossary Terms as CSV")
-        fileMode: FileDialog.SaveFile
-        nameFilters: [qsTr("CSV file (*.csv)")]
-        defaultSuffix: "csv"
-        onAccepted: root.vm.exportFile(selectedFile, "csv")
-    }
-    AppDialog {
-        id: confirmDeleteProfile
-        objectName: "glossaryDeleteProfileDialog"
-        title: qsTr("Delete glossary profile permanently?")
-        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
-        destructive: true
-        standardButtons: Dialog.Cancel | Dialog.Ok
-        onAccepted: root.vm.deleteProfile(root.vm.selectedProfileId)
-        Text {
-            width: parent.width
-            text: qsTr("This deletes the profile and all of its terms. This cannot be undone.")
-            wrapMode: Text.Wrap
-            color: SemanticTokens.text
-            font.pixelSize: SemanticTokens.bodySize
         }
     }
 }

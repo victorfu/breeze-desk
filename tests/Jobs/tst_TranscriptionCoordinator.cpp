@@ -4,6 +4,7 @@
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
+#include "breezedesk/glossary/SqliteGlossaryRepository.h"
 #include "breezedesk/jobs/SqliteJobRepository.h"
 #include "breezedesk/models/ModelManager.h"
 #include "breezedesk/transcript/SqliteTranscriptRepository.h"
@@ -61,9 +62,61 @@ class TranscriptionCoordinatorTest final : public QObject {
     Q_OBJECT
 
   private slots:
+    void snapshotsSharedGlossary();
     void analyzesLongAudioAndPersistsGlobalSegments();
     void runtimeUnavailableFailsBeforeMediaPreparation();
 };
+
+void TranscriptionCoordinatorTest::snapshotsSharedGlossary() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    SqliteGlossaryRepository glossary(database);
+    ModelManager models;
+    WorkerProcessManager worker;
+
+    GlossaryTerm enabled;
+    enabled.profileId = DefaultGlossaryProfileId;
+    enabled.canonicalText = QStringLiteral("BreezeDesk");
+    enabled.enabled = true;
+    const auto enabledId = glossary.createTerm(enabled);
+    QVERIFY(enabledId);
+    GlossaryTerm disabled;
+    disabled.profileId = DefaultGlossaryProfileId;
+    disabled.canonicalText = QStringLiteral("MediaTek");
+    disabled.enabled = false;
+    const auto disabledId = glossary.createTerm(disabled);
+    QVERIFY(disabledId);
+
+    Recording recording;
+    recording.id = QStringLiteral("recording-glossary");
+    recording.title = QStringLiteral("Glossary snapshot");
+    QVERIFY(recordings.create(recording));
+
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker);
+    coordinator.setGlossaryRepository(&glossary);
+    coordinator.setExternalWorkerReserved(true);
+    coordinator.enqueue(QStringLiteral("job-glossary"), recording.id);
+
+    const auto stored = jobs.findById(QStringLiteral("job-glossary"));
+    QVERIFY(stored && stored.value().has_value());
+    QCOMPARE(stored.value()->glossaryProfileId, DefaultGlossaryProfileId);
+    const QJsonArray snapshot =
+        stored.value()->parameters.value(QStringLiteral("glossaryTerms")).toArray();
+    QCOMPARE(snapshot.size(), 2);
+    QMap<QString, bool> enabledById;
+    for (const QJsonValue& value : snapshot) {
+        const QJsonObject term = value.toObject();
+        enabledById.insert(term.value(QStringLiteral("id")).toString(),
+                           term.value(QStringLiteral("enabled")).toBool());
+    }
+    QVERIFY(enabledById.value(enabledId.value()));
+    QVERIFY(!enabledById.value(disabledId.value()));
+}
 
 void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() {
     QTemporaryDir directory;

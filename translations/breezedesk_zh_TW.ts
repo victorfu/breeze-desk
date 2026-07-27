@@ -177,8 +177,8 @@
     </message>
     <message>
         <location filename="../src/ui/GlossaryViewModel.cpp" line="454"/>
-        <source>Choose a profile and enter a canonical term.</source>
-        <translation>請選擇設定檔並輸入標準詞條。</translation>
+        <source>Enter a canonical term.</source>
+        <translation>請輸入標準詞條。</translation>
     </message>
     <message>
         <location filename="../src/ui/GlossaryViewModel.cpp" line="495"/>
@@ -609,8 +609,8 @@
     </message>
     <message>
         <location filename="../src/app/TranscriptionCoordinator.cpp" line="410"/>
-        <source>The selected glossary profile no longer exists.</source>
-        <translation>選取的詞彙表設定檔已不存在。</translation>
+        <source>The glossary could not be loaded.</source>
+        <translation>無法載入專有名詞。</translation>
     </message>
     <message>
         <location filename="../src/app/TranscriptionCoordinator.cpp" line="449"/>
@@ -1099,6 +1099,10 @@
         <location filename="../src/qml/pages/GlossaryPage.qml" line="285"/>
         <source>Enabled</source>
         <translation>已啟用</translation>
+    </message>
+    <message>
+        <source>Enable glossary term %1</source>
+        <translation>啟用專有名詞 %1</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="288"/>
@@ -2953,8 +2957,8 @@
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="167"/>
-        <source>Uses the selected glossary profile, project context, and the previous chunk within the model token budget.</source>
-        <translation>在模型 Token 預算內，使用選取的詞彙表設定檔、專案脈絡與前一個分段。</translation>
+        <source>Uses enabled glossary terms and the previous chunk within the model token budget.</source>
+        <translation>在模型 Token 預算內，使用已啟用的專有名詞與前一個分段。</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="170"/>

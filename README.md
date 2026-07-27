@@ -37,7 +37,7 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
 - ⏳ **Built for hours-long recordings** — VAD-aware chunking, partial segments persisted as they
   arrive, cancellation, retry, resume for interrupted jobs, and deterministic overlap handling.
 - 🗂️ **A real transcript library** — SQLite storage with revisions and editing, tags, search, trash,
-  glossary profiles, prompt budgeting, and auditable alias replacement.
+  a shared glossary with per-term controls, prompt budgeting, and auditable alias replacement.
 - 🎨 **Polished QML interface** — semantic design tokens, System/Light/Dark themes, English and
   Traditional Chinese, keyboard navigation, synchronized waveform and player, accessible controls.
 - 🧠 **Verified model management** — Q5/Q8/custom GGML models with pause/resume downloads checked

@@ -180,8 +180,8 @@
     </message>
     <message>
         <location filename="../src/ui/GlossaryViewModel.cpp" line="454"/>
-        <source>Choose a profile and enter a canonical term.</source>
-        <translation>Choose a profile and enter a canonical term.</translation>
+        <source>Enter a canonical term.</source>
+        <translation>Enter a canonical term.</translation>
     </message>
     <message>
         <location filename="../src/ui/GlossaryViewModel.cpp" line="495"/>
@@ -612,8 +612,8 @@
     </message>
     <message>
         <location filename="../src/app/TranscriptionCoordinator.cpp" line="410"/>
-        <source>The selected glossary profile no longer exists.</source>
-        <translation>The selected glossary profile no longer exists.</translation>
+        <source>The glossary could not be loaded.</source>
+        <translation>The glossary could not be loaded.</translation>
     </message>
     <message>
         <location filename="../src/app/TranscriptionCoordinator.cpp" line="449"/>
@@ -1104,6 +1104,10 @@
         <location filename="../src/qml/pages/GlossaryPage.qml" line="285"/>
         <source>Enabled</source>
         <translation>Enabled</translation>
+    </message>
+    <message>
+        <source>Enable glossary term %1</source>
+        <translation>Enable glossary term %1</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/GlossaryPage.qml" line="288"/>
@@ -2961,8 +2965,8 @@
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="167"/>
-        <source>Uses the selected glossary profile, project context, and the previous chunk within the model token budget.</source>
-        <translation>Uses the selected glossary profile, project context, and the previous chunk within the model token budget.</translation>
+        <source>Uses enabled glossary terms and the previous chunk within the model token budget.</source>
+        <translation>Uses enabled glossary terms and the previous chunk within the model token budget.</translation>
     </message>
     <message>
         <location filename="../src/qml/pages/SettingsPage.qml" line="170"/>

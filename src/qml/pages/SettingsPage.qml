@@ -191,7 +191,7 @@ Item {
                 }
                 SettingRow {
                     label: qsTr("Initial prompt")
-                    description: qsTr("Uses the selected glossary profile, project context, and the previous chunk within the model token budget.")
+                    description: qsTr("Uses enabled glossary terms and the previous chunk within the model token budget.")
                     AppComboBox {
                         Layout.fillWidth: true
                         accessibleName: qsTr("Initial prompt")
