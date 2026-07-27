@@ -18,7 +18,7 @@ Sanitized Diagnostics** over screenshots containing local paths or transcript te
 | Worker repeatedly exits | Stop retrying, choose CPU/Q5, export diagnostics, and retain the durable job id. |
 | Export failed | Select a writable directory, check free space, and confirm no other program locks the target. |
 | Microphone unavailable | Re-enable OS permission, reconnect the device, and reopen the recorder. |
-| Search results are incomplete | Clear the current review/low-confidence filter and verify the active transcript revision. |
+| Search results are incomplete | Clear the current review/low-confidence filter and verify that the recording has a completed transcript. |
 
 ## Database startup errors
 

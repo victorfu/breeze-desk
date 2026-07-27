@@ -50,8 +50,8 @@ Result<void> DatabaseSearchService::rebuildRecording(QSqlDatabase& database,
         "SELECT r.title,r.notes,COALESCE((SELECT group_concat(t.name,' ') FROM tags t "
         "JOIN recording_tags rt ON rt.tag_id=t.id WHERE rt.recording_id=r.id),''),"
         "COALESCE((SELECT group_concat(CASE WHEN s.edited_text='' THEN s.original_text ELSE "
-        "s.edited_text END,' ') "
-        "FROM transcript_segments s WHERE s.recording_id=r.id), '') FROM recordings r WHERE r.id=?"));
+        "s.edited_text END,' ') FROM transcript_segments s WHERE s.recording_id=r.id AND "
+        "s.job_id=r.active_job_id), '') FROM recordings r WHERE r.id=?"));
     source.addBindValue(recordingId);
     if (!source.exec())
         return Result<void>::failure(
@@ -167,7 +167,8 @@ Result<QList<SearchResult>> DatabaseSearchService::search(const QString& queryTe
             searchError(QStringLiteral("The library search could not be completed."), query));
     QString segmentSql =
         QStringLiteral("SELECT id,start_ms,CASE WHEN edited_text='' THEN original_text ELSE edited_text END "
-                       "FROM transcript_segments WHERE recording_id=? AND (");
+                       "FROM transcript_segments WHERE recording_id=? AND job_id=(SELECT active_job_id "
+                       "FROM recordings WHERE id=?) AND (");
     QStringList segmentClauses;
     for (int i = 0; i < tokens.size(); ++i) {
         segmentClauses.append(
@@ -182,6 +183,7 @@ Result<QList<SearchResult>> DatabaseSearchService::search(const QString& queryTe
         result.snippet = query.value(2).toString();
         QSqlQuery segment(connectionResult.value());
         segment.prepare(segmentSql);
+        segment.addBindValue(result.recordingId);
         segment.addBindValue(result.recordingId);
         for (const QString& token : tokens) {
             const QString pattern = likePattern(token);

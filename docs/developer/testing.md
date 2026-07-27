@@ -4,7 +4,7 @@ Qt Test executables are independent and labeled `unit`, `integration`, `qml`, `s
 They cover framing/partial packets/malformed lengths/protocol versions/heartbeat/reconnect/races; database
 migration/rollback/WAL/recovery/search/trash; chunking/dedup/prompt/cancel/parameters; media metadata,
 waveform, Unicode paths and cancellation; model manifest/download/checksum/import/in-use deletion;
-glossary audit; transcript editing/revisions/exports; settings isolation; and every QML page/theme/locale.
+glossary audit; transcript editing/replacement/exports; settings isolation; and every QML page/theme/locale.
 
 Ordinary CI uses generated WAVs, a local HTTP fixture server, and fake engine/client test doubles, never
 the Breeze model. `BREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS=ON` enables a tiny official model worker test.
@@ -62,7 +62,7 @@ Keep files at `tests/<Subsystem>/tst_<Component>.cpp`. Add failure-path coverage
 
 - ASR: preset mapping, prompt budget, confidence, timestamp conversion, VAD/chunking, dedup and abort;
 - Audio: probe parsing, PCM/WAV validation, Unicode paths, waveform, cancellation, missing tools;
-- Database/Jobs: clean and upgrade migrations, rollback, WAL/connections, recovery, revisions and Trash;
+- Database/Jobs: clean and upgrade migrations, rollback, WAL/connections, recovery, transcript replacement and Trash;
 - IPC/App: partial/malformed frames, protocol/authentication, heartbeat, reconnect, worker crash and
   single-instance races;
 - Models/Glossary/Transcript: resume/checksum/import, CRUD/serialization/audit, edit/undo/export;

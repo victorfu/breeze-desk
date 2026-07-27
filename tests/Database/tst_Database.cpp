@@ -19,11 +19,17 @@ bool insertTranscript(DatabaseManager& manager, const QString& recordingId, cons
         return false;
     QSqlQuery job(connection.value());
     job.prepare(QStringLiteral(
-        "INSERT INTO transcription_jobs(id,recording_id,state,stage,progress,queue_position,"
-        "revision_number,created_at) VALUES(?,?,'Completed','Finalizing',1,0,1,'2026-01-01T00:00:00.000Z')"));
+        "INSERT INTO transcription_jobs(id,recording_id,state,stage,progress,queue_position,created_at) "
+        "VALUES(?,?,'Completed','Finalizing',1,0,'2026-01-01T00:00:00.000Z')"));
     job.addBindValue(recordingId + QStringLiteral("-job"));
     job.addBindValue(recordingId);
     if (!job.exec())
+        return false;
+    QSqlQuery activate(connection.value());
+    activate.prepare(QStringLiteral("UPDATE recordings SET active_job_id=? WHERE id=?"));
+    activate.addBindValue(recordingId + QStringLiteral("-job"));
+    activate.addBindValue(recordingId);
+    if (!activate.exec())
         return false;
     for (int i = 0; i < segments.size(); ++i) {
         QSqlQuery segment(connection.value());
@@ -69,7 +75,7 @@ class DatabaseTest final : public QObject {
     void searchIndexMigrationRebuildsWithTrigram();
     void migrationBackupAndIntegrityCheckWork();
     void upgradeMigrationCreatesBackup();
-    void revisionMigrationNormalizesLegacyHistory();
+    void executionLeaseAndSingleTranscriptMigrationsNormalizeLegacyData();
     void singleGlossaryMigrationConsolidatesProfiles();
     void migrationChecksumMismatchIsRejected();
 };
@@ -79,7 +85,7 @@ void DatabaseTest::cleanMigrationConfiguresSQLite() {
     QVERIFY(directory.isValid());
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
-    QCOMPARE(manager.schemaVersion(), 9);
+    QCOMPARE(manager.schemaVersion(), 10);
     auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery foreignKeys(connection.value());
@@ -277,11 +283,13 @@ void DatabaseTest::searchIndexMigrationRebuildsWithTrigram() {
         QVERIFY(query.exec(QStringLiteral(
             "CREATE VIRTUAL TABLE search_index USING fts5(recording_id UNINDEXED, title, notes, tags, "
             "transcript, tokenize='unicode61 remove_diacritics 2')")));
-        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (8,9)")));
+        QVERIFY(query.exec(QStringLiteral(
+            "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (8,9,10)")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 9);
+    QCOMPARE(upgraded.schemaVersion(), 10);
     QVERIFY(upgraded.hasFts5());
     auto connection = upgraded.connection();
     QVERIFY(connection);
@@ -321,20 +329,23 @@ void DatabaseTest::upgradeMigrationCreatesBackup() {
         QSqlQuery removeVersion(connection.value());
         QSqlQuery removeReviewed(connection.value());
         QVERIFY(removeReviewed.exec(QStringLiteral("ALTER TABLE transcript_segments DROP COLUMN reviewed")));
+        QVERIFY(removeVersion.exec(QStringLiteral(
+            "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
         QVERIFY(
-            removeVersion.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8,9)")));
+            removeVersion.exec(
+                QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8,9,10)")));
         QSqlQuery removeIndex(connection.value());
         QVERIFY(removeIndex.exec(QStringLiteral("DROP INDEX idx_recordings_source_path")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 9);
+    QCOMPARE(upgraded.schemaVersion(), 10);
     const QStringList backups =
         QDir(directory.path()).entryList({QStringLiteral("library.sqlite.backup-*")}, QDir::Files);
     QCOMPARE(backups.size(), 1);
 }
 
-void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
+void DatabaseTest::executionLeaseAndSingleTranscriptMigrationsNormalizeLegacyData() {
     QTemporaryDir directory;
     const QString path = directory.filePath(QStringLiteral("library.sqlite"));
     {
@@ -349,12 +360,14 @@ void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
         auto connection = manager.connection();
         QVERIFY(connection);
         QSqlQuery query(connection.value());
-        QVERIFY(query.exec(QStringLiteral("DROP TRIGGER trg_jobs_active_revision_before_delete")));
-        QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_jobs_recording_revision")));
+        QVERIFY(query.exec(QStringLiteral(
+            "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
+        QVERIFY(query.exec(QStringLiteral("DROP TRIGGER IF EXISTS trg_jobs_active_revision_before_delete")));
+        QVERIFY(query.exec(QStringLiteral("DROP INDEX IF EXISTS idx_jobs_recording_revision")));
         QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_jobs_single_execution")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE asr_execution_lease")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE transcription_job_events")));
-        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (7,8,9)")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (7,8,9,10)")));
 
         const auto insertJob = [&](const QString& id, const QString& state, const int queuePosition,
                                    const QString& createdAt) {
@@ -378,41 +391,64 @@ void DatabaseTest::revisionMigrationNormalizesLegacyHistory() {
                           QStringLiteral("2026-01-01T00:03:00.000Z")));
         QVERIFY(insertJob(QStringLiteral("queued-b"), QStringLiteral("Queued"), 0,
                           QStringLiteral("2026-01-01T00:04:00.000Z")));
+        const auto insertSegment = [&](const QString& id, const QString& jobId, const QString& text) {
+            QSqlQuery insert(connection.value());
+            insert.prepare(QStringLiteral(
+                "INSERT INTO transcript_segments(id,recording_id,job_id,ordinal,start_ms,end_ms,"
+                "original_text,created_at,updated_at) VALUES(?,'rec',?,0,0,1000,?,'now','now')"));
+            insert.addBindValue(id);
+            insert.addBindValue(jobId);
+            insert.addBindValue(text);
+            return insert.exec();
+        };
+        QVERIFY(insertSegment(QStringLiteral("old-segment"), QStringLiteral("old-completed"),
+                              QStringLiteral("Old transcript")));
+        QVERIFY(insertSegment(QStringLiteral("new-segment"), QStringLiteral("new-completed"),
+                              QStringLiteral("New transcript")));
         QVERIFY(
             query.exec(QStringLiteral("UPDATE recordings SET active_job_id='old-completed' WHERE id='rec'")));
     }
 
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 9);
+    QCOMPARE(upgraded.schemaVersion(), 10);
     auto connection = upgraded.connection();
     QVERIFY(connection);
     QSqlQuery jobs(connection.value());
     QVERIFY(jobs.exec(QStringLiteral(
-        "SELECT id,state,revision_number,queue_position FROM transcription_jobs ORDER BY revision_number")));
+        "SELECT id,state,queue_position,queue_hidden FROM transcription_jobs ORDER BY "
+        "created_at")));
     QStringList ids;
-    QList<int> revisions;
     QMap<QString, QString> states;
     QMap<QString, int> queuePositions;
+    QMap<QString, bool> queueHidden;
     while (jobs.next()) {
         const QString id = jobs.value(0).toString();
         ids.append(id);
         states.insert(id, jobs.value(1).toString());
-        revisions.append(jobs.value(2).toInt());
-        queuePositions.insert(id, jobs.value(3).toInt());
+        queuePositions.insert(id, jobs.value(2).toInt());
+        queueHidden.insert(id, jobs.value(3).toBool());
     }
     QCOMPARE(ids, QStringList({QStringLiteral("old-completed"), QStringLiteral("new-completed"),
                                QStringLiteral("running"), QStringLiteral("queued-a"),
                                QStringLiteral("queued-b")}));
-    QCOMPARE(revisions, QList<int>({1, 2, 3, 4, 5}));
     QCOMPARE(states.value(QStringLiteral("running")), QStringLiteral("Interrupted"));
     QCOMPARE(queuePositions.value(QStringLiteral("queued-a")), 0);
     QCOMPARE(queuePositions.value(QStringLiteral("queued-b")), 1);
+    QVERIFY(queueHidden.value(QStringLiteral("old-completed")));
+    QVERIFY(!queueHidden.value(QStringLiteral("new-completed")));
 
     QSqlQuery active(connection.value());
     QVERIFY(active.exec(QStringLiteral("SELECT active_job_id FROM recordings WHERE id='rec'")));
     QVERIFY(active.next());
     QCOMPARE(active.value(0).toString(), QStringLiteral("new-completed"));
+
+    QSqlQuery segments(connection.value());
+    QVERIFY(segments.exec(QStringLiteral("SELECT id,original_text FROM transcript_segments")));
+    QVERIFY(segments.next());
+    QCOMPARE(segments.value(0).toString(), QStringLiteral("new-segment"));
+    QCOMPARE(segments.value(1).toString(), QStringLiteral("New transcript"));
+    QVERIFY(!segments.next());
 
     QSqlQuery events(connection.value());
     QVERIFY(events.exec(QStringLiteral(
@@ -436,6 +472,8 @@ void DatabaseTest::singleGlossaryMigrationConsolidatesProfiles() {
         QVERIFY(connection);
         QSqlQuery setup(connection.value());
         QVERIFY(setup.exec(QStringLiteral(
+            "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
+        QVERIFY(setup.exec(QStringLiteral(
             "INSERT INTO glossary_profiles(id,name,created_at,updated_at) VALUES"
             "('product','Product','now','now'),('customer','Customer','now','now')")));
         QVERIFY(setup.exec(QStringLiteral(
@@ -443,12 +481,12 @@ void DatabaseTest::singleGlossaryMigrationConsolidatesProfiles() {
             "VALUES('term-1','product','BreezeDesk',1,'now','now'),"
             "('term-duplicate','customer','breezedesk',0,'now','now'),"
             "('term-2','customer','MediaTek',0,'now','now')")));
-        QVERIFY(setup.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version=9")));
+        QVERIFY(setup.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (9,10)")));
     }
 
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 9);
+    QCOMPARE(upgraded.schemaVersion(), 10);
     auto connection = upgraded.connection();
     QVERIFY(connection);
     QSqlQuery profiles(connection.value());

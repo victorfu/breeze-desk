@@ -468,7 +468,7 @@ CliExitCode exportRecording(SqliteRecordingRepository* recordings, SqliteTranscr
     }
     const Recording& recording = *recordingResult.value();
     if (recording.activeJobId.isEmpty()) {
-        writeError(QStringLiteral("Recording has no active transcript revision."));
+        writeError(QStringLiteral("Recording has no transcript."));
         return CliExitCode::ExportFailure;
     }
     const auto segmentResult = transcripts->segmentsForJob(recording.activeJobId, false);

@@ -56,7 +56,7 @@ class TranscriptionCoordinator final : public QObject {
     void jobChanged(const QString& jobId, const QString& recordingId, const QString& title,
                     const QString& state, const QString& stage, double progress, const QString& error);
     void transcriptChanged(const QString& recordingId, const QString& jobId, bool editingLocked);
-    void liveRevisionFinished(const QString& recordingId, const QString& jobId, bool succeeded);
+    void transcriptionFinished(const QString& recordingId, const QString& jobId, bool succeeded);
     void runningJobChanged(const QString& jobId);
     void jobTelemetryChanged(const QString& jobId, int currentChunk, int totalChunks,
                              const QString& latestPartialText);
@@ -155,7 +155,7 @@ class TranscriptionCoordinator final : public QObject {
     bool m_shuttingDown{false};
     bool m_pauseAfterCurrent{false};
     bool m_externalWorkerReserved{false};
-    bool m_activeRevisionPublished{false};
+    bool m_activeTranscriptPublished{false};
     bool m_vadModelVerified{false};
     bool m_vadRecoveryAttempted{false};
 };

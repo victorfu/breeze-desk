@@ -3,6 +3,8 @@
 #include <QUuid>
 #include <QVariantMap>
 
+#include <algorithm>
+
 namespace BreezeDesk {
 namespace {
 constexpr qsizetype MaximumTimelineEvents = 50;
@@ -15,6 +17,13 @@ bool isTerminalState(const QString& state) {
 bool isRunningState(const QString& state) {
     return state != QLatin1String("Queued") && state != QLatin1String("Interrupted") &&
            !isTerminalState(state);
+}
+
+int displayPriority(const JobListModel::Job& job) {
+    if (isRunningState(job.state)) {
+        return 0;
+    }
+    return job.state == QLatin1String("Queued") ? 1 : 2;
 }
 } // namespace
 
@@ -105,9 +114,9 @@ QString JobListModel::enqueue(const QString& recordingId, const QString& title) 
     const QString id = job.id;
     job.recordingId = recordingId;
     job.title = title;
-    const int insertionRow = static_cast<int>(m_jobs.size());
+    const int insertionRow = insertionRowFor(job);
     beginInsertRows({}, insertionRow, insertionRow);
-    m_jobs.append(std::move(job));
+    m_jobs.insert(insertionRow, std::move(job));
     endInsertRows();
     emitQueueMetadataChanged();
     return id;
@@ -126,9 +135,9 @@ void JobListModel::upsert(const QString& id, const QString& recordingId, const Q
         job.stage = stage;
         job.progress = qBound(0.0, progress, 1.0);
         job.error = error;
-        const int insertionRow = static_cast<int>(m_jobs.size());
+        const int insertionRow = insertionRowFor(job);
         beginInsertRows({}, insertionRow, insertionRow);
-        m_jobs.append(std::move(job));
+        m_jobs.insert(insertionRow, std::move(job));
         endInsertRows();
         emitQueueMetadataChanged();
         if (isRunningState(state)) {
@@ -138,6 +147,7 @@ void JobListModel::upsert(const QString& id, const QString& recordingId, const Q
     }
 
     Job& job = m_jobs[existing];
+    const int previousDisplayPriority = displayPriority(job);
     const bool stateChanged = job.state != state;
     job.recordingId = recordingId;
     job.title = title;
@@ -145,7 +155,10 @@ void JobListModel::upsert(const QString& id, const QString& recordingId, const Q
     job.stage = stage;
     job.progress = qBound(0.0, progress, 1.0);
     job.error = error;
-    emitRowChanged(existing);
+    const int updatedRow = previousDisplayPriority == displayPriority(job)
+                               ? existing
+                               : moveToDisplayGroup(existing);
+    emitRowChanged(updatedRow);
     if (stateChanged) {
         emitQueueMetadataChanged();
     }
@@ -162,9 +175,11 @@ bool JobListModel::cancel(const QString& id) {
         return false;
     }
     Job& job = m_jobs[row];
+    const int previousDisplayPriority = displayPriority(job);
     const bool wasQueued = job.state == QLatin1String("Queued");
     job.state = wasQueued ? QStringLiteral("Cancelled") : QStringLiteral("Cancelling");
-    emitRowChanged(row);
+    const int updatedRow = previousDisplayPriority == displayPriority(job) ? row : moveToDisplayGroup(row);
+    emitRowChanged(updatedRow);
     if (wasQueued) {
         emitQueueMetadataChanged();
     }
@@ -183,7 +198,8 @@ bool JobListModel::retry(const QString& id) {
     job.error.clear();
     job.currentChunk = 0;
     job.latestPartialText.clear();
-    emitRowChanged(row);
+    const int updatedRow = moveToDisplayGroup(row);
+    emitRowChanged(updatedRow);
     emitQueueMetadataChanged();
     return true;
 }
@@ -195,7 +211,8 @@ bool JobListModel::resume(const QString& id) {
     }
     Job& job = m_jobs[row];
     job.state = QStringLiteral("Queued");
-    emitRowChanged(row);
+    const int updatedRow = moveToDisplayGroup(row);
+    emitRowChanged(updatedRow);
     emitQueueMetadataChanged();
     return true;
 }
@@ -279,6 +296,12 @@ bool JobListModel::isWritingTranscript(const QString& id) const {
     return row >= 0 && isRunningState(m_jobs.at(row).state);
 }
 
+bool JobListModel::isWritingRecording(const QString& recordingId) const {
+    return std::any_of(m_jobs.cbegin(), m_jobs.cend(), [&](const Job& job) {
+        return job.recordingId == recordingId && isRunningState(job.state);
+    });
+}
+
 bool JobListModel::contains(const QString& id) const {
     return indexOf(id) >= 0;
 }
@@ -344,6 +367,40 @@ int JobListModel::indexOf(const QString& id) const {
         }
     }
     return -1;
+}
+
+int JobListModel::insertionRowFor(const Job& job) const {
+    const int priority = displayPriority(job);
+    int row = 0;
+    while (row < m_jobs.size() && displayPriority(m_jobs.at(row)) <= priority) {
+        ++row;
+    }
+    return row;
+}
+
+int JobListModel::moveToDisplayGroup(const int row) {
+    if (row < 0 || row >= m_jobs.size()) {
+        return row;
+    }
+
+    const int priority = displayPriority(m_jobs.at(row));
+    int targetRow = 0;
+    for (int candidate = 0; candidate < m_jobs.size(); ++candidate) {
+        if (candidate != row && displayPriority(m_jobs.at(candidate)) <= priority) {
+            ++targetRow;
+        }
+    }
+    if (targetRow == row) {
+        return row;
+    }
+
+    const int destinationChild = targetRow > row ? targetRow + 1 : targetRow;
+    if (!beginMoveRows({}, row, row, {}, destinationChild)) {
+        return row;
+    }
+    m_jobs.move(row, targetRow);
+    endMoveRows();
+    return targetRow;
 }
 
 int JobListModel::queuePositionForRow(const int row) const {

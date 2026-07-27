@@ -46,7 +46,7 @@ exits, or a chunk fails, the CLI prints the durable job ID to stderr; pass it to
 same source file. Completed chunks are retained and only interrupted or failed chunks run again. Resume
 also restores the original
 model, language, preset, backend, VAD, prompt, and flash-attention settings rather than silently mixing
-parameters within one transcript revision.
+parameters within one transcription attempt.
 
 `--glossary` snapshots the selected profile and enabled terms into the durable job. The native worker
 prioritizes glossary entries, meeting context, and previous-chunk context with the model's real tokenizer;

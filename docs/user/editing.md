@@ -12,7 +12,7 @@ waveform selection.
 - **Split** divides the selected segment at the current playhead. The playhead must be strictly inside
   the segment.
 - **Merge previous/next** combines adjacent text and uses the combined time range.
-- Delete removes the selected segment from the active revision. Undo and redo operate on editor
+- Delete removes the selected segment from the transcript. Undo and redo operate on editor
   snapshots until a new load replaces the stack.
 - Mark a segment reviewed, or use the low-confidence filter to focus on uncertain recognition.
 - A glossary badge exposes each audited alias replacement. Apply or undo it individually without
@@ -29,12 +29,12 @@ The transcript search field filters matching segment text. **Previous** and **Ne
 matches; Ctrl/Cmd+F focuses transcript search. Space controls playback only when a text editor does not
 hold focus, so typing cannot accidentally start audio.
 
-## Revisions and live results
+## Repeated transcription
 
-Every transcription job is a separate database revision. Starting recognition again never overwrites a
-manually edited result; the recording points to the active job while older job segments remain durable.
-The v1 recording view opens that active revision rather than exposing a revision-comparison picker. While
-a running revision receives partial segments, editing is visibly locked. After completion, review or
-export the active revision normally.
+Each recording has one current transcript. Starting recognition again keeps the current transcript in
+place and locks editing while the new job runs. Only a successful completion replaces it and removes the
+previous transcript segments. A failed, cancelled, or interrupted attempt leaves the current transcript
+unchanged. For a recording without a completed transcript, partial segments may be shown while processing
+is active.
 
 See [Exporting](exporting.md) for format guarantees and [Glossary](glossary.md) for replacement audits.

@@ -5,8 +5,8 @@ applies numbered migrations in transactions, backs up an existing database befor
 `quick_check`, and converts active jobs from a previous unclean shutdown to Interrupted. A migration
 records its version only after the entire transaction commits.
 
-Recordings are soft-deleted. Jobs are immutable transcription revisions; the recording points to its
-active revision. Chunks record range, overlap, attempts, state, error, and result hash. Segments retain
+Recordings are soft-deleted. Jobs are durable processing attempts; the recording points to its one
+current completed transcript job. Chunks record range, overlap, attempts, state, error, and result hash. Segments retain
 both original and edited text plus confidence and replacement audit. Permanent deletion removes only
 BreezeDesk-managed media/cache and never the user's source.
 
@@ -27,10 +27,10 @@ must request a connection on the thread that uses it and release queries before 
 
 ## Schema and migrations
 
-Schema version 9 contains these durable groups:
+Schema version 10 contains these durable groups:
 
 - `recordings`, tags, and `recording_tags` for Library/Trash metadata;
-- `transcription_jobs`, `job_chunks`, and `transcript_segments` for revision and resume state;
+- `transcription_jobs`, `job_chunks`, and `transcript_segments` for processing and resume state;
 - `glossary_profiles` and `glossary_terms`;
 - `installed_models` and `database_features`;
 - `schema_migrations`, FTS5 `search_index` when available, and `search_index_fallback` always.
@@ -45,15 +45,16 @@ Migration history is checksummed and verified at every startup:
 | 4 | `queue_visibility` | `transcription_jobs.queue_hidden`. |
 | 5 | `recording_source_index` | Index for exact source-path lookup. |
 | 6 | `segment_review_state` | Per-segment `reviewed` flag. |
-| 7 | `revision_history_and_execution_lease` | Revision history, job events, and one ASR execution lease. |
+| 7 | `revision_history_and_execution_lease` | Legacy job metadata, structured events, and one ASR execution lease. |
 | 8 | `search_index_trigram` | Trigram FTS5 index with a rebuilt fallback index. |
 | 9 | `single_glossary` | Consolidates profile terms into one shared glossary and removes duplicate names. |
+| 10 | `single_transcript` | Keeps one current transcript per recording and removes stored transcript history. |
 
 Before upgrading a non-empty older schema, `VACUUM INTO` creates a consistent timestamped backup.
 Statements and migration-row insertion share one transaction; failure rolls back. A database newer than
 the application, a missing version, or a name/checksum mismatch fails closed instead of guessing.
 
-## Job recovery and revisions
+## Job recovery and transcript replacement
 
 The job row stores model/checksum, engine/worker versions, backend, language, preset, glossary/context,
 parameters, diagnostics, progress, and last completed chunk. Each chunk has ordinal/range/overlap,
@@ -63,8 +64,9 @@ review state.
 
 Startup recovery changes nonterminal work left by an abnormal exit to **Interrupted**. Resume queries
 the first incomplete chunk and does not delete completed segment rows. A new transcription creates a new
-job/revision and changes `recordings.active_job_id` only when selected; it never overwrites an earlier
-edited revision.
+job. The current `recordings.active_job_id` remains unchanged while that job runs. Successful completion
+atomically activates the new job, removes the previous completed transcript segments, archives its queue
+record, and rebuilds search. Failure, cancellation, or interruption retains the current transcript.
 
 ## Search, deletion, and backup
 

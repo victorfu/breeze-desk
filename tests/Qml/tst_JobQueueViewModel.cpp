@@ -38,6 +38,7 @@ class JobQueueViewModelTest final : public QObject {
   private slots:
     void initTestCase();
     void exposesRunningQueueTelemetryAndTimeline();
+    void keepsRunningJobsBeforeQueuedAndFinishedJobs();
     void reordersOnlyQueuedJobsUsingQueuedPositions();
     void removeFinishedWaitsForPersistenceConfirmation();
     void queuePageConfirmsPermanentRemoval();
@@ -87,12 +88,39 @@ void JobQueueViewModelTest::exposesRunningQueueTelemetryAndTimeline() {
              QStringLiteral("Latest partial words"));
     QVERIFY(viewModel.isWritingTranscript(running));
     QVERIFY(!viewModel.isWritingTranscript(interrupted));
+    QVERIFY(viewModel.isWritingRecording(QStringLiteral("recording")));
+    QVERIFY(!viewModel.isWritingRecording(QStringLiteral("other-recording")));
 
     const QVariantList timeline = valueFor(model, running, JobListModel::EventTimelineRole).toList();
     QCOMPARE(timeline.size(), 1);
     const QVariantMap latest = timeline.constLast().toMap();
     QCOMPARE(latest.value(QStringLiteral("title")).toString(), QStringLiteral("Chunk saved"));
     QCOMPARE(latest.value(QStringLiteral("timestamp")).toDateTime(), eventTime);
+}
+
+void JobQueueViewModelTest::keepsRunningJobsBeforeQueuedAndFinishedJobs() {
+    JobQueueViewModel viewModel;
+    JobListModel* model = jobModel(viewModel);
+    QVERIFY(model);
+
+    const QString completed = QStringLiteral("completed-job");
+    const QString queued = QStringLiteral("queued-job");
+    const QString running = QStringLiteral("running-job");
+    viewModel.updateJob(completed, QStringLiteral("recording"), QStringLiteral("Completed"),
+                        QStringLiteral("Completed"), QStringLiteral("Completed"), 1.0);
+    viewModel.updateJob(queued, QStringLiteral("recording"), QStringLiteral("Queued"),
+                        QStringLiteral("Queued"), QStringLiteral("Preparing"), 0.0);
+    viewModel.updateJob(running, QStringLiteral("recording"), QStringLiteral("Running"),
+                        QStringLiteral("Transcribing"), QStringLiteral("Transcribing"), 0.4);
+
+    QCOMPARE(rowForId(model, running), 0);
+    QCOMPARE(rowForId(model, queued), 1);
+    QCOMPARE(rowForId(model, completed), 2);
+
+    viewModel.updateJob(running, QStringLiteral("recording"), QStringLiteral("Running"),
+                        QStringLiteral("Completed"), QStringLiteral("Completed"), 1.0);
+    QCOMPARE(rowForId(model, queued), 0);
+    QVERIFY(rowForId(model, running) > rowForId(model, queued));
 }
 
 void JobQueueViewModelTest::reordersOnlyQueuedJobsUsingQueuedPositions() {
@@ -337,6 +365,7 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
     QVERIFY(card);
     auto* queueMetadata = card->findChild<QQuickItem*>(QStringLiteral("jobQueueMetadata"));
     auto* chunkStatus = card->findChild<QQuickItem*>(QStringLiteral("jobChunkStatus"));
+    auto* partialPanel = card->findChild<QQuickItem*>(QStringLiteral("jobLatestPartialPanel"));
     auto* partialText = card->findChild<QQuickItem*>(QStringLiteral("jobLatestPartialText"));
     auto* timelineToggle = card->findChild<QQuickItem*>(QStringLiteral("jobTimelineToggle"));
     auto* timeline = card->findChild<QQuickItem*>(QStringLiteral("jobEventTimeline"));
@@ -349,6 +378,7 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
                              : failedCard->findChild<QQuickItem*>(QStringLiteral("jobRemoveButton"));
     QVERIFY(queueMetadata);
     QVERIFY(chunkStatus);
+    QVERIFY(partialPanel);
     QVERIFY(partialText);
     QVERIFY(timelineToggle);
     QVERIFY(timeline);
@@ -367,7 +397,11 @@ void JobQueueViewModelTest::enhancedJobCardRendersAndExposesAccessibleActions() 
     QVERIFY(queueMetadata->property("text").toString().contains(QStringLiteral("2")));
     QVERIFY(chunkStatus->property("text").toString().contains(QStringLiteral("2")));
     QCOMPARE(partialText->property("text").toString(), QStringLiteral("Latest partial words"));
+    QVERIFY(partialPanel->isVisible());
+    QVERIFY(partialPanel->height() >= partialText->height());
     QVERIFY(!timeline->isVisible());
+    QVERIFY(card->height() > 100.0);
+    QVERIFY(card->height() < 220.0);
 
     QVERIFY(QMetaObject::invokeMethod(timelineToggle, "clicked", Qt::DirectConnection));
     QTRY_VERIFY(timeline->isVisible());

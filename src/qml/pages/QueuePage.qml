@@ -60,7 +60,7 @@ Item {
             Layout.fillHeight: true
             visible: !root.vm.empty
             model: root.vm.jobs
-            spacing: SemanticTokens.spacingSm
+            spacing: SemanticTokens.spacingXs
             clip: true
             reuseItems: true
             keyNavigationEnabled: true

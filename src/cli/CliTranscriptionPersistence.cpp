@@ -104,7 +104,6 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
     if (job.id.isEmpty())
         job.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
     job.recordingId = recording.id;
-    job.revisionNumber = 0;
     job.queueHidden = true;
     auto jobIdResult = JobQueue(m_jobs).enqueue(job);
     if (!jobIdResult)

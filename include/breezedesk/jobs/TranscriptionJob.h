@@ -67,7 +67,6 @@ struct TranscriptionJob {
     QJsonObject diagnostics;
     QJsonObject parameters;
     int queuePosition = 0;
-    int revisionNumber = 1;
     int retryCount = 0;
     QDateTime createdAt;
     QDateTime startedAt;
@@ -92,21 +91,6 @@ struct JobChunk {
     QString error;
     QString resultHash;
     QJsonObject diagnostics;
-};
-
-struct TranscriptRevisionSummary {
-    TranscriptionJob job;
-    bool active = false;
-    bool queueHidden = false;
-    int segmentCount = 0;
-    bool hasManualEdits = false;
-    bool hasProvisionalSegments = false;
-    std::optional<TranscriptSegment> latestSegment;
-};
-
-struct RevisionDeletionResult {
-    QString deletedJobId;
-    QString activeJobId;
 };
 
 struct JobEvent {

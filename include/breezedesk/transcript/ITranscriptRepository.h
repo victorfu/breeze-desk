@@ -15,10 +15,11 @@ class ITranscriptRepository {
     segmentsForJob(const QString& jobId, bool includeProvisional = true) const = 0;
     [[nodiscard]] virtual Result<std::optional<TranscriptSegment>>
     segment(const QString& segmentId) const = 0;
-    [[nodiscard]] virtual Result<void> replaceRevision(const QString& recordingId, const QString& jobId,
-                                                       QList<TranscriptSegment> segments) = 0;
-    [[nodiscard]] virtual Result<void> saveEditedRevision(const QString& recordingId, const QString& jobId,
-                                                          QList<TranscriptSegment> segments) = 0;
+    [[nodiscard]] virtual Result<void> replaceTranscript(const QString& recordingId, const QString& jobId,
+                                                         QList<TranscriptSegment> segments) = 0;
+    [[nodiscard]] virtual Result<void> saveEditedTranscript(const QString& recordingId,
+                                                            const QString& jobId,
+                                                            QList<TranscriptSegment> segments) = 0;
     [[nodiscard]] virtual Result<void> replaceChunk(const QString& recordingId, const QString& jobId,
                                                     const QString& chunkId, QList<TranscriptSegment> segments,
                                                     bool provisional, int attempt) = 0;

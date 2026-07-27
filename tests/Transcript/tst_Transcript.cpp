@@ -22,7 +22,7 @@ class TranscriptTest final : public QObject {
     void editingSupportsSplitMergeAndUndo();
     void invalidTimeOverlapIsRejected();
     void allExportFormatsAreValid();
-    void repositoryKeepsRevisionsAndAutosaves();
+    void repositoryPersistsTranscriptAndAutosaves();
     void viewModelPreservesMetadataAndControlsGlossaryAudit();
 };
 
@@ -90,7 +90,7 @@ void TranscriptTest::allExportFormatsAreValid() {
     }
 }
 
-void TranscriptTest::repositoryKeepsRevisionsAndAutosaves() {
+void TranscriptTest::repositoryPersistsTranscriptAndAutosaves() {
     QTemporaryDir directory;
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(database.initialize());
@@ -106,10 +106,7 @@ void TranscriptTest::repositoryKeepsRevisionsAndAutosaves() {
     firstJob.id = QStringLiteral("job-1");
     firstJob.recordingId = recording.id;
     QVERIFY(jobRepository.create(firstJob));
-    TranscriptionJob secondJob = firstJob;
-    secondJob.id = QStringLiteral("job-2");
-    secondJob.revisionNumber = 2;
-    QVERIFY(jobRepository.create(secondJob));
+    QVERIFY(recordingRepository.setActiveTranscriptJob(recording.id, firstJob.id));
     SqliteTranscriptRepository repository(database);
     auto first = fixtureSegments();
     first[0].minimumProbability = .72;
@@ -126,7 +123,7 @@ void TranscriptTest::repositoryKeepsRevisionsAndAutosaves() {
     persistedReplacement.start = 0;
     persistedReplacement.length = persistedReplacement.canonicalText.size();
     first[0].replacementAudit = GlossaryPostProcessor::auditToJson({persistedReplacement});
-    QVERIFY(repository.replaceRevision(recording.id, firstJob.id, first));
+    QVERIFY(repository.replaceTranscript(recording.id, firstJob.id, first));
     const auto persisted = repository.segmentsForJob(firstJob.id).value().first();
     QCOMPARE(persisted.minimumProbability, .72);
     QCOMPARE(persisted.noSpeechProbability, .04);
@@ -140,13 +137,6 @@ void TranscriptTest::repositoryKeepsRevisionsAndAutosaves() {
     QCOMPARE(locatedSearch.value().size(), 1);
     QVERIFY(!locatedSearch.value().first().segmentId.isEmpty());
     QCOMPARE(locatedSearch.value().first().startMs, 0);
-    auto second = fixtureSegments();
-    second[0].id = QStringLiteral("r2-s1");
-    second[1].id = QStringLiteral("r2-s2");
-    second[0].originalText = QStringLiteral("New recognition");
-    QVERIFY(repository.replaceRevision(recording.id, secondJob.id, second));
-    QCOMPARE(repository.segmentsForJob(firstJob.id).value().first().originalText,
-             QStringLiteral("Hello BreezeDesk"));
     TranscriptSegment edited = repository.segmentsForJob(firstJob.id).value().first();
     edited.editedText = QStringLiteral("Manually edited");
     edited.reviewed = false;
@@ -155,9 +145,8 @@ void TranscriptTest::repositoryKeepsRevisionsAndAutosaves() {
     QVERIFY(autosave.flush());
     QCOMPARE(repository.segment(edited.id).value()->editedText, QStringLiteral("Manually edited"));
     QVERIFY(!repository.segment(edited.id).value()->reviewed);
-    QVERIFY(!repository.replaceRevision(recording.id, firstJob.id, fixtureSegments()));
-    QVERIFY(recordingRepository.setActiveTranscriptJob(recording.id, secondJob.id));
-    QCOMPARE(recordingRepository.findById(recording.id).value()->activeJobId, secondJob.id);
+    QVERIFY(!repository.replaceTranscript(recording.id, firstJob.id, fixtureSegments()));
+    QCOMPARE(recordingRepository.findById(recording.id).value()->activeJobId, firstJob.id);
 }
 
 void TranscriptTest::viewModelPreservesMetadataAndControlsGlossaryAudit() {

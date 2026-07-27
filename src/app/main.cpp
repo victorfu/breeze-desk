@@ -180,7 +180,6 @@ int main(int argc, char* argv[]) {
     std::unique_ptr<BreezeDesk::ApplicationViewModel> viewModel(
         BreezeDesk::createApplicationViewModel(&recordingRepository, &transcriptRepository, nullptr));
     QQmlApplicationEngine engine;
-    viewModel->installJobRepository(&jobRepository);
     viewModel->setPlatformService(platform.get());
     viewModel->settings()->installManagers({&generalSettings, &appearanceSettings, &transcriptionSettings,
                                             &audioSettings, &modelSettings, &storageSettings,
@@ -322,8 +321,8 @@ int main(int argc, char* argv[]) {
                                                    const bool editingLocked) {
                          viewModel->reloadTranscriptForJob(recordingId, jobId, editingLocked);
                      });
-    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::liveRevisionFinished,
-                     viewModel.get(), &BreezeDesk::ApplicationViewModel::finishLiveTranscriptRevision);
+    QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::transcriptionFinished,
+                     viewModel.get(), &BreezeDesk::ApplicationViewModel::finishLiveTranscript);
     QObject::connect(&transcriptionCoordinator, &BreezeDesk::TranscriptionCoordinator::libraryChanged,
                      viewModel.get(), [viewModel = viewModel.get()] {
                          const QString activeRecording = viewModel->activeRecordingId();

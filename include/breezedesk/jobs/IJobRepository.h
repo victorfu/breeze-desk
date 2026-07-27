@@ -15,14 +15,6 @@ class IJobRepository {
     [[nodiscard]] virtual Result<TranscriptionJob> createQueued(TranscriptionJob job) = 0;
     [[nodiscard]] virtual Result<std::optional<TranscriptionJob>> findById(const QString& id) const = 0;
     [[nodiscard]] virtual Result<QList<TranscriptionJob>> list(bool includeCompleted = true) const = 0;
-    [[nodiscard]] virtual Result<QList<TranscriptRevisionSummary>>
-    listForRecording(const QString& recordingId) const = 0;
-    [[nodiscard]] virtual Result<std::optional<TranscriptRevisionSummary>>
-    latestForRecording(const QString& recordingId) const = 0;
-    [[nodiscard]] virtual Result<void> setActiveRevision(const QString& recordingId,
-                                                         const QString& jobId) = 0;
-    [[nodiscard]] virtual Result<RevisionDeletionResult> deleteRevision(const QString& recordingId,
-                                                                        const QString& jobId) = 0;
     [[nodiscard]] virtual Result<std::optional<TranscriptSegment>>
     latestSegmentForJob(const QString& jobId, bool includeProvisional = true) const = 0;
     [[nodiscard]] virtual Result<JobEvent> appendEvent(JobEvent event) = 0;

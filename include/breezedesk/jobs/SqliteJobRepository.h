@@ -14,13 +14,6 @@ class SqliteJobRepository final : public IJobRepository {
     [[nodiscard]] Result<TranscriptionJob> createQueued(TranscriptionJob job) override;
     [[nodiscard]] Result<std::optional<TranscriptionJob>> findById(const QString& id) const override;
     [[nodiscard]] Result<QList<TranscriptionJob>> list(bool includeCompleted = true) const override;
-    [[nodiscard]] Result<QList<TranscriptRevisionSummary>>
-    listForRecording(const QString& recordingId) const override;
-    [[nodiscard]] Result<std::optional<TranscriptRevisionSummary>>
-    latestForRecording(const QString& recordingId) const override;
-    [[nodiscard]] Result<void> setActiveRevision(const QString& recordingId, const QString& jobId) override;
-    [[nodiscard]] Result<RevisionDeletionResult> deleteRevision(const QString& recordingId,
-                                                                const QString& jobId) override;
     [[nodiscard]] Result<std::optional<TranscriptSegment>>
     latestSegmentForJob(const QString& jobId, bool includeProvisional = true) const override;
     [[nodiscard]] Result<JobEvent> appendEvent(JobEvent event) override;

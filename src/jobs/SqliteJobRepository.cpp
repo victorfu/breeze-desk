@@ -48,7 +48,6 @@ TranscriptionJob readJob(QSqlQuery& query) {
     job.diagnostics = objectFromText(query.value(QStringLiteral("diagnostics_json")).toString());
     job.parameters = objectFromText(query.value(QStringLiteral("parameters_json")).toString());
     job.queuePosition = query.value(QStringLiteral("queue_position")).toInt();
-    job.revisionNumber = query.value(QStringLiteral("revision_number")).toInt();
     job.retryCount = query.value(QStringLiteral("retry_count")).toInt();
     job.createdAt = TimeUtils::fromStorageString(query.value(QStringLiteral("created_at")).toString());
     job.startedAt = TimeUtils::fromStorageString(query.value(QStringLiteral("started_at")).toString());
@@ -403,16 +402,6 @@ Result<TranscriptionJob> SqliteJobRepository::createQueued(TranscriptionJob job)
     job.errorCode.clear();
     job.errorMessage.clear();
     const auto saved = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
-        QSqlQuery revision(database);
-        revision.prepare(QStringLiteral(
-            "SELECT COALESCE(MAX(revision_number),0)+1 FROM transcription_jobs WHERE recording_id=?"));
-        revision.addBindValue(job.recordingId);
-        if (!revision.exec() || !revision.next()) {
-            return Result<void>::failure(
-                queryError(QStringLiteral("The transcript revision could not be allocated."), revision));
-        }
-        job.revisionNumber = revision.value(0).toInt();
-
         QSqlQuery position(database);
         if (!position.exec(QStringLiteral(
                 "SELECT COALESCE(MAX(queue_position),-1)+1 FROM transcription_jobs WHERE state='Queued'")) ||
@@ -427,9 +416,9 @@ Result<TranscriptionJob> SqliteJobRepository::createQueued(TranscriptionJob job)
             "INSERT INTO transcription_jobs(id,recording_id,state,stage,progress,model_id,model_checksum,"
             "engine_version,worker_version,backend,language,preset,glossary_profile_id,meeting_context,"
             "vad_enabled,error_code,error_message,diagnostics_json,parameters_json,queue_position,"
-            "revision_number,retry_count,created_at,started_at,completed_at,interrupted_at,last_completed_"
+            "retry_count,created_at,started_at,completed_at,interrupted_at,last_completed_"
             "chunk,"
-            "queue_hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"));
+            "queue_hidden) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"));
         query.addBindValue(job.id);
         query.addBindValue(job.recordingId);
         query.addBindValue(jobStateName(job.state));
@@ -450,7 +439,6 @@ Result<TranscriptionJob> SqliteJobRepository::createQueued(TranscriptionJob job)
         query.addBindValue(textFromObject(job.diagnostics));
         query.addBindValue(textFromObject(job.parameters));
         query.addBindValue(job.queuePosition);
-        query.addBindValue(job.revisionNumber);
         query.addBindValue(job.retryCount);
         query.addBindValue(TimeUtils::toStorageString(job.createdAt));
         query.addBindValue(QVariant());
@@ -509,144 +497,6 @@ Result<QList<TranscriptionJob>> SqliteJobRepository::list(const bool includeComp
     while (query.next())
         jobs.append(readJob(query));
     return Result<QList<TranscriptionJob>>::success(jobs);
-}
-
-Result<QList<TranscriptRevisionSummary>>
-SqliteJobRepository::listForRecording(const QString& recordingId) const {
-    if (recordingId.isEmpty()) {
-        return Result<QList<TranscriptRevisionSummary>>::failure(UserFacingError::validation(
-            ErrorCode::InvalidArgument, QStringLiteral("A recording is required to list revisions.")));
-    }
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult) {
-        return Result<QList<TranscriptRevisionSummary>>::failure(connectionResult.error());
-    }
-    QSqlDatabase database = connectionResult.value();
-    QSqlQuery query(database);
-    query.prepare(QStringLiteral(
-        "SELECT j.*,(r.active_job_id=j.id) AS is_active,COUNT(s.id) AS segment_count,"
-        "COALESCE(MAX(CASE WHEN s.edited_text<>'' AND s.edited_text<>s.original_text THEN 1 ELSE 0 END),0) "
-        "AS has_manual_edits,COALESCE(MAX(s.is_provisional),0) AS has_provisional_segments "
-        "FROM transcription_jobs j JOIN recordings r ON r.id=j.recording_id "
-        "LEFT JOIN transcript_segments s ON s.job_id=j.id WHERE j.recording_id=? GROUP BY j.id "
-        "ORDER BY j.revision_number DESC,j.created_at DESC,j.id DESC"));
-    query.addBindValue(recordingId);
-    if (!query.exec()) {
-        return Result<QList<TranscriptRevisionSummary>>::failure(
-            queryError(QStringLiteral("Transcript revisions could not be loaded."), query));
-    }
-    QList<TranscriptRevisionSummary> revisions;
-    while (query.next()) {
-        TranscriptRevisionSummary summary;
-        summary.job = readJob(query);
-        summary.active = query.value(QStringLiteral("is_active")).toBool();
-        summary.queueHidden = summary.job.queueHidden;
-        summary.segmentCount = query.value(QStringLiteral("segment_count")).toInt();
-        summary.hasManualEdits = query.value(QStringLiteral("has_manual_edits")).toBool();
-        summary.hasProvisionalSegments = query.value(QStringLiteral("has_provisional_segments")).toBool();
-        auto latest = latestSegment(database, summary.job.id, true);
-        if (!latest) {
-            return Result<QList<TranscriptRevisionSummary>>::failure(latest.error());
-        }
-        summary.latestSegment = latest.value();
-        revisions.append(std::move(summary));
-    }
-    return Result<QList<TranscriptRevisionSummary>>::success(revisions);
-}
-
-Result<std::optional<TranscriptRevisionSummary>>
-SqliteJobRepository::latestForRecording(const QString& recordingId) const {
-    const auto revisions = listForRecording(recordingId);
-    if (!revisions) {
-        return Result<std::optional<TranscriptRevisionSummary>>::failure(revisions.error());
-    }
-    const auto latest = std::find_if(
-        revisions.value().cbegin(), revisions.value().cend(),
-        [](const TranscriptRevisionSummary& revision) { return revision.job.state == JobState::Completed; });
-    if (latest == revisions.value().cend()) {
-        return Result<std::optional<TranscriptRevisionSummary>>::success(std::nullopt);
-    }
-    return Result<std::optional<TranscriptRevisionSummary>>::success(*latest);
-}
-
-Result<void> SqliteJobRepository::setActiveRevision(const QString& recordingId, const QString& jobId) {
-    if (recordingId.isEmpty() || jobId.isEmpty()) {
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::InvalidArgument, QStringLiteral("A recording and transcript revision are required.")));
-    }
-    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
-        QSqlQuery update(database);
-        update.prepare(QStringLiteral(
-            "UPDATE recordings SET active_job_id=?,updated_at=? WHERE id=? AND EXISTS(SELECT 1 FROM "
-            "transcription_jobs j WHERE j.id=? AND j.recording_id=recordings.id)"));
-        update.addBindValue(jobId);
-        update.addBindValue(TimeUtils::nowStorageString());
-        update.addBindValue(recordingId);
-        update.addBindValue(jobId);
-        if (!update.exec()) {
-            return Result<void>::failure(
-                queryError(QStringLiteral("The active transcript revision could not be changed."), update));
-        }
-        if (update.numRowsAffected() == 0) {
-            return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::NotFound, QStringLiteral("The requested transcript revision does not exist.")));
-        }
-        JobEvent event;
-        event.jobId = jobId;
-        event.eventType = QStringLiteral("activated");
-        return insertEvent(database, &event);
-    });
-}
-
-Result<RevisionDeletionResult> SqliteJobRepository::deleteRevision(const QString& recordingId,
-                                                                   const QString& jobId) {
-    if (recordingId.isEmpty() || jobId.isEmpty()) {
-        return Result<RevisionDeletionResult>::failure(UserFacingError::validation(
-            ErrorCode::InvalidArgument, QStringLiteral("A recording and transcript revision are required.")));
-    }
-    RevisionDeletionResult deleted;
-    deleted.deletedJobId = jobId;
-    const auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
-        const auto current = findJob(database, jobId);
-        if (!current) {
-            return Result<void>::failure(current.error());
-        }
-        if (!current.value().has_value() || current.value()->recordingId != recordingId) {
-            return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::NotFound, QStringLiteral("The transcript revision does not exist.")));
-        }
-        if (!JobStateMachine::isTerminal(current.value()->state) &&
-            current.value()->state != JobState::Interrupted) {
-            return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::InvalidStateTransition,
-                QStringLiteral("Queued or active transcript revisions cannot be deleted.")));
-        }
-        QSqlQuery remove(database);
-        remove.prepare(QStringLiteral("DELETE FROM transcription_jobs WHERE id=? AND recording_id=?"));
-        remove.addBindValue(jobId);
-        remove.addBindValue(recordingId);
-        if (!remove.exec()) {
-            return Result<void>::failure(
-                queryError(QStringLiteral("The transcript revision could not be deleted."), remove));
-        }
-        if (remove.numRowsAffected() == 0) {
-            return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::NotFound, QStringLiteral("The transcript revision no longer exists.")));
-        }
-        QSqlQuery active(database);
-        active.prepare(QStringLiteral("SELECT active_job_id FROM recordings WHERE id=?"));
-        active.addBindValue(recordingId);
-        if (!active.exec() || !active.next()) {
-            return Result<void>::failure(queryError(
-                QStringLiteral("The replacement transcript revision could not be loaded."), active));
-        }
-        deleted.activeJobId = active.value(0).toString();
-        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recordingId);
-    });
-    if (!result) {
-        return Result<RevisionDeletionResult>::failure(result.error());
-    }
-    return Result<RevisionDeletionResult>::success(deleted);
 }
 
 Result<std::optional<TranscriptSegment>>
@@ -880,6 +730,28 @@ Result<void> SqliteJobRepository::completeAndActivate(const QString& recordingId
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::NotFound, QStringLiteral("The recording no longer exists.")));
         }
+        QSqlQuery discardOldTranscript(database);
+        discardOldTranscript.prepare(QStringLiteral(
+            "DELETE FROM transcript_segments WHERE recording_id=? AND job_id<>? AND job_id IN (SELECT id "
+            "FROM transcription_jobs WHERE recording_id=? AND state='Completed')"));
+        discardOldTranscript.addBindValue(recordingId);
+        discardOldTranscript.addBindValue(jobId);
+        discardOldTranscript.addBindValue(recordingId);
+        if (!discardOldTranscript.exec()) {
+            return Result<void>::failure(queryError(
+                QStringLiteral("The previous transcript could not be replaced."), discardOldTranscript));
+        }
+        QSqlQuery hideOldCompletions(database);
+        hideOldCompletions.prepare(QStringLiteral(
+            "UPDATE transcription_jobs SET queue_hidden=1 WHERE recording_id=? AND "
+            "id<>? AND state='Completed'"));
+        hideOldCompletions.addBindValue(recordingId);
+        hideOldCompletions.addBindValue(jobId);
+        if (!hideOldCompletions.exec()) {
+            return Result<void>::failure(queryError(
+                QStringLiteral("The previous transcription record could not be archived."),
+                hideOldCompletions));
+        }
         JobEvent event;
         event.jobId = jobId;
         event.eventType = QStringLiteral("completed");
@@ -905,7 +777,7 @@ Result<void> SqliteJobRepository::completeAndActivate(const QString& recordingId
             return Result<void>::failure(queryError(
                 QStringLiteral("The completed ASR execution lease could not be released."), release));
         }
-        return Result<void>::success();
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recordingId);
     });
 }
 
@@ -1378,22 +1250,46 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
 }
 
 Result<void> SqliteJobRepository::deleteTerminalJob(const QString& id) {
-    const auto current = findById(id);
-    if (!current)
-        return Result<void>::failure(current.error());
-    if (!current.value())
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
-    if (!JobStateMachine::isTerminal(current.value()->state) &&
-        current.value()->state != JobState::Interrupted) {
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::InvalidStateTransition,
-            QStringLiteral(
-                "Only completed, cancelled, failed, or interrupted jobs can be permanently deleted.")));
-    }
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        const auto current = findJob(database, id);
+        if (!current) {
+            return Result<void>::failure(current.error());
+        }
+        if (!current.value()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+        }
+        if (!JobStateMachine::isTerminal(current.value()->state) &&
+            current.value()->state != JobState::Interrupted) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidStateTransition,
+                QStringLiteral(
+                    "Only completed, cancelled, failed, or interrupted jobs can be removed.")));
+        }
 
-    const auto deleted = deleteRevision(current.value()->recordingId, id);
-    return deleted ? Result<void>::success() : Result<void>::failure(deleted.error());
+        QSqlQuery active(database);
+        active.prepare(QStringLiteral("SELECT active_job_id=? FROM recordings WHERE id=?"));
+        active.addBindValue(id);
+        active.addBindValue(current.value()->recordingId);
+        if (!active.exec() || !active.next()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The recording transcript could not be checked."), active));
+        }
+
+        QSqlQuery remove(database);
+        if (active.value(0).toBool()) {
+            remove.prepare(QStringLiteral("UPDATE transcription_jobs SET queue_hidden=1 WHERE id=?"));
+        } else {
+            remove.prepare(QStringLiteral("DELETE FROM transcription_jobs WHERE id=?"));
+        }
+        remove.addBindValue(id);
+        if (!remove.exec() || remove.numRowsAffected() == 0) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The transcription job could not be removed."), remove));
+        }
+        return DatabaseSearchService(m_databaseManager)
+            .rebuildRecording(database, current.value()->recordingId);
+    });
 }
 
 Result<int> SqliteJobRepository::clearCompleted() {
@@ -1410,13 +1306,23 @@ Result<int> SqliteJobRepository::clearCompleted() {
             recordingIds.append(recordings.value(0).toString());
         }
 
+        QSqlQuery hideActive(database);
+        if (!hideActive.exec(QStringLiteral(
+                "UPDATE transcription_jobs SET queue_hidden=1 WHERE queue_hidden=0 AND state='Completed' "
+                "AND EXISTS(SELECT 1 FROM recordings r WHERE r.active_job_id=transcription_jobs.id)"))) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("Completed jobs could not be cleared."), hideActive));
+        }
+        removedCount = hideActive.numRowsAffected();
+
         QSqlQuery remove(database);
-        if (!remove.exec(QStringLiteral("DELETE FROM transcription_jobs WHERE queue_hidden=0 "
-                                        "AND state IN ('Completed','Cancelled')"))) {
+        if (!remove.exec(QStringLiteral(
+                "DELETE FROM transcription_jobs WHERE queue_hidden=0 AND state IN ('Completed','Cancelled') "
+                "AND NOT EXISTS(SELECT 1 FROM recordings r WHERE r.active_job_id=transcription_jobs.id)"))) {
             return Result<void>::failure(
                 queryError(QStringLiteral("Completed jobs could not be removed."), remove));
         }
-        removedCount = remove.numRowsAffected();
+        removedCount += remove.numRowsAffected();
 
         DatabaseSearchService search(m_databaseManager);
         for (const QString& recordingId : std::as_const(recordingIds)) {

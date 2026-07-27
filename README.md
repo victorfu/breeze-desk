@@ -36,8 +36,9 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
   a native crash can never take down the app or your library.
 - ⏳ **Built for hours-long recordings** — VAD-aware chunking, partial segments persisted as they
   arrive, cancellation, retry, resume for interrupted jobs, and deterministic overlap handling.
-- 🗂️ **A real transcript library** — SQLite storage with revisions and editing, tags, search, trash,
-  a shared glossary with per-term controls, prompt budgeting, and auditable alias replacement.
+- 🗂️ **A real transcript library** — SQLite storage with one current editable transcript per recording,
+  tags, search, trash, a shared glossary with per-term controls, prompt budgeting, and auditable alias
+  replacement.
 - 🎨 **Polished QML interface** — semantic design tokens, System/Light/Dark themes, English and
   Traditional Chinese, keyboard navigation, synchronized waveform and player, accessible controls.
 - 🧠 **Verified model management** — Q5/Q8/custom GGML models with pause/resume downloads checked
@@ -63,7 +64,7 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
 | ASR | whisper.cpp pinned to an immutable commit, linked as a library by the worker process |
 | Acceleration | Metal + Accelerate on macOS; Vulkan or CPU worker builds on Windows |
 | Media | LGPL FFmpeg sidecar for probing and normalization; Qt Multimedia for capture and playback |
-| Storage | SQLite for the library, jobs, chunk checkpoints, revisions, glossary, and audit data |
+| Storage | SQLite for the library, jobs, chunk checkpoints, the current transcript, glossary, and audit data |
 | Updates | Optional Sparkle (macOS) and WinSparkle (Windows) update checks |
 
 ## 🧠 Models

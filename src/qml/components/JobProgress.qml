@@ -64,7 +64,7 @@ Rectangle {
     }
 
     objectName: "jobProgressCard"
-    implicitHeight: content.implicitHeight + SemanticTokens.spacingLg * 2
+    implicitHeight: content.implicitHeight + SemanticTokens.spacingMd * 2
     z: queueDragActive ? 2 : 0
     opacity: queueDragActive ? 0.88 : 1.0
     color: SemanticTokens.surface
@@ -113,35 +113,31 @@ Rectangle {
         id: content
 
         anchors.fill: parent
-        anchors.margins: SemanticTokens.spacingLg
-        spacing: SemanticTokens.spacingSm
+        anchors.margins: SemanticTokens.spacingMd
+        spacing: SemanticTokens.spacingXs
 
         RowLayout {
             Layout.fillWidth: true
             spacing: SemanticTokens.spacingSm
 
-            ColumnLayout {
+            Text {
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                spacing: SemanticTokens.spacingXs
-
-                Text {
-                    Layout.fillWidth: true
-                    text: root.title
-                    color: SemanticTokens.text
-                    elide: Text.ElideRight
-                    font.pixelSize: SemanticTokens.bodySize
-                    font.weight: SemanticTokens.weightSemiBold
-                }
-                Text {
-                    id: queueMetadata
-                    objectName: "jobQueueMetadata"
-                    Layout.fillWidth: true
-                    visible: text.length > 0
-                    text: root.queueSummary()
-                    color: SemanticTokens.textMuted
-                    font.pixelSize: SemanticTokens.captionSize
-                }
+                text: root.title
+                color: SemanticTokens.text
+                elide: Text.ElideRight
+                font.pixelSize: SemanticTokens.bodySize
+                font.weight: SemanticTokens.weightSemiBold
+            }
+            Text {
+                id: queueMetadata
+                objectName: "jobQueueMetadata"
+                Layout.maximumWidth: root.width * 0.32
+                visible: text.length > 0
+                text: root.queueSummary()
+                color: SemanticTokens.textMuted
+                elide: Text.ElideRight
+                font.pixelSize: SemanticTokens.captionSize
             }
 
             StatusBadge {
@@ -197,6 +193,8 @@ Rectangle {
         }
 
         Rectangle {
+            id: partialPanel
+            objectName: "jobLatestPartialPanel"
             Layout.fillWidth: true
             visible: root.latestPartialText.length > 0
             implicitHeight: partialColumn.implicitHeight + SemanticTokens.spacingSm * 2
@@ -218,6 +216,7 @@ Rectangle {
                 Text {
                     objectName: "jobLatestPartialText"
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     text: root.latestPartialText
                     color: SemanticTokens.text
                     wrapMode: Text.WordWrap
@@ -226,16 +225,6 @@ Rectangle {
                     font.pixelSize: SemanticTokens.bodySize
                 }
             }
-        }
-
-        AppButton {
-            id: timelineToggle
-            objectName: "jobTimelineToggle"
-            visible: root.eventTimeline.length > 0
-            Layout.alignment: Qt.AlignLeft
-            text: root.timelineExpanded ? qsTr("Hide activity") : qsTr("Show activity (%1)").arg(root.eventTimeline.length)
-            accessibleName: text
-            onClicked: root.timelineExpanded = !root.timelineExpanded
         }
 
         ColumnLayout {
@@ -290,9 +279,18 @@ Rectangle {
 
         RowLayout {
             Layout.fillWidth: true
-            visible: root.jobState === "Queued" || root.canCancel || root.canRetry
+            visible: root.eventTimeline.length > 0 || root.jobState === "Queued" || root.canCancel || root.canRetry
                      || root.canResume || root.canRemove
             spacing: SemanticTokens.spacingXs
+
+            AppButton {
+                id: timelineToggle
+                objectName: "jobTimelineToggle"
+                visible: root.eventTimeline.length > 0
+                text: root.timelineExpanded ? qsTr("Hide activity") : qsTr("Show activity (%1)").arg(root.eventTimeline.length)
+                accessibleName: text
+                onClicked: root.timelineExpanded = !root.timelineExpanded
+            }
 
             RowLayout {
                 visible: root.jobState === "Queued"

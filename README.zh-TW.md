@@ -34,7 +34,7 @@ C API,不執行 `whisper-cli`,也沒有雲端 ASR、Python runtime 或遙測。�
   不會拖垮主程式或你的資料庫。
 - ⏳ **為數小時的長錄音而生** — VAD 對齊分塊、partial segments 即時保存、取消、重試、中斷後
   resume,以及確定性的重疊去重。
-- 🗂️ **完整的逐字稿 Library** — SQLite 儲存、revisions 與編輯、標籤、搜尋、Trash、單一專有
+- 🗂️ **完整的逐字稿 Library** — 每段錄音只保留一份可編輯的最新逐字稿，並支援標籤、搜尋、Trash、單一專有
   名詞清單與逐詞啟用控制、prompt token 預算與可稽核的 alias replacement。
 - 🎨 **精緻的 QML 介面** — 語意化 Design Tokens、System/Light/Dark 主題、中英文介面、鍵盤
   操作、波形與播放器同步、無障礙控制項。
@@ -60,7 +60,7 @@ C API,不執行 `whisper-cli`,也沒有雲端 ASR、Python runtime 或遙測。�
 | ASR | 固定 immutable commit 的 whisper.cpp,由 Worker 行程以函式庫方式連結 |
 | 加速 | macOS 使用 Metal + Accelerate;Windows 提供 Vulkan 或 CPU Worker 版本 |
 | 媒體 | LGPL FFmpeg sidecar 負責探測與正規化;Qt Multimedia 負責錄音與播放 |
-| 儲存 | SQLite 保存 Library、jobs、chunk checkpoints、revisions、Glossary 與稽核資料 |
+| 儲存 | SQLite 保存 Library、jobs、chunk checkpoints、最新逐字稿、Glossary 與稽核資料 |
 | 更新 | 可選用的 Sparkle(macOS)/WinSparkle(Windows)更新檢查 |
 
 ## 🧠 模型

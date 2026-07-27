@@ -66,6 +66,7 @@ class JobListModel final : public QAbstractListModel {
     void clearCompleted();
     [[nodiscard]] int activeCount() const;
     [[nodiscard]] bool isWritingTranscript(const QString& id) const;
+    [[nodiscard]] bool isWritingRecording(const QString& recordingId) const;
     [[nodiscard]] bool contains(const QString& id) const;
     [[nodiscard]] QString runningJobId() const;
     [[nodiscard]] int queuePosition(const QString& id) const;
@@ -80,6 +81,8 @@ class JobListModel final : public QAbstractListModel {
 
   private:
     [[nodiscard]] int indexOf(const QString& id) const;
+    [[nodiscard]] int insertionRowFor(const Job& job) const;
+    int moveToDisplayGroup(int row);
     [[nodiscard]] int queuePositionForRow(int row) const;
     [[nodiscard]] int queuedCount() const;
     [[nodiscard]] bool canMoveQueued(int row, int delta) const;

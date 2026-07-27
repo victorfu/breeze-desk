@@ -432,7 +432,6 @@ void TranscriptionCoordinator::enqueue(const QString& jobId, const QString& reco
         job.parameters.insert(QStringLiteral("glossaryTerms"), snapshot);
     }
     job.createdAt = QDateTime::currentDateTimeUtc();
-    job.revisionNumber = 0;
     const auto created = m_jobs.createQueued(job);
     if (!created) {
         emit errorOccurred(created.error().message);
@@ -1583,7 +1582,7 @@ void TranscriptionCoordinator::persistPartialSegments() {
         failActiveJob(QStringLiteral("DatabaseQueryFailed"), result.error().message);
         return;
     }
-    m_activeRevisionPublished = true;
+    m_activeTranscriptPublished = true;
     if (!m_currentSegments.isEmpty()) {
         m_latestPartialText = m_currentSegments.constLast().displayText().simplified();
         emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1, static_cast<int>(m_chunks.size()),
@@ -1668,7 +1667,7 @@ void TranscriptionCoordinator::completeActiveJob() {
     publish(jobId);
     publishEvents(jobId);
     emit transcriptChanged(recordingId, jobId, false);
-    emit liveRevisionFinished(recordingId, jobId, true);
+    emit transcriptionFinished(recordingId, jobId, true);
     emit libraryChanged();
     m_runningJobId.clear();
     emit runningJobChanged({});
@@ -1696,10 +1695,10 @@ void TranscriptionCoordinator::failActiveJob(const QString& code, const QString&
     }
     publish(jobId);
     publishEvents(jobId);
-    if (m_activeRevisionPublished) {
+    if (m_activeTranscriptPublished) {
         emit transcriptChanged(m_activeJob.recordingId, jobId, false);
     }
-    emit liveRevisionFinished(m_activeJob.recordingId, jobId, false);
+    emit transcriptionFinished(m_activeJob.recordingId, jobId, false);
     emit errorOccurred(message);
     releaseActiveLease();
     m_runningJobId.clear();
@@ -1727,10 +1726,10 @@ void TranscriptionCoordinator::finishCancellation() {
     }
     publish(jobId);
     publishEvents(jobId);
-    if (m_activeRevisionPublished) {
+    if (m_activeTranscriptPublished) {
         emit transcriptChanged(m_activeJob.recordingId, jobId, false);
     }
-    emit liveRevisionFinished(m_activeJob.recordingId, jobId, false);
+    emit transcriptionFinished(m_activeJob.recordingId, jobId, false);
     releaseActiveLease();
     m_runningJobId.clear();
     emit runningJobChanged({});
@@ -1760,10 +1759,10 @@ void TranscriptionCoordinator::interruptActiveJob(const QString& reason) {
     }
     publish(jobId);
     publishEvents(jobId);
-    if (m_activeRevisionPublished) {
+    if (m_activeTranscriptPublished) {
         emit transcriptChanged(m_activeJob.recordingId, jobId, false);
     }
-    emit liveRevisionFinished(m_activeJob.recordingId, jobId, false);
+    emit transcriptionFinished(m_activeJob.recordingId, jobId, false);
     releaseActiveLease();
     m_runningJobId.clear();
     emit runningJobChanged({});
@@ -1786,7 +1785,7 @@ void TranscriptionCoordinator::clearActive() {
     m_activeNormalizedPath.clear();
     m_latestPartialText.clear();
     m_normalization = nullptr;
-    m_activeRevisionPublished = false;
+    m_activeTranscriptPublished = false;
     QObject::disconnect(m_vadDownloadFinishedConnection);
     m_vadDownloadFinishedConnection = {};
     m_vadDownload = nullptr;
@@ -1907,7 +1906,7 @@ void TranscriptionCoordinator::publishEvents(const QString& jobId) {
                        event.eventType == QLatin1String("recovered_as_interrupted")) {
                 title = tr("Previous transcription worker stopped responding");
             } else if (event.eventType == QLatin1String("activated")) {
-                title = tr("Set as latest completed version");
+                title = tr("Transcript updated");
             } else if (event.eventType == QLatin1String("state_changed") && event.state.has_value()) {
                 title = jobStateName(*event.state);
             } else {

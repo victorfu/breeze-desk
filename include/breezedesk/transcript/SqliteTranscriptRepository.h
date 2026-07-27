@@ -15,10 +15,10 @@ class SqliteTranscriptRepository final : public ITranscriptRepository {
     [[nodiscard]] Result<QList<TranscriptSegment>>
     segmentsForJob(const QString& jobId, bool includeProvisional = true) const override;
     [[nodiscard]] Result<std::optional<TranscriptSegment>> segment(const QString& segmentId) const override;
-    [[nodiscard]] Result<void> replaceRevision(const QString& recordingId, const QString& jobId,
-                                               QList<TranscriptSegment> segments) override;
-    [[nodiscard]] Result<void> saveEditedRevision(const QString& recordingId, const QString& jobId,
-                                                  QList<TranscriptSegment> segments) override;
+    [[nodiscard]] Result<void> replaceTranscript(const QString& recordingId, const QString& jobId,
+                                                 QList<TranscriptSegment> segments) override;
+    [[nodiscard]] Result<void> saveEditedTranscript(const QString& recordingId, const QString& jobId,
+                                                    QList<TranscriptSegment> segments) override;
     [[nodiscard]] Result<void> replaceChunk(const QString& recordingId, const QString& jobId,
                                             const QString& chunkId, QList<TranscriptSegment> segments,
                                             bool provisional, int attempt) override;

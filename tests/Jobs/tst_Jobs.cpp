@@ -26,10 +26,10 @@ class JobsTest final : public QObject {
     void clearingCompletedQueuePermanentlyDeletesJobs();
     void removingTerminalJobPermanentlyDeletesIt();
     void runtimeDiagnosticsArePersisted();
-    void revisionHistoryPreservesAttemptsAndFallsBack();
+    void completedTranscriptionReplacesPreviousTranscript();
     void executionLeaseSerializesWorkersAndCompletesAtomically();
     void concurrentRepositoriesClaimOnlyOneJob();
-    void retryAndResumeResetExecutionStateOnTheSameRevision();
+    void retryAndResumeResetExecutionStateOnTheSameJob();
     void chunkStateChangesAppendStructuredEvents();
 };
 
@@ -64,7 +64,6 @@ void JobsTest::queuePersistsChunksAndRecoversInterruption() {
     JobQueue queue(repository);
     TranscriptionJob job;
     job.recordingId = recording.id;
-    job.revisionNumber = 0;
     auto id = queue.enqueue(job);
     QVERIFY(id);
     QVERIFY(repository.transition(id.value(), JobState::Preparing));
@@ -204,7 +203,7 @@ void JobsTest::runtimeDiagnosticsArePersisted() {
     QVERIFY(saved.value()->diagnostics.value(QStringLiteral("existing")).toBool());
 }
 
-void JobsTest::revisionHistoryPreservesAttemptsAndFallsBack() {
+void JobsTest::completedTranscriptionReplacesPreviousTranscript() {
     QTemporaryDir directory;
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(database.initialize());
@@ -220,10 +219,31 @@ void JobsTest::revisionHistoryPreservesAttemptsAndFallsBack() {
     first.recordingId = recording.id;
     const auto createdFirst = repository.createQueued(first);
     QVERIFY(createdFirst);
-    QCOMPARE(createdFirst.value().revisionNumber, 1);
     QVERIFY(repository.transition(first.id, JobState::Preparing));
     QVERIFY(repository.transition(first.id, JobState::LoadingModel));
     QVERIFY(repository.transition(first.id, JobState::Transcribing));
+    auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery segment(connection.value());
+    segment.prepare(QStringLiteral(
+        "INSERT INTO transcript_segments(id,recording_id,job_id,ordinal,start_ms,end_ms,original_text,"
+        "edited_text,is_provisional,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)"));
+    const auto insertSegment = [&](const QString& id, const QString& jobId, const QString& text,
+                                   const bool provisional = false) {
+        segment.bindValue(0, id);
+        segment.bindValue(1, recording.id);
+        segment.bindValue(2, jobId);
+        segment.bindValue(3, 0);
+        segment.bindValue(4, 0);
+        segment.bindValue(5, 1'000);
+        segment.bindValue(6, text);
+        segment.bindValue(7, QStringLiteral(""));
+        segment.bindValue(8, provisional);
+        segment.bindValue(9, QStringLiteral("2026-01-01T00:00:00.000Z"));
+        segment.bindValue(10, QStringLiteral("2026-01-01T00:00:00.000Z"));
+        return segment.exec();
+    };
+    QVERIFY(insertSegment(QStringLiteral("segment-1"), first.id, QStringLiteral("First transcript")));
     QVERIFY(repository.transition(first.id, JobState::Finalizing));
     QVERIFY(repository.completeAndActivate(recording.id, first.id));
 
@@ -233,7 +253,6 @@ void JobsTest::revisionHistoryPreservesAttemptsAndFallsBack() {
     failed.queueHidden = true;
     const auto createdFailed = repository.createQueued(failed);
     QVERIFY(createdFailed);
-    QCOMPARE(createdFailed.value().revisionNumber, 2);
     QVERIFY(createdFailed.value().queueHidden);
     QVERIFY(repository.transition(failed.id, JobState::Preparing));
     QVERIFY(repository.transition(failed.id, JobState::Failed, QStringLiteral("ModelLoadFailed"),
@@ -244,78 +263,41 @@ void JobsTest::revisionHistoryPreservesAttemptsAndFallsBack() {
     latest.recordingId = recording.id;
     const auto createdLatest = repository.createQueued(latest);
     QVERIFY(createdLatest);
-    QCOMPARE(createdLatest.value().revisionNumber, 3);
     QVERIFY(repository.transition(latest.id, JobState::Preparing));
     QVERIFY(repository.transition(latest.id, JobState::LoadingModel));
     QVERIFY(repository.transition(latest.id, JobState::Transcribing));
+    QVERIFY(insertSegment(QStringLiteral("segment-3"), latest.id,
+                          QStringLiteral("Replacement transcript")));
+
+    QCOMPARE(recordings.findById(recording.id).value()->activeJobId, first.id);
+    QSqlQuery beforeCompletion(connection.value());
+    QVERIFY(beforeCompletion.exec(QStringLiteral("SELECT COUNT(*) FROM transcript_segments")));
+    QVERIFY(beforeCompletion.next());
+    QCOMPARE(beforeCompletion.value(0).toInt(), 2);
+
     QVERIFY(repository.transition(latest.id, JobState::Finalizing));
     QVERIFY(repository.completeAndActivate(recording.id, latest.id));
 
-    auto connection = database.connection();
-    QVERIFY(connection);
-    QSqlQuery segment(connection.value());
-    segment.prepare(QStringLiteral(
-        "INSERT INTO transcript_segments(id,recording_id,job_id,ordinal,start_ms,end_ms,original_text,"
-        "edited_text,is_provisional,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)"));
-    const auto insertSegment = [&](const QString& id, const int ordinal, const qint64 startMs,
-                                   const qint64 endMs, const QString& original, const QString& edited,
-                                   const bool provisional) {
-        segment.bindValue(0, id);
-        segment.bindValue(1, recording.id);
-        segment.bindValue(2, latest.id);
-        segment.bindValue(3, ordinal);
-        segment.bindValue(4, startMs);
-        segment.bindValue(5, endMs);
-        segment.bindValue(6, original);
-        segment.bindValue(7, edited);
-        segment.bindValue(8, provisional);
-        segment.bindValue(9, QStringLiteral("2026-01-01T00:00:00.000Z"));
-        segment.bindValue(10, QStringLiteral("2026-01-01T00:00:00.000Z"));
-        return segment.exec();
-    };
-    QVERIFY(insertSegment(QStringLiteral("segment-1"), 0, 0, 1'000, QStringLiteral("original"),
-                          QStringLiteral("edited"), false));
-    QVERIFY(insertSegment(QStringLiteral("segment-2"), 1, 1'000, 2'000, QStringLiteral("latest"),
-                          QStringLiteral(""), true));
-
-    const auto revisions = repository.listForRecording(recording.id);
-    QVERIFY(revisions);
-    QCOMPARE(revisions.value().size(), 3);
-    QCOMPARE(revisions.value().at(0).job.id, latest.id);
-    QCOMPARE(revisions.value().at(1).job.id, failed.id);
-    QVERIFY(revisions.value().at(1).queueHidden);
-    QCOMPARE(revisions.value().at(0).segmentCount, 2);
-    QVERIFY(revisions.value().at(0).hasManualEdits);
-    QVERIFY(revisions.value().at(0).hasProvisionalSegments);
-    QVERIFY(revisions.value().at(0).latestSegment.has_value());
-    QCOMPARE(revisions.value().at(0).latestSegment->id, QStringLiteral("segment-2"));
-    const auto latestCompleted = repository.latestForRecording(recording.id);
-    QVERIFY(latestCompleted && latestCompleted.value().has_value());
-    QCOMPARE(latestCompleted.value()->job.id, latest.id);
-
-    QVERIFY(repository.setActiveRevision(recording.id, first.id));
-    const auto deletedFirst = repository.deleteRevision(recording.id, first.id);
-    QVERIFY(deletedFirst);
-    QCOMPARE(deletedFirst.value().activeJobId, latest.id);
-    QVERIFY(!repository.findById(first.id).value().has_value());
-
-    TranscriptionJob queued;
-    queued.id = QStringLiteral("job-4");
-    queued.recordingId = recording.id;
-    QVERIFY(repository.createQueued(queued));
-    const auto rejected = repository.deleteRevision(recording.id, queued.id);
-    QVERIFY(!rejected);
-    QCOMPARE(rejected.error().code, ErrorCode::InvalidStateTransition);
-
-    const auto deletedLatest = repository.deleteRevision(recording.id, latest.id);
-    QVERIFY(deletedLatest);
-    QVERIFY(deletedLatest.value().activeJobId.isEmpty());
+    QCOMPARE(recordings.findById(recording.id).value()->activeJobId, latest.id);
     QSqlQuery remainingSegments(connection.value());
-    remainingSegments.prepare(QStringLiteral("SELECT COUNT(*) FROM transcript_segments WHERE job_id=?"));
-    remainingSegments.addBindValue(latest.id);
-    QVERIFY(remainingSegments.exec());
+    QVERIFY(remainingSegments.exec(QStringLiteral("SELECT job_id,original_text,is_provisional FROM "
+                                                  "transcript_segments")));
     QVERIFY(remainingSegments.next());
-    QCOMPARE(remainingSegments.value(0).toInt(), 0);
+    QCOMPARE(remainingSegments.value(0).toString(), latest.id);
+    QCOMPARE(remainingSegments.value(1).toString(), QStringLiteral("Replacement transcript"));
+    QVERIFY(!remainingSegments.value(2).toBool());
+    QVERIFY(!remainingSegments.next());
+
+    const auto archivedFirst = repository.findById(first.id);
+    QVERIFY(archivedFirst && archivedFirst.value().has_value());
+    QVERIFY(archivedFirst.value()->queueHidden);
+    QVERIFY(repository.deleteTerminalJob(latest.id));
+    const auto retainedLatest = repository.findById(latest.id);
+    QVERIFY(retainedLatest && retainedLatest.value().has_value());
+    QVERIFY(retainedLatest.value()->queueHidden);
+    QCOMPARE(recordings.findById(recording.id).value()->activeJobId, latest.id);
+    QCOMPARE(repository.latestSegmentForJob(latest.id).value()->originalText,
+             QStringLiteral("Replacement transcript"));
 }
 
 void JobsTest::executionLeaseSerializesWorkersAndCompletesAtomically() {
@@ -455,7 +437,7 @@ void JobsTest::concurrentRepositoriesClaimOnlyOneJob() {
         1);
 }
 
-void JobsTest::retryAndResumeResetExecutionStateOnTheSameRevision() {
+void JobsTest::retryAndResumeResetExecutionStateOnTheSameJob() {
     QTemporaryDir directory;
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(database.initialize());
@@ -477,7 +459,6 @@ void JobsTest::retryAndResumeResetExecutionStateOnTheSameRevision() {
     QVERIFY(repository.transition(job.id, JobState::Queued));
     auto retried = repository.findById(job.id);
     QVERIFY(retried && retried.value().has_value());
-    QCOMPARE(retried.value()->revisionNumber, 1);
     QCOMPARE(retried.value()->retryCount, 1);
     QCOMPARE(retried.value()->stage, JobStage::Preparing);
     QCOMPARE(retried.value()->progress, 0.0);
@@ -497,7 +478,6 @@ void JobsTest::retryAndResumeResetExecutionStateOnTheSameRevision() {
     QVERIFY(repository.transition(job.id, JobState::Queued));
     const auto resumed = repository.findById(job.id);
     QVERIFY(resumed && resumed.value().has_value());
-    QCOMPARE(resumed.value()->revisionNumber, 1);
     QCOMPARE(resumed.value()->retryCount, 2);
     QVERIFY(resumed.value()->queuePosition > createdAnother.value().queuePosition);
     const auto events = repository.eventsForJob(job.id);

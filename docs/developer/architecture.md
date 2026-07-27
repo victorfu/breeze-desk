@@ -42,7 +42,8 @@ access platform APIs, or see `whisper_context`. Business logic remains in C++.
    socket/heartbeat processing while a dedicated QThread runs VAD or `whisper_full`.
 5. Progress and partial segments return over CBOR. The GUI transactionally commits each completed chunk
    before requesting the next.
-6. Finalization activates the new transcript revision without overwriting older edited jobs.
+6. Finalization atomically replaces the recording's current transcript and removes its previous segments;
+   failed or cancelled attempts leave the current transcript unchanged.
 
 The database is not shared with the worker. The GUI/CLI persistence owner is therefore the recovery
 authority: a worker cannot mark a chunk complete unless its result was accepted and committed.

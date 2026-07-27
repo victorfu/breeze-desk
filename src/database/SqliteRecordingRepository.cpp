@@ -441,7 +441,7 @@ Result<void> SqliteRecordingRepository::setActiveTranscriptJob(const QString& re
             queryError(QStringLiteral("The active transcript could not be changed."), query));
     if (query.numRowsAffected() == 0) {
         return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The requested transcript revision does not exist.")));
+            ErrorCode::NotFound, QStringLiteral("The requested transcript job does not exist.")));
     }
     return Result<void>::success();
 }

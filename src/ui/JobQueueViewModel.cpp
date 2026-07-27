@@ -35,6 +35,9 @@ QString JobQueueViewModel::runningJobId() const {
 bool JobQueueViewModel::isWritingTranscript(const QString& jobId) const {
     return m_jobs.isWritingTranscript(jobId);
 }
+bool JobQueueViewModel::isWritingRecording(const QString& recordingId) const {
+    return m_jobs.isWritingRecording(recordingId);
+}
 
 bool JobQueueViewModel::containsJob(const QString& jobId) const {
     return m_jobs.contains(jobId);

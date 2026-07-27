@@ -10,14 +10,14 @@ availability is checked when preparation starts and can be refreshed in Diagnost
 1. Choose **Import Files**, drag local media into Library, or press Ctrl/Cmd+O. **Open Folder** scans a
    selected folder for supported media and shows cancellable progress.
 2. Select the recording card. The recording view loads the source into the player and shows any existing
-   transcript revision.
+   transcript.
 3. Review **Settings > Transcription**. Balanced, language `zh`, automatic backend selection, and Silero
    VAD are the normal starting point for a long Taiwan Mandarin meeting.
-4. Optionally select a profile on Glossary and maintain its project context, then choose **Transcribe**.
-   The selected profile is snapshotted into the job. The job appears in Queue; normalization and inference
-   run outside the UI thread.
-5. Partial segments appear as units complete. Editing stays locked while the active revision is being
-   written, then unlocks for correction, review, playback, and export.
+4. Optionally maintain the shared Glossary and enable the terms needed for recognition, then choose
+   **Transcribe**. The enabled terms are snapshotted into the job. The job appears in Queue;
+   normalization and inference run outside the UI thread.
+5. For a recording without a completed transcript, partial segments can appear as units complete.
+   Editing stays locked during processing, then unlocks for correction, review, playback, and export.
 
 If the model is absent, corrupt, or already being removed, transcription remains disabled and Models
 shows the action to take. See [Models](models.md) for download and custom-model handling.

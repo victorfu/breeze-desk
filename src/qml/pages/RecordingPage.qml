@@ -10,19 +10,15 @@ Item {
     objectName: "recordingPage"
     readonly property var detail: vm.recordingDetail
     readonly property var transcript: vm.transcript
-    readonly property var revisions: vm.transcriptRevisions
     readonly property var player: vm.player
     readonly property string displayedRecordingStatus: UiText.recordingStatus(detail.status)
     readonly property bool compactInspector: width < 1040
     readonly property bool narrowTools: recordingMainPane.width < 680 * DesignSystem.textScale
-    readonly property bool stackTranscriptTools: recordingMainPane.width < 1160 * DesignSystem.textScale
     readonly property bool stackTransportOptions: recordingMainPane.width < 1040 * DesignSystem.textScale
     readonly property bool narrowTransport: recordingMainPane.width < 440 * DesignSystem.textScale
     readonly property int compactWaveformHeight: DesignSystem.compact ? 52 : 64
     readonly property var playbackRates: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
     property bool compactInspectorOpen: false
-    property string pendingDeleteRevisionId: ""
-    property var pendingDeleteRevision: ({})
 
     component ModeIconButton: IconButton {
         id: modeButton
@@ -57,245 +53,6 @@ Item {
     function focusTranscriptSearch() {
         recordingTranscriptSearch.forceActiveFocus()
         recordingTranscriptSearch.selectAll()
-    }
-
-    function requestRevisionDeletion(jobId) {
-        root.pendingDeleteRevisionId = jobId
-        root.pendingDeleteRevision = root.vm.transcriptRevisionDetails(jobId)
-        deleteRevisionDialog.open()
-    }
-
-    AppDialog {
-        id: revisionHistoryDialog
-        objectName: "transcriptRevisionHistoryDialog"
-        title: qsTr("Transcript history")
-        subtitle: qsTr("Each transcription creates a separate version. Viewing a version does not replace the latest completed transcript.")
-        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
-        standardButtons: Dialog.Close
-        width: Math.min(640 * DesignSystem.textScale,
-                        Overlay.overlay.width - SemanticTokens.spacingXl * 2)
-
-        ColumnLayout {
-            width: parent.width
-            spacing: SemanticTokens.spacingSm
-
-            Text {
-                Layout.fillWidth: true
-                visible: root.revisions.count === 0
-                text: qsTr("No transcript versions are available yet.")
-                color: SemanticTokens.textMuted
-                wrapMode: Text.WordWrap
-                font.pixelSize: SemanticTokens.bodySize
-            }
-
-            ListView {
-                id: revisionHistoryList
-                objectName: "transcriptRevisionHistoryList"
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(Math.max(contentHeight, 80 * DesignSystem.textScale),
-                                                 420 * DesignSystem.textScale)
-                visible: root.revisions.count > 0
-                model: root.revisions.revisions
-                spacing: SemanticTokens.spacingSm
-                clip: true
-                reuseItems: true
-                ScrollBar.vertical: ScrollBar { }
-
-                delegate: Rectangle {
-                    id: revisionRow
-                    required property string jobId
-                    required property int revisionNumber
-                    required property string jobState
-                    required property var createdAt
-                    required property int segmentCount
-                    required property bool hasManualEdits
-                    required property bool hasProvisionalSegments
-                    required property string latestText
-                    required property bool isActiveRevision
-                    required property bool isSelectedRevision
-                    required property bool isRunning
-                    required property bool canDelete
-                    required property string modelId
-                    required property string backend
-                    required property string language
-                    required property string preset
-                    required property string errorMessage
-
-                    width: ListView.view.width
-                    height: Math.max(104 * DesignSystem.textScale,
-                                     revisionRowLayout.implicitHeight + SemanticTokens.spacingMd * 2)
-                    color: isSelectedRevision ? SemanticTokens.accentMuted : SemanticTokens.surface
-                    radius: SemanticTokens.radiusMd
-                    border.color: isSelectedRevision ? SemanticTokens.accent : SemanticTokens.border
-
-                    RowLayout {
-                        id: revisionRowLayout
-                        anchors.fill: parent
-                        anchors.margins: SemanticTokens.spacingMd
-                        spacing: SemanticTokens.spacingSm
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.minimumWidth: 0
-                            spacing: SemanticTokens.spacingXs
-
-                            RowLayout {
-                                Layout.fillWidth: true
-                                spacing: SemanticTokens.spacingXs
-                                Text {
-                                    text: qsTr("Version %1").arg(revisionRow.revisionNumber)
-                                    color: SemanticTokens.text
-                                    font.pixelSize: SemanticTokens.bodySize
-                                    font.weight: SemanticTokens.weightSemiBold
-                                }
-                                StatusBadge {
-                                    text: UiText.jobState(revisionRow.jobState)
-                                    tone: revisionRow.jobState === "Completed" ? "success"
-                                          : revisionRow.jobState === "Failed" ? "danger"
-                                          : revisionRow.isRunning ? "accent" : "warning"
-                                }
-                                StatusBadge {
-                                    visible: revisionRow.isActiveRevision
-                                    text: qsTr("Latest completed")
-                                    tone: "success"
-                                }
-                                StatusBadge {
-                                    visible: revisionRow.isSelectedRevision
-                                    text: qsTr("Viewing")
-                                    tone: "accent"
-                                }
-                                Item { Layout.fillWidth: true }
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: qsTr("%1 · %n segment(s)", "", revisionRow.segmentCount)
-                                      .arg(UiText.shortDateTime(revisionRow.createdAt))
-                                color: SemanticTokens.textMuted
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                visible: revisionRow.modelId.length > 0 || revisionRow.backend.length > 0
-                                         || revisionRow.language.length > 0
-                                         || revisionRow.preset.length > 0
-                                text: [revisionRow.modelId,
-                                       revisionRow.backend,
-                                       revisionRow.language.length > 0
-                                           ? qsTr("Language: %1").arg(revisionRow.language) : "",
-                                       revisionRow.preset.length > 0
-                                           ? qsTr("Preset: %1").arg(revisionRow.preset) : ""].filter(function(value) {
-                                    return value.length > 0
-                                }).join(" · ")
-                                color: SemanticTokens.textMuted
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                visible: revisionRow.latestText.length > 0
-                                text: revisionRow.latestText
-                                color: SemanticTokens.text
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                visible: revisionRow.errorMessage.length > 0
-                                text: revisionRow.errorMessage
-                                color: SemanticTokens.danger
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
-                            Text {
-                                Layout.fillWidth: true
-                                visible: revisionRow.hasManualEdits || revisionRow.hasProvisionalSegments
-                                text: revisionRow.hasManualEdits && revisionRow.hasProvisionalSegments
-                                      ? qsTr("Contains manual edits and partial results")
-                                      : revisionRow.hasManualEdits ? qsTr("Contains manual edits")
-                                                                   : qsTr("Contains partial results")
-                                color: SemanticTokens.warning
-                                elide: Text.ElideRight
-                                font.pixelSize: SemanticTokens.captionSize
-                            }
-                        }
-
-                        AppButton {
-                            objectName: "viewTranscriptRevisionButton"
-                            text: revisionRow.isSelectedRevision ? qsTr("Viewing") : qsTr("View")
-                            enabled: !revisionRow.isSelectedRevision
-                            onClicked: {
-                                root.vm.selectTranscriptRevision(revisionRow.jobId)
-                                if (root.revisions.selectedJobId === revisionRow.jobId)
-                                    revisionHistoryDialog.close()
-                            }
-                        }
-                        RemoveButton {
-                            objectName: "deleteTranscriptRevisionButton"
-                            visible: revisionRow.canDelete
-                            accessibleName: qsTr("Delete version %1 permanently")
-                                            .arg(revisionRow.revisionNumber)
-                            onClicked: root.requestRevisionDeletion(revisionRow.jobId)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    AppDialog {
-        id: deleteRevisionDialog
-        objectName: "deleteTranscriptRevisionDialog"
-        title: root.pendingDeleteRevision.revisionNumber === undefined
-               ? qsTr("Delete transcript version permanently?")
-               : qsTr("Delete version %1 permanently?")
-                 .arg(root.pendingDeleteRevision.revisionNumber)
-        subtitle: qsTr("This cannot be undone.")
-        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/trash-2.svg"
-        destructive: true
-        standardButtons: Dialog.Cancel | Dialog.Ok
-        onAccepted: {
-            root.vm.deleteTranscriptRevision(root.pendingDeleteRevisionId)
-            root.pendingDeleteRevisionId = ""
-            root.pendingDeleteRevision = ({})
-        }
-        onRejected: {
-            root.pendingDeleteRevisionId = ""
-            root.pendingDeleteRevision = ({})
-        }
-
-        ColumnLayout {
-            width: parent.width
-            spacing: SemanticTokens.spacingSm
-            Text {
-                Layout.fillWidth: true
-                text: qsTr("The transcript segments and processing record for this version will be permanently deleted.")
-                wrapMode: Text.WordWrap
-                color: SemanticTokens.text
-                font.pixelSize: SemanticTokens.bodySize
-            }
-            Text {
-                Layout.fillWidth: true
-                visible: root.pendingDeleteRevision.hasManualEdits === true
-                text: qsTr("This version contains manual edits. Those edits will also be lost.")
-                wrapMode: Text.WordWrap
-                color: SemanticTokens.danger
-                font.pixelSize: SemanticTokens.bodySize
-                font.weight: SemanticTokens.weightSemiBold
-            }
-            Text {
-                objectName: "deleteDirtyTranscriptRevisionWarning"
-                Layout.fillWidth: true
-                visible: root.pendingDeleteRevisionId === root.revisions.selectedJobId
-                         && root.transcript.dirty
-                text: qsTr("This is the version you are viewing, and it has unsaved changes. Those changes will be discarded.")
-                wrapMode: Text.WordWrap
-                color: SemanticTokens.danger
-                font.pixelSize: SemanticTokens.bodySize
-                font.weight: SemanticTokens.weightSemiBold
-            }
-        }
     }
 
     Component {
@@ -600,80 +357,15 @@ Item {
                         objectName: "recordingTranscriptTools"
                         anchors.fill: parent
                         anchors.margins: SemanticTokens.spacingXs
-                        readonly property bool hasRevisions: root.revisions.count > 0
-                        readonly property bool stacked: hasRevisions
-                                                        && (root.stackTranscriptTools
-                                                            || root.transcript.editingLocked)
-                        columns: stacked || !hasRevisions ? 1 : 2
+                        columns: 1
                         columnSpacing: SemanticTokens.spacingSm
                         rowSpacing: SemanticTokens.spacingXs
-
-                        RowLayout {
-                            objectName: "recordingTranscriptRevisionBar"
-                            visible: transcriptTools.hasRevisions
-                            Layout.row: 0
-                            Layout.column: 0
-                            Layout.fillWidth: transcriptTools.stacked
-                            Layout.minimumWidth: 0
-                            spacing: SemanticTokens.spacingXs
-                            AppComboBox {
-                                id: transcriptRevisionPicker
-                                objectName: "transcriptRevisionPicker"
-                                Layout.fillWidth: true
-                                Layout.preferredWidth: 220 * DesignSystem.textScale
-                                Layout.minimumWidth: 170 * DesignSystem.textScale
-                                Layout.maximumWidth: 260 * DesignSystem.textScale
-                                accessibleName: qsTr("Transcript version")
-                                model: root.revisions.revisions
-                                textRole: "displayLabel"
-                                valueRole: "jobId"
-                                currentIndex: root.revisions.selectedIndex
-                                onActivated: {
-                                    root.vm.selectTranscriptRevision(String(currentValue))
-                                    Qt.callLater(function() {
-                                        transcriptRevisionPicker.currentIndex = root.revisions.selectedIndex
-                                    })
-                                }
-                            }
-                            StatusBadge {
-                                visible: root.revisions.followingLive
-                                         && root.revisions.selectedRevisionRunning
-                                text: qsTr("Following live")
-                                tone: "accent"
-                            }
-                            StatusBadge {
-                                objectName: "recordingEditingLockedBadge"
-                                visible: root.transcript.editingLocked
-                                text: qsTr("Live transcription — editing locked")
-                                tone: "accent"
-                            }
-                            StatusBadge {
-                                objectName: "transcriptNewVersionBadge"
-                                visible: root.revisions.hasNewerRevision
-                                         && !root.revisions.selectionPinned
-                                text: qsTr("New version available")
-                                tone: "accent"
-                            }
-                            AppButton {
-                                objectName: "followLiveTranscriptButton"
-                                visible: root.revisions.selectionPinned
-                                text: qsTr("Follow latest")
-                                primary: true
-                                onClicked: root.vm.followLiveTranscript()
-                            }
-                            IconButton {
-                                objectName: "transcriptHistoryButton"
-                                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/history.svg"
-                                accessibleName: qsTr("Transcript history")
-                                onClicked: revisionHistoryDialog.open()
-                            }
-                        }
 
                         GridLayout {
                             id: transcriptCommands
                             objectName: "recordingTranscriptCommands"
-                            Layout.row: transcriptTools.stacked ? 1 : 0
-                            Layout.column: transcriptTools.stacked || !transcriptTools.hasRevisions ? 0 : 1
+                            Layout.row: 0
+                            Layout.column: 0
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
                             columns: root.narrowTools ? 1 : 2
@@ -721,6 +413,12 @@ Item {
                                 Layout.fillWidth: root.narrowTools
                                 Layout.alignment: Qt.AlignRight
                                 spacing: SemanticTokens.spacingXs
+                                StatusBadge {
+                                    objectName: "recordingEditingLockedBadge"
+                                    visible: root.transcript.editingLocked
+                                    text: qsTr("Transcribing…")
+                                    tone: "accent"
+                                }
                                 Item { visible: root.narrowTools; Layout.fillWidth: root.narrowTools }
                                 IconButton {
                                     objectName: "recordingUndoButton"
@@ -774,13 +472,11 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     visible: root.transcript.segmentCount === 0
-                    title: root.revisions.selectedJobId.length === 0
-                           ? qsTr("No completed transcript yet")
-                           : qsTr("This transcript version is empty")
-                    description: root.revisions.selectedJobId.length === 0
-                                 ? qsTr("Add this recording to the queue. Partial segments will appear here while the new version is transcribed.")
-                                 : qsTr("This version did not produce any transcript segments.")
-                    actionText: root.revisions.selectedJobId.length === 0 ? qsTr("Add to Queue") : ""
+                    title: qsTr("No completed transcript yet")
+                    description: root.transcript.editingLocked
+                                 ? qsTr("Transcription is in progress. The transcript will appear when processing completes.")
+                                 : qsTr("Add this recording to the queue to create its transcript.")
+                    actionText: root.transcript.editingLocked ? "" : qsTr("Add to Queue")
                     onActionTriggered: root.requestTranscription()
                 }
                 EmptyState {

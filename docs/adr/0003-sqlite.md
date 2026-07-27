@@ -4,7 +4,7 @@ Status: Accepted — 2026-07-17
 
 ## Context
 
-Recordings, revisions, thousands of segments, queue state, glossary terms, model metadata, Trash, and
+Recordings, transcripts, thousands of segments, queue state, glossary terms, model metadata, Trash, and
 crash-resumable chunks need transactional local persistence. The app cannot require a server or account,
 and searches must work even when the Qt SQLite driver lacks FTS5.
 
@@ -13,7 +13,8 @@ and searches must work even when the Qt SQLite driver lacks FTS5.
 Use Qt SQL with SQLite, foreign keys, WAL, a five-second busy timeout, and one connection per thread.
 Numbered migrations are checksummed, backed up before upgrade, and committed transactionally. Startup
 runs `PRAGMA quick_check` and marks abandoned nonterminal jobs Interrupted. Recordings use soft delete;
-jobs are immutable revisions and chunks are the resume checkpoint.
+jobs are durable processing attempts and chunks are the resume checkpoint. Each recording points to one
+current completed transcript; successful reprocessing replaces its segments atomically.
 
 Probe FTS5 during migration and record the capability. Maintain an equivalent fallback search table and
 paged escaped `LIKE` query path so search never disappears.

@@ -24,6 +24,7 @@ class JobQueueViewModel final : public QObject {
     [[nodiscard]] bool empty() const;
     [[nodiscard]] QString runningJobId() const;
     [[nodiscard]] bool isWritingTranscript(const QString& jobId) const;
+    [[nodiscard]] bool isWritingRecording(const QString& recordingId) const;
 
     Q_INVOKABLE bool containsJob(const QString& jobId) const;
     Q_INVOKABLE QString allocateJobId() const;

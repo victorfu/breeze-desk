@@ -2,6 +2,7 @@
 
 #include "breezedesk/app_config.h"
 #include "breezedesk/core/TimeUtils.h"
+#include "breezedesk/database/DatabaseSearchService.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -15,6 +16,8 @@
 #include <QTemporaryFile>
 #include <QThread>
 #include <QUuid>
+
+#include <utility>
 
 namespace BreezeDesk {
 namespace {
@@ -235,6 +238,29 @@ QStringList singleGlossarySchema() {
     };
 }
 
+QStringList singleTranscriptSchema() {
+    return {
+        QStringLiteral("DROP INDEX IF EXISTS idx_jobs_recording_revision"),
+        QStringLiteral("DROP TRIGGER IF EXISTS trg_jobs_active_revision_before_delete"),
+        QStringLiteral(
+            "UPDATE recordings SET active_job_id=(SELECT candidate.id FROM transcription_jobs candidate "
+            "WHERE candidate.recording_id=recordings.id AND candidate.state='Completed' ORDER BY "
+            "COALESCE(candidate.completed_at,candidate.created_at) DESC,candidate.created_at DESC,"
+            "candidate.id DESC LIMIT 1)"),
+        QStringLiteral(
+            "DELETE FROM transcript_segments WHERE job_id IN (SELECT old.id FROM transcription_jobs old "
+            "JOIN recordings recording ON recording.id=old.recording_id WHERE old.state='Completed' AND "
+            "(recording.active_job_id IS NULL OR old.id<>recording.active_job_id))"),
+        QStringLiteral(
+            "UPDATE transcription_jobs SET queue_hidden=1 WHERE state='Completed' AND EXISTS(SELECT 1 "
+            "FROM recordings recording WHERE recording.id=transcription_jobs.recording_id AND "
+            "recording.active_job_id<>transcription_jobs.id)"),
+        QStringLiteral("ALTER TABLE transcription_jobs DROP COLUMN revision_number"),
+        QStringLiteral("CREATE INDEX IF NOT EXISTS idx_jobs_recording_created ON "
+                       "transcription_jobs(recording_id,created_at DESC)"),
+    };
+}
+
 QString migrationChecksum(const QStringList& statements) {
     return QString::fromLatin1(
         QCryptographicHash::hash(statements.join(QLatin1Char('\n')).toUtf8(), QCryptographicHash::Sha256)
@@ -377,7 +403,7 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         }
         currentVersion = query.value(0).toInt();
     }
-    constexpr int latestSchemaVersion = 9;
+    constexpr int latestSchemaVersion = 10;
     if (currentVersion > latestSchemaVersion) {
         return Result<void>::failure(
             UserFacingError::database(ErrorCode::DatabaseMigrationFailed,
@@ -415,6 +441,8 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
                                   .toHex())}},
         {9,
          {QStringLiteral("single_glossary"), migrationChecksum(singleGlossarySchema())}},
+        {10,
+         {QStringLiteral("single_transcript"), migrationChecksum(singleTranscriptSchema())}},
     };
     QSet<int> appliedVersions;
     QSqlQuery applied(database);
@@ -663,6 +691,59 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         if (!result)
             return result;
         currentVersion = 9;
+    }
+    if (currentVersion < 10) {
+        const QStringList statements = singleTranscriptSchema();
+        if (!database.transaction()) {
+            return Result<void>::failure(sqlError(
+                ErrorCode::DatabaseMigrationFailed,
+                QStringLiteral("The single transcript migration could not be started."),
+                database.lastError()));
+        }
+        UserFacingError statementError;
+        for (const QString& statement : statements) {
+            if (!execute(database, statement, &statementError)) {
+                database.rollback();
+                return Result<void>::failure(statementError);
+            }
+        }
+
+        QStringList recordingIds;
+        {
+            QSqlQuery recordings(database);
+            if (!recordings.exec(QStringLiteral("SELECT id FROM recordings"))) {
+                database.rollback();
+                return Result<void>::failure(sqlError(
+                    ErrorCode::DatabaseMigrationFailed,
+                    QStringLiteral("Recordings could not be reindexed for the single transcript migration."),
+                    recordings.lastError()));
+            }
+            while (recordings.next()) {
+                recordingIds.append(recordings.value(0).toString());
+            }
+        }
+        DatabaseSearchService search(*this);
+        for (const QString& recordingId : std::as_const(recordingIds)) {
+            const auto rebuilt = search.rebuildRecording(database, recordingId);
+            if (!rebuilt) {
+                database.rollback();
+                return Result<void>::failure(rebuilt.error());
+            }
+        }
+
+        QSqlQuery record(database);
+        record.prepare(QStringLiteral(
+            "INSERT INTO schema_migrations(version,name,checksum,applied_at) VALUES(10,'single_transcript',?,?)"));
+        record.addBindValue(migrationChecksum(statements));
+        record.addBindValue(TimeUtils::nowStorageString());
+        if (!record.exec() || !database.commit()) {
+            database.rollback();
+            return Result<void>::failure(sqlError(
+                ErrorCode::DatabaseMigrationFailed,
+                QStringLiteral("The single transcript migration could not be committed."),
+                record.lastError()));
+        }
+        currentVersion = 10;
     }
     m_schemaVersion = currentVersion;
     return Result<void>::success();

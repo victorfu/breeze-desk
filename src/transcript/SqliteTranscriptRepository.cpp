@@ -144,8 +144,8 @@ Result<void> SqliteTranscriptRepository::insertSegments(QSqlDatabase& database, 
     return Result<void>::success();
 }
 
-Result<void> SqliteTranscriptRepository::replaceRevision(const QString& recordingId, const QString& jobId,
-                                                         QList<TranscriptSegment> segments) {
+Result<void> SqliteTranscriptRepository::replaceTranscript(const QString& recordingId, const QString& jobId,
+                                                           QList<TranscriptSegment> segments) {
     auto result = m_databaseManager.transaction([&](QSqlDatabase& database) {
         QSqlQuery edited(database);
         edited.prepare(QStringLiteral("SELECT 1 FROM transcript_segments WHERE job_id=? AND edited_text<>'' "
@@ -157,14 +157,13 @@ Result<void> SqliteTranscriptRepository::replaceRevision(const QString& recordin
         if (edited.next())
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::InvalidStateTransition,
-                QStringLiteral("A transcript revision with manual edits cannot be overwritten. Create a new "
-                               "revision instead.")));
+                QStringLiteral("A transcript with manual edits cannot be overwritten.")));
         QSqlQuery remove(database);
         remove.prepare(QStringLiteral("DELETE FROM transcript_segments WHERE job_id=?"));
         remove.addBindValue(jobId);
         if (!remove.exec())
             return Result<void>::failure(
-                queryError(QStringLiteral("The old transcript revision could not be replaced."), remove));
+                queryError(QStringLiteral("The old transcript could not be replaced."), remove));
         return insertSegments(database, recordingId, jobId, std::move(segments));
     });
     if (!result)
@@ -172,8 +171,9 @@ Result<void> SqliteTranscriptRepository::replaceRevision(const QString& recordin
     return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
 }
 
-Result<void> SqliteTranscriptRepository::saveEditedRevision(const QString& recordingId, const QString& jobId,
-                                                            QList<TranscriptSegment> segments) {
+Result<void> SqliteTranscriptRepository::saveEditedTranscript(const QString& recordingId,
+                                                              const QString& jobId,
+                                                              QList<TranscriptSegment> segments) {
     const auto validation = validateSegments(segments);
     if (!validation) {
         return validation;
@@ -184,7 +184,7 @@ Result<void> SqliteTranscriptRepository::saveEditedRevision(const QString& recor
         remove.addBindValue(jobId);
         if (!remove.exec()) {
             return Result<void>::failure(
-                queryError(QStringLiteral("The transcript revision could not be saved."), remove));
+                queryError(QStringLiteral("The transcript could not be saved."), remove));
         }
         return insertSegments(database, recordingId, jobId, std::move(segments));
     });
