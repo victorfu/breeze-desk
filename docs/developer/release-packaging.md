@@ -113,19 +113,27 @@ The Microsoft Store signs the package after certification. CI therefore does not
 Windows code-signing certificate, and the unsigned MSIX is never published as a GitHub Release asset.
 Download the `windows-msix` workflow artifact and upload it manually in Partner Center.
 
-An unsigned MSIX cannot be installed locally. For an installation smoke test, generate a development
-certificate whose subject matches the manifest publisher, sign the package, trust only the exported
-public certificate in the test machine's `LocalMachine\TrustedPeople` store, and install it:
+An unsigned MSIX cannot be installed locally. Create a separately named development copy and sign only
+that copy with a self-signed certificate whose subject matches the manifest publisher:
 
 ```powershell
-packaging/windows/create-dev-certificate.ps1 `
-  -MsixPath dist/BreezeDesk-<version>-Windows-x64.msix
-# Run the printed Import-Certificate command from elevated PowerShell, then:
-Add-AppxPackage dist/BreezeDesk-<version>-Windows-x64.msix
+.\scripts\package-windows-dev.ps1
+# Reuse the existing verified Store package instead of rebuilding it:
+.\scripts\package-windows-dev.ps1 -ReuseStorePackage
 ```
 
-The development certificate is for controlled test machines only. It is not uploaded to Partner Center
-and is not a public distribution credential.
+The script verifies the Store artifact against its checksum before copying it, signs only
+`BreezeDesk-<version>-Windows-x64-Development.msix`, writes a separate checksum, and verifies that the
+unsigned Store MSIX did not change. To trust the exported public certificate in
+`LocalMachine\TrustedPeople` and install the development copy, run this from an elevated PowerShell
+window:
+
+```powershell
+.\scripts\package-windows-dev.ps1 -ReuseStorePackage -Install
+```
+
+The development certificate and `-Development.msix` are for controlled test machines only. Neither is
+uploaded to Partner Center, and the original Store MSIX remains unsigned.
 
 ## Tag release workflow
 

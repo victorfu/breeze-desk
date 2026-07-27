@@ -9,8 +9,8 @@ packaging/windows/msix-identity.ps1 unless all three BREEZEDESK_MSIX_*
 development overrides are set.
 
 The output is an unsigned Store submission package. Use
-packaging/windows/create-dev-certificate.ps1 separately only when a signed
-local-installation test package is required.
+scripts/package-windows-dev.ps1 when a separately signed local-installation
+test package is required.
 #>
 [CmdletBinding()]
 param()

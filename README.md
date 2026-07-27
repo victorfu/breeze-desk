@@ -158,6 +158,8 @@ Unsigned local packages use the same deploy scripts as CI:
 
 The public Partner Center identity is committed in `packaging/windows/msix-identity.ps1`. The three
 `BREEZEDESK_MSIX_*` environment variables remain optional overrides for development packages.
+For a separately signed local test package that leaves the Store MSIX unchanged, run
+`.\scripts\package-windows-dev.ps1`.
 
 See [release-packaging.md](docs/developer/release-packaging.md) for macOS signing and notarization,
 Microsoft Store identity, local MSIX test signing, and exact output names.

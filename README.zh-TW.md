@@ -153,6 +153,8 @@ CPU 兩種 Worker。
 
 公開的 Partner Center identity 固定於 `packaging/windows/msix-identity.ps1`。如需建立開發測試套件，仍可用
 三個 `BREEZEDESK_MSIX_*` 環境變數暫時覆寫。
+若要建立獨立簽章、且不修改 Store MSIX 的本機測試套件，請執行
+`.\scripts\package-windows-dev.ps1`。
 
 macOS 簽章與 notarization、Microsoft Store identity、本機 MSIX 測試簽章及產物名稱請見
 [發行打包文件](docs/developer/release-packaging.md)。
