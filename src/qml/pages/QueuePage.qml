@@ -7,8 +7,10 @@ import QtQuick.Layouts
 Item {
     id: root
     required property var vm
+    signal backRequested
     objectName: "queuePage"
     readonly property int headerStackWidth: 760
+    readonly property real contentMaximumWidth: 1440
     property string pendingRemoveJobId: ""
     property string pendingRemoveJobTitle: ""
 
@@ -24,9 +26,21 @@ Item {
     }
 
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: SemanticTokens.spacingLg
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: SemanticTokens.spacingLg
+        anchors.bottomMargin: SemanticTokens.spacingLg
+        width: Math.max(0, Math.min(root.contentMaximumWidth,
+                                    root.width - SemanticTokens.spacingLg * 2))
         spacing: SemanticTokens.spacingMd
+        AppLinkButton {
+            objectName: "queueBackButton"
+            Layout.alignment: Qt.AlignLeft
+            text: qsTr("← Library")
+            accessibleName: qsTr("Back to Library")
+            onClicked: root.backRequested()
+        }
         PageHeader {
             objectName: "queueHeader"
             actionsObjectName: "queueHeaderActions"

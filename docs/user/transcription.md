@@ -2,7 +2,7 @@
 
 A job requires a verified ASR model and a readable media source. Importing new media starts transcription
 automatically by default; BreezeDesk downloads and verifies the recommended model the first time it is
-needed. Open **Library > Activity** to manage several recordings. One ASR job runs at a time, and media
+needed. Choose **Activity** in the top bar to manage several recordings. One ASR job runs at a time, and media
 preparation does not freeze the interface.
 
 If automatic transcription is disabled in Settings, open a recording and choose **Start Transcription**.

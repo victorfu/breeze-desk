@@ -12,8 +12,8 @@ available from **Settings > Transcription > Manage Models**.
 2. Choose **Import Files**, drag local media into Library, or press Ctrl/Cmd+O. Use the Library's more
    menu and choose **Import Folder…** to scan a folder with cancellable progress.
 3. New media starts transcribing automatically by default. You can keep browsing the Library while the
-   recommended model downloads and the work runs. Choose **Activity** to see progress, cancel, retry, or
-   resume work.
+   recommended model downloads and the work runs. Choose **Activity** in the top bar to see progress,
+   cancel, retry, or resume work.
 4. Select a recording card to play the source and view its latest transcript. If automatic transcription
    is disabled, choose **Start Transcription**. Choose **Transcribe Again…** to replace an existing
    transcript after the new result is ready.
@@ -26,7 +26,7 @@ VAD. Technical tuning is available under **Settings > Transcription > Show Advan
 
 ## Long jobs and application exit
 
-**Library > Activity** shows the current stage, progress, and retry/cancel controls. Cancelling retains durable completed
+The top-bar **Activity** view shows the current stage, progress, and retry/cancel controls. Cancelling retains durable completed
 chunks and diagnostics. An unexpected worker exit marks the job **Interrupted**; after the worker
 restarts, **Resume** continues with the first incomplete chunk rather than repeating finished work.
 
@@ -40,6 +40,8 @@ BreezeDesk stores its database, managed media, normalized cache, waveform data, 
 under the platform application-data location shown in Settings. An import can reference the original or
 copy it into managed storage. Trash and permanent deletion never remove an original source outside
 BreezeDesk's managed directories.
+
+To recover or permanently remove an item, open the Library's more menu and choose **Trash**.
 
 Continue with [Importing media](importing-media.md), [Transcription](transcription.md), and
 [Editing transcripts](editing.md). The exact network boundary is documented in [Privacy](privacy.md).

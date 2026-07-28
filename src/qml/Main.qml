@@ -157,49 +157,50 @@ ApplicationWindow {
         onSettingsTriggered: window.vm.navigate("Settings")
     }
 
-    RowLayout {
+    ColumnLayout {
         id: shellLayout
         objectName: "shellLayout"
         anchors.fill: parent
         spacing: 0
+
         Rectangle {
-            id: sidebar
-            objectName: "mainSidebar"
-            Layout.minimumWidth: ComponentTokens.sidebarWidth
-            Layout.preferredWidth: ComponentTokens.sidebarWidth
-            Layout.maximumWidth: ComponentTokens.sidebarWidth
-            Layout.fillHeight: true
-            clip: true
+            id: topBar
+            objectName: "mainTopBar"
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.max(60, topBarContent.implicitHeight + SemanticTokens.spacingSm * 2)
             color: SemanticTokens.surface
-            // Single hairline divider against the content pane; a full border
-            // would also stroke the three window-adjacent edges.
+
             Rectangle {
-                anchors.top: parent.top
-                anchors.bottom: parent.bottom
+                anchors.left: parent.left
                 anchors.right: parent.right
-                width: 1
+                anchors.bottom: parent.bottom
+                height: 1
                 color: SemanticTokens.border
             }
-            ColumnLayout {
+
+            RowLayout {
+                id: topBarContent
+                objectName: "topBarContent"
                 anchors.fill: parent
-                anchors.margins: SemanticTokens.spacingMd
-                spacing: SemanticTokens.spacingXs
+                anchors.leftMargin: SemanticTokens.spacingLg
+                anchors.rightMargin: SemanticTokens.spacingLg
+                anchors.topMargin: SemanticTokens.spacingSm
+                anchors.bottomMargin: SemanticTokens.spacingSm
+                spacing: SemanticTokens.spacingSm
+
                 RowLayout {
                     id: brandRow
-                    objectName: "sidebarBrandRow"
-                    Layout.fillWidth: true
-                    Layout.bottomMargin: SemanticTokens.spacingLg
+                    objectName: "topBarBrandRow"
+                    Layout.maximumWidth: 230 * DesignSystem.textScale
+                    spacing: SemanticTokens.spacingSm
+
                     Item {
                         id: brandLogo
-                        Layout.minimumWidth: 32
-                        Layout.preferredWidth: 32
-                        Layout.maximumWidth: 32
-                        Layout.minimumHeight: 32
-                        Layout.preferredHeight: 32
-                        Layout.maximumHeight: 32
+                        Layout.preferredWidth: 30
+                        Layout.preferredHeight: 30
 
                         Image {
-                            objectName: "sidebarBrandLogo"
+                            objectName: "topBarBrandLogo"
                             anchors.fill: parent
                             source: "qrc:/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png"
                             sourceSize.width: Math.ceil(width * Math.max(1, Screen.devicePixelRatio))
@@ -211,7 +212,7 @@ ApplicationWindow {
                     }
                     Text {
                         id: brandText
-                        objectName: "sidebarBrandText"
+                        objectName: "topBarBrandText"
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         text: window.vm.displayName
@@ -223,76 +224,56 @@ ApplicationWindow {
                         font.weight: SemanticTokens.weightSemiBold
                     }
                 }
-                ColumnLayout {
-                    id: sidebarNavigation
-                    objectName: "sidebarNavigation"
-                    Layout.fillWidth: true
-                    spacing: SemanticTokens.spacingXs
-                    SidebarItem {
-                        Layout.fillWidth: true
-                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/library.svg"
+
+                Rectangle {
+                    Layout.preferredWidth: 1
+                    Layout.preferredHeight: 24
+                    color: SemanticTokens.border
+                }
+
+                RowLayout {
+                    id: topNavigation
+                    objectName: "topNavigation"
+                    spacing: 0
+
+                    TopNavigationItem {
+                        objectName: "topLibraryNavigation"
                         text: qsTr("Library")
-                        badgeText: window.vm.jobQueue.activeCount > 0
-                                   ? window.vm.jobQueue.activeCount.toString() : ""
-                        selected: ["Library", "Recording", "Queue", "Trash"].includes(window.vm.currentPage)
+                        selected: ["Library", "Recording", "Trash"].includes(window.vm.currentPage)
                         onClicked: window.vm.navigate("Library")
                     }
-                    SidebarItem {
-                        Layout.fillWidth: true
-                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/book-open.svg"
+                    TopNavigationItem {
+                        objectName: "topGlossaryNavigation"
                         text: qsTr("Name Dictionary")
                         selected: window.vm.currentPage === "Glossary"
                         onClicked: window.vm.navigate("Glossary")
                     }
                 }
+
                 Item {
-                    Layout.fillHeight: true
-                    Layout.minimumHeight: SemanticTokens.spacingSm
-                }
-                ColumnLayout {
-                    id: sidebarFooter
-                    objectName: "sidebarFooter"
                     Layout.fillWidth: true
-                    Layout.minimumHeight: implicitHeight
-                    spacing: SemanticTokens.spacingXs
-                    AppButton {
-                        objectName: "sidebarImportButton"
-                        Layout.fillWidth: true
-                        Layout.minimumHeight: ComponentTokens.clickTarget
-                        leftPadding: SemanticTokens.spacingMd
-                        rightPadding: SemanticTokens.spacingMd
-                        contentAlignment: Qt.AlignLeft
-                        iconSize: 20
-                        contentSpacing: SemanticTokens.spacingSm
-                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/file-input.svg"
-                        text: qsTr("Import Media")
-                        primary: true
-                        onClicked: importDialog.open()
-                    }
-                    AppButton {
-                        objectName: "sidebarRecordButton"
-                        Layout.fillWidth: true
-                        Layout.minimumHeight: ComponentTokens.clickTarget
-                        leftPadding: SemanticTokens.spacingMd
-                        rightPadding: SemanticTokens.spacingMd
-                        contentAlignment: Qt.AlignLeft
-                        iconSize: 20
-                        contentSpacing: SemanticTokens.spacingSm
-                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/mic.svg"
-                        text: qsTr("Start Recording")
-                        onClicked: window.openRecordingDialog()
-                    }
-                    SidebarItem {
-                        objectName: "sidebarSettingsButton"
-                        Layout.fillWidth: true
-                        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/settings.svg"
-                        text: qsTr("Settings")
-                        selected: window.vm.currentPage === "Settings" || window.vm.currentPage === "Models"
-                        onClicked: window.vm.navigate("Settings")
-                    }
+                    Layout.minimumWidth: SemanticTokens.spacingSm
+                }
+
+                TopNavigationItem {
+                    objectName: "topActivityNavigation"
+                    text: qsTr("Activity")
+                    badgeText: window.vm.jobQueue.activeCount > 0
+                               ? window.vm.jobQueue.activeCount.toString() : ""
+                    selected: window.vm.currentPage === "Queue"
+                    onClicked: window.vm.navigate("Queue")
+                }
+                IconButton {
+                    objectName: "topSettingsButton"
+                    accessibleName: qsTr("Settings")
+                    iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/settings.svg"
+                    iconColor: window.vm.currentPage === "Settings" || window.vm.currentPage === "Models"
+                               ? SemanticTokens.accentStrong : SemanticTokens.text
+                    onClicked: window.vm.navigate("Settings")
                 }
             }
         }
+
         StackLayout {
             id: pages
             objectName: "pageStack"
@@ -311,15 +292,19 @@ ApplicationWindow {
                 app: window.vm
                 onImportRequested: importDialog.open()
                 onFolderImportRequested: importFolderDialog.open()
-                onActivityRequested: window.vm.navigate("Queue")
+                onRecordingRequested: window.openRecordingDialog()
                 onTrashRequested: window.vm.navigate("Trash")
                 onToastRequested: function(message, severity, actionText, action) {
                     window.showToast(message, severity, actionText, action)
                 }
             }
-            QueuePage { vm: window.vm.jobQueue }
-            TrashPage { vm: window.vm.library }
-            ModelsPage { vm: window.vm.modelManager; onCustomImportRequested: customModelDialog.open() }
+            QueuePage { vm: window.vm.jobQueue; onBackRequested: window.vm.navigate("Library") }
+            TrashPage { vm: window.vm.library; onBackRequested: window.vm.navigate("Library") }
+            ModelsPage {
+                vm: window.vm.modelManager
+                onBackRequested: window.vm.navigate("Settings")
+                onCustomImportRequested: customModelDialog.open()
+            }
             GlossaryPage { vm: window.vm.glossary }
             SettingsPage {
                 vm: window.vm.settings

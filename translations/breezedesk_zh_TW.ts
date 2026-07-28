@@ -963,12 +963,12 @@
 <context>
     <name>GlossaryPage</name>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="49"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="55"/>
         <source>No matching terms</source>
         <translation>沒有符合的詞條</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="51"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="57"/>
         <source>Try a different canonical name or alias.</source>
         <translation>試試其他標準名稱或別名。</translation>
     </message>
@@ -1049,107 +1049,107 @@
         <translation type="vanished">新增設定檔</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="25"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="31"/>
         <source>Name Dictionary</source>
         <translation>專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="26"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="32"/>
         <source>Teach transcripts the correct spelling of important names and terms.</source>
         <translation>設定重要人名與專有名詞在逐字稿中的正確寫法。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="38"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="53"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="138"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="277"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="44"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="59"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="144"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="283"/>
         <source>Add Name</source>
         <translation>新增名稱</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="49"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="55"/>
         <source>No names yet</source>
         <translation>尚未新增名稱</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="52"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="58"/>
         <source>Add an important name and, optionally, other ways it may be recognized.</source>
         <translation>新增重要名稱，並可選填其他可能的辨識寫法。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="103"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="109"/>
         <source>Aliases: %1</source>
         <translation>別名：%1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="104"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="110"/>
         <source>No aliases</source>
         <translation>沒有別名</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="113"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="244"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="119"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="250"/>
         <source>Priority %1</source>
         <translation>優先級 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="118"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="124"/>
         <source>Enabled</source>
         <translation>已啟用</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="119"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="125"/>
         <source>Enable glossary term %1</source>
         <translation>啟用專有名詞 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="125"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="131"/>
         <source>Delete glossary term %1</source>
         <translation>刪除專有名詞 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="139"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="145"/>
         <source>Enter the spelling you want to appear in transcripts.</source>
         <translation>輸入要顯示在逐字稿中的正確寫法。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="174"/>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="183"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="180"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="189"/>
         <source>Preferred spelling</source>
         <translation>正確寫法</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="184"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="190"/>
         <source>For example, BreezeDesk</source>
         <translation>例如：BreezeDesk</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="194"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="200"/>
         <source>Other spellings (optional)</source>
         <translation>其他寫法（選填）</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="203"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="209"/>
         <source>Other spellings</source>
         <translation>其他寫法</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="204"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="210"/>
         <source>Separate multiple spellings with commas</source>
         <translation>以逗號分隔多種寫法</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="211"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="217"/>
         <source>Hide Advanced</source>
         <translation>隱藏進階選項</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="211"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="217"/>
         <source>Show Advanced</source>
         <translation>顯示進階選項</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="223"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="229"/>
         <source>Recognition priority</source>
         <translation>辨識優先順序</translation>
     </message>
@@ -1186,7 +1186,7 @@
         <translation type="vanished">專案或會議情境</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="272"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="278"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
@@ -1211,7 +1211,7 @@
         <translation type="vanished">優先級</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/GlossaryPage.qml" line="239"/>
+        <location filename="../src/qml/pages/GlossaryPage.qml" line="245"/>
         <source>Term priority</source>
         <translation>詞條優先級</translation>
     </message>
@@ -1352,22 +1352,22 @@
 <context>
     <name>LibraryPage</name>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="168"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="172"/>
         <source>Downloading transcription model</source>
         <translation>正在下載轉錄模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="172"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="176"/>
         <source>Downloading Breeze-ASR-25 Q5_K… %1%</source>
         <translation>正在下載 Breeze-ASR-25 Q5_K… %1%</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="30"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="36"/>
         <source>Library</source>
         <translation>錄音庫</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="31"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="37"/>
         <source>Your offline recordings and transcripts</source>
         <translation>您的離線錄音與逐字稿</translation>
     </message>
@@ -1376,7 +1376,7 @@
         <translation type="vanished">匯入媒體</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="43"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="49"/>
         <source>Import Files</source>
         <translation>匯入檔案</translation>
     </message>
@@ -1385,112 +1385,115 @@
         <translation type="vanished">開啟資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="51"/>
         <source>Activity (%1)</source>
-        <translation>活動（%1）</translation>
+        <translation type="vanished">活動（%1）</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="52"/>
         <source>Activity</source>
-        <translation>活動</translation>
+        <translation type="vanished">活動</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="58"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="56"/>
+        <source>Start Recording</source>
+        <translation>開始錄音</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="62"/>
         <source>More library actions</source>
         <translation>更多錄音庫操作</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="69"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="73"/>
         <source>Import Folder…</source>
         <translation>匯入資料夾…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="74"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="78"/>
         <source>Trash</source>
         <translation>垃圾桶</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="101"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="105"/>
         <source>Sort recordings</source>
         <translation>排序錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="102"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="106"/>
         <source>Newest first</source>
         <translation>最新優先</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="102"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="106"/>
         <source>Oldest first</source>
         <translation>最舊優先</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="102"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="106"/>
         <source>Title A–Z</source>
         <translation>標題 A–Z</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="102"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="106"/>
         <source>Title Z–A</source>
         <translation>標題 Z–A</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="113"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="117"/>
         <source>Filter by review state</source>
         <translation>依檢閱狀態篩選</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="114"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="118"/>
         <source>All recordings</source>
         <translation>所有錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="114"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="118"/>
         <source>Reviewed</source>
         <translation>已檢閱</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="114"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="118"/>
         <source>Unreviewed</source>
         <translation>未檢閱</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="135"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="139"/>
         <source>Scanning folder</source>
         <translation>正在掃描資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="146"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="150"/>
         <source>Importing %1 of %2…</source>
         <translation>正在匯入第 %1 個，共 %2 個…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="149"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="153"/>
         <source>Scanning folder…</source>
         <translation>正在掃描資料夾…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="154"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="158"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="185"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="189"/>
         <source>No matching recordings</source>
         <translation>沒有符合的錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="185"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="189"/>
         <source>Import your first recording</source>
         <translation>匯入第一份錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="187"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="191"/>
         <source>Try a different title, tag, or note.</source>
         <translation>請改用其他標題、標籤或備註搜尋。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="188"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="192"/>
         <source>Audio and video remain on this computer. %1 prepares them for offline transcription.</source>
         <translation>音訊與影片會保留在此電腦上。%1 會為離線轉錄進行準備。</translation>
     </message>
@@ -1499,68 +1502,68 @@
         <translation type="vanished">音訊與影片只會留在這台電腦上。BreezeDesk 會在本機準備檔案以供離線轉錄。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="189"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="193"/>
         <source>Choose Files</source>
         <translation>選擇檔案</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="225"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="229"/>
         <source>Moved to Trash.</source>
         <translation>已移至垃圾桶。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="225"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="229"/>
         <source>Undo</source>
         <translation>復原</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="258"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="262"/>
         <source>Replace the current transcript?</source>
         <translation>取代目前的逐字稿？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="259"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="263"/>
         <source>Transcribing this recording again will replace the current transcript when the new one is ready.</source>
         <translation>再次轉錄此錄音後，新逐字稿完成時將取代目前的內容。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="269"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="273"/>
         <source>Rename Recording</source>
         <translation>重新命名錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="278"/>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="279"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="282"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="283"/>
         <source>Recording title</source>
         <translation>錄音標題</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="287"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="291"/>
         <source>Edit Tags</source>
         <translation>編輯標籤</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="299"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="303"/>
         <source>meeting, product, customer</source>
         <translation>會議, 產品, 客戶</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="300"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="304"/>
         <source>Comma-separated recording tags</source>
         <translation>以逗號分隔的錄音標籤</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="305"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="309"/>
         <source>Separate tags with commas.</source>
         <translation>請以逗號分隔標籤。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="316"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="320"/>
         <source>Relink Recording Source</source>
         <translation>重新連結錄音來源</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/LibraryPage.qml" line="319"/>
+        <location filename="../src/qml/pages/LibraryPage.qml" line="323"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>媒體檔案 (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
@@ -1586,12 +1589,12 @@
         <translation type="vanished">BreezeDesk 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="209"/>
+        <location filename="../src/qml/Main.qml" line="210"/>
         <source>%1 logo</source>
         <translation>%1 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="234"/>
+        <location filename="../src/qml/Main.qml" line="241"/>
         <source>Library</source>
         <translation>錄音庫</translation>
     </message>
@@ -1612,107 +1615,110 @@
         <translation type="vanished">專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="243"/>
+        <location filename="../src/qml/Main.qml" line="247"/>
         <source>Name Dictionary</source>
         <translation>專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="268"/>
         <source>Import Media</source>
-        <translation>匯入媒體</translation>
+        <translation type="vanished">匯入媒體</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="282"/>
         <source>Start Recording</source>
-        <translation>開始錄音</translation>
+        <translation type="vanished">開始錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="289"/>
+        <location filename="../src/qml/Main.qml" line="260"/>
+        <source>Activity</source>
+        <translation>活動</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="268"/>
         <source>Settings</source>
         <translation>設定</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="335"/>
+        <location filename="../src/qml/Main.qml" line="320"/>
         <source>Import Audio or Video</source>
         <translation>匯入音訊或影片</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="338"/>
+        <location filename="../src/qml/Main.qml" line="323"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>媒體檔案 (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="339"/>
+        <location filename="../src/qml/Main.qml" line="324"/>
         <source>All files (*)</source>
         <translation>所有檔案 (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="347"/>
+        <location filename="../src/qml/Main.qml" line="332"/>
         <source>Import Media Folder</source>
         <translation>匯入媒體資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="353"/>
+        <location filename="../src/qml/Main.qml" line="338"/>
         <source>Export Transcript</source>
         <translation>匯出逐字稿</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="356"/>
+        <location filename="../src/qml/Main.qml" line="341"/>
         <source>Plain text (*.txt)</source>
         <translation>純文字 (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="357"/>
+        <location filename="../src/qml/Main.qml" line="342"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="358"/>
+        <location filename="../src/qml/Main.qml" line="343"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip 字幕 (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="359"/>
+        <location filename="../src/qml/Main.qml" line="344"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT 字幕 (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="360"/>
+        <location filename="../src/qml/Main.qml" line="345"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="361"/>
+        <location filename="../src/qml/Main.qml" line="346"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="371"/>
+        <location filename="../src/qml/Main.qml" line="356"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>匯入 whisper.cpp GGML 模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="373"/>
+        <location filename="../src/qml/Main.qml" line="358"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML 模型 (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="405"/>
+        <location filename="../src/qml/Main.qml" line="390"/>
         <source>Transcription is still running</source>
         <translation>轉錄仍在進行中</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="413"/>
+        <location filename="../src/qml/Main.qml" line="398"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>已完成的分段都已安全儲存。現在結束會將目前工作標記為中斷，之後可繼續執行。</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="421"/>
+        <location filename="../src/qml/Main.qml" line="406"/>
         <source>Continue in Background</source>
         <translation>在背景繼續</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="422"/>
+        <location filename="../src/qml/Main.qml" line="407"/>
         <source>Quit and Resume Later</source>
         <translation>結束並於稍後繼續</translation>
     </message>
@@ -1871,27 +1877,37 @@
         <translation type="vanished">載入模型後顯示</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="23"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="28"/>
+        <source>← Settings</source>
+        <translation>← 設定</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="29"/>
+        <source>Back to Settings</source>
+        <translation>返回設定</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="37"/>
         <source>Models</source>
         <translation>模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="24"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="38"/>
         <source>Models are downloaded only when you request them. Checksums are verified before loading.</source>
         <translation>只有在您要求時才會下載模型，並會在載入前驗證檢查碼。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="27"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="41"/>
         <source>Import GGML Model</source>
         <translation>匯入 GGML 模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="53"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="67"/>
         <source>Preferred local compute: %1</source>
         <translation>本機運算偏好：%1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/ModelsPage.qml" line="66"/>
+        <location filename="../src/qml/pages/ModelsPage.qml" line="80"/>
         <source>Currently using: %1</source>
         <translation>目前使用：%1</translation>
     </message>
@@ -2024,7 +2040,7 @@
 <context>
     <name>QueuePage</name>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="35"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="49"/>
         <source>Job Queue</source>
         <translation>工作佇列</translation>
     </message>
@@ -2033,7 +2049,7 @@
         <translation type="vanished">一次只會執行一項轉錄工作；每個完成的分段都會立即儲存。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="39"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="53"/>
         <source>Pause after current job</source>
         <translation>目前工作完成後暫停</translation>
     </message>
@@ -2042,37 +2058,47 @@
         <translation type="vanished">移除已結束工作</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="36"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="40"/>
+        <source>← Library</source>
+        <translation>← 錄音庫</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="41"/>
+        <source>Back to Library</source>
+        <translation>返回錄音庫</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/QueuePage.qml" line="50"/>
         <source>Transcriptions run one at a time. You can continue using the app while they finish.</source>
         <translation>一次只會執行一項轉錄工作；等待完成時仍可繼續使用應用程式。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="45"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="59"/>
         <source>Permanently remove completed and cancelled jobs</source>
         <translation>永久移除已完成與已取消的工作</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="55"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="69"/>
         <source>New automatic transcriptions and manual retries will appear here.</source>
         <translation>新的自動轉錄與手動重試會顯示在這裡。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="86"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="100"/>
         <source>Remove %1 permanently?</source>
         <translation>要永久移除「%1」嗎？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="87"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="101"/>
         <source>Remove this job permanently?</source>
         <translation>要永久移除此工作嗎？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="88"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="102"/>
         <source>Its partial transcript and activity history will be deleted. This cannot be undone.</source>
         <translation>將刪除部分逐字稿與活動紀錄，且無法復原。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="103"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="117"/>
         <source>Completed and cancelled activity history will be deleted. Finished transcripts remain in the Library.</source>
         <translation>將刪除已完成與已取消的活動紀錄；完成的逐字稿仍會保留在錄音庫。</translation>
     </message>
@@ -2081,7 +2107,7 @@
         <translation type="vanished">這會刪除其逐字稿版本、部分結果與活動記錄，且無法復原。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="102"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="116"/>
         <source>Remove finished jobs permanently?</source>
         <translation>要永久移除已結束的工作嗎？</translation>
     </message>
@@ -2094,7 +2120,7 @@
         <translation type="vanished">清除已完成工作</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/QueuePage.qml" line="54"/>
+        <location filename="../src/qml/pages/QueuePage.qml" line="68"/>
         <source>The queue is empty</source>
         <translation>佇列是空的</translation>
     </message>
@@ -2288,12 +2314,12 @@
 <context>
     <name>RecordingPage</name>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="163"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="169"/>
         <source>Downloading transcription model</source>
         <translation>正在下載轉錄模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="168"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="174"/>
         <source>Downloading Q5_K…</source>
         <translation>正在下載 Q5_K…</translation>
     </message>
@@ -2302,23 +2328,23 @@
         <translation type="vanished">轉錄</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="178"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="184"/>
         <source>Export</source>
         <translation>匯出</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="182"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="647"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="188"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="653"/>
         <source>Details</source>
         <translation>詳細資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="183"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="189"/>
         <source>Show recording details</source>
         <translation>顯示錄音詳細資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="218"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="224"/>
         <source>Recording waveform</source>
         <translation>錄音波形</translation>
     </message>
@@ -2327,17 +2353,17 @@
         <translation type="vanished">−5 秒</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="260"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="266"/>
         <source>Back 5 seconds</source>
         <translation>倒退 5 秒</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="272"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="278"/>
         <source>Pause</source>
         <translation>暫停</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="272"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="278"/>
         <source>Play</source>
         <translation>播放</translation>
     </message>
@@ -2443,64 +2469,74 @@
         <translation>模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="172"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="144"/>
+        <source>← Library</source>
+        <translation>← 錄音庫</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="145"/>
+        <source>Back to Library</source>
+        <translation>返回錄音庫</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="178"/>
         <source>Transcribe Again…</source>
         <translation>再次轉錄…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="172"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="492"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="178"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="498"/>
         <source>Start Transcription</source>
         <translation>開始轉錄</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="279"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="285"/>
         <source>Forward 5 seconds</source>
         <translation>快進 5 秒</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="301"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="307"/>
         <source>Playback position</source>
         <translation>播放位置</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="322"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="328"/>
         <source>Playback rate</source>
         <translation>播放速度</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="334"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="340"/>
         <source>Mute</source>
         <translation>靜音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="334"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="340"/>
         <source>Unmute</source>
         <translation>取消靜音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="344"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="350"/>
         <source>Volume</source>
         <translation>音量</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="352"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="358"/>
         <source>Loop selection</source>
         <translation>循環播放選取範圍</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="491"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="497"/>
         <source>Start transcription to create an editable transcript.</source>
         <translation>開始轉錄以建立可編輯的逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="170"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="432"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="176"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="438"/>
         <source>Transcribing…</source>
         <translation>解譯中…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="490"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="496"/>
         <source>Transcription is in progress. The transcript will appear when processing completes.</source>
         <translation>解譯正在進行。處理完成後會顯示新的逐字稿。</translation>
     </message>
@@ -2509,7 +2545,7 @@
         <translation type="vanished">將這段錄音加入佇列以建立逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="351"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="357"/>
         <source>Disable loop selection</source>
         <translation>停止循環播放選取範圍</translation>
     </message>
@@ -2542,57 +2578,57 @@
         <translation type="vanished">即時轉錄中 — 已鎖定編輯</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="399"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="405"/>
         <source>Find in transcript</source>
         <translation>在逐字稿中尋找</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="418"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="424"/>
         <source>Low-confidence only</source>
         <translation>僅顯示低信心</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="405"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="411"/>
         <source>Previous</source>
         <translation>上一個</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="412"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="418"/>
         <source>Next</source>
         <translation>下一個</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="439"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="445"/>
         <source>Undo</source>
         <translation>復原</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="447"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="453"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="463"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="469"/>
         <source>Copy Transcript</source>
         <translation>複製逐字稿</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="467"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="473"/>
         <source>Transcript copied to clipboard.</source>
         <translation>已將逐字稿複製到剪貼簿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="473"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="479"/>
         <source>Save Changes</source>
         <translation>儲存變更</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="473"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="479"/>
         <source>Saved</source>
         <translation>已儲存</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="488"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="494"/>
         <source>No completed transcript yet</source>
         <translation>尚無完成的逐字稿</translation>
     </message>
@@ -2621,37 +2657,37 @@
         <translation type="vanished">加入佇列</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="501"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="507"/>
         <source>No matching segments</source>
         <translation>找不到符合條件的段落</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="502"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="508"/>
         <source>Clear the search or low-confidence filter to show the transcript.</source>
         <translation>清除搜尋或低信心篩選條件以顯示逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="503"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="509"/>
         <source>Clear Filters</source>
         <translation>清除篩選條件</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="601"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="607"/>
         <source>Replace the current transcript?</source>
         <translation>取代目前的逐字稿？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="602"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="608"/>
         <source>Transcribing this recording again will replace the current transcript when the new one is ready.</source>
         <translation>再次轉錄此錄音後，新逐字稿完成時將取代目前的內容。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="621"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="627"/>
         <source>Close recording details</source>
         <translation>關閉錄音詳細資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="654"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="660"/>
         <source>Close</source>
         <translation>關閉</translation>
     </message>
@@ -2845,65 +2881,65 @@
 <context>
     <name>SettingsPage</name>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="60"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="59"/>
         <source>Settings</source>
         <translation>設定</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="67"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="66"/>
         <source>General</source>
         <translation>一般</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="69"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="73"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="68"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="72"/>
         <source>Interface language</source>
         <translation>介面語言</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="70"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="69"/>
         <source>Transcript text is never transformed when the UI language changes.</source>
         <translation>切換介面語言時，絕不會變更逐字稿文字。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="74"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="73"/>
         <source>繁體中文</source>
         <translation>繁體中文</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="74"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="73"/>
         <source>English</source>
         <translation>英文</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="80"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="83"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="79"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="82"/>
         <source>Launch at startup</source>
         <translation>登入時啟動</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="81"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="80"/>
         <source>Uses the native startup mechanism when supported.</source>
         <translation>支援時會使用作業系統原生的啟動機制。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="89"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="92"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="88"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="91"/>
         <source>Close behavior</source>
         <translation>關閉視窗時</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="93"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="92"/>
         <source>Minimize to tray</source>
         <translation>最小化至系統匣</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="93"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="92"/>
         <source>Close window</source>
         <translation>關閉視窗</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="93"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="92"/>
         <source>Quit</source>
         <translation>結束程式</translation>
     </message>
@@ -2912,7 +2948,7 @@
         <translation type="vanished">匯入方式</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="324"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="323"/>
         <source>Reference original</source>
         <translation>直接使用原始檔案</translation>
     </message>
@@ -2921,131 +2957,131 @@
         <translation type="vanished">複製到管理的儲存空間</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="102"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="101"/>
         <source>Appearance</source>
         <translation>外觀</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="104"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="107"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="103"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="106"/>
         <source>Theme</source>
         <translation>主題</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="108"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="107"/>
         <source>System</source>
         <translation>跟隨系統</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="108"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="107"/>
         <source>Light</source>
         <translation>淺色</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="108"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="107"/>
         <source>Dark</source>
         <translation>深色</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="114"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="118"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="113"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="117"/>
         <source>Text size</source>
         <translation>文字大小</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="123"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="125"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="122"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="124"/>
         <source>Compact mode</source>
         <translation>緊湊模式</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="131"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="134"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="130"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="133"/>
         <source>Waveform density</source>
         <translation>波形密度</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="135"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="134"/>
         <source>Sparse</source>
         <translation>疏</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="135"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="181"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="134"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="180"/>
         <source>Balanced</source>
         <translation>均衡</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="135"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="134"/>
         <source>Dense</source>
         <translation>密集</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="144"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="143"/>
         <source>Transcription</source>
         <translation>轉錄</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="146"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="151"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="145"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="150"/>
         <source>Transcribe new media automatically</source>
         <translation>自動轉錄新增媒體</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="147"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="146"/>
         <source>Starts transcription after files are imported or a microphone recording is saved.</source>
         <translation>匯入檔案或儲存麥克風錄音後，自動開始轉錄。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="157"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="160"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="156"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="159"/>
         <source>Default model</source>
         <translation>預設模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="161"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="160"/>
         <source>Breeze-ASR-25 Q5</source>
         <translation>Breeze-ASR-25 Q5</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="161"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="160"/>
         <source>Breeze-ASR-25 Q8</source>
         <translation>Breeze-ASR-25 Q8</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="167"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="166"/>
         <source>Language</source>
         <translation>語言</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="171"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="170"/>
         <source>Chinese (zh)</source>
         <translation>中文 (zh)</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="171"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="234"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="170"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="233"/>
         <source>Automatic</source>
         <translation>自動</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="177"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="180"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="176"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="179"/>
         <source>Transcription quality</source>
         <translation>轉錄品質</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="30"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="29"/>
         <source>Local compute: %1 (determined after a model is loaded)</source>
         <translation>本機運算方式：%1（載入模型後決定）</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="31"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="30"/>
         <source>Local compute: %1 (using %2)</source>
         <translation>本機運算方式：%1（目前使用 %2）</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="170"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="169"/>
         <source>Transcription language</source>
         <translation>解譯語言</translation>
     </message>
@@ -3054,137 +3090,137 @@
         <translation type="vanished">模式</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="181"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="180"/>
         <source>Fast</source>
         <translation>快速</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="181"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="180"/>
         <source>Accurate</source>
         <translation>精確</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="187"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="186"/>
         <source>Transcription models</source>
         <translation>轉錄模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="188"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="187"/>
         <source>The recommended model downloads automatically when it is first needed.</source>
         <translation>首次需要時會自動下載建議模型。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="191"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="190"/>
         <source>Manage Models</source>
         <translation>管理模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="196"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="195"/>
         <source>Advanced settings</source>
         <translation>進階設定</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="197"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="196"/>
         <source>Performance tuning and transcript analysis options.</source>
         <translation>效能調校與逐字稿分析選項。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="201"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="200"/>
         <source>Hide Advanced</source>
         <translation>隱藏進階選項</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="201"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="200"/>
         <source>Show Advanced</source>
         <translation>顯示進階選項</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="207"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="210"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="206"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="209"/>
         <source>Silero VAD</source>
         <translation>Silero VAD</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="208"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="207"/>
         <source>Finds speech boundaries before long recordings are divided into resumable units.</source>
         <translation>在長錄音切分為可續傳的分段前，先找出語音邊界。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="217"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="221"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="216"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="220"/>
         <source>Initial prompt</source>
         <translation>初始提示詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="218"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="217"/>
         <source>Uses enabled glossary terms and the previous chunk within the model token budget.</source>
         <translation>在模型 Token 預算內，使用已啟用的專有名詞與前一個分段。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="222"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="221"/>
         <source>Glossary and context</source>
         <translation>詞彙表與脈絡</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="222"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="221"/>
         <source>Disabled</source>
         <translation>已停用</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="229"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="232"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="228"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="231"/>
         <source>Backend</source>
         <translation>運算後端</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="241"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="243"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="240"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="242"/>
         <source>Flash attention</source>
         <translation>Flash Attention</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="250"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="252"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="249"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="251"/>
         <source>Token timestamps</source>
         <translation>Token 時間戳記</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="259"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="266"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="258"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="265"/>
         <source>Worker threads</source>
         <translation>工作執行緒</translation>
     </message>
     <message>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="271"/>
         <location filename="../src/qml/pages/SettingsPage.qml" line="272"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="273"/>
         <source>Low-confidence threshold</source>
         <translation>低信心門檻</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="279"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="278"/>
         <source>Audio</source>
         <translation>音訊</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="281"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="288"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="280"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="287"/>
         <source>Microphone</source>
         <translation>麥克風</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="293"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="300"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="292"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="299"/>
         <source>Playback device</source>
         <translation>播放裝置</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="305"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="308"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="304"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="307"/>
         <source>Recording format</source>
         <translation>錄音格式</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="309"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="308"/>
         <source>PCM WAV</source>
         <translation>PCM WAV</translation>
     </message>
@@ -3197,80 +3233,80 @@
         <translation type="vanished">麥克風錄音停止後，將自動建立排隊中的轉錄工作。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="316"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="315"/>
         <source>Storage</source>
         <translation>儲存空間</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="317"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="316"/>
         <source>Application data</source>
         <translation>應用程式資料</translation>
     </message>
     <message>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="316"/>
         <location filename="../src/qml/pages/SettingsPage.qml" line="317"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="318"/>
         <source>Choose</source>
         <translation>選擇</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="318"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="317"/>
         <source>Export directory</source>
         <translation>匯出資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="320"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="323"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="319"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="322"/>
         <source>Managed media</source>
         <translation>管理的媒體檔案</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="324"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="323"/>
         <source>Copy managed media</source>
         <translation>複製媒體檔案以供管理</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="329"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="328"/>
         <source>Cache</source>
         <translation>快取</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="329"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="328"/>
         <source>Clear Cache</source>
         <translation>清除快取</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="330"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="329"/>
         <source>Database backup</source>
         <translation>資料庫備份</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="330"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="329"/>
         <source>Back Up Now</source>
         <translation>立即備份</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="335"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="334"/>
         <source>Updates</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="337"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="340"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="336"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="339"/>
         <source>Automatic update checks</source>
         <translation>自動檢查更新</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="338"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="337"/>
         <source>Disabled by default. No update check runs during startup.</source>
         <translation>預設停用。啟動時不會執行更新檢查。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="346"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="345"/>
         <source>Update channel</source>
         <translation>更新頻道</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="347"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="346"/>
         <source>Stable</source>
         <translation>穩定版</translation>
     </message>
@@ -3279,27 +3315,27 @@
         <translation type="vanished">測試版</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="349"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="348"/>
         <source>Version %1</source>
         <translation>版本 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="349"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="348"/>
         <source>Check Now</source>
         <translation>立即檢查</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="354"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="353"/>
         <source>Privacy</source>
         <translation>隱私權</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="357"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="356"/>
         <source>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are verified model downloads, including automatic Silero VAD retrieval when required, and optional app update checks.</source>
         <translation>音訊與逐字稿皆在本機處理。本應用程式不包含帳號、遙測、分析、當機上傳、雲端 ASR 或雲端 AI。唯一的網路活動是經過驗證的模型下載（包含需要時自動取得 Silero VAD），以及選用的應用程式更新檢查。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="369"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="368"/>
         <source>Application and whisper.cpp: MIT · Qt: LGPL · FFmpeg: LGPL · Lucide: ISC</source>
         <translation>應用程式與 whisper.cpp：MIT · Qt：LGPL · FFmpeg：LGPL · Lucide：ISC</translation>
     </message>
@@ -3308,7 +3344,7 @@
         <translation type="vanished">音訊與逐字稿都在本機處理。BreezeDesk 不使用帳號、遙測、分析、當機上傳、雲端語音辨識或雲端 AI。唯一的網路活動，是您主動開始的模型下載，以及可選擇啟用的應用程式更新檢查。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="366"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="365"/>
         <source>Open Source Licenses</source>
         <translation>開放原始碼授權</translation>
     </message>
@@ -3317,37 +3353,37 @@
         <translation type="vanished">BreezeDesk 與 whisper.cpp：MIT · Qt：LGPL · FFmpeg：LGPL · Lucide：ISC</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="376"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="375"/>
         <source>Complete third-party notices, license texts, and FFmpeg build/source information are included with every packaged copy.</source>
         <translation>每個封裝版本皆包含完整的第三方聲明、授權條款，以及 FFmpeg 建置與原始碼資訊。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="385"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="384"/>
         <source>Diagnostics</source>
         <translation>診斷</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="386"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="385"/>
         <source>Qt %1 · %2 · %3</source>
         <translation>Qt %1 · %2 · %3</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="397"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="396"/>
         <source>Refresh</source>
         <translation>重新整理</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="398"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="397"/>
         <source>Export Sanitized Diagnostics</source>
         <translation>匯出已移除敏感資訊的診斷資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="407"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="406"/>
         <source>Choose Application Data Folder</source>
         <translation>選擇應用程式資料資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="412"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="411"/>
         <source>Choose Default Export Folder</source>
         <translation>選擇預設匯出資料夾</translation>
     </message>
@@ -3382,9 +3418,17 @@
     </message>
 </context>
 <context>
+    <name>TopNavigationItem</name>
+    <message>
+        <location filename="../src/qml/components/TopNavigationItem.qml" line="21"/>
+        <source>Selected</source>
+        <translation>已選取</translation>
+    </message>
+</context>
+<context>
     <name>TrashPage</name>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="18"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="32"/>
         <source>Trash</source>
         <translation>垃圾桶</translation>
     </message>
@@ -3393,22 +3437,32 @@
         <translation type="vanished">絕不會刪除原始來源檔案。永久刪除只會移除 BreezeDesk 管理的資料與快取。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="19"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="26"/>
+        <source>← Library</source>
+        <translation>← 錄音庫</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/TrashPage.qml" line="27"/>
+        <source>Back to Library</source>
+        <translation>返回錄音庫</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/pages/TrashPage.qml" line="33"/>
         <source>Original source files are never deleted. Permanent delete removes only application-managed data and cache.</source>
         <translation>絕不會刪除原始來源檔案。永久刪除只會移除由應用程式管理的資料與快取。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="26"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="40"/>
         <source>Trash is empty</source>
         <translation>垃圾桶是空的</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="27"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="41"/>
         <source>Recordings moved here can be restored until permanently deleted.</source>
         <translation>移到這裡的錄音在永久刪除前都可以還原。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="60"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="74"/>
         <source>Restore %1</source>
         <translation>復原 %1</translation>
     </message>
@@ -3417,7 +3471,7 @@
         <translation type="vanished">還原</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="65"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="79"/>
         <source>Delete %1 permanently</source>
         <translation>永久刪除 %1</translation>
     </message>
@@ -3426,12 +3480,12 @@
         <translation type="vanished">永久刪除</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="74"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="88"/>
         <source>Delete recording permanently?</source>
         <translation>要永久刪除錄音嗎？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/TrashPage.qml" line="81"/>
+        <location filename="../src/qml/pages/TrashPage.qml" line="95"/>
         <source>The transcript, managed media copy, and cache will be deleted. Your original source file stays untouched.</source>
         <translation>將刪除逐字稿、管理的媒體副本與快取；您的原始來源檔案不會受到影響。</translation>
     </message>

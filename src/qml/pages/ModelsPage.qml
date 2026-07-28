@@ -7,14 +7,28 @@ import QtQuick.Layouts
 Item {
     id: root
     required property var vm
+    signal backRequested
     signal customImportRequested
     objectName: "modelsPage"
     readonly property int responsiveStackWidth: 760
+    readonly property real contentMaximumWidth: 1200
 
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: SemanticTokens.spacingLg
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: SemanticTokens.spacingLg
+        anchors.bottomMargin: SemanticTokens.spacingLg
+        width: Math.max(0, Math.min(root.contentMaximumWidth,
+                                    root.width - SemanticTokens.spacingLg * 2))
         spacing: SemanticTokens.spacingMd
+        AppLinkButton {
+            objectName: "modelsBackButton"
+            Layout.alignment: Qt.AlignLeft
+            text: qsTr("← Settings")
+            accessibleName: qsTr("Back to Settings")
+            onClicked: root.backRequested()
+        }
         PageHeader {
             objectName: "modelsHeader"
             actionsObjectName: "modelsHeaderActions"

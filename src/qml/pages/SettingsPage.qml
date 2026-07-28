@@ -11,8 +11,7 @@ Item {
     property bool advancedTranscriptionVisible: false
     objectName: "settingsPage"
 
-    readonly property real contentMaximumWidth: ComponentTokens.inspectorWidth * 3
-                                                + SemanticTokens.spacingLg * 2
+    readonly property real contentMaximumWidth: 1080
     readonly property real pageMargin: SemanticTokens.spacingLg
 
     function deviceIndex(devices, selectedId) {

@@ -561,7 +561,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(root, qPrintable(component.errorString()));
 
         auto* window = qobject_cast<QQuickWindow*>(root.data());
-        auto* icon = root->findChild<QQuickItem*>(QStringLiteral("sidebarImportButtonIcon"));
+        auto* icon = root->findChild<QQuickItem*>(QStringLiteral("libraryImportButtonIcon"));
         QVERIFY(window);
         QVERIFY(icon);
         QCOMPARE(icon->property("color").value<QColor>(), QColor(QStringLiteral("#FFFFFF")));
@@ -730,7 +730,7 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(settingsScroll->width() > 0.0);
             QVERIFY(settingsViewport->width() > 0.0);
             QVERIFY(settingsContent->width() > 0.0);
-            QVERIFY(settingsContent->width() <= 924.5);
+            QVERIFY(settingsContent->width() <= 1080.5);
 
             const qreal leftInset = settingsContent->x();
             const qreal rightInset =
@@ -750,7 +750,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 
-    void mainShellKeepsSidebarAndPagesWithinViewport() {
+    void mainShellKeepsTopBarAndPagesWithinViewport() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
         QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
@@ -759,14 +759,16 @@ class tst_QmlSmoke final : public QObject {
 
         auto* window = qobject_cast<QQuickWindow*>(root.data());
         auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
-        auto* sidebar = root->findChild<QQuickItem*>(QStringLiteral("mainSidebar"));
-        auto* brandRow = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandRow"));
-        auto* brandLogo = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandLogo"));
-        auto* brandText = root->findChild<QQuickItem*>(QStringLiteral("sidebarBrandText"));
+        auto* topBar = root->findChild<QQuickItem*>(QStringLiteral("mainTopBar"));
+        auto* topBarContent = root->findChild<QQuickItem*>(QStringLiteral("topBarContent"));
+        auto* brandRow = root->findChild<QQuickItem*>(QStringLiteral("topBarBrandRow"));
+        auto* brandLogo = root->findChild<QQuickItem*>(QStringLiteral("topBarBrandLogo"));
+        auto* brandText = root->findChild<QQuickItem*>(QStringLiteral("topBarBrandText"));
         auto* pages = root->findChild<QQuickItem*>(QStringLiteral("pageStack"));
         QVERIFY(window);
         QVERIFY(vm);
-        QVERIFY(sidebar);
+        QVERIFY(topBar);
+        QVERIFY(topBarContent);
         QVERIFY(brandRow);
         QVERIFY(brandLogo);
         QVERIFY(brandText);
@@ -775,22 +777,27 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(brandLogo->property("source").toUrl(),
                  QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/icons/breezedesk-sidebar.png")));
         QTRY_COMPARE_WITH_TIMEOUT(brandLogo->property("status").toInt(), 1, 1'000);
-        QCOMPARE(brandLogo->width(), 32.0);
-        QCOMPARE(brandLogo->height(), 32.0);
+        QCOMPARE(brandLogo->width(), 30.0);
+        QCOMPARE(brandLogo->height(), 30.0);
 
         vm->settings()->setTextScale(1.5);
         vm->settings()->setCompactMode(false);
 
-        const auto verifyWidth = [&](int width, qreal expectedSidebarWidth) {
+        const auto verifyWidth = [&](int width) {
             window->setWidth(width);
             window->setHeight(720);
             QCoreApplication::processEvents();
 
-            QCOMPARE(sidebar->x(), 0.0);
-            QTRY_COMPARE_WITH_TIMEOUT(sidebar->width(), expectedSidebarWidth, 1'000);
-            QCOMPARE(pages->x(), sidebar->width());
-            QCOMPARE(pages->width(), window->width() - sidebar->width());
-            QCOMPARE(pages->x() + pages->width(), window->width());
+            QCOMPARE(topBar->x(), 0.0);
+            QCOMPARE(topBar->y(), 0.0);
+            QTRY_COMPARE_WITH_TIMEOUT(topBar->width(), window->width(), 1'000);
+            QCOMPARE(pages->x(), 0.0);
+            QTRY_COMPARE_WITH_TIMEOUT(pages->width(), window->width(), 1'000);
+            QTRY_COMPARE_WITH_TIMEOUT(pages->y(), topBar->height(), 1'000);
+            QTRY_COMPARE_WITH_TIMEOUT(pages->height(), window->height() - topBar->height(), 1'000);
+            QVERIFY(topBar->height() >= 60.0);
+            QVERIFY(topBarContent->x() >= 23.5);
+            QVERIFY(topBarContent->x() + topBarContent->width() <= topBar->width() - 23.5);
             QVERIFY(brandText->width() > 0.0);
             QVERIFY(brandText->x() >= 0.0);
             QVERIFY(brandText->x() + brandText->width() <= brandRow->width() + 0.5);
@@ -799,10 +806,10 @@ class tst_QmlSmoke final : public QObject {
                 brandText->property("paintedHeight").toReal() <= brandText->height() + 0.5, 1'000);
         };
 
-        verifyWidth(980, 216.0);
-        verifyWidth(1280, 216.0);
+        verifyWidth(980);
+        verifyWidth(1280);
         vm->settings()->setCompactMode(true);
-        verifyWidth(980, 188.0);
+        verifyWidth(980);
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
@@ -876,7 +883,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
     }
 
-    void sidebarFooterStaysAlignedAndWithinViewport() {
+    void topBarNavigationStaysAlignedAndProvidesChildPageBackPaths() {
         QQmlEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
         QQmlComponent component(&engine, QUrl(QStringLiteral("qrc:/qt/qml/BreezeDesk/Main.qml")));
@@ -885,38 +892,43 @@ class tst_QmlSmoke final : public QObject {
 
         auto* window = qobject_cast<QQuickWindow*>(root.data());
         auto* vm = root->findChild<BreezeDesk::ApplicationViewModel*>();
-        auto* sidebar = root->findChild<QQuickItem*>(QStringLiteral("mainSidebar"));
-        auto* navigation = root->findChild<QQuickItem*>(QStringLiteral("sidebarNavigation"));
-        auto* footer = root->findChild<QQuickItem*>(QStringLiteral("sidebarFooter"));
-        auto* importButton = root->findChild<QQuickItem*>(QStringLiteral("sidebarImportButton"));
-        auto* recordButton = root->findChild<QQuickItem*>(QStringLiteral("sidebarRecordButton"));
-        auto* settingsButton = root->findChild<QQuickItem*>(QStringLiteral("sidebarSettingsButton"));
-        auto* importIcon = root->findChild<QQuickItem*>(QStringLiteral("sidebarImportButtonIcon"));
-        auto* recordIcon = root->findChild<QQuickItem*>(QStringLiteral("sidebarRecordButtonIcon"));
-        auto* settingsIcon = root->findChild<QQuickItem*>(QStringLiteral("sidebarSettingsButtonIcon"));
+        auto* topBar = root->findChild<QQuickItem*>(QStringLiteral("mainTopBar"));
+        auto* topBarContent = root->findChild<QQuickItem*>(QStringLiteral("topBarContent"));
+        auto* navigation = root->findChild<QQuickItem*>(QStringLiteral("topNavigation"));
+        auto* libraryNavigation = root->findChild<QQuickItem*>(QStringLiteral("topLibraryNavigation"));
+        auto* glossaryNavigation = root->findChild<QQuickItem*>(QStringLiteral("topGlossaryNavigation"));
+        auto* activityNavigation = root->findChild<QQuickItem*>(QStringLiteral("topActivityNavigation"));
+        auto* settingsButton = root->findChild<QQuickItem*>(QStringLiteral("topSettingsButton"));
+        auto* libraryLabel =
+            root->findChild<QQuickItem*>(QStringLiteral("topLibraryNavigationLabel"));
+        auto* glossaryLabel =
+            root->findChild<QQuickItem*>(QStringLiteral("topGlossaryNavigationLabel"));
+        auto* activityLabel =
+            root->findChild<QQuickItem*>(QStringLiteral("topActivityNavigationLabel"));
+        auto* queueBackButton = root->findChild<QQuickItem*>(QStringLiteral("queueBackButton"));
+        auto* trashBackButton = root->findChild<QQuickItem*>(QStringLiteral("trashBackButton"));
+        auto* modelsBackButton = root->findChild<QQuickItem*>(QStringLiteral("modelsBackButton"));
+        QObject* openTrashAction =
+            root->findChild<QObject*>(QStringLiteral("libraryOpenTrashButton"));
         QVERIFY(window);
         QVERIFY(vm);
-        QVERIFY(sidebar);
+        QVERIFY(topBar);
+        QVERIFY(topBarContent);
         QVERIFY(navigation);
-        QVERIFY(footer);
-        QVERIFY(importButton);
-        QVERIFY(recordButton);
+        QVERIFY(libraryNavigation);
+        QVERIFY(glossaryNavigation);
+        QVERIFY(activityNavigation);
         QVERIFY(settingsButton);
-        QVERIFY(importIcon);
-        QVERIFY(recordIcon);
-        QVERIFY(settingsIcon);
+        QVERIFY(libraryLabel);
+        QVERIFY(glossaryLabel);
+        QVERIFY(activityLabel);
+        QVERIFY(queueBackButton);
+        QVERIFY(trashBackButton);
+        QVERIFY(modelsBackButton);
+        QVERIFY(openTrashAction);
 
         const auto childOrigin = [](QQuickItem* parent, QQuickItem* child) {
             return child->mapToItem(parent, QPointF{});
-        };
-        const auto labelForButton = [](QQuickItem* button) -> QQuickItem* {
-            const QString expectedText = button->property("text").toString();
-            for (QQuickItem* candidate : button->findChildren<QQuickItem*>()) {
-                if (candidate->property("text").toString() == expectedText) {
-                    return candidate;
-                }
-            }
-            return nullptr;
         };
         const auto verifyInside = [&childOrigin](QQuickItem* parent, QQuickItem* child,
                                                  const QString& context) {
@@ -951,53 +963,56 @@ class tst_QmlSmoke final : public QObject {
                         window->setHeight(height);
                         QCoreApplication::processEvents();
 
-                        verifyInside(sidebar, navigation, QStringLiteral("navigation"));
-                        verifyInside(sidebar, footer, QStringLiteral("footer"));
-                        verifyInside(footer, importButton, QStringLiteral("import button"));
-                        verifyInside(footer, recordButton, QStringLiteral("record button"));
-                        verifyInside(footer, settingsButton, QStringLiteral("settings button"));
+                        verifyInside(topBar, topBarContent, QStringLiteral("top bar content"));
+                        verifyInside(topBarContent, libraryNavigation,
+                                     QStringLiteral("library navigation"));
+                        verifyInside(topBarContent, navigation, QStringLiteral("top navigation"));
+                        verifyInside(topBarContent, activityNavigation,
+                                     QStringLiteral("activity navigation"));
+                        verifyInside(topBarContent, settingsButton, QStringLiteral("settings button"));
+                        verifyInside(navigation, libraryNavigation,
+                                     QStringLiteral("library navigation item"));
+                        verifyInside(navigation, glossaryNavigation,
+                                     QStringLiteral("glossary navigation item"));
 
-                        const QPointF navigationOrigin = childOrigin(sidebar, navigation);
-                        const QPointF footerOrigin = childOrigin(sidebar, footer);
-                        QVERIFY(navigationOrigin.y() + navigation->height() <= footerOrigin.y() + 0.5);
-
-                        const QPointF importOrigin = childOrigin(footer, importButton);
-                        const QPointF recordOrigin = childOrigin(footer, recordButton);
-                        const QPointF settingsOrigin = childOrigin(footer, settingsButton);
-                        QVERIFY(importOrigin.y() + importButton->height() <= recordOrigin.y() + 0.5);
-                        QVERIFY(recordOrigin.y() + recordButton->height() <= settingsOrigin.y() + 0.5);
-                        QCOMPARE(importButton->height(), recordButton->height());
-                        QCOMPARE(importButton->height(), settingsButton->height());
-
-                        const qreal importIconX = childOrigin(footer, importIcon).x();
-                        const qreal recordIconX = childOrigin(footer, recordIcon).x();
-                        const qreal settingsIconX = childOrigin(footer, settingsIcon).x();
-                        QVERIFY(qAbs(importIconX - recordIconX) <= 0.5);
-                        QVERIFY2(qAbs(importIconX - settingsIconX) <= 2.5,
-                                 qPrintable(QStringLiteral("Sidebar icons are misaligned: import=%1, "
-                                                           "record=%2, settings=%3")
-                                                .arg(importIconX)
-                                                .arg(recordIconX)
-                                                .arg(settingsIconX)));
-
-                        QList<qreal> labelPositions;
-                        for (QQuickItem* button : {importButton, recordButton, settingsButton}) {
-                            QQuickItem* label = labelForButton(button);
-                            QVERIFY(label);
-                            verifyInside(button, label, button->property("text").toString());
-                            labelPositions.append(childOrigin(footer, label).x());
+                        for (QQuickItem* label : {libraryLabel, glossaryLabel, activityLabel}) {
                             QTRY_VERIFY_WITH_TIMEOUT(
-                                label->property("paintedWidth").toReal() <= label->width() + 0.5, 1'000);
+                                label->property("paintedWidth").toReal() <= label->width() + 0.5,
+                                1'000);
                             QTRY_VERIFY_WITH_TIMEOUT(
-                                label->property("paintedHeight").toReal() <= label->height() + 0.5, 1'000);
+                                label->property("paintedHeight").toReal() <= label->height() + 0.5,
+                                1'000);
                         }
-                        QCOMPARE(labelPositions.size(), 3);
-                        QVERIFY(qAbs(labelPositions.at(0) - labelPositions.at(1)) <= 0.5);
-                        QVERIFY(qAbs(labelPositions.at(0) - labelPositions.at(2)) <= 0.5);
+
+                        const qreal libraryCenterY = childOrigin(topBarContent, libraryNavigation).y()
+                                                     + libraryNavigation->height() / 2.0;
+                        const qreal glossaryCenterY = childOrigin(topBarContent, glossaryNavigation).y()
+                                                      + glossaryNavigation->height() / 2.0;
+                        const qreal activityCenterY = childOrigin(topBarContent, activityNavigation).y()
+                                                      + activityNavigation->height() / 2.0;
+                        const qreal settingsCenterY = childOrigin(topBarContent, settingsButton).y()
+                                                      + settingsButton->height() / 2.0;
+                        QVERIFY(qAbs(libraryCenterY - glossaryCenterY) <= 0.5);
+                        QVERIFY(qAbs(libraryCenterY - activityCenterY) <= 0.5);
+                        QVERIFY(qAbs(libraryCenterY - settingsCenterY) <= 0.5);
                     }
                 }
             }
         }
+
+        QVERIFY(QMetaObject::invokeMethod(activityNavigation, "clicked", Qt::DirectConnection));
+        QCOMPARE(vm->currentPage(), QStringLiteral("Queue"));
+        QVERIFY(QMetaObject::invokeMethod(queueBackButton, "clicked", Qt::DirectConnection));
+        QCOMPARE(vm->currentPage(), QStringLiteral("Library"));
+        QVERIFY(QMetaObject::invokeMethod(openTrashAction, "triggered", Qt::DirectConnection));
+        QCOMPARE(vm->currentPage(), QStringLiteral("Trash"));
+        QVERIFY(QMetaObject::invokeMethod(trashBackButton, "clicked", Qt::DirectConnection));
+        QCOMPARE(vm->currentPage(), QStringLiteral("Library"));
+        QVERIFY(QMetaObject::invokeMethod(settingsButton, "clicked", Qt::DirectConnection));
+        QCOMPARE(vm->currentPage(), QStringLiteral("Settings"));
+        vm->navigate(QStringLiteral("Models"));
+        QVERIFY(QMetaObject::invokeMethod(modelsBackButton, "clicked", Qt::DirectConnection));
+        QCOMPARE(vm->currentPage(), QStringLiteral("Settings"));
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));

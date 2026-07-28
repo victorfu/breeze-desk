@@ -139,6 +139,12 @@ Item {
             Layout.topMargin: SemanticTokens.spacingSm
             Layout.bottomMargin: SemanticTokens.spacingSm
             spacing: SemanticTokens.spacingSm
+            AppLinkButton {
+                objectName: "recordingBackButton"
+                text: qsTr("← Library")
+                accessibleName: qsTr("Back to Library")
+                onClicked: root.vm.navigate("Library")
+            }
             ColumnLayout {
                 Layout.fillWidth: true
                 Text {

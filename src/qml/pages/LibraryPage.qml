@@ -11,15 +11,21 @@ Item {
     required property var app
     signal importRequested
     signal folderImportRequested
-    signal activityRequested
+    signal recordingRequested
     signal trashRequested
     signal toastRequested(string message, string severity, string actionText, var action)
     objectName: "libraryPage"
-    readonly property int headerStackWidth: 760
+    readonly property int headerStackWidth: 920
     readonly property int toolbarStackWidth: 840
+    readonly property real contentMaximumWidth: 1440
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: SemanticTokens.spacingLg
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: SemanticTokens.spacingLg
+        anchors.bottomMargin: SemanticTokens.spacingLg
+        width: Math.max(0, Math.min(root.contentMaximumWidth,
+                                    root.width - SemanticTokens.spacingLg * 2))
         spacing: SemanticTokens.spacingMd
         PageHeader {
             id: libraryHeader
@@ -45,12 +51,10 @@ Item {
                 onClicked: root.importRequested()
             }
             AppButton {
-                objectName: "libraryActivityButton"
-                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/list-ordered.svg"
-                text: root.app.jobQueue.activeCount > 0
-                      ? qsTr("Activity (%1)").arg(root.app.jobQueue.activeCount)
-                      : qsTr("Activity")
-                onClicked: root.activityRequested()
+                objectName: "libraryRecordButton"
+                iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/mic.svg"
+                text: qsTr("Start Recording")
+                onClicked: root.recordingRequested()
             }
             IconButton {
                 id: libraryMoreButton

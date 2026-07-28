@@ -93,6 +93,7 @@ qt_add_qml_module(breezedesk_ui
         components/SidebarItem.qml
         components/StatusBadge.qml
         components/TimeCode.qml
+        components/TopNavigationItem.qml
         components/Toast.qml
         pages/GlossaryPage.qml
         pages/LibraryPage.qml

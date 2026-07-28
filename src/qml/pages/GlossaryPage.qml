@@ -9,10 +9,16 @@ Item {
     required property var vm
     objectName: "glossaryPage"
     readonly property int termsHeaderStackWidth: 640
+    readonly property real contentMaximumWidth: 1100
 
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: SemanticTokens.spacingLg
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: SemanticTokens.spacingLg
+        anchors.bottomMargin: SemanticTokens.spacingLg
+        width: Math.max(0, Math.min(root.contentMaximumWidth,
+                                    root.width - SemanticTokens.spacingLg * 2))
         spacing: SemanticTokens.spacingMd
 
         PageHeader {

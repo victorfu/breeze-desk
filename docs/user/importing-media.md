@@ -24,7 +24,7 @@ source records and unsupported entries are reported rather than silently replaci
 5. The file is atomically committed and multiresolution waveform peaks are generated.
 
 Cancelling or a conversion failure removes the temporary output and preserves any previously valid
-cache. The source is never rewritten. Normalization progress appears under **Library > Activity** and cannot block playback
+cache. The source is never rewritten. Normalization progress appears under the top-bar **Activity** view and cannot block playback
 or navigation.
 
 ## Missing and removed media

@@ -7,12 +7,26 @@ import QtQuick.Layouts
 Item {
     id: root
     required property var vm
+    signal backRequested
     objectName: "trashPage"
     property string pendingDeleteId: ""
+    readonly property real contentMaximumWidth: 1200
     ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: SemanticTokens.spacingLg
+        anchors.top: parent.top
+        anchors.bottom: parent.bottom
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.topMargin: SemanticTokens.spacingLg
+        anchors.bottomMargin: SemanticTokens.spacingLg
+        width: Math.max(0, Math.min(root.contentMaximumWidth,
+                                    root.width - SemanticTokens.spacingLg * 2))
         spacing: SemanticTokens.spacingMd
+        AppLinkButton {
+            objectName: "trashBackButton"
+            Layout.alignment: Qt.AlignLeft
+            text: qsTr("← Library")
+            accessibleName: qsTr("Back to Library")
+            onClicked: root.backRequested()
+        }
         PageHeader {
             Layout.fillWidth: true
             title: qsTr("Trash")
@@ -39,14 +53,14 @@ Item {
                 required property string recordingId
                 required property string title
                 width: ListView.view.width
-                height: Math.max(76, trashRowLayout.implicitHeight + SemanticTokens.spacingMd * 2)
+                height: Math.max(68, trashRowLayout.implicitHeight + SemanticTokens.spacingSm * 2)
                 color: SemanticTokens.surface
                 radius: SemanticTokens.radiusMd
                 border.color: SemanticTokens.border
                 RowLayout {
                     id: trashRowLayout
                     anchors.fill: parent
-                    anchors.margins: SemanticTokens.spacingMd
+                    anchors.margins: SemanticTokens.spacingSm
                     Text {
                         Layout.fillWidth: true
                         text: trashRow.title
