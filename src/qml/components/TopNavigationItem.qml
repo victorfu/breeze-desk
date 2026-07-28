@@ -59,17 +59,15 @@ T.Button {
             radius: SemanticTokens.radiusSm
             color: control.down ? SemanticTokens.pressedTint
                  : control.hovered ? SemanticTokens.surfaceHover : "transparent"
-            border.width: control.activeFocus ? ComponentTokens.focusWidth : 0
-            border.color: SemanticTokens.focusRing
         }
         Rectangle {
-            visible: control.selected
+            visible: control.selected || control.activeFocus
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: parent.bottom
             width: Math.min(32 * DesignSystem.textScale, parent.width - SemanticTokens.spacingMd)
             height: 3
             radius: 2
-            color: SemanticTokens.accentStrong
+            color: control.selected ? SemanticTokens.accentStrong : SemanticTokens.focusRing
         }
     }
 }
