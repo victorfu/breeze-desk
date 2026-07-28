@@ -2,9 +2,10 @@
 # Package a macOS DMG in one step from local credentials.
 #
 # Loads Apple Developer and Sparkle secrets from .env.package (git-ignored),
-# prepares the pinned LGPL FFmpeg and Sparkle sidecars, resolves a Developer ID
-# identity and a notarization profile, then builds, signs, notarizes, and signs
-# the Sparkle update enclosure for dist/<Product>-<version>-macOS-arm64.dmg.
+# prepares the pinned LGPL FFmpeg and Sparkle sidecars, uses the explicitly
+# configured Developer ID identity and notarization profile, then builds, signs,
+# notarizes, and signs the Sparkle update enclosure for
+# dist/<Product>-<version>-macOS-arm64.dmg.
 #
 # With no signing credentials it still produces an unsigned local DMG, which is
 # useful for verifying the build but is blocked by Gatekeeper on other Macs.
@@ -39,27 +40,9 @@ sparkle_dir="$(packaging/macos/fetch-sparkle.sh)"
 export BREEZEDESK_SPARKLE_FRAMEWORK_DIR="$sparkle_dir"
 export BREEZEDESK_SPARKLE_SIGN_UPDATE="$sparkle_dir/bin/sign_update"
 
-find_identity() {
-  { security find-identity -v -p codesigning 2>/dev/null || true; } |
-    awk -F'"' '/Developer ID Application/ { print $2; exit }'
-}
-
-# Resolve the Developer ID signing identity: honor an explicit override, else
-# discover one already in the keychain, importing the .env.package certificate
-# first only if none is present.
-if [[ -z "${BREEZEDESK_CODESIGN_IDENTITY:-}" ]]; then
-  identity="$(find_identity)"
-  if [[ -z "$identity" && -n "${APPLE_CERTIFICATE:-}" && -n "${APPLE_CERTIFICATE_PASSWORD:-}" ]]; then
-    echo "Importing the Developer ID certificate into the login keychain..."
-    p12="$(mktemp)"
-    printf '%s' "$APPLE_CERTIFICATE" | base64 --decode >"$p12"
-    security import "$p12" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign >/dev/null
-    rm -f "$p12"
-    identity="$(find_identity)"
-  fi
-  [[ -n "$identity" ]] && export BREEZEDESK_CODESIGN_IDENTITY="$identity"
-fi
-
+# Signed packaging is intentionally explicit. The named Developer ID
+# certificate must already be available in the keychain; CI imports it before
+# invoking the lower-level package script.
 if [[ -n "${BREEZEDESK_CODESIGN_IDENTITY:-}" ]]; then
   echo "Signing identity: $BREEZEDESK_CODESIGN_IDENTITY"
   # Create a notarization profile from Apple credentials when one is not named.
@@ -80,7 +63,7 @@ if [[ -n "${BREEZEDESK_CODESIGN_IDENTITY:-}" ]]; then
     export BREEZEDESK_APPCAST_URL
   fi
 else
-  echo "No Developer ID identity available — building an UNSIGNED local DMG."
+  echo "BREEZEDESK_CODESIGN_IDENTITY is not configured — building an UNSIGNED local DMG."
   echo "(Gatekeeper blocks unsigned apps on other Macs; use this only for local checks.)"
 fi
 

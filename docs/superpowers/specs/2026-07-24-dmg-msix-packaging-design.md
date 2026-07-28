@@ -80,11 +80,12 @@ GitHub Releases therefore carry: the DMG, its `.sha256`, its `.edSignature`, and
 BreezeDesk gets its own Sparkle EdDSA key pair so a key compromise in one project cannot sign updates
 for the other. Only a macOS pair is needed; WinSparkle keys are not generated.
 
-### D7. The codesign identity is discovered, not configured
+### D7. The codesign identity is configured explicitly
 
-The identity is read from the imported keychain with
-`security find-identity -v -p codesigning | grep "Developer ID Application"`, removing the
-`MACOS_CODESIGN_IDENTITY` secret. Certificate import keeps using `apple-actions/import-codesign-certs`.
+Signed packaging requires `BREEZEDESK_CODESIGN_IDENTITY` to contain the exact Developer ID Application
+identity available in the keychain. CI stores the value in the `MACOS_CODESIGN_IDENTITY` secret and
+maps it to that environment variable. It does not scan the keychain to choose an identity
+automatically. Certificate import keeps using `apple-actions/import-codesign-certs`.
 
 ## Changes
 
@@ -175,6 +176,7 @@ Reusable from snap-tray, which already ships signed and notarized macOS builds:
 | --- | --- | --- |
 | `MACOS_CERTIFICATE_P12_BASE64` | secret | snap-tray's `APPLE_CERTIFICATE` |
 | `MACOS_CERTIFICATE_PASSWORD` | secret | snap-tray's `APPLE_CERTIFICATE_PASSWORD` |
+| `MACOS_CODESIGN_IDENTITY` | secret | exact Developer ID Application identity string |
 | `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | secret | copied unchanged |
 
 New:
@@ -186,7 +188,7 @@ New:
 | `BREEZEDESK_UPDATE_FEED_BASE_URL` | variable | `https://github.com/victorfu/breeze-desk/releases/latest/download` |
 
 Retired: `WINDOWS_CERTIFICATE_PFX_BASE64`, `WINDOWS_CERTIFICATE_PASSWORD`, `WINSPARKLE_PRIVATE_KEY`,
-`WINSPARKLE_PUBLIC_KEY`, `MACOS_CODESIGN_IDENTITY`, `RUN_WINDOWS_CUDA_PACKAGE`.
+`WINSPARKLE_PUBLIC_KEY`, `RUN_WINDOWS_CUDA_PACKAGE`.
 
 The BreezeDesk product was reserved in Partner Center on 2026-07-27. Its public identity name,
 publisher, and publisher display name are committed in `packaging/windows/msix-identity.ps1`; they are

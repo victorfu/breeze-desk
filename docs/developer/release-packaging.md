@@ -51,7 +51,9 @@ export BREEZEDESK_NOTARY_PROFILE=breezedesk-notary
 packaging/macos/package.sh
 ```
 
-The identity signs nested Mach-O files, Sparkle helpers, the app, and the DMG with hardened runtime.
+The identity is never auto-detected. `BREEZEDESK_CODESIGN_IDENTITY` must contain the exact Developer ID
+Application identity already available in the keychain. The identity signs nested Mach-O files,
+Sparkle helpers, the app, and the DMG with hardened runtime.
 Notarization uses an existing `notarytool` keychain profile, then staples, validates, and performs a
 Gatekeeper assessment. Sign the final update archive with Sparkle's pinned `sign_update` tool:
 
@@ -144,6 +146,10 @@ The release workflow fails with the missing variable names before doing expensiv
   `MACOS_CODESIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`,
   `SPARKLE_PRIVATE_KEY`;
 - repository variables for macOS: `SPARKLE_PUBLIC_KEY`, `BREEZEDESK_UPDATE_FEED_BASE_URL`.
+
+The workflow imports the certificate and maps the `MACOS_CODESIGN_IDENTITY` secret to the
+`BREEZEDESK_CODESIGN_IDENTITY` environment variable used by the packaging script. It does not scan the
+keychain to choose an identity automatically.
 
 Windows needs no CI secret or repository variable: its public Store identity is versioned with the
 packaging source, while Store certification supplies the public distribution signature.
