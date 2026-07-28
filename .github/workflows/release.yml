@@ -1,4 +1,5 @@
 name: Release
+run-name: Release · ${{ github.ref_name }}
 
 on:
   push:
@@ -15,6 +16,7 @@ env:
 
 jobs:
   validate:
+    name: Validate release metadata
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
@@ -42,6 +44,7 @@ jobs:
           path: release-notes.md
 
   macos:
+    name: Package macOS DMG
     # Temporarily opt in while the Windows Store submission is validated first.
     if: ${{ vars.BUILD_MACOS_DMG == 'true' }}
     needs: validate
@@ -143,6 +146,7 @@ jobs:
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-macOS-arm64.dmg.edSignature
 
   windows-msix:
+    name: Package Windows Store MSIX
     needs: validate
     runs-on: windows-2022
     steps:
@@ -206,6 +210,7 @@ jobs:
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix.sha256
 
   publish:
+    name: Publish GitHub Release
     if: >-
       always() &&
       needs.validate.result == 'success' &&

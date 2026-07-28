@@ -153,6 +153,9 @@ macOS packaging is temporarily opt-in while the Windows Store submission is vali
 release. Set `BUILD_MACOS_DMG=true` to restore the signed DMG job. The publish job accepts either the
 required Store MSIX alone or the Store MSIX plus one signed DMG.
 
+This flag only controls release packaging. The regular CI workflow continues to compile and test the
+source on both Windows and macOS; those macOS CI jobs do not create or publish a DMG.
+
 The workflow imports the certificate and maps the `MACOS_CODESIGN_IDENTITY` secret to the
 `BREEZEDESK_CODESIGN_IDENTITY` environment variable used by the packaging script. It does not scan the
 keychain to choose an identity automatically.
