@@ -142,7 +142,7 @@ uploaded to Partner Center, and the original Store MSIX remains unsigned.
 Tags must exactly equal `v<CMake-project-version>`, and the matching `CHANGELOG.md` section must exist.
 The release workflow fails with the missing variable names before doing expensive builds. Configure:
 
-- macOS secrets: `MACOS_CERTIFICATE_P12_BASE64`, `MACOS_CERTIFICATE_PASSWORD`,
+- macOS secrets: `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`,
   `MACOS_CODESIGN_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD`,
   `SPARKLE_PRIVATE_KEY`;
 - repository variables for macOS: `SPARKLE_PUBLIC_KEY`, `BREEZEDESK_UPDATE_FEED_BASE_URL`.

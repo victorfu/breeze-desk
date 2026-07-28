@@ -174,8 +174,8 @@ Reusable from snap-tray, which already ships signed and notarized macOS builds:
 
 | Name | Kind | Value |
 | --- | --- | --- |
-| `MACOS_CERTIFICATE_P12_BASE64` | secret | snap-tray's `APPLE_CERTIFICATE` |
-| `MACOS_CERTIFICATE_PASSWORD` | secret | snap-tray's `APPLE_CERTIFICATE_PASSWORD` |
+| `APPLE_CERTIFICATE` | secret | base64-encoded Developer ID Application `.p12` |
+| `APPLE_CERTIFICATE_PASSWORD` | secret | password for the Developer ID Application `.p12` |
 | `MACOS_CODESIGN_IDENTITY` | secret | exact Developer ID Application identity string |
 | `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | secret | copied unchanged |
 

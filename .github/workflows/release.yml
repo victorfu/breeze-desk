@@ -54,8 +54,8 @@ jobs:
           cache: true
       - name: Validate signing and update credentials
         env:
-          P12: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
-          P12_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
@@ -66,7 +66,7 @@ jobs:
         shell: bash
         run: |
           missing=()
-          for name in P12 P12_PASSWORD CODESIGN_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD SPARKLE_PRIVATE_KEY SPARKLE_PUBLIC_KEY UPDATE_FEED_BASE_URL; do
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD CODESIGN_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_PASSWORD SPARKLE_PRIVATE_KEY SPARKLE_PUBLIC_KEY UPDATE_FEED_BASE_URL; do
             [[ -n "${!name}" ]] || missing+=("$name")
           done
           if (( ${#missing[@]} )); then
@@ -76,8 +76,8 @@ jobs:
           fi
       - uses: apple-actions/import-codesign-certs@v7
         with:
-          p12-file-base64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
-          p12-password: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          p12-file-base64: ${{ secrets.APPLE_CERTIFICATE }}
+          p12-password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
       - name: Store notarization credentials in an ephemeral profile
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
