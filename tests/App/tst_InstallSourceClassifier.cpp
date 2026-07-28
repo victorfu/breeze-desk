@@ -19,9 +19,9 @@ void InstallSourceClassifierTest::recognizesMsixInstall() {
 }
 
 void InstallSourceClassifierTest::recognizesDevelopmentInstall() {
-    QCOMPARE(classifyWindowsInstallSource(
-                 QStringLiteral("C:/Users/Alice/AppData/Local/build/BreezeDesk/bin")),
-             QStringLiteral("development"));
+    QCOMPARE(
+        classifyWindowsInstallSource(QStringLiteral("C:/Users/Alice/AppData/Local/build/BreezeDesk/bin")),
+        QStringLiteral("development"));
 }
 
 QTEST_GUILESS_MAIN(InstallSourceClassifierTest)

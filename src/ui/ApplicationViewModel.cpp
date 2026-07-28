@@ -350,12 +350,11 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
         trackedFolderImport ? m_folderImportCancellation : std::shared_ptr<std::atomic_bool>{};
     QStringList synchronouslyImportedIds;
     const QMetaObject::Connection importedConnection =
-        openAfterImport
-            ? connect(&m_library, &LibraryViewModel::recordingImported, this,
-                      [&synchronouslyImportedIds](const QString& recordingId, const QString&) {
-                          synchronouslyImportedIds.append(recordingId);
-                      })
-            : QMetaObject::Connection{};
+        openAfterImport ? connect(&m_library, &LibraryViewModel::recordingImported, this,
+                                  [&synchronouslyImportedIds](const QString& recordingId, const QString&) {
+                                      synchronouslyImportedIds.append(recordingId);
+                                  })
+                        : QMetaObject::Connection{};
     QVariantList referencedUrls;
     int immediateCount = 0;
     int scheduledCount = 0;
@@ -905,7 +904,8 @@ void ApplicationViewModel::finishLiveTranscript(const QString& recordingId, cons
         return;
     }
 
-    const QString retainedJobId = m_library.details(recordingId).value(QStringLiteral("activeJobId")).toString();
+    const QString retainedJobId =
+        m_library.details(recordingId).value(QStringLiteral("activeJobId")).toString();
     m_activeTranscriptJobId = retainedJobId;
     m_transcript.setEditingLocked(false);
     if (retainedJobId.isEmpty()) {

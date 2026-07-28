@@ -331,9 +331,8 @@ void DatabaseTest::upgradeMigrationCreatesBackup() {
         QVERIFY(removeReviewed.exec(QStringLiteral("ALTER TABLE transcript_segments DROP COLUMN reviewed")));
         QVERIFY(removeVersion.exec(QStringLiteral(
             "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
-        QVERIFY(
-            removeVersion.exec(
-                QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8,9,10)")));
+        QVERIFY(removeVersion.exec(
+            QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8,9,10)")));
         QSqlQuery removeIndex(connection.value());
         QVERIFY(removeIndex.exec(QStringLiteral("DROP INDEX idx_recordings_source_path")));
     }
@@ -415,9 +414,9 @@ void DatabaseTest::executionLeaseAndSingleTranscriptMigrationsNormalizeLegacyDat
     auto connection = upgraded.connection();
     QVERIFY(connection);
     QSqlQuery jobs(connection.value());
-    QVERIFY(jobs.exec(QStringLiteral(
-        "SELECT id,state,queue_position,queue_hidden FROM transcription_jobs ORDER BY "
-        "created_at")));
+    QVERIFY(jobs.exec(
+        QStringLiteral("SELECT id,state,queue_position,queue_hidden FROM transcription_jobs ORDER BY "
+                       "created_at")));
     QStringList ids;
     QMap<QString, QString> states;
     QMap<QString, int> queuePositions;
@@ -473,9 +472,9 @@ void DatabaseTest::singleGlossaryMigrationConsolidatesProfiles() {
         QSqlQuery setup(connection.value());
         QVERIFY(setup.exec(QStringLiteral(
             "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
-        QVERIFY(setup.exec(QStringLiteral(
-            "INSERT INTO glossary_profiles(id,name,created_at,updated_at) VALUES"
-            "('product','Product','now','now'),('customer','Customer','now','now')")));
+        QVERIFY(setup.exec(
+            QStringLiteral("INSERT INTO glossary_profiles(id,name,created_at,updated_at) VALUES"
+                           "('product','Product','now','now'),('customer','Customer','now','now')")));
         QVERIFY(setup.exec(QStringLiteral(
             "INSERT INTO glossary_terms(id,profile_id,canonical_text,enabled,created_at,updated_at) "
             "VALUES('term-1','product','BreezeDesk',1,'now','now'),"
@@ -495,8 +494,7 @@ void DatabaseTest::singleGlossaryMigrationConsolidatesProfiles() {
     QCOMPARE(profiles.value(0).toString(), QStringLiteral("default"));
     QVERIFY(!profiles.next());
     QSqlQuery terms(connection.value());
-    QVERIFY(terms.exec(QStringLiteral(
-        "SELECT id,profile_id,enabled FROM glossary_terms ORDER BY id")));
+    QVERIFY(terms.exec(QStringLiteral("SELECT id,profile_id,enabled FROM glossary_terms ORDER BY id")));
     QVERIFY(terms.next());
     QCOMPARE(terms.value(0).toString(), QStringLiteral("term-1"));
     QCOMPARE(terms.value(1).toString(), QStringLiteral("default"));

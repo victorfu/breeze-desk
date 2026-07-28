@@ -266,8 +266,7 @@ void JobsTest::completedTranscriptionReplacesPreviousTranscript() {
     QVERIFY(repository.transition(latest.id, JobState::Preparing));
     QVERIFY(repository.transition(latest.id, JobState::LoadingModel));
     QVERIFY(repository.transition(latest.id, JobState::Transcribing));
-    QVERIFY(insertSegment(QStringLiteral("segment-3"), latest.id,
-                          QStringLiteral("Replacement transcript")));
+    QVERIFY(insertSegment(QStringLiteral("segment-3"), latest.id, QStringLiteral("Replacement transcript")));
 
     QCOMPARE(recordings.findById(recording.id).value()->activeJobId, first.id);
     QSqlQuery beforeCompletion(connection.value());

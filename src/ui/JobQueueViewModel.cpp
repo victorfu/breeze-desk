@@ -113,8 +113,7 @@ void JobQueueViewModel::updateJob(const QString& id, const QString& recordingId,
     m_jobs.upsert(id, recordingId, title, state, stage, progress, error);
     if (!recordingId.isEmpty()) {
         const bool writing = m_jobs.isWritingRecording(recordingId);
-        emit recordingJobStatusChanged(recordingId,
-                                       writing ? QStringLiteral("Transcribing") : state,
+        emit recordingJobStatusChanged(recordingId, writing ? QStringLiteral("Transcribing") : state,
                                        writing ? m_jobs.writingProgress(recordingId) : progress);
     }
 }

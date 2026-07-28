@@ -16,15 +16,10 @@ MediaMetadata FFprobeService::inspect(const QString& path, QString* error) const
         return {};
     }
     QProcess process;
-    const QStringList arguments{QStringLiteral("-v"),
-                                QStringLiteral("error"),
-                                QStringLiteral("-protocol_whitelist"),
-                                QStringLiteral("file,pipe"),
-                                QStringLiteral("-show_format"),
-                                QStringLiteral("-show_streams"),
-                                QStringLiteral("-of"),
-                                QStringLiteral("json"),
-                                path};
+    const QStringList arguments{
+        QStringLiteral("-v"),        QStringLiteral("error"),        QStringLiteral("-protocol_whitelist"),
+        QStringLiteral("file,pipe"), QStringLiteral("-show_format"), QStringLiteral("-show_streams"),
+        QStringLiteral("-of"),       QStringLiteral("json"),         path};
     process.start(m_ffprobePath, arguments, QIODevice::ReadOnly);
     if (!process.waitForStarted(5000) || !process.waitForFinished(30000)) {
         process.kill();

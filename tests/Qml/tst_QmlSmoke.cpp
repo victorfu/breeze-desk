@@ -1,3 +1,4 @@
+#include "QmlTestApplication.h"
 #include "breezedesk/audio/WaveformGenerator.h"
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/database/DatabaseManager.h"
@@ -12,7 +13,6 @@
 #include "breezedesk/ui/BrandIcons.h"
 #include "breezedesk/ui/GlossaryViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
-#include "QmlTestApplication.h"
 
 #include <QAccessible>
 #include <QColor>
@@ -152,7 +152,8 @@ class FakeTranscriptRepository final : public BreezeDesk::ITranscriptRepository 
     }
 
     [[nodiscard]] BreezeDesk::Result<void>
-    replaceTranscript(const QString&, const QString&, QList<BreezeDesk::TranscriptSegment> segments) override {
+    replaceTranscript(const QString&, const QString&,
+                      QList<BreezeDesk::TranscriptSegment> segments) override {
         m_segments = std::move(segments);
         return BreezeDesk::Result<void>::success();
     }
@@ -899,17 +900,13 @@ class tst_QmlSmoke final : public QObject {
         auto* glossaryNavigation = root->findChild<QQuickItem*>(QStringLiteral("topGlossaryNavigation"));
         auto* activityNavigation = root->findChild<QQuickItem*>(QStringLiteral("topActivityNavigation"));
         auto* settingsButton = root->findChild<QQuickItem*>(QStringLiteral("topSettingsButton"));
-        auto* libraryLabel =
-            root->findChild<QQuickItem*>(QStringLiteral("topLibraryNavigationLabel"));
-        auto* glossaryLabel =
-            root->findChild<QQuickItem*>(QStringLiteral("topGlossaryNavigationLabel"));
-        auto* activityLabel =
-            root->findChild<QQuickItem*>(QStringLiteral("topActivityNavigationLabel"));
+        auto* libraryLabel = root->findChild<QQuickItem*>(QStringLiteral("topLibraryNavigationLabel"));
+        auto* glossaryLabel = root->findChild<QQuickItem*>(QStringLiteral("topGlossaryNavigationLabel"));
+        auto* activityLabel = root->findChild<QQuickItem*>(QStringLiteral("topActivityNavigationLabel"));
         auto* queueBackButton = root->findChild<QQuickItem*>(QStringLiteral("queueBackButton"));
         auto* trashBackButton = root->findChild<QQuickItem*>(QStringLiteral("trashBackButton"));
         auto* modelsBackButton = root->findChild<QQuickItem*>(QStringLiteral("modelsBackButton"));
-        QObject* openTrashAction =
-            root->findChild<QObject*>(QStringLiteral("libraryOpenTrashButton"));
+        QObject* openTrashAction = root->findChild<QObject*>(QStringLiteral("libraryOpenTrashButton"));
         QVERIFY(window);
         QVERIFY(vm);
         QVERIFY(topBar);
@@ -964,8 +961,7 @@ class tst_QmlSmoke final : public QObject {
                         QCoreApplication::processEvents();
 
                         verifyInside(topBar, topBarContent, QStringLiteral("top bar content"));
-                        verifyInside(topBarContent, libraryNavigation,
-                                     QStringLiteral("library navigation"));
+                        verifyInside(topBarContent, libraryNavigation, QStringLiteral("library navigation"));
                         verifyInside(topBarContent, navigation, QStringLiteral("top navigation"));
                         verifyInside(topBarContent, activityNavigation,
                                      QStringLiteral("activity navigation"));
@@ -977,21 +973,19 @@ class tst_QmlSmoke final : public QObject {
 
                         for (QQuickItem* label : {libraryLabel, glossaryLabel, activityLabel}) {
                             QTRY_VERIFY_WITH_TIMEOUT(
-                                label->property("paintedWidth").toReal() <= label->width() + 0.5,
-                                1'000);
+                                label->property("paintedWidth").toReal() <= label->width() + 0.5, 1'000);
                             QTRY_VERIFY_WITH_TIMEOUT(
-                                label->property("paintedHeight").toReal() <= label->height() + 0.5,
-                                1'000);
+                                label->property("paintedHeight").toReal() <= label->height() + 0.5, 1'000);
                         }
 
-                        const qreal libraryCenterY = childOrigin(topBarContent, libraryNavigation).y()
-                                                     + libraryNavigation->height() / 2.0;
-                        const qreal glossaryCenterY = childOrigin(topBarContent, glossaryNavigation).y()
-                                                      + glossaryNavigation->height() / 2.0;
-                        const qreal activityCenterY = childOrigin(topBarContent, activityNavigation).y()
-                                                      + activityNavigation->height() / 2.0;
-                        const qreal settingsCenterY = childOrigin(topBarContent, settingsButton).y()
-                                                      + settingsButton->height() / 2.0;
+                        const qreal libraryCenterY = childOrigin(topBarContent, libraryNavigation).y() +
+                                                     libraryNavigation->height() / 2.0;
+                        const qreal glossaryCenterY = childOrigin(topBarContent, glossaryNavigation).y() +
+                                                      glossaryNavigation->height() / 2.0;
+                        const qreal activityCenterY = childOrigin(topBarContent, activityNavigation).y() +
+                                                      activityNavigation->height() / 2.0;
+                        const qreal settingsCenterY =
+                            childOrigin(topBarContent, settingsButton).y() + settingsButton->height() / 2.0;
                         QVERIFY(qAbs(libraryCenterY - glossaryCenterY) <= 0.5);
                         QVERIFY(qAbs(libraryCenterY - activityCenterY) <= 0.5);
                         QVERIFY(qAbs(libraryCenterY - settingsCenterY) <= 0.5);
@@ -1224,8 +1218,7 @@ class tst_QmlSmoke final : public QObject {
                         verifyContained(surface, content, QStringLiteral("dialog content"));
                         verifyContained(surface, footer, QStringLiteral("dialog footer"));
                         verifyContained(content, nameField, QStringLiteral("canonical term field"));
-                        verifyContained(content, descriptionField,
-                                        QStringLiteral("aliases field"));
+                        verifyContained(content, descriptionField, QStringLiteral("aliases field"));
                         verifyContained(content, contextField, QStringLiteral("priority slider"));
                         verifyContained(footer, cancelButton, QStringLiteral("dialog cancel button"));
                         verifyContained(footer, createButton, QStringLiteral("dialog create button"));
@@ -1467,8 +1460,7 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(previousButton->parentItem(), searchRow);
         QCOMPARE(nextButton->parentItem(), searchRow);
         QVERIFY(previousButton->parentItem() != actionRow);
-        QCOMPARE(lowConfidenceToggle->property("text").toString(),
-                 QStringLiteral("Low-confidence only"));
+        QCOMPARE(lowConfidenceToggle->property("text").toString(), QStringLiteral("Low-confidence only"));
 
         QList<BreezeDesk::TranscriptSegmentModel::Segment> segments;
         constexpr int segmentFixtureCount = 20;
@@ -1561,8 +1553,7 @@ class tst_QmlSmoke final : public QObject {
                 if (timeColumnWidth < 0.0) {
                     timeColumnWidth = timeColumn->width();
                 } else {
-                    QTRY_VERIFY_WITH_TIMEOUT(qAbs(timeColumn->width() - timeColumnWidth) <= 0.5,
-                                             1'000);
+                    QTRY_VERIFY_WITH_TIMEOUT(qAbs(timeColumn->width() - timeColumnWidth) <= 0.5, 1'000);
                 }
                 if (origin.y() >= -0.5 && origin.y() + editor->height() <= list->height() + 0.5) {
                     ++fullyVisibleEditors;
@@ -2458,8 +2449,7 @@ class tst_QmlSmoke final : public QObject {
             engine.setInitialProperties(
                 {{QStringLiteral("injectedApplicationViewModel"),
                   QVariant::fromValue(static_cast<QObject*>(&vm))},
-                 {QStringLiteral("injectedRecorder"),
-                  QVariant::fromValue(static_cast<QObject*>(&recorder))},
+                 {QStringLiteral("injectedRecorder"), QVariant::fromValue(static_cast<QObject*>(&recorder))},
                  {QStringLiteral("injectedMaintenance"), QVariant::fromValue(&maintenance)}});
             engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
             QVERIFY2(!engine.rootObjects().isEmpty(), "Main.qml did not create a root object.");
@@ -2468,18 +2458,15 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(window);
             auto* page = window->findChild<QQuickItem*>(QStringLiteral("recordingPage"));
             auto* mainPane = window->findChild<QQuickItem*>(QStringLiteral("recordingMainPane"));
-            auto* toolbar =
-                window->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
-            auto* transport =
-                window->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
+            auto* toolbar = window->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptToolbar"));
+            auto* transport = window->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
             auto* playbackButtons =
                 window->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackButtons"));
             auto* playbackTimeline =
                 window->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackTimeline"));
             auto* transportOptions =
                 window->findChild<QQuickItem*>(QStringLiteral("recordingTransportOptions"));
-            auto* commands =
-                window->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptCommands"));
+            auto* commands = window->findChild<QQuickItem*>(QStringLiteral("recordingTranscriptCommands"));
             QVERIFY(page);
             QVERIFY(mainPane);
             QVERIFY(toolbar);
@@ -2534,8 +2521,8 @@ class tst_QmlSmoke final : public QObject {
         replacementSegment.id = QStringLiteral("replacement-segment");
         replacementSegment.jobId = replacementJob.id;
         replacementSegment.originalText = QStringLiteral("Replacement transcript");
-        QVERIFY(transcriptRepository.replaceTranscript(recording.id, replacementJob.id,
-                                                        {replacementSegment}));
+        QVERIFY(
+            transcriptRepository.replaceTranscript(recording.id, replacementJob.id, {replacementSegment}));
         vm.reloadTranscriptForJob(recording.id, replacementJob.id, true);
         QVERIFY(vm.transcript()->editingLocked());
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Current transcript"));
@@ -2848,11 +2835,9 @@ class tst_QmlSmoke final : public QObject {
 
         QObject* transcribeMenuItem =
             root->findChild<QObject*>(QStringLiteral("recordingTranscribeMenuItem"));
-        QObject* recordingCard =
-            root->findChild<QObject*>(QStringLiteral("fixtureRecordingCard"));
+        QObject* recordingCard = root->findChild<QObject*>(QStringLiteral("fixtureRecordingCard"));
         QObject* statusBadge = root->findChild<QObject*>(QStringLiteral("recordingStatusBadge"));
-        QObject* progressBar =
-            root->findChild<QObject*>(QStringLiteral("recordingTranscriptionProgress"));
+        QObject* progressBar = root->findChild<QObject*>(QStringLiteral("recordingTranscriptionProgress"));
         QVERIFY(transcribeMenuItem);
         QVERIFY(recordingCard);
         QVERIFY(statusBadge);
@@ -2966,8 +2951,8 @@ class tst_QmlSmoke final : public QObject {
         BreezeDesk::SqliteGlossaryRepository repository(database);
         BreezeDesk::GlossaryViewModel glossaryViewModel;
         glossaryViewModel.installRepository(&repository);
-        const QString termId = glossaryViewModel.addTerm(
-            QStringLiteral("BreezeDesk"), {QStringLiteral("Breeze Desk")}, 90);
+        const QString termId =
+            glossaryViewModel.addTerm(QStringLiteral("BreezeDesk"), {QStringLiteral("Breeze Desk")}, 90);
         QVERIFY(!termId.isEmpty());
 
         QQmlEngine engine;
@@ -3011,8 +2996,7 @@ class tst_QmlSmoke final : public QObject {
         glossaryViewModel.setTermEnabled(termId, false);
         QTRY_COMPARE_WITH_TIMEOUT(
             glossaryViewModel.terms()
-                ->data(glossaryViewModel.terms()->index(0, 0),
-                       BreezeDesk::GlossaryTermListModel::EnabledRole)
+                ->data(glossaryViewModel.terms()->index(0, 0), BreezeDesk::GlossaryTermListModel::EnabledRole)
                 .toBool(),
             false, 1'000);
         const auto storedTerms = repository.terms(BreezeDesk::DefaultGlossaryProfileId);

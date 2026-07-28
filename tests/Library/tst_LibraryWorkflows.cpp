@@ -401,8 +401,8 @@ class LibraryWorkflowsTest final : public QObject {
         connect(&viewModel, &BreezeDesk::ApplicationViewModel::transcriptionJobRequested, &viewModel,
                 [&viewModel](const QString& jobId, const QString& id) {
                     viewModel.jobQueue()->updateJob(jobId, id, QStringLiteral("Fixture job"),
-                                                    QStringLiteral("Queued"),
-                                                    QStringLiteral("Preparing"), 0.0);
+                                                    QStringLiteral("Queued"), QStringLiteral("Preparing"),
+                                                    0.0);
                 });
 
         QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(mediaPath)}), 1);
@@ -411,17 +411,15 @@ class LibraryWorkflowsTest final : public QObject {
         QCOMPARE(viewModel.modelManager()->defaultModelId(), QStringLiteral("breeze-asr-25-q5"));
         QVERIFY(viewModel.modelManager()->defaultModelDownloadActive());
         QCOMPARE(downloadRequested.count(), 1);
-        QCOMPARE(downloadRequested.constFirst().constFirst().toString(),
-                 QStringLiteral("breeze-asr-25-q5"));
+        QCOMPARE(downloadRequested.constFirst().constFirst().toString(), QStringLiteral("breeze-asr-25-q5"));
         QCOMPARE(transcriptionRequested.count(), 0);
 
         viewModel.modelManager()->updateInstalled(QStringLiteral("breeze-asr-25-q5"), true, true);
         viewModel.modelManager()->updateDownload(QStringLiteral("breeze-asr-25-q5"),
                                                  QStringLiteral("Installed"), 1.0);
-        QVERIFY(QMetaObject::invokeMethod(viewModel.modelManager(), "downloadFinished",
-                                         Qt::DirectConnection,
-                                         Q_ARG(QString, QStringLiteral("breeze-asr-25-q5")),
-                                         Q_ARG(bool, true), Q_ARG(QString, QString{})));
+        QVERIFY(QMetaObject::invokeMethod(viewModel.modelManager(), "downloadFinished", Qt::DirectConnection,
+                                          Q_ARG(QString, QStringLiteral("breeze-asr-25-q5")),
+                                          Q_ARG(bool, true), Q_ARG(QString, QString{})));
         QCOMPARE(transcriptionRequested.count(), 1);
         QCOMPARE(viewModel.jobQueue()->jobs()->rowCount(), 1);
         QCOMPARE(viewModel.currentPage(), QStringLiteral("Recording"));
@@ -430,20 +428,19 @@ class LibraryWorkflowsTest final : public QObject {
         QAbstractItemModel* recordings = viewModel.library()->recordings();
         QCOMPARE(recordings->rowCount(), 1);
         viewModel.jobQueue()->updateJob(jobId, recordingId, QStringLiteral("Fixture job"),
-                                        QStringLiteral("LoadingModel"), QStringLiteral("LoadingModel"),
-                                        0.35);
-        QCOMPARE(recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::StatusRole)
-                     .toString(),
-                 QStringLiteral("Transcribing"));
+                                        QStringLiteral("LoadingModel"), QStringLiteral("LoadingModel"), 0.35);
+        QCOMPARE(
+            recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::StatusRole).toString(),
+            QStringLiteral("Transcribing"));
         QCOMPARE(recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::ProgressRole)
                      .toDouble(),
                  0.35);
 
         viewModel.jobQueue()->updateJob(jobId, recordingId, QStringLiteral("Fixture job"),
                                         QStringLiteral("Completed"), QStringLiteral("Completed"), 1.0);
-        QCOMPARE(recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::StatusRole)
-                     .toString(),
-                 QStringLiteral("Completed"));
+        QCOMPARE(
+            recordings->data(recordings->index(0, 0), BreezeDesk::RecordingListModel::StatusRole).toString(),
+            QStringLiteral("Completed"));
     }
 };
 

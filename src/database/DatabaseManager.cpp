@@ -439,10 +439,8 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
           QString::fromLatin1(QCryptographicHash::hash(QByteArrayLiteral("fts5-trigram-or-fallback-v1"),
                                                        QCryptographicHash::Sha256)
                                   .toHex())}},
-        {9,
-         {QStringLiteral("single_glossary"), migrationChecksum(singleGlossarySchema())}},
-        {10,
-         {QStringLiteral("single_transcript"), migrationChecksum(singleTranscriptSchema())}},
+        {9, {QStringLiteral("single_glossary"), migrationChecksum(singleGlossarySchema())}},
+        {10, {QStringLiteral("single_transcript"), migrationChecksum(singleTranscriptSchema())}},
     };
     QSet<int> appliedVersions;
     QSqlQuery applied(database);
@@ -686,8 +684,7 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         currentVersion = 8;
     }
     if (currentVersion < 9) {
-        auto result =
-            applyStatements(9, QStringLiteral("single_glossary"), singleGlossarySchema());
+        auto result = applyStatements(9, QStringLiteral("single_glossary"), singleGlossarySchema());
         if (!result)
             return result;
         currentVersion = 9;
@@ -695,10 +692,10 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
     if (currentVersion < 10) {
         const QStringList statements = singleTranscriptSchema();
         if (!database.transaction()) {
-            return Result<void>::failure(sqlError(
-                ErrorCode::DatabaseMigrationFailed,
-                QStringLiteral("The single transcript migration could not be started."),
-                database.lastError()));
+            return Result<void>::failure(
+                sqlError(ErrorCode::DatabaseMigrationFailed,
+                         QStringLiteral("The single transcript migration could not be started."),
+                         database.lastError()));
         }
         UserFacingError statementError;
         for (const QString& statement : statements) {
@@ -732,16 +729,16 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         }
 
         QSqlQuery record(database);
-        record.prepare(QStringLiteral(
-            "INSERT INTO schema_migrations(version,name,checksum,applied_at) VALUES(10,'single_transcript',?,?)"));
+        record.prepare(QStringLiteral("INSERT INTO schema_migrations(version,name,checksum,applied_at) "
+                                      "VALUES(10,'single_transcript',?,?)"));
         record.addBindValue(migrationChecksum(statements));
         record.addBindValue(TimeUtils::nowStorageString());
         if (!record.exec() || !database.commit()) {
             database.rollback();
-            return Result<void>::failure(sqlError(
-                ErrorCode::DatabaseMigrationFailed,
-                QStringLiteral("The single transcript migration could not be committed."),
-                record.lastError()));
+            return Result<void>::failure(
+                sqlError(ErrorCode::DatabaseMigrationFailed,
+                         QStringLiteral("The single transcript migration could not be committed."),
+                         record.lastError()));
         }
         currentVersion = 10;
     }

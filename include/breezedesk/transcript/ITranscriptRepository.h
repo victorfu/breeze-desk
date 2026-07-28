@@ -17,8 +17,7 @@ class ITranscriptRepository {
     segment(const QString& segmentId) const = 0;
     [[nodiscard]] virtual Result<void> replaceTranscript(const QString& recordingId, const QString& jobId,
                                                          QList<TranscriptSegment> segments) = 0;
-    [[nodiscard]] virtual Result<void> saveEditedTranscript(const QString& recordingId,
-                                                            const QString& jobId,
+    [[nodiscard]] virtual Result<void> saveEditedTranscript(const QString& recordingId, const QString& jobId,
                                                             QList<TranscriptSegment> segments) = 0;
     [[nodiscard]] virtual Result<void> replaceChunk(const QString& recordingId, const QString& jobId,
                                                     const QString& chunkId, QList<TranscriptSegment> segments,

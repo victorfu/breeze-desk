@@ -327,8 +327,7 @@ bool GlossaryTermFilterProxyModel::filterAcceptsRow(int sourceRow, const QModelI
 
 GlossaryViewModel::GlossaryViewModel(QObject* parent) : QObject(parent), m_termProxy(this) {
     m_termProxy.setSourceModel(&m_terms);
-    m_profiles.replaceProfiles(
-        {{DefaultGlossaryProfileId, QStringLiteral("Glossary"), {}, {}, 0}});
+    m_profiles.replaceProfiles({{DefaultGlossaryProfileId, QStringLiteral("Glossary"), {}, {}, 0}});
     setSelectedProfileId(DefaultGlossaryProfileId);
 }
 

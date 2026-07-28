@@ -742,15 +742,15 @@ Result<void> SqliteJobRepository::completeAndActivate(const QString& recordingId
                 QStringLiteral("The previous transcript could not be replaced."), discardOldTranscript));
         }
         QSqlQuery hideOldCompletions(database);
-        hideOldCompletions.prepare(QStringLiteral(
-            "UPDATE transcription_jobs SET queue_hidden=1 WHERE recording_id=? AND "
-            "id<>? AND state='Completed'"));
+        hideOldCompletions.prepare(
+            QStringLiteral("UPDATE transcription_jobs SET queue_hidden=1 WHERE recording_id=? AND "
+                           "id<>? AND state='Completed'"));
         hideOldCompletions.addBindValue(recordingId);
         hideOldCompletions.addBindValue(jobId);
         if (!hideOldCompletions.exec()) {
-            return Result<void>::failure(queryError(
-                QStringLiteral("The previous transcription record could not be archived."),
-                hideOldCompletions));
+            return Result<void>::failure(
+                queryError(QStringLiteral("The previous transcription record could not be archived."),
+                           hideOldCompletions));
         }
         JobEvent event;
         event.jobId = jobId;
@@ -1263,8 +1263,7 @@ Result<void> SqliteJobRepository::deleteTerminalJob(const QString& id) {
             current.value()->state != JobState::Interrupted) {
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::InvalidStateTransition,
-                QStringLiteral(
-                    "Only completed, cancelled, failed, or interrupted jobs can be removed.")));
+                QStringLiteral("Only completed, cancelled, failed, or interrupted jobs can be removed.")));
         }
 
         QSqlQuery active(database);

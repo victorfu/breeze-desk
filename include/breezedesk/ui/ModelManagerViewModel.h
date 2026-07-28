@@ -94,8 +94,8 @@ class ModelManagerViewModel final : public QObject {
     Q_PROPERTY(QAbstractItemModel* models READ models CONSTANT)
     Q_PROPERTY(QString defaultModelId READ defaultModelId NOTIFY defaultModelChanged)
     Q_PROPERTY(bool defaultModelReady READ defaultModelReady NOTIFY defaultModelReadyChanged)
-    Q_PROPERTY(bool defaultModelDownloadActive READ defaultModelDownloadActive NOTIFY
-                   defaultModelDownloadChanged)
+    Q_PROPERTY(
+        bool defaultModelDownloadActive READ defaultModelDownloadActive NOTIFY defaultModelDownloadChanged)
     Q_PROPERTY(qreal defaultModelDownloadProgress READ defaultModelDownloadProgress NOTIFY
                    defaultModelDownloadChanged)
     Q_PROPERTY(QString selectedBackend READ selectedBackend NOTIFY backendChanged)

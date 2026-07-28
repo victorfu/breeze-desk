@@ -63,8 +63,7 @@ namespace {
 // whatever Qt's generic fallback happens to resolve first.
 QStringList cjkFallbackFamilies() {
 #if defined(Q_OS_MACOS)
-    return {QStringLiteral("PingFang TC"), QStringLiteral("PingFang SC"),
-            QStringLiteral("Heiti TC")};
+    return {QStringLiteral("PingFang TC"), QStringLiteral("PingFang SC"), QStringLiteral("Heiti TC")};
 #elif defined(Q_OS_WIN)
     return {QStringLiteral("Microsoft JhengHei UI"), QStringLiteral("Microsoft YaHei UI"),
             QStringLiteral("Microsoft JhengHei")};

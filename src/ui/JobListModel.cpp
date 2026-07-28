@@ -155,9 +155,8 @@ void JobListModel::upsert(const QString& id, const QString& recordingId, const Q
     job.stage = stage;
     job.progress = qBound(0.0, progress, 1.0);
     job.error = error;
-    const int updatedRow = previousDisplayPriority == displayPriority(job)
-                               ? existing
-                               : moveToDisplayGroup(existing);
+    const int updatedRow =
+        previousDisplayPriority == displayPriority(job) ? existing : moveToDisplayGroup(existing);
     emitRowChanged(updatedRow);
     if (stateChanged) {
         emitQueueMetadataChanged();

@@ -1,7 +1,7 @@
+#include "QmlTestApplication.h"
 #include "breezedesk/ui/JobListModel.h"
 #include "breezedesk/ui/JobQueueViewModel.h"
 #include "breezedesk/ui/UiRegistration.h"
-#include "QmlTestApplication.h"
 
 #include <QQmlComponent>
 #include <QQmlEngine>
@@ -243,8 +243,7 @@ void JobQueueViewModelTest::queuePageConfirmsPermanentRemoval() {
     QObject* queuePage = root->findChild<QObject*>(QStringLiteral("queuePage"));
     QObject* confirmation = root->findChild<QObject*>(QStringLiteral("queueRemoveJobDialog"));
     QObject* finishedConfirmation = root->findChild<QObject*>(QStringLiteral("queueRemoveFinishedDialog"));
-    auto* clearCompletedButton =
-        root->findChild<QQuickItem*>(QStringLiteral("queueClearCompletedButton"));
+    auto* clearCompletedButton = root->findChild<QQuickItem*>(QStringLiteral("queueClearCompletedButton"));
     QVERIFY(queuePage);
     QVERIFY(confirmation);
     QVERIFY(finishedConfirmation);

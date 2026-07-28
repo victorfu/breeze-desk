@@ -105,8 +105,7 @@ void TranscriptionCoordinatorTest::snapshotsSharedGlossary() {
     const auto stored = jobs.findById(QStringLiteral("job-glossary"));
     QVERIFY(stored && stored.value().has_value());
     QCOMPARE(stored.value()->glossaryProfileId, DefaultGlossaryProfileId);
-    const QJsonArray snapshot =
-        stored.value()->parameters.value(QStringLiteral("glossaryTerms")).toArray();
+    const QJsonArray snapshot = stored.value()->parameters.value(QStringLiteral("glossaryTerms")).toArray();
     QCOMPARE(snapshot.size(), 2);
     QMap<QString, bool> enabledById;
     for (const QJsonValue& value : snapshot) {
