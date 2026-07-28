@@ -31,18 +31,16 @@ QString lockPath(const QString& applicationId) {
     return QDir(directory).filePath(QStringLiteral("breezedesk-%1.lock").arg(digest));
 }
 
-void writeEnvelopeAndDisconnect(QLocalSocket* socket, const Envelope& envelope) {
+void writeEnvelope(QLocalSocket* socket, const Envelope& envelope) {
     const QByteArray frame = FrameCodec::encode(envelope);
-    QObject::connect(socket, &QLocalSocket::bytesWritten, socket, [socket](qint64) {
-        if (socket->bytesToWrite() == 0) {
-            socket->disconnectFromServer();
-        }
-    });
     if (frame.isEmpty() || socket->write(frame) != frame.size()) {
         socket->abort();
-    } else if (socket->bytesToWrite() == 0) {
-        socket->disconnectFromServer();
+        return;
     }
+    // Keep the server side open until the client consumes the reply and closes
+    // its socket. On macOS, disconnecting as soon as bytesWritten fires can let
+    // the peer observe EOF before the final response becomes readable.
+    (void)socket->flush();
 }
 
 bool decodeCommandArguments(const QCborMap& payload, QStringList* arguments) {
@@ -80,6 +78,13 @@ SingleInstanceGuard::SingleInstanceGuard(QString applicationId, QObject* parent)
 }
 
 SingleInstanceGuard::~SingleInstanceGuard() {
+    const QList<QLocalSocket*> sockets = m_decoders.keys();
+    m_decoders.clear();
+    for (QLocalSocket* socket : sockets) {
+        socket->disconnect(this);
+        socket->abort();
+        delete socket;
+    }
     m_server.close();
     if (m_primary) {
         QLocalServer::removeServer(m_endpointName);
@@ -188,6 +193,10 @@ bool SingleInstanceGuard::forwardToPrimary(const QStringList& filePaths, int tim
             for (const auto& reply : parsed.envelopes) {
                 if (reply.type == MessageType::ActivationAccepted &&
                     reply.requestId == activation.requestId) {
+                    socket.disconnectFromServer();
+                    if (socket.state() != QLocalSocket::UnconnectedState) {
+                        (void)socket.waitForDisconnected(100);
+                    }
                     return true;
                 }
             }
@@ -246,7 +255,7 @@ void SingleInstanceGuard::readSocket(QLocalSocket* socket) {
             Envelope reply;
             reply.type = MessageType::ActivationAccepted;
             reply.requestId = envelope.requestId;
-            writeEnvelopeAndDisconnect(socket, reply);
+            writeEnvelope(socket, reply);
             return;
         }
         if (envelope.type == MessageType::ApplicationCommand) {
@@ -276,7 +285,7 @@ void SingleInstanceGuard::readSocket(QLocalSocket* socket) {
             reply.payload.insert(QStringLiteral("exitCode"), qBound(0, commandReply.exitCode, 255));
             reply.payload.insert(QStringLiteral("stdout"), commandReply.standardOutput);
             reply.payload.insert(QStringLiteral("stderr"), commandReply.standardError);
-            writeEnvelopeAndDisconnect(socket, reply);
+            writeEnvelope(socket, reply);
             return;
         }
         socket->abort();

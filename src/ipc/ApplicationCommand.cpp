@@ -33,6 +33,13 @@ ApplicationCommandForwardResult failed(ApplicationCommandForwardStatus status, c
     return result;
 }
 
+void closeResponseSocket(QLocalSocket& socket) {
+    socket.disconnectFromServer();
+    if (socket.state() != QLocalSocket::UnconnectedState) {
+        (void)socket.waitForDisconnected(ConnectionAttemptMs);
+    }
+}
+
 bool argumentsAreValid(const QStringList& arguments, QString* error) {
     if (arguments.isEmpty()) {
         if (error != nullptr) {
@@ -183,6 +190,7 @@ ApplicationCommandForwardResult ApplicationCommandClient::forward(const QString&
                                   QStringLiteral("The GUI command response exceeds protocol limits."));
                 }
                 if (retryableValue.toBool()) {
+                    closeResponseSocket(socket);
                     primaryExplicitlyNotReady = true;
                     retryWhenReady = true;
                 } else {
@@ -192,6 +200,7 @@ ApplicationCommandForwardResult ApplicationCommandClient::forward(const QString&
                     result.exitCode = static_cast<int>(encodedExitCode);
                     result.standardOutput = standardOutput;
                     result.standardError = standardError;
+                    closeResponseSocket(socket);
                     return result;
                 }
             }
