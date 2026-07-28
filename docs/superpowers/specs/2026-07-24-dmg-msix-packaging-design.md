@@ -68,12 +68,14 @@ the newest release.
 
 No `pages` branch, no appcast deploy job, and no separately rendered release-notes site.
 
-### D5. MSIX is not published to GitHub Releases
+### D5. MSIX is published as a maintainer-facing GitHub Release asset
 
-An unsigned MSIX cannot be installed by an end user. Publishing it beside the DMG would offer a download
-that fails. CI uploads it as a workflow artifact for manual Partner Center submission.
+The unsigned MSIX cannot be installed by an end user, but publishing it beside the DMG gives maintainers
+a durable, versioned Partner Center submission input. The release body must prominently explain that the
+MSIX is unsigned, cannot be installed directly, and is not the Windows end-user distribution channel.
 
-GitHub Releases therefore carry: the DMG, its `.sha256`, its `.edSignature`, and `appcast-macos.xml`.
+GitHub Releases therefore carry the DMG and unsigned MSIX, their checksums, the DMG `.edSignature`, and
+`appcast-macos.xml`. CI also retains the `windows-msix` workflow artifact.
 
 ### D6. Update keys are new, not shared with snap-tray
 
@@ -153,8 +155,9 @@ is never used by CI.
 - the `windows-cuda` job and the `RUN_WINDOWS_CUDA_PACKAGE` variable are removed;
 - the committed MSIX Store identity is loaded before building, with environment overrides available for
   development packages;
-- `publish` requires exactly the macOS artifacts; the `artifacts >= 3` check becomes a DMG-present check;
-- the MSIX is uploaded as a workflow artifact and excluded from the release.
+- `publish` requires exactly one DMG and one Store MSIX;
+- the MSIX is uploaded both as a workflow artifact and a clearly labelled maintainer-facing release
+  asset.
 
 `scripts/generate-release-metadata.py`: the `windows-x64-universal` and `windows-x64-cuda` appcast
 mappings are removed, leaving `appcast-macos.xml`.
@@ -224,5 +227,5 @@ issued certificates. Store distribution avoids the problem rather than paying to
 two worker build trees; a separate workflow repeats all of it to package an artifact the same job already
 produced.
 
-**Publishing the MSIX to GitHub Releases.** It cannot be installed without a signature, so it is a
-download that only generates support questions.
+**Publishing the MSIX to GitHub Releases without a warning.** It cannot be installed without a
+signature, so the release body must distinguish it from the Store-distributed Windows build.

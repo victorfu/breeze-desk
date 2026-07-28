@@ -112,8 +112,9 @@ Windows SDK `makepri` indexes them, and `makeappx` creates the unsigned Store su
 Outputs are `dist/BreezeDesk-<version>-Windows-x64.msix` and its `.sha256` sidecar.
 
 The Microsoft Store signs the package after certification. CI therefore does not use or retain a
-Windows code-signing certificate, and the unsigned MSIX is never published as a GitHub Release asset.
-Download the `windows-msix` workflow artifact and upload it manually in Partner Center.
+Windows code-signing certificate. The release workflow publishes the unsigned MSIX and its checksum as
+GitHub Release assets for maintainer access, while also retaining the `windows-msix` workflow artifact.
+The GitHub asset cannot be installed directly and must be uploaded manually in Partner Center.
 
 An unsigned MSIX cannot be installed locally. Create a separately named development copy and sign only
 that copy with a self-signed certificate whose subject matches the manifest publisher:
@@ -156,9 +157,10 @@ packaging source, while Store certification supplies the public distribution sig
 
 `BREEZEDESK_UPDATE_FEED_BASE_URL` is a stable HTTPS directory such as the GitHub
 `releases/latest/download` URL and must not end in `/`. GitHub Release publication contains the signed,
-notarized DMG, `appcast-macos.xml`, a machine-readable release manifest, and aggregate checksums. The
-Windows MSIX remains a workflow artifact for manual Store submission. No credential, private key, or
-certificate is committed or uploaded as an artifact.
+notarized DMG, the unsigned Store-submission MSIX, `appcast-macos.xml`, a machine-readable release
+manifest, and checksums. The release body labels the MSIX as a maintainer-only Partner Center input that
+cannot be installed directly. No credential, private key, or certificate is committed or uploaded as an
+artifact.
 
 The workflows validate build and package mechanics, not backend performance. Metal is exercised by the
 optional tiny-model nightly test. Vulkan and CPU are built in hosted Windows CI. The full Breeze

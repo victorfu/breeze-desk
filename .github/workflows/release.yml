@@ -225,12 +225,23 @@ jobs:
           PRODUCT_NAME: ${{ needs.validate.outputs.product_name }}
         run: |
           mkdir -p release-assets
-          find downloaded -type f \( -name '*.dmg' -o -name '*.edSignature' \) -exec cp {} release-assets/ \;
-          mapfile -d '' artifacts < <(find release-assets -maxdepth 1 -type f -name '*.dmg' -print0 | sort -z)
-          if (( ${#artifacts[@]} != 1 )); then
-            echo "Expected exactly one macOS DMG release artifact; the MSIX remains a workflow artifact for Partner Center." >&2
+          find downloaded -type f \( \
+            -name '*.dmg' -o \
+            -name '*.edSignature' -o \
+            -name '*.msix' -o \
+            -name '*.sha256' \
+          \) -exec cp {} release-assets/ \;
+          mapfile -d '' dmg_artifacts < <(find release-assets -maxdepth 1 -type f -name '*.dmg' -print0 | sort -z)
+          mapfile -d '' msix_artifacts < <(find release-assets -maxdepth 1 -type f -name '*.msix' -print0 | sort -z)
+          if (( ${#dmg_artifacts[@]} != 1 )); then
+            echo "Expected exactly one macOS DMG release artifact." >&2
             exit 1
           fi
+          if (( ${#msix_artifacts[@]} != 1 )); then
+            echo "Expected exactly one unsigned Microsoft Store MSIX release artifact." >&2
+            exit 1
+          fi
+          artifacts=("${dmg_artifacts[@]}" "${msix_artifacts[@]}")
           python3 scripts/generate-release-metadata.py \
             --version "$VERSION" \
             --product-name "$PRODUCT_NAME" \
@@ -239,8 +250,15 @@ jobs:
             --release-notes downloaded/release-notes/release-notes.md \
             --require-update-signatures \
             "${artifacts[@]}"
+          cat > release-body.md <<'EOF'
+          > [!IMPORTANT]
+          > The attached Windows `.msix` is an unsigned Microsoft Store submission package for maintainers.
+          > It cannot be installed directly. Windows users should install the certified build from Microsoft Store when available.
+
+          EOF
+          cat downloaded/release-notes/release-notes.md >> release-body.md
       - uses: softprops/action-gh-release@v3
         with:
-          body_path: downloaded/release-notes/release-notes.md
+          body_path: release-body.md
           files: release-assets/*
           fail_on_unmatched_files: true
