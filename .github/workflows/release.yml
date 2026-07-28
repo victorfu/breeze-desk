@@ -42,6 +42,8 @@ jobs:
           path: release-notes.md
 
   macos:
+    # Temporarily opt in while the Windows Store submission is validated first.
+    if: ${{ vars.BUILD_MACOS_DMG == 'true' }}
     needs: validate
     runs-on: macos-15
     steps:
@@ -207,7 +209,7 @@ jobs:
     if: >-
       always() &&
       needs.validate.result == 'success' &&
-      needs.macos.result == 'success' &&
+      (needs.macos.result == 'success' || needs.macos.result == 'skipped') &&
       needs.windows-msix.result == 'success'
     needs: [validate, macos, windows-msix]
     runs-on: ubuntu-24.04
@@ -233,22 +235,27 @@ jobs:
           \) -exec cp {} release-assets/ \;
           mapfile -d '' dmg_artifacts < <(find release-assets -maxdepth 1 -type f -name '*.dmg' -print0 | sort -z)
           mapfile -d '' msix_artifacts < <(find release-assets -maxdepth 1 -type f -name '*.msix' -print0 | sort -z)
-          if (( ${#dmg_artifacts[@]} != 1 )); then
-            echo "Expected exactly one macOS DMG release artifact." >&2
+          if (( ${#dmg_artifacts[@]} > 1 )); then
+            echo "Expected at most one macOS DMG release artifact." >&2
             exit 1
           fi
           if (( ${#msix_artifacts[@]} != 1 )); then
             echo "Expected exactly one unsigned Microsoft Store MSIX release artifact." >&2
             exit 1
           fi
-          artifacts=("${dmg_artifacts[@]}" "${msix_artifacts[@]}")
+          artifacts=("${msix_artifacts[@]}")
+          metadata_options=()
+          if (( ${#dmg_artifacts[@]} == 1 )); then
+            artifacts+=("${dmg_artifacts[@]}")
+            metadata_options+=(--require-update-signatures)
+          fi
           python3 scripts/generate-release-metadata.py \
             --version "$VERSION" \
             --product-name "$PRODUCT_NAME" \
             --base-url "https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}" \
             --output-directory release-assets \
             --release-notes downloaded/release-notes/release-notes.md \
-            --require-update-signatures \
+            "${metadata_options[@]}" \
             "${artifacts[@]}"
           cat > release-body.md <<'EOF'
           > [!IMPORTANT]

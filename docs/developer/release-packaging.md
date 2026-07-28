@@ -148,6 +148,11 @@ The release workflow fails with the missing variable names before doing expensiv
   `SPARKLE_PRIVATE_KEY`;
 - repository variables for macOS: `SPARKLE_PUBLIC_KEY`, `BREEZEDESK_UPDATE_FEED_BASE_URL`.
 
+macOS packaging is temporarily opt-in while the Windows Store submission is validated first. Leave the
+`BUILD_MACOS_DMG` repository variable unset (or set it to any value other than `true`) for an MSIX-only
+release. Set `BUILD_MACOS_DMG=true` to restore the signed DMG job. The publish job accepts either the
+required Store MSIX alone or the Store MSIX plus one signed DMG.
+
 The workflow imports the certificate and maps the `MACOS_CODESIGN_IDENTITY` secret to the
 `BREEZEDESK_CODESIGN_IDENTITY` environment variable used by the packaging script. It does not scan the
 keychain to choose an identity automatically.
@@ -156,11 +161,11 @@ Windows needs no CI secret or repository variable: its public Store identity is 
 packaging source, while Store certification supplies the public distribution signature.
 
 `BREEZEDESK_UPDATE_FEED_BASE_URL` is a stable HTTPS directory such as the GitHub
-`releases/latest/download` URL and must not end in `/`. GitHub Release publication contains the signed,
-notarized DMG, the unsigned Store-submission MSIX, `appcast-macos.xml`, a machine-readable release
-manifest, and checksums. The release body labels the MSIX as a maintainer-only Partner Center input that
-cannot be installed directly. No credential, private key, or certificate is committed or uploaded as an
-artifact.
+`releases/latest/download` URL and must not end in `/`. GitHub Release publication always contains the
+unsigned Store-submission MSIX, a machine-readable release manifest, and checksums. When
+`BUILD_MACOS_DMG=true`, it additionally contains the signed, notarized DMG and `appcast-macos.xml`. The
+release body labels the MSIX as a maintainer-only Partner Center input that cannot be installed directly.
+No credential, private key, or certificate is committed or uploaded as an artifact.
 
 The workflows validate build and package mechanics, not backend performance. Metal is exercised by the
 optional tiny-model nightly test. Vulkan and CPU are built in hosted Windows CI. The full Breeze

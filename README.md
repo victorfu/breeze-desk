@@ -164,6 +164,7 @@ For a separately signed local test package that leaves the Store MSIX unchanged,
 
 Tagged GitHub releases attach the unsigned Store MSIX for maintainers to upload to Partner Center. That
 asset cannot be installed directly; Windows users install the certified package from Microsoft Store.
+macOS release packaging is temporarily opt-in through the `BUILD_MACOS_DMG=true` repository variable.
 
 See [release-packaging.md](docs/developer/release-packaging.md) for macOS signing and notarization,
 Microsoft Store identity, local MSIX test signing, and exact output names.

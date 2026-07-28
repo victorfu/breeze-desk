@@ -74,8 +74,9 @@ The unsigned MSIX cannot be installed by an end user, but publishing it beside t
 a durable, versioned Partner Center submission input. The release body must prominently explain that the
 MSIX is unsigned, cannot be installed directly, and is not the Windows end-user distribution channel.
 
-GitHub Releases therefore carry the DMG and unsigned MSIX, their checksums, the DMG `.edSignature`, and
-`appcast-macos.xml`. CI also retains the `windows-msix` workflow artifact.
+GitHub Releases always carry the unsigned MSIX and its checksums. While `BUILD_MACOS_DMG` is `true`, they
+also carry the DMG, its checksum and `.edSignature`, and `appcast-macos.xml`. CI retains the
+`windows-msix` workflow artifact in either mode.
 
 ### D6. Update keys are new, not shared with snap-tray
 
@@ -155,7 +156,8 @@ is never used by CI.
 - the `windows-cuda` job and the `RUN_WINDOWS_CUDA_PACKAGE` variable are removed;
 - the committed MSIX Store identity is loaded before building, with environment overrides available for
   development packages;
-- `publish` requires exactly one DMG and one Store MSIX;
+- the macOS job is temporarily opt-in through the `BUILD_MACOS_DMG=true` repository variable;
+- `publish` requires exactly one Store MSIX and accepts zero or one DMG;
 - the MSIX is uploaded both as a workflow artifact and a clearly labelled maintainer-facing release
   asset.
 
