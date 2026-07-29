@@ -197,23 +197,27 @@ jobs:
         run: |
           $Ffmpeg = packaging/windows/build-ffmpeg-lgpl.ps1 | Select-Object -Last 1
           "BREEZEDESK_FFMPEG_DIR=$Ffmpeg" | Out-File $env:GITHUB_ENV -Append
-      - name: Build unsigned Microsoft Store MSIX
+      - name: Build unsigned Microsoft Store MSIX and portable ZIP
         shell: cmd
         env:
           BREEZEDESK_WHISPER_CPP_SOURCE_DIR: ${{ github.workspace }}/.cache/whisper.cpp
         run: packaging\windows\package.bat
-      - uses: actions/upload-artifact@v7
+      - name: Upload Microsoft Store MSIX
+        uses: actions/upload-artifact@v7
         with:
           name: windows-msix
           path: |
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix.sha256
-      - uses: actions/upload-artifact@v7
+          if-no-files-found: error
+      - name: Upload Windows portable ZIP
+        uses: actions/upload-artifact@v7
         with:
           name: windows-portable
           path: |
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-portable.zip
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-portable.zip.sha256
+          if-no-files-found: error
 
   publish:
     name: Publish GitHub Release
