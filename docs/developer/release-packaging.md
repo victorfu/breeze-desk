@@ -69,10 +69,12 @@ Output is `dist/BreezeDesk-<version>-macOS-arm64.dmg` plus `.sha256` and, for re
 
 ## Windows x64
 
-The Microsoft Store MSIX is the only Windows distribution. Run from a Visual Studio 2022 developer
+Windows releases provide an unsigned MSIX for Microsoft Store submission and a portable ZIP for
+direct download. The Microsoft Store remains the preferred user channel because its certified build
+is signed and updates automatically. Run the packaging pipeline from a Visual Studio 2022 developer
 command prompt with Qt, Ninja, ImageMagick, Windows SDK, Vulkan SDK, and an LGPL FFmpeg directory
-available. `build-ffmpeg-lgpl.ps1` bootstraps checksum-pinned portable w64devkit and native Windows NASM
-archives when that directory must be built, so MSYS2 is not required.
+available. `build-ffmpeg-lgpl.ps1` bootstraps checksum-pinned portable w64devkit and native Windows
+NASM archives when that directory must be built, so MSYS2 is not required.
 
 The public Partner Center values from **Product identity** are committed in
 `packaging/windows/msix-identity.ps1`, so both local and CI release builds use the official Store
@@ -83,12 +85,12 @@ identity by default:
 ```
 
 The wrapper builds or reuses the pinned LGPL FFmpeg sidecars, then delegates to
-`packaging/windows/package.bat`. An existing `BREEZEDESK_FFMPEG_DIR` remains available as an override.
-It discovers Qt from `BREEZEDESK_QT_ROOT`, `QT_PATH`, `Qt6_DIR`, `CMAKE_PREFIX_PATH`, `PATH`, or a
-standard `C:\Qt\<version>\msvc*_64` installation. ImageMagick is resolved from `PATH`,
-`BREEZEDESK_MAGICK`, or its standard Program Files installation. The Vulkan SDK is resolved from
-`VULKAN_SDK`, `VK_SDK_PATH`, or `C:\VulkanSDK\<version>` and must provide headers, `vulkan-1.lib`, and
-`glslc.exe`.
+`packaging/windows/package.bat` and emits both release artifacts with their `.sha256` sidecars. An
+existing `BREEZEDESK_FFMPEG_DIR` remains available as an override. It discovers Qt from
+`BREEZEDESK_QT_ROOT`, `QT_PATH`, `Qt6_DIR`, `CMAKE_PREFIX_PATH`, `PATH`, or a standard
+`C:\Qt\<version>\msvc*_64` installation. ImageMagick is resolved from `PATH`, `BREEZEDESK_MAGICK`, or
+its standard Program Files installation. The Vulkan SDK is resolved from `VULKAN_SDK`, `VK_SDK_PATH`,
+or `C:\VulkanSDK\<version>` and must provide headers, `vulkan-1.lib`, and `glslc.exe`.
 
 For a development package only, `BREEZEDESK_MSIX_IDENTITY_NAME`, `BREEZEDESK_MSIX_PUBLISHER`, and
 `BREEZEDESK_MSIX_PUBLISHER_DISPLAY_NAME` may override the committed values when all three are set
@@ -109,12 +111,23 @@ bin/ffprobe.exe
 
 ImageMagick builds the scale-, target-size-, and theme-qualified assets from the repository PNGs,
 Windows SDK `makepri` indexes them, and `makeappx` creates the unsigned Store submission artifact.
-Outputs are `dist/BreezeDesk-<version>-Windows-x64.msix` and its `.sha256` sidecar.
+The portable archive is created separately from the clean staged tree, which never receives MSIX-only
+files. It contains exactly one versioned root directory named
+`BreezeDesk-<version>-Windows-x64-portable`, with `README.txt`, `bin/`, and
+`share/breezedesk/licenses/` beneath it. It does not contain `AppxManifest.xml`, `Assets/`, or
+`resources.pri`. Models are not bundled and are downloaded by the application when first needed.
+
+Outputs are `dist/BreezeDesk-<version>-Windows-x64.msix` and
+`dist/BreezeDesk-<version>-Windows-x64-portable.zip`, each with a `.sha256` sidecar. The portable ZIP
+is extract-and-run: launch `bin\BreezeDesk.exe` from the extracted versioned directory. Its unsigned
+executables can trigger Microsoft Defender SmartScreen on first launch.
 
 The Microsoft Store signs the package after certification. CI therefore does not use or retain a
 Windows code-signing certificate. The release workflow publishes the unsigned MSIX and its checksum as
 GitHub Release assets for maintainer access, while also retaining the `windows-msix` workflow artifact.
-The GitHub asset cannot be installed directly and must be uploaded manually in Partner Center.
+The MSIX GitHub asset cannot be installed directly and must be uploaded manually in Partner Center.
+The workflow separately retains the portable ZIP and checksum as the `windows-portable` artifact for
+users who need a direct download.
 
 An unsigned MSIX cannot be installed locally. Create a separately named development copy and sign only
 that copy with a self-signed certificate whose subject matches the manifest publisher:
@@ -149,9 +162,9 @@ The release workflow fails with the missing variable names before doing expensiv
 - repository variables for macOS: `SPARKLE_PUBLIC_KEY`, `BREEZEDESK_UPDATE_FEED_BASE_URL`.
 
 macOS packaging is temporarily opt-in while the Windows Store submission is validated first. Leave the
-`BUILD_MACOS_DMG` repository variable unset (or set it to any value other than `true`) for an MSIX-only
-release. Set `BUILD_MACOS_DMG=true` to restore the signed DMG job. The publish job accepts either the
-required Store MSIX alone or the Store MSIX plus one signed DMG.
+`BUILD_MACOS_DMG` repository variable unset (or set it to any value other than `true`) for a
+Windows-only release. Set `BUILD_MACOS_DMG=true` to restore the signed DMG job. The publish job always
+requires one Store MSIX and one portable ZIP, and accepts at most one additional signed DMG.
 
 This flag only controls release packaging. The regular CI workflow continues to compile and test the
 source on both Windows and macOS; those macOS CI jobs do not create or publish a DMG.
@@ -165,10 +178,13 @@ packaging source, while Store certification supplies the public distribution sig
 
 `BREEZEDESK_UPDATE_FEED_BASE_URL` is a stable HTTPS directory such as the GitHub
 `releases/latest/download` URL and must not end in `/`. GitHub Release publication always contains the
-unsigned Store-submission MSIX, a machine-readable release manifest, and checksums. When
-`BUILD_MACOS_DMG=true`, it additionally contains the signed, notarized DMG and `appcast-macos.xml`. The
-release body labels the MSIX as a maintainer-only Partner Center input that cannot be installed directly.
-No credential, private key, or certificate is committed or uploaded as an artifact.
+unsigned Store-submission MSIX, the portable ZIP, a machine-readable release manifest, and checksums.
+The portable archive is recorded as platform `windows-x64-portable`; it has no update feed and users
+upgrade it by extracting a new versioned directory. When `BUILD_MACOS_DMG=true`, the release additionally
+contains the signed, notarized DMG and `appcast-macos.xml`. The release body labels the MSIX as a
+maintainer-only Partner Center input that cannot be installed directly and gives users portable ZIP
+launch and SmartScreen instructions. No credential, private key, or certificate is committed or
+uploaded as an artifact.
 
 The workflows validate build and package mechanics, not backend performance. Metal is exercised by the
 optional tiny-model nightly test. Vulkan and CPU are built in hosted Windows CI. The full Breeze

@@ -29,6 +29,8 @@ def platform_for(name: str) -> str:
         return "macos-arm64"
     if name.endswith("-Windows-x64.msix"):
         return "windows-x64-msix"
+    if name.endswith("-Windows-x64-portable.zip"):
+        return "windows-x64-portable"
     return "supporting-file"
 
 

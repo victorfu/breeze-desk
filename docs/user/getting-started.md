@@ -5,6 +5,21 @@ needs a model, BreezeDesk automatically downloads and verifies the recommended Q
 one-time download of about 1 GB; the recording stays on this computer. Q8 and custom models remain
 available from **Settings > Transcription > Manage Models**.
 
+## Install on Windows
+
+Use the Microsoft Store build when it is available; it is certified and updates automatically. For a
+direct download, get `BreezeDesk-<version>-Windows-x64-portable.zip` from the matching GitHub Release,
+extract its versioned folder, and run `bin\BreezeDesk.exe`. No installation is required. Because the
+portable build is unsigned, Microsoft Defender SmartScreen may show **Windows protected your PC** on
+first launch; choose **More info**, then **Run anyway**. You can verify the download against the
+published `.sha256` file.
+
+“Portable” describes the no-install application, not its data. Settings, the database, and downloaded
+models remain under the Windows application-data location shown in Settings, so replacing an extracted
+folder during an upgrade does not delete them. The Store and portable builds use separate data stores
+because of MSIX filesystem virtualization. Switching channels does not migrate the library, settings,
+or models between them.
+
 ## Create the first transcript
 
 1. Optionally add important names under **Name Dictionary**. Enabled names are included when a new

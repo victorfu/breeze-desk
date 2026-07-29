@@ -146,7 +146,7 @@ jobs:
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-macOS-arm64.dmg.edSignature
 
   windows-msix:
-    name: Package Windows Store MSIX
+    name: Package Windows Store MSIX and portable ZIP
     needs: validate
     runs-on: windows-2022
     steps:
@@ -208,6 +208,12 @@ jobs:
           path: |
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix
             dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64.msix.sha256
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-portable
+          path: |
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-portable.zip
+            dist/${{ needs.validate.outputs.product_name }}-${{ needs.validate.outputs.version }}-Windows-x64-portable.zip.sha256
 
   publish:
     name: Publish GitHub Release
@@ -236,10 +242,12 @@ jobs:
             -name '*.dmg' -o \
             -name '*.edSignature' -o \
             -name '*.msix' -o \
+            -name '*.zip' -o \
             -name '*.sha256' \
           \) -exec cp {} release-assets/ \;
           mapfile -d '' dmg_artifacts < <(find release-assets -maxdepth 1 -type f -name '*.dmg' -print0 | sort -z)
           mapfile -d '' msix_artifacts < <(find release-assets -maxdepth 1 -type f -name '*.msix' -print0 | sort -z)
+          mapfile -d '' portable_artifacts < <(find release-assets -maxdepth 1 -type f -name '*-Windows-x64-portable.zip' -print0 | sort -z)
           if (( ${#dmg_artifacts[@]} > 1 )); then
             echo "Expected at most one macOS DMG release artifact." >&2
             exit 1
@@ -248,7 +256,11 @@ jobs:
             echo "Expected exactly one unsigned Microsoft Store MSIX release artifact." >&2
             exit 1
           fi
-          artifacts=("${msix_artifacts[@]}")
+          if (( ${#portable_artifacts[@]} != 1 )); then
+            echo "Expected exactly one Windows portable ZIP release artifact." >&2
+            exit 1
+          fi
+          artifacts=("${msix_artifacts[@]}" "${portable_artifacts[@]}")
           metadata_options=()
           if (( ${#dmg_artifacts[@]} == 1 )); then
             artifacts+=("${dmg_artifacts[@]}")
@@ -262,12 +274,26 @@ jobs:
             --release-notes downloaded/release-notes/release-notes.md \
             "${metadata_options[@]}" \
             "${artifacts[@]}"
-          cat > release-body.md <<'EOF'
-          > [!IMPORTANT]
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+
+          product_name = os.environ["PRODUCT_NAME"]
+          version = os.environ["VERSION"]
+          Path("release-body.md").write_text(
+              f"""> [!IMPORTANT]
           > The attached Windows `.msix` is an unsigned Microsoft Store submission package for maintainers.
           > It cannot be installed directly. Windows users should install the certified build from Microsoft Store when available.
 
-          EOF
+          **Windows users:** download `{product_name}-{version}-Windows-x64-portable.zip`, extract it, and
+          run `bin\\BreezeDesk.exe`. No installation. The build is unsigned, so SmartScreen may warn on
+          first launch — choose "More info", then "Run anyway". Prefer the Microsoft Store build when
+          it is available.
+
+          """,
+              encoding="utf-8",
+          )
+          PY
           cat downloaded/release-notes/release-notes.md >> release-body.md
       - uses: softprops/action-gh-release@v3
         with:

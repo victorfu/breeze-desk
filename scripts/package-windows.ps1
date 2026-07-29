@@ -1,16 +1,16 @@
 <#
 .SYNOPSIS
-Packages the Microsoft Store MSIX in one step.
+Packages the Microsoft Store MSIX and portable ZIP in one step.
 
 .DESCRIPTION
 Prepares or reuses the pinned LGPL FFmpeg build, then invokes the canonical
-Windows MSIX packaging pipeline. The public Partner Center identity comes from
+Windows packaging pipeline. The public Partner Center identity comes from
 packaging/windows/msix-identity.ps1 unless all three BREEZEDESK_MSIX_*
 development overrides are set.
 
-The output is an unsigned Store submission package. Use
-scripts/package-windows-dev.ps1 when a separately signed local-installation
-test package is required.
+The outputs are an unsigned Store submission package and an extract-and-run
+portable ZIP. Use scripts/package-windows-dev.ps1 when a separately signed
+local-installation test package is required.
 #>
 [CmdletBinding()]
 param()
@@ -175,10 +175,10 @@ try {
     }
     $env:BREEZEDESK_FFMPEG_DIR = $FfmpegDirectory
 
-    Write-Host 'Building the Microsoft Store MSIX...'
+    Write-Host 'Building the Microsoft Store MSIX and portable ZIP...'
     & cmd.exe /d /c 'packaging\windows\package.bat'
     if ($LASTEXITCODE -ne 0) {
-        throw "Windows MSIX packaging failed with exit code $LASTEXITCODE."
+        throw "Windows packaging failed with exit code $LASTEXITCODE."
     }
 
     $VersionFile = Join-Path $ProjectDirectory 'build\package-windows-version.txt'
@@ -199,11 +199,19 @@ try {
     if (-not (Test-Path -LiteralPath $Msix -PathType Leaf)) {
         throw "The expected MSIX was not created: $Msix"
     }
+    $PortableZip = Join-Path $ProjectDirectory "dist\$ProductName-$Version-Windows-x64-portable.zip"
+    if (-not (Test-Path -LiteralPath $PortableZip -PathType Leaf)) {
+        throw "The expected portable ZIP was not created: $PortableZip"
+    }
 
     Write-Host ''
     Write-Host "Packaged: $Msix"
     if (Test-Path -LiteralPath "$Msix.sha256" -PathType Leaf) {
         Write-Host "Checksum: $Msix.sha256"
+    }
+    Write-Host "Packaged: $PortableZip"
+    if (Test-Path -LiteralPath "$PortableZip.sha256" -PathType Leaf) {
+        Write-Host "Checksum: $PortableZip.sha256"
     }
 }
 finally {

@@ -178,8 +178,12 @@ if not exist "%STAGE_DIR%\bin\imageformats\qsvg.dll" (
 set "MSIX=%PROJECT_ROOT%\dist\%BREEZEDESK_PRODUCT_NAME%-%VERSION%-Windows-x64.msix"
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\create-msix.ps1" -StageDirectory "%STAGE_DIR%" -OutputFile "%MSIX%" -Version "%VERSION%" -ProductName "%BREEZEDESK_PRODUCT_NAME%" -ExecutableName "%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" -ProductId "%BREEZEDESK_WINDOWS_PRODUCT_ID%" || exit /b 1
 powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\write-checksum.ps1" "%MSIX%" || exit /b 1
+set "PORTABLE_ZIP=%PROJECT_ROOT%\dist\%BREEZEDESK_PRODUCT_NAME%-%VERSION%-Windows-x64-portable.zip"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\create-portable-zip.ps1" -StageDirectory "%STAGE_DIR%" -OutputFile "%PORTABLE_ZIP%" -Version "%VERSION%" -ProductName "%BREEZEDESK_PRODUCT_NAME%" -ExecutableName "%BREEZEDESK_RELEASE_EXECUTABLE_NAME%" || exit /b 1
+powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_ROOT%\packaging\windows\write-checksum.ps1" "%PORTABLE_ZIP%" || exit /b 1
 
 echo %MSIX%
+echo %PORTABLE_ZIP%
 exit /b 0
 
 :find_whisper_license

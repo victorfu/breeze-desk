@@ -1,7 +1,7 @@
 # Shipping design: Windows portable ZIP
 
-Status: Approved 2026-07-29 — not yet implemented. Implementation and testing happen on a Windows
-machine; this repository state carries only the spec.
+Status: Implemented 2026-07-29. The next tagged release exercises the complete hosted CI publication
+path.
 
 ## Goal
 

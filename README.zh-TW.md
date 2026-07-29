@@ -156,6 +156,11 @@ CPU 兩種 Worker。
 若要建立獨立簽章、且不修改 Store MSIX 的本機測試套件，請執行
 `.\scripts\package-windows-dev.ps1`。
 
+標籤版 GitHub Release 會附上供維護者提交 Partner Center 的未簽章 Store MSIX；該檔案無法
+直接安裝。Release 也提供含版本根目錄的 Windows portable ZIP，使用者解壓縮後即可直接執行。
+其中的執行檔未簽章，因此首次啟動時 SmartScreen 可能顯示警告。經認證且可自動更新的
+Microsoft Store 版本仍是建議的安裝管道。
+
 macOS 簽章與 notarization、Microsoft Store identity、本機 MSIX 測試簽章及產物名稱請見
 [發行打包文件](docs/developer/release-packaging.md)。
 

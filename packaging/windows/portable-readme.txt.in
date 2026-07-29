@@ -1,0 +1,20 @@
+@PRODUCT_NAME@ @VERSION@ portable build for Windows x64
+
+No installation is required. Run bin\@EXECUTABLE_NAME@.exe to start @PRODUCT_NAME@.
+
+Windows SmartScreen may show "Windows protected your PC" on the first launch.
+Choose "More info", then "Run anyway". This build is unsigned; verify the
+download with the published .sha256 file.
+
+Settings, the database, and downloaded models live under %LOCALAPPDATA% at the
+location shown in Settings. The Microsoft Store build keeps its own separate
+data.
+
+The first transcription downloads the recommended model (about 1 GB, one time).
+
+To upgrade, extract the new version's folder and delete the old folder. Your data
+is kept. Prefer the Microsoft Store build when available because it is certified
+and updates automatically.
+
+Licenses: share\breezedesk\licenses\
+Project: https://github.com/victorfu/breeze-desk

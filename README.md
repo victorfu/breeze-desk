@@ -147,23 +147,80 @@ backends are configure-time choices.
 
 ### Release packages
 
-Unsigned local packages use the same deploy scripts as CI:
+Unsigned macOS packages use the same deploy script as CI:
 
 ```sh
 ./scripts/package-macos.sh
 ```
 
-```powershell
-.\scripts\package-windows.ps1
+#### Package and test on Windows
+
+Run Windows packaging commands from the repository root in a Visual Studio Developer Command Prompt.
+Calling the repository setup script first is safe even when that prompt is already initialized, and
+ensures `cl.exe`, `dumpbin.exe`, and the Windows SDK tools are available:
+
+```bat
+call scripts\setup-msvc.bat
+```
+
+Release packaging additionally requires Qt, Ninja, CMake, ImageMagick, the Windows SDK, and the Vulkan
+SDK. The wrapper discovers the installed Qt kit and reuses or builds the pinned LGPL FFmpeg sidecars.
+ImageMagick and the Vulkan SDK are required only for release packaging; normal development with
+`scripts\build-and-run.bat` uses the CPU worker and does not require either package. If ImageMagick or
+the Vulkan SDK is missing when packaging, install them and reopen the Developer Command Prompt:
+
+```bat
+winget install --id ImageMagick.ImageMagick -e
+winget install --id KhronosGroup.VulkanSDK -e
+```
+
+To package the unsigned Microsoft Store submission MSIX, run:
+
+```bat
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts\package-windows.ps1
+```
+
+This is intentionally also the portable-package command: one build and one staged runtime tree produce
+both of these artifacts and their `.sha256` sidecars:
+
+```text
+dist\BreezeDesk-<version>-Windows-x64.msix
+dist\BreezeDesk-<version>-Windows-x64-portable.zip
+```
+
+There is no second full build command for the portable ZIP. To test it, extract the ZIP and run
+`bin\BreezeDesk.exe` from its versioned root directory. The Store MSIX is unsigned and cannot be
+installed directly; it is the file maintainers upload to Partner Center.
+
+To create a signed development MSIX from the Store MSIX produced above, without rebuilding or changing
+the Store artifact, run:
+
+```bat
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts\package-windows-dev.ps1 -ReuseStorePackage
+```
+
+The output is `dist\BreezeDesk-<version>-Windows-x64-Development.msix`, its checksum, and the public
+development certificate under `build\msix-dev-certificate`. To rebuild the Store MSIX and portable ZIP
+before creating the development MSIX, omit `-ReuseStorePackage`:
+
+```bat
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts\package-windows-dev.ps1
+```
+
+To trust the development certificate and install that development MSIX for the current user, run the
+following from an **elevated** Developer Command Prompt:
+
+```bat
+powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File scripts\package-windows-dev.ps1 -ReuseStorePackage -Install
 ```
 
 The public Partner Center identity is committed in `packaging/windows/msix-identity.ps1`. The three
 `BREEZEDESK_MSIX_*` environment variables remain optional overrides for development packages.
-For a separately signed local test package that leaves the Store MSIX unchanged, run
-`.\scripts\package-windows-dev.ps1`.
 
-Tagged GitHub releases attach the unsigned Store MSIX for maintainers to upload to Partner Center. That
-asset cannot be installed directly; Windows users install the certified package from Microsoft Store.
+Tagged GitHub releases attach the unsigned Store MSIX for maintainers to upload to Partner Center; that
+asset cannot be installed directly. They also provide a versioned Windows portable ZIP that users can
+extract and run without installation. Its executables are unsigned, so SmartScreen may warn on first
+launch. The certified, automatically updated Microsoft Store package remains the preferred channel.
 macOS release packaging is temporarily opt-in through the `BUILD_MACOS_DMG=true` repository variable.
 
 See [release-packaging.md](docs/developer/release-packaging.md) for macOS signing and notarization,
