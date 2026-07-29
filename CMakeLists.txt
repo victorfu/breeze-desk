@@ -13,7 +13,7 @@ if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
     set(CMAKE_OSX_DEPLOYMENT_TARGET "14.0" CACHE STRING "Minimum supported macOS version" FORCE)
 endif()
 
-project(BreezeDesk VERSION 1.0.0 LANGUAGES C CXX)
+project(BreezeDesk VERSION 1.0.1 LANGUAGES C CXX)
 
 # Product identity lives here so rebranding does not require source edits.
 set(BREEZEDESK_PRODUCT_NAME "BreezeDesk" CACHE STRING "User-visible product name")

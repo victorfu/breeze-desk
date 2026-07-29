@@ -2,7 +2,7 @@
 
 All notable changes to BreezeDesk are documented here.
 
-## [Unreleased]
+## [1.0.1] - 2026-07-29
 
 ### Added
 
