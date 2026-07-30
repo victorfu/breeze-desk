@@ -72,6 +72,7 @@ class TranscriptionCoordinatorTest final : public QObject {
   private slots:
     void snapshotsSharedGlossary();
     void initializationRecoversUnleasedRunningJob();
+    void terminalCheckpointFailureRetainsLeaseUntilRecovery();
     void analyzesLongAudioAndPersistsGlobalSegments();
     void rejectsStaleCacheWhenSourceContentsChange();
     void rejectsResumedChunksBoundToDifferentSource();
@@ -194,6 +195,80 @@ void TranscriptionCoordinatorTest::initializationRecoversUnleasedRunningJob() {
     QCOMPARE(jobs.findById(queued.id).value()->state, JobState::Queued);
     QVERIFY(!jobs.activeLease().value().has_value());
     QVERIFY(errors.isEmpty());
+}
+
+void TranscriptionCoordinatorTest::terminalCheckpointFailureRetainsLeaseUntilRecovery() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+    });
+    qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+    qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
+    QVERIFY(StoragePaths::ensureLayout());
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    ModelManager models;
+    WorkerProcessManager worker;
+
+    Recording recording;
+    recording.id = QStringLiteral("recording-terminal-checkpoint");
+    recording.title = QStringLiteral("Terminal checkpoint failure");
+    recording.sourcePath = directory.filePath(QStringLiteral("cancel-before-preparation.wav"));
+    QVERIFY(recordings.create(recording));
+
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker);
+    QSignalSpy errors(&coordinator, &TranscriptionCoordinator::errorOccurred);
+    QSignalSpy finished(&coordinator, &TranscriptionCoordinator::transcriptionFinished);
+    coordinator.initialize();
+    coordinator.enqueue(QStringLiteral("job-terminal-checkpoint"), recording.id);
+    const auto preparing = jobs.findById(QStringLiteral("job-terminal-checkpoint"));
+    QVERIFY(preparing && preparing.value().has_value());
+    QCOMPARE(preparing.value()->state, JobState::Preparing);
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery rejectCheckpoint(connection.value());
+    QVERIFY(rejectCheckpoint.exec(QStringLiteral(
+        "CREATE TRIGGER reject_cancel_checkpoint BEFORE UPDATE OF state ON transcription_jobs "
+        "WHEN OLD.id='job-terminal-checkpoint' AND NEW.state='Cancelled' BEGIN "
+        "SELECT RAISE(ABORT,'forced terminal checkpoint failure'); END")));
+
+    coordinator.cancel(QStringLiteral("job-terminal-checkpoint"));
+    const auto cancelling = jobs.findById(QStringLiteral("job-terminal-checkpoint"));
+    QVERIFY(cancelling && cancelling.value().has_value());
+    QCOMPARE(cancelling.value()->state, JobState::Cancelling);
+    const auto retainedLease = jobs.activeLease();
+    QVERIFY(retainedLease && retainedLease.value().has_value());
+    QCOMPARE(retainedLease.value()->jobId, QStringLiteral("job-terminal-checkpoint"));
+    QVERIFY(coordinator.isTranscriptionActive());
+    QCOMPARE(finished.size(), 0);
+    QVERIFY(!errors.isEmpty());
+
+    QSqlQuery allowCheckpoint(connection.value());
+    QVERIFY(allowCheckpoint.exec(QStringLiteral("DROP TRIGGER reject_cancel_checkpoint")));
+    const auto cancelled = [&jobs] {
+        const auto current = jobs.findById(QStringLiteral("job-terminal-checkpoint"));
+        return current && current.value().has_value() && current.value()->state == JobState::Cancelled;
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(cancelled(), 5'000);
+    QTRY_VERIFY_WITH_TIMEOUT(!jobs.activeLease().value().has_value(), 5'000);
+    QTRY_VERIFY_WITH_TIMEOUT(!coordinator.isTranscriptionActive(), 5'000);
+    QCOMPARE(finished.size(), 1);
 }
 
 void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() {

@@ -75,7 +75,6 @@ class TranscriptionCoordinator final : public QObject {
     void scheduleNext();
     void scheduleLeaseRetry();
     void renewActiveLease();
-    void releaseActiveLease();
     void beginJob(const TranscriptionJob& job);
     void continuePreparingJob();
     void verifySourceMedia();
@@ -104,6 +103,7 @@ class TranscriptionCoordinator final : public QObject {
     void failActiveJob(const QString& code, const QString& message);
     void finishCancellation();
     void interruptActiveJob(const QString& reason);
+    [[nodiscard]] bool terminalTransitionNeedsRetry(const QString& jobId) const;
     void clearActive();
     void clearLoadedAsrModel();
     void clearLoadedVadModel();

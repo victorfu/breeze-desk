@@ -47,8 +47,119 @@ class CliTranscriptionPersistenceTest final : public QObject {
     void retriesFailedChunkWithoutRepeatingCompletedChunks();
     void beginsAfterRecoveringUnleasedRunningJob();
     void resumesAnUnleasedRunningJobAfterRecovery();
+    void newSessionCheckpointFailureRetainsItsLease();
+    void resumedSessionCheckpointFailureRetainsItsLease();
     void cancellingLeaseWaitDoesNotInterruptCurrentOwner();
 };
+
+void CliTranscriptionPersistenceTest::newSessionCheckpointFailureRetainsItsLease() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("checkpoint-new.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery rejectCheckpoint(connection.value());
+    QVERIFY(rejectCheckpoint.exec(QStringLiteral(
+        "CREATE TRIGGER reject_new_session_checkpoint BEFORE UPDATE ON transcription_jobs "
+        "WHEN OLD.id='job-checkpoint-new' AND OLD.state='Preparing' BEGIN "
+        "SELECT RAISE(ABORT,'forced new-session checkpoint failure'); END")));
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-checkpoint-new");
+    descriptor.recording.title = QStringLiteral("New checkpoint failure");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.job.id = QStringLiteral("job-checkpoint-new");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts,
+                                             QStringLiteral("checkpoint-new-owner"));
+    const auto started = persistence.beginNew(descriptor);
+    QVERIFY(!started);
+    QVERIFY(started.error().technicalDetails.contains(QStringLiteral("forced new-session")));
+    QVERIFY(persistence.isActive());
+    QCOMPARE(jobs.findById(descriptor.job.id).value()->state, JobState::Preparing);
+    const auto lease = jobs.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->jobId, descriptor.job.id);
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("checkpoint-new-owner"));
+
+    QSqlQuery allowCheckpoint(connection.value());
+    QVERIFY(allowCheckpoint.exec(QStringLiteral("DROP TRIGGER reject_new_session_checkpoint")));
+    QVERIFY(persistence.interrupt(QStringLiteral("test cleanup")));
+    QVERIFY(!persistence.isActive());
+    QVERIFY(!jobs.activeLease().value().has_value());
+}
+
+void CliTranscriptionPersistenceTest::resumedSessionCheckpointFailureRetainsItsLease() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("checkpoint-resume.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-checkpoint-resume");
+    descriptor.recording.title = QStringLiteral("Resume checkpoint failure");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.job.id = QStringLiteral("job-checkpoint-resume");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+    CliTranscriptionPersistence firstRun(recordings, jobs, transcripts,
+                                         QStringLiteral("checkpoint-first-owner"));
+    QVERIFY(firstRun.beginNew(descriptor));
+    QVERIFY(firstRun.beginChunk(0));
+    QVERIFY(firstRun.interrupt(QStringLiteral("prepare resume fixture")));
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery rejectChunkReset(connection.value());
+    QVERIFY(rejectChunkReset.exec(QStringLiteral(
+        "CREATE TRIGGER reject_resume_chunk_reset BEFORE UPDATE ON job_chunks "
+        "WHEN OLD.job_id='job-checkpoint-resume' AND OLD.state='Interrupted' AND NEW.state='Pending' "
+        "BEGIN SELECT RAISE(ABORT,'forced resume chunk reset failure'); END")));
+    QSqlQuery rejectCheckpoint(connection.value());
+    QVERIFY(rejectCheckpoint.exec(QStringLiteral(
+        "CREATE TRIGGER reject_resume_checkpoint BEFORE UPDATE OF state ON transcription_jobs "
+        "WHEN OLD.id='job-checkpoint-resume' AND OLD.state='Preparing' AND NEW.state='Interrupted' "
+        "BEGIN SELECT RAISE(ABORT,'forced resume checkpoint failure'); END")));
+
+    CliTranscriptionPersistence resumed(recordings, jobs, transcripts,
+                                        QStringLiteral("checkpoint-resume-owner"));
+    const auto result = resumed.resume(descriptor.job.id, sourcePath, {});
+    QVERIFY(!result);
+    QVERIFY(result.error().technicalDetails.contains(QStringLiteral("forced resume checkpoint")));
+    QVERIFY(resumed.isActive());
+    QCOMPARE(jobs.findById(descriptor.job.id).value()->state, JobState::Preparing);
+    const auto lease = jobs.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->jobId, descriptor.job.id);
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("checkpoint-resume-owner"));
+
+    QSqlQuery allowChunkReset(connection.value());
+    QVERIFY(allowChunkReset.exec(QStringLiteral("DROP TRIGGER reject_resume_chunk_reset")));
+    QSqlQuery allowCheckpoint(connection.value());
+    QVERIFY(allowCheckpoint.exec(QStringLiteral("DROP TRIGGER reject_resume_checkpoint")));
+    QVERIFY(resumed.interrupt(QStringLiteral("test cleanup")));
+    QVERIFY(!resumed.isActive());
+    QVERIFY(!jobs.activeLease().value().has_value());
+}
 
 void CliTranscriptionPersistenceTest::beginsAfterRecoveringUnleasedRunningJob() {
     QTemporaryDir directory;

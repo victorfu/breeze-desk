@@ -159,8 +159,8 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
     if (!progressResult) {
         const auto checkpoint = transitionTo(JobState::Interrupted, QStringLiteral("DatabaseQueryFailed"),
                                              progressResult.error().diagnosticString());
-        Q_UNUSED(checkpoint)
-        releaseExecutionLease();
+        if (!checkpoint)
+            return Result<DurableTranscriptionIdentity>::failure(checkpoint.error());
         m_active = false;
         return Result<DurableTranscriptionIdentity>::failure(progressResult.error());
     }
@@ -239,8 +239,8 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         if (!updateResult) {
             const auto checkpoint = transitionTo(JobState::Interrupted, QStringLiteral("DatabaseQueryFailed"),
                                                  updateResult.error().diagnosticString());
-            Q_UNUSED(checkpoint)
-            releaseExecutionLease();
+            if (!checkpoint)
+                return Result<DurableTranscriptionIdentity>::failure(checkpoint.error());
             m_active = false;
             return Result<DurableTranscriptionIdentity>::failure(updateResult.error());
         }
@@ -512,7 +512,6 @@ Result<void> CliTranscriptionPersistence::interrupt(const QString& reason, const
     }
     auto result = transitionTo(JobState::Interrupted, errorCode, reason);
     if (result) {
-        releaseExecutionLease();
         m_active = false;
     }
     return result;
@@ -533,7 +532,6 @@ Result<void> CliTranscriptionPersistence::fail(const QString& errorCode, const Q
     }
     auto result = transitionTo(JobState::Failed, errorCode, message);
     if (result) {
-        releaseExecutionLease();
         m_active = false;
     }
     return result;
@@ -564,7 +562,6 @@ Result<void> CliTranscriptionPersistence::complete() {
     auto completed = m_jobs.completeAndActivate(m_identity.recordingId, m_identity.jobId, m_ownerToken);
     if (!completed)
         return completed;
-    releaseExecutionLease();
     m_active = false;
     return Result<void>::success();
 }
@@ -681,13 +678,6 @@ Result<void> CliTranscriptionPersistence::waitForExecutionClaim(const QString& j
         }
         QThread::msleep(250);
     }
-}
-
-void CliTranscriptionPersistence::releaseExecutionLease() {
-    if (m_identity.jobId.isEmpty() || m_ownerToken.isEmpty())
-        return;
-    const auto released = m_jobs.releaseLease(m_identity.jobId, m_ownerToken);
-    Q_UNUSED(released)
 }
 
 void CliTranscriptionPersistence::refreshChunk(const JobChunk& changed) {

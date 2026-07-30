@@ -74,7 +74,6 @@ class CliTranscriptionPersistence final {
     [[nodiscard]] Result<void> updateRecordingNormalizedPath(const QString& path);
     [[nodiscard]] Result<void> requireActive() const;
     [[nodiscard]] Result<void> waitForExecutionClaim(const QString& jobId);
-    void releaseExecutionLease();
     void refreshChunk(const JobChunk& chunk);
 
     IRecordingRepository& m_recordings;

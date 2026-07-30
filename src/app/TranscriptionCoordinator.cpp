@@ -642,19 +642,6 @@ void TranscriptionCoordinator::renewActiveLease() {
     interruptActiveJob(message);
 }
 
-void TranscriptionCoordinator::releaseActiveLease() {
-    m_leaseHeartbeatTimer.stop();
-    if (m_activeJob.id.isEmpty()) {
-        return;
-    }
-    const auto released = m_jobs.releaseLease(m_activeJob.id, m_ownerToken);
-    // Terminal transitions and expired-lease takeover both clear the lease atomically.
-    // Treat an already-cleared lease as successful cleanup.
-    if (!released && released.error().code != ErrorCode::InvalidStateTransition && !m_shuttingDown) {
-        emit errorOccurred(released.error().message);
-    }
-}
-
 void TranscriptionCoordinator::beginJob(const TranscriptionJob& job) {
     m_activeJob = job;
     m_activeJob.state = JobState::Preparing;
@@ -1902,6 +1889,14 @@ void TranscriptionCoordinator::failActiveJob(const QString& code, const QString&
     const auto failed = m_jobs.transition(jobId, JobState::Failed, code, message);
     if (!failed) {
         emit errorOccurred(failed.error().message);
+        if (terminalTransitionNeedsRetry(jobId)) {
+            QTimer::singleShot(1'000, this, [this, jobId, code, message] {
+                if (activeJobMatches(jobId)) {
+                    failActiveJob(code, message);
+                }
+            });
+            return;
+        }
     }
     publish(jobId);
     publishEvents(jobId);
@@ -1910,7 +1905,7 @@ void TranscriptionCoordinator::failActiveJob(const QString& code, const QString&
     }
     emit transcriptionFinished(m_activeJob.recordingId, jobId, false);
     emit errorOccurred(message);
-    releaseActiveLease();
+    m_leaseHeartbeatTimer.stop();
     m_runningJobId.clear();
     emit runningJobChanged({});
     clearActive();
@@ -1933,6 +1928,14 @@ void TranscriptionCoordinator::finishCancellation() {
     const auto cancelled = m_jobs.transition(jobId, JobState::Cancelled);
     if (!cancelled) {
         emit errorOccurred(cancelled.error().message);
+        if (terminalTransitionNeedsRetry(jobId)) {
+            QTimer::singleShot(1'000, this, [this, jobId] {
+                if (activeJobMatches(jobId)) {
+                    finishCancellation();
+                }
+            });
+            return;
+        }
     }
     publish(jobId);
     publishEvents(jobId);
@@ -1940,7 +1943,7 @@ void TranscriptionCoordinator::finishCancellation() {
         emit transcriptChanged(m_activeJob.recordingId, jobId, false);
     }
     emit transcriptionFinished(m_activeJob.recordingId, jobId, false);
-    releaseActiveLease();
+    m_leaseHeartbeatTimer.stop();
     m_runningJobId.clear();
     emit runningJobChanged({});
     clearActive();
@@ -1966,6 +1969,14 @@ void TranscriptionCoordinator::interruptActiveJob(const QString& reason) {
         m_jobs.transition(jobId, JobState::Interrupted, QStringLiteral("WorkerCrashed"), reason);
     if (!interrupted) {
         emit errorOccurred(interrupted.error().message);
+        if (terminalTransitionNeedsRetry(jobId)) {
+            QTimer::singleShot(1'000, this, [this, jobId, reason] {
+                if (activeJobMatches(jobId)) {
+                    interruptActiveJob(reason);
+                }
+            });
+            return;
+        }
     }
     publish(jobId);
     publishEvents(jobId);
@@ -1973,10 +1984,15 @@ void TranscriptionCoordinator::interruptActiveJob(const QString& reason) {
         emit transcriptChanged(m_activeJob.recordingId, jobId, false);
     }
     emit transcriptionFinished(m_activeJob.recordingId, jobId, false);
-    releaseActiveLease();
+    m_leaseHeartbeatTimer.stop();
     m_runningJobId.clear();
     emit runningJobChanged({});
     clearActive();
+}
+
+bool TranscriptionCoordinator::terminalTransitionNeedsRetry(const QString& jobId) const {
+    const auto current = m_jobs.findById(jobId);
+    return !current || (current.value().has_value() && JobStateMachine::isRunning(current.value()->state));
 }
 
 void TranscriptionCoordinator::clearActive() {
