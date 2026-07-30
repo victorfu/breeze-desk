@@ -40,6 +40,7 @@ class WorkerProcessManager final : public QObject {
   private:
     [[nodiscard]] QStringList workerExecutables() const;
     void connectClientWithRetry(quint64 processGeneration, int attempt = 0);
+    void recoverAuthenticatedChannelFailure(quint64 processGeneration, const QString& reason);
     void handleUnexpectedExit(int exitCode, QProcess::ExitStatus status);
     void scheduleForcedCancellationRecovery();
     void settleForcedCancellation();
@@ -60,6 +61,7 @@ class WorkerProcessManager final : public QObject {
     QTimer m_forcedCancellationRecoveryTimer;
     quint64 m_forcedCancellationTicket = 0;
     quint64 m_processGeneration = 0;
+    quint64 m_authenticatedProcessGeneration = 0;
     QString m_forcedCancellationJobId;
     QString m_forcedCancellationRequestId;
     bool m_forcedCancellationPending = false;

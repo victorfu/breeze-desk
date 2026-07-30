@@ -34,10 +34,15 @@ add_dependencies(tst_ipc_worker_process breezedesk-asr-worker)
 add_test(NAME IPC.WorkerProcess COMMAND tst_ipc_worker_process)
 set_tests_properties(IPC.WorkerProcess PROPERTIES LABELS "IPC;integration")
 
+add_executable(worker_liveness_helper worker_liveness_helper.cpp)
+target_link_libraries(worker_liveness_helper PRIVATE Qt6::Core breezedesk_ipc)
+
 add_executable(tst_ipc_worker_process_manager tst_WorkerProcessManager.cpp)
 target_link_libraries(tst_ipc_worker_process_manager PRIVATE
     Qt6::Test breezedesk_worker_process)
-add_dependencies(tst_ipc_worker_process_manager breezedesk-asr-worker)
+target_compile_definitions(tst_ipc_worker_process_manager PRIVATE
+    BREEZEDESK_TEST_WORKER_LIVENESS_PATH="$<TARGET_FILE:worker_liveness_helper>")
+add_dependencies(tst_ipc_worker_process_manager breezedesk-asr-worker worker_liveness_helper)
 add_test(NAME IPC.WorkerProcessManager COMMAND tst_ipc_worker_process_manager)
 set_tests_properties(IPC.WorkerProcessManager PROPERTIES LABELS "IPC;integration")
 
@@ -62,6 +67,7 @@ foreach(target IN ITEMS
         tst_ipc_worker_transport
         tst_ipc_worker_process
         tst_ipc_worker_process_manager
+        worker_liveness_helper
         single_instance_race_helper
         tst_ipc_single_instance
         tst_cli_forwarding_policy)

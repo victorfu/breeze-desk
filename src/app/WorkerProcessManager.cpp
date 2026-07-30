@@ -49,14 +49,32 @@ WorkerProcessManager::WorkerProcessManager(QObject* parent)
     SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS);
 #endif
     connect(&m_client, &Ipc::AsrWorkerClient::ready, this, [this] {
+        m_authenticatedProcessGeneration = m_processGeneration;
+        setLastError({});
         emit readyChanged();
         if (m_forcedCancellationPending && m_forcedCancellationAwaitingRestart) {
             settleForcedCancellation();
         }
     });
-    connect(&m_client, &Ipc::AsrWorkerClient::disconnected, this, &WorkerProcessManager::readyChanged);
+    connect(&m_client, &Ipc::AsrWorkerClient::disconnected, this, [this] {
+        const quint64 processGeneration = m_processGeneration;
+        const bool authenticated = m_authenticatedProcessGeneration == processGeneration;
+        emit readyChanged();
+        if (authenticated) {
+            recoverAuthenticatedChannelFailure(
+                processGeneration, QStringLiteral("The ASR worker disconnected unexpectedly."));
+        }
+    });
     connect(&m_client, &Ipc::AsrWorkerClient::protocolError, this,
-            [this](const Ipc::ProtocolError& error) { setLastError(error.detail); });
+            [this](const Ipc::ProtocolError& error) {
+                const quint64 processGeneration = m_processGeneration;
+                const bool authenticated = m_client.isReady() &&
+                                           m_authenticatedProcessGeneration == processGeneration;
+                setLastError(error.detail);
+                if (authenticated) {
+                    recoverAuthenticatedChannelFailure(processGeneration, error.detail);
+                }
+            });
     connect(&m_client, &Ipc::AsrWorkerClient::envelopeReceived, this, [this](const Ipc::Envelope& envelope) {
         if (envelope.type == Ipc::MessageType::ChunkCompleted ||
             envelope.type == Ipc::MessageType::TranscriptionCompleted ||
@@ -206,6 +224,7 @@ bool WorkerProcessManager::start() {
     m_process.setProcessEnvironment(processEnvironment);
     m_process.setProcessChannelMode(QProcess::SeparateChannels);
     ++m_processGeneration;
+    m_authenticatedProcessGeneration = 0;
     m_terminalRequests.clear();
     m_terminalRequestOrder.clear();
     m_process.start(executable, arguments, QIODevice::ReadOnly);
@@ -243,10 +262,34 @@ void WorkerProcessManager::connectClientWithRetry(const quint64 processGeneratio
     }
 }
 
+void WorkerProcessManager::recoverAuthenticatedChannelFailure(const quint64 processGeneration,
+                                                               const QString& reason) {
+    if (processGeneration != m_processGeneration ||
+        m_authenticatedProcessGeneration != processGeneration || m_stopping ||
+        m_process.state() == QProcess::NotRunning) {
+        return;
+    }
+
+    // Once an authenticated channel becomes unusable, reconnecting to the same
+    // process is unsafe: it may still be running the request whose terminal
+    // reply was lost. Invalidate every callback for this generation and let the
+    // QProcess::finished path emit the single interruption and start a clean
+    // worker generation.
+    ++m_processGeneration;
+    m_authenticatedProcessGeneration = 0;
+    m_client.disconnectFromWorker();
+    emit readyChanged();
+    if (!reason.trimmed().isEmpty()) {
+        setLastError(reason);
+    }
+    m_process.kill();
+}
+
 void WorkerProcessManager::stop() {
     m_stopping = true;
     m_forcedCancellationRecoveryTimer.stop();
     ++m_processGeneration;
+    m_authenticatedProcessGeneration = 0;
     ++m_forcedCancellationTicket;
     if (m_client.isReady()) {
         m_client.sendRequest(Ipc::MessageType::Shutdown, {}, {});
@@ -269,6 +312,7 @@ void WorkerProcessManager::abortImmediately() {
     // recoverable so the normal crash-isolation path can start a fresh worker.
     m_stopping = false;
     ++m_processGeneration;
+    m_authenticatedProcessGeneration = 0;
     m_client.disconnectFromWorker();
     if (m_process.state() != QProcess::NotRunning) {
         m_process.kill();
@@ -319,6 +363,7 @@ void WorkerProcessManager::forceCancelAfterGrace(const QString& jobId, const QSt
 
 void WorkerProcessManager::handleUnexpectedExit(int exitCode, QProcess::ExitStatus status) {
     ++m_processGeneration;
+    m_authenticatedProcessGeneration = 0;
     if (m_forcedCancellationPending) {
         m_forcedCancellationAwaitingRestart = true;
     }
