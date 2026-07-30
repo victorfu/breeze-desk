@@ -4,6 +4,12 @@
 
 namespace BreezeDesk {
 
+struct StorageLayoutInitializationResult final {
+    bool succeeded{false};
+    bool recoveredFromLegacyOverride{false};
+    QString error;
+};
+
 class StoragePaths final {
   public:
     [[nodiscard]] static QString root();
@@ -15,6 +21,8 @@ class StoragePaths final {
     [[nodiscard]] static QString database();
     [[nodiscard]] static QString databaseFile();
     [[nodiscard]] static QString temporary();
+    [[nodiscard]] static StorageLayoutInitializationResult
+    initializeLayout(const QString& legacyConfiguredRoot = {});
     [[nodiscard]] static bool ensureLayout(QString* error = nullptr);
 
   private:

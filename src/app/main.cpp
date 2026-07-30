@@ -87,16 +87,24 @@ int main(int argc, char* argv[]) {
     BreezeDesk::PrivacySettingsManager privacySettings(settingsStore);
     BreezeDesk::WindowSettingsManager windowSettings(settingsStore);
     Q_UNUSED(windowSettings)
-    if (!storageSettings.dataDirectoryOverride().isEmpty()) {
-        qputenv("BREEZEDESK_DATA_ROOT", storageSettings.dataDirectoryOverride().toUtf8());
-    }
-
-    QString storageError;
-    if (!BreezeDesk::StoragePaths::ensureLayout(&storageError)) {
-        const QByteArray safeError = BreezeDesk::LogSanitizer::sanitize(storageError).toUtf8();
+    const BreezeDesk::StorageLayoutInitializationResult storageInitialization =
+        BreezeDesk::StoragePaths::initializeLayout(storageSettings.dataDirectoryOverride());
+    if (!storageInitialization.succeeded) {
+        const QByteArray safeError =
+            BreezeDesk::LogSanitizer::sanitize(storageInitialization.error).toUtf8();
         std::fprintf(stderr, "%s storage initialization failed: %s\n", qUtf8Printable(productName),
                      safeError.constData());
         return 10;
+    }
+    bool recoveredStorageSettingReset = true;
+    QString recoveredStorageSettingError;
+    if (storageInitialization.recoveredFromLegacyOverride) {
+        storageSettings.setDataDirectoryOverride({});
+        const auto resetResult = storageSettings.sync();
+        if (!resetResult) {
+            recoveredStorageSettingReset = false;
+            recoveredStorageSettingError = resetResult.error().message;
+        }
     }
 
     BreezeDesk::LoggingConfiguration loggingConfiguration;
@@ -110,6 +118,14 @@ int main(int argc, char* argv[]) {
             BreezeDesk::LogSanitizer::sanitize(loggerResult.error().diagnosticString()).toUtf8();
         std::fprintf(stderr, "%s logging initialization failed: %s\n", qUtf8Printable(productName),
                      safeError.constData());
+    }
+    if (storageInitialization.recoveredFromLegacyOverride) {
+        qCWarning(BreezeDesk::logApplication,
+                  "The legacy application data root was unavailable; restored the default root");
+        if (!recoveredStorageSettingReset) {
+            qCWarning(BreezeDesk::logApplication, "The invalid application data setting was not cleared: %s",
+                      qUtf8Printable(recoveredStorageSettingError));
+        }
     }
     const BreezeDesk::TemporaryCleanupReport cleanup = BreezeDesk::TemporaryFileJanitor::clean();
     if (!cleanup.succeeded()) {
@@ -453,6 +469,15 @@ int main(int argc, char* argv[]) {
     engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
     if (engine.rootObjects().isEmpty()) {
         return 11;
+    }
+    if (storageInitialization.recoveredFromLegacyOverride) {
+        viewModel->showToast(
+            recoveredStorageSettingReset
+                ? QObject::tr("The configured application data folder was unavailable. BreezeDesk restored "
+                              "the default data location.")
+                : QObject::tr("The configured application data folder was unavailable. BreezeDesk is using "
+                              "the default data location for this launch, but the invalid setting could not "
+                              "be cleared."));
     }
 
 #ifdef Q_OS_MACOS

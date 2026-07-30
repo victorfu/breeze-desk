@@ -2027,6 +2027,16 @@
         <translation>模型測試已取消。</translation>
     </message>
     <message>
+        <location filename="../src/app/main.cpp" line="476"/>
+        <source>The configured application data folder was unavailable. BreezeDesk restored the default data location.</source>
+        <translation>先前設定的應用程式資料夾無法使用。BreezeDesk 已改回預設資料位置。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/main.cpp" line="478"/>
+        <source>The configured application data folder was unavailable. BreezeDesk is using the default data location for this launch, but the invalid setting could not be cleared.</source>
+        <translation>先前設定的應用程式資料夾無法使用。BreezeDesk 本次啟動將使用預設資料位置，但無法清除該設定。</translation>
+    </message>
+    <message>
         <source>Show BreezeDesk</source>
         <translation type="vanished">顯示 BreezeDesk</translation>
     </message>

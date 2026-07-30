@@ -2032,6 +2032,16 @@
         <translation>Model test cancelled.</translation>
     </message>
     <message>
+        <location filename="../src/app/main.cpp" line="476"/>
+        <source>The configured application data folder was unavailable. BreezeDesk restored the default data location.</source>
+        <translation>The configured application data folder was unavailable. BreezeDesk restored the default data location.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/main.cpp" line="478"/>
+        <source>The configured application data folder was unavailable. BreezeDesk is using the default data location for this launch, but the invalid setting could not be cleared.</source>
+        <translation>The configured application data folder was unavailable. BreezeDesk is using the default data location for this launch, but the invalid setting could not be cleared.</translation>
+    </message>
+    <message>
         <source>Show BreezeDesk</source>
         <translation type="vanished">Show BreezeDesk</translation>
     </message>

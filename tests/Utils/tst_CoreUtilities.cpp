@@ -6,22 +6,58 @@
 
 #include <QFileInfo>
 #include <QFile>
+#include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
 
 using namespace BreezeDesk;
 
+namespace {
+
+class DataRootEnvironmentGuard final {
+  public:
+    DataRootEnvironmentGuard()
+        : m_wasSet(qEnvironmentVariableIsSet("BREEZEDESK_DATA_ROOT")),
+          m_value(qgetenv("BREEZEDESK_DATA_ROOT")) {}
+
+    ~DataRootEnvironmentGuard() {
+        if (m_wasSet) {
+            qputenv("BREEZEDESK_DATA_ROOT", m_value);
+        } else {
+            qunsetenv("BREEZEDESK_DATA_ROOT");
+        }
+    }
+
+    DataRootEnvironmentGuard(const DataRootEnvironmentGuard&) = delete;
+    DataRootEnvironmentGuard& operator=(const DataRootEnvironmentGuard&) = delete;
+
+  private:
+    bool m_wasSet{false};
+    QByteArray m_value;
+};
+
+} // namespace
+
 class CoreUtilitiesTest final : public QObject {
     Q_OBJECT
 
   private slots:
+    void initTestCase();
     void resultCarriesTypedErrors();
     void textNormalizationHandlesChineseAndEnglish();
     void fileNamesAndCsvAreSafe();
     void hashesFileContentsAndReportsReadFailures();
     void clockFormattingUsesMilliseconds();
     void storageLayoutSupportsAnExplicitTestRoot();
+    void storageInitializationHonorsAnExplicitEnvironmentRoot();
+    void storageInitializationActivatesALegacyRootWithoutAnExplicitEnvironment();
+    void storageInitializationRecoversFromAnInvalidConfiguredRoot();
+    void storageInitializationDoesNotIgnoreAnInvalidExplicitEnvironmentRoot();
 };
+
+void CoreUtilitiesTest::initTestCase() {
+    QStandardPaths::setTestModeEnabled(true);
+}
 
 void CoreUtilitiesTest::resultCarriesTypedErrors() {
     auto result = Result<int>::failure(
@@ -89,6 +125,77 @@ void CoreUtilitiesTest::storageLayoutSupportsAnExplicitTestRoot() {
     } else {
         qputenv("BREEZEDESK_DATA_ROOT", previous);
     }
+}
+
+void CoreUtilitiesTest::storageInitializationHonorsAnExplicitEnvironmentRoot() {
+    DataRootEnvironmentGuard environmentGuard;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString inheritedRoot = directory.filePath(QStringLiteral("inherited-data"));
+    const QString configuredRoot = directory.filePath(QStringLiteral("configured-data"));
+    qputenv("BREEZEDESK_DATA_ROOT", inheritedRoot.toUtf8());
+
+    const StorageLayoutInitializationResult result = StoragePaths::initializeLayout(configuredRoot);
+    QVERIFY2(result.succeeded, qPrintable(result.error));
+    QVERIFY(!result.recoveredFromLegacyOverride);
+    QCOMPARE(StoragePaths::root(), QFileInfo(inheritedRoot).absoluteFilePath());
+    QCOMPARE(qgetenv("BREEZEDESK_DATA_ROOT"), inheritedRoot.toUtf8());
+    QVERIFY(!QFileInfo::exists(configuredRoot));
+    QVERIFY(QFileInfo(StoragePaths::database()).isDir());
+}
+
+void CoreUtilitiesTest::storageInitializationActivatesALegacyRootWithoutAnExplicitEnvironment() {
+    DataRootEnvironmentGuard environmentGuard;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString configuredRoot = directory.filePath(QStringLiteral("configured-data"));
+    qunsetenv("BREEZEDESK_DATA_ROOT");
+
+    const StorageLayoutInitializationResult result = StoragePaths::initializeLayout(configuredRoot);
+    QVERIFY2(result.succeeded, qPrintable(result.error));
+    QVERIFY(!result.recoveredFromLegacyOverride);
+    QCOMPARE(StoragePaths::root(), QFileInfo(configuredRoot).absoluteFilePath());
+    QVERIFY(QFileInfo(StoragePaths::database()).isDir());
+}
+
+void CoreUtilitiesTest::storageInitializationRecoversFromAnInvalidConfiguredRoot() {
+    DataRootEnvironmentGuard environmentGuard;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    qunsetenv("BREEZEDESK_DATA_ROOT");
+
+    const QString blockedRoot = directory.filePath(QStringLiteral("not-a-directory"));
+    QFile blocker(blockedRoot);
+    QVERIFY(blocker.open(QIODevice::WriteOnly));
+    blocker.close();
+
+    const StorageLayoutInitializationResult result = StoragePaths::initializeLayout(blockedRoot);
+    QVERIFY2(result.succeeded, qPrintable(result.error));
+    QVERIFY(result.recoveredFromLegacyOverride);
+    QVERIFY(!qEnvironmentVariableIsSet("BREEZEDESK_DATA_ROOT"));
+    QCOMPARE(StoragePaths::root(),
+             QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
+    QVERIFY(QFileInfo(StoragePaths::database()).isDir());
+}
+
+void CoreUtilitiesTest::storageInitializationDoesNotIgnoreAnInvalidExplicitEnvironmentRoot() {
+    DataRootEnvironmentGuard environmentGuard;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString blockedRoot = directory.filePath(QStringLiteral("not-a-directory"));
+    QFile blocker(blockedRoot);
+    QVERIFY(blocker.open(QIODevice::WriteOnly));
+    blocker.close();
+    qputenv("BREEZEDESK_DATA_ROOT", blockedRoot.toUtf8());
+
+    const QString configuredRoot = directory.filePath(QStringLiteral("configured-data"));
+    const StorageLayoutInitializationResult result = StoragePaths::initializeLayout(configuredRoot);
+    QVERIFY(!result.succeeded);
+    QVERIFY(!result.recoveredFromLegacyOverride);
+    QVERIFY(!result.error.isEmpty());
+    QCOMPARE(StoragePaths::root(), QFileInfo(blockedRoot).absoluteFilePath());
+    QCOMPARE(qgetenv("BREEZEDESK_DATA_ROOT"), blockedRoot.toUtf8());
+    QVERIFY(!QFileInfo::exists(configuredRoot));
 }
 
 QTEST_GUILESS_MAIN(CoreUtilitiesTest)

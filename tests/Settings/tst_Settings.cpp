@@ -11,6 +11,7 @@ class SettingsTest final : public QObject {
   private slots:
     void defaultsArePrivacyPreserving();
     void valuesPersistAndAreClamped();
+    void clearingLegacyDataDirectoryOverridePersists();
     void legacySettingsMigrate();
     void debugAndReleaseFilesAreIsolated();
 };
@@ -53,6 +54,27 @@ void SettingsTest::valuesPersistAndAreClamped() {
     QCOMPARE(appearance.textScale(), 2.0);
     QCOMPARE(transcription.backend(), BackendPreference::Cpu);
     QCOMPARE(transcription.lowConfidenceThreshold(), 0.0);
+}
+
+void SettingsTest::clearingLegacyDataDirectoryOverridePersists() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString settingsPath = directory.filePath(QStringLiteral("settings.ini"));
+    {
+        SettingsStore store(settingsPath);
+        StorageSettingsManager storage(store);
+        storage.setDataDirectoryOverride(directory.filePath(QStringLiteral("legacy-data")));
+        QVERIFY(storage.sync());
+    }
+    {
+        SettingsStore store(settingsPath);
+        StorageSettingsManager storage(store);
+        QVERIFY(!storage.dataDirectoryOverride().isEmpty());
+        storage.setDataDirectoryOverride({});
+        QVERIFY(storage.sync());
+    }
+    SettingsStore store(settingsPath);
+    QCOMPARE(StorageSettingsManager(store).dataDirectoryOverride(), QString{});
 }
 
 void SettingsTest::legacySettingsMigrate() {
