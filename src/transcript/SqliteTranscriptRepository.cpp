@@ -264,7 +264,7 @@ Result<void> SqliteTranscriptRepository::replaceTranscript(const QString& record
     if (!validation) {
         return validation;
     }
-    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
         const auto editable = validateOwnerlessEdit(database, recordingId, jobId);
         if (!editable) {
             return editable;
@@ -286,11 +286,12 @@ Result<void> SqliteTranscriptRepository::replaceTranscript(const QString& record
         if (!remove.exec())
             return Result<void>::failure(
                 queryError(QStringLiteral("The old transcript could not be replaced."), remove));
-        return insertSegments(database, recordingId, jobId, std::move(segments));
+        const auto inserted = insertSegments(database, recordingId, jobId, std::move(segments));
+        if (!inserted) {
+            return inserted;
+        }
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recordingId);
     });
-    if (!result)
-        return result;
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
 }
 
 Result<void> SqliteTranscriptRepository::saveEditedTranscript(const QString& recordingId,
@@ -300,7 +301,7 @@ Result<void> SqliteTranscriptRepository::saveEditedTranscript(const QString& rec
     if (!validation) {
         return validation;
     }
-    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
         const auto editable = validateOwnerlessEdit(database, recordingId, jobId);
         if (!editable) {
             return editable;
@@ -312,12 +313,12 @@ Result<void> SqliteTranscriptRepository::saveEditedTranscript(const QString& rec
             return Result<void>::failure(
                 queryError(QStringLiteral("The transcript could not be saved."), remove));
         }
-        return insertSegments(database, recordingId, jobId, std::move(segments));
+        const auto inserted = insertSegments(database, recordingId, jobId, std::move(segments));
+        if (!inserted) {
+            return inserted;
+        }
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recordingId);
     });
-    if (!result) {
-        return result;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
 }
 
 Result<void> SqliteTranscriptRepository::replaceChunk(const QString& recordingId, const QString& jobId,
@@ -365,22 +366,21 @@ Result<void> SqliteTranscriptRepository::replaceChunk(const QString& recordingId
         if (!remove.exec())
             return Result<void>::failure(
                 queryError(QStringLiteral("The chunk transcript could not be replaced."), remove));
-        return insertSegments(database, recordingId, jobId, std::move(combined), provisional);
+        const auto inserted =
+            insertSegments(database, recordingId, jobId, std::move(combined), provisional);
+        if (!inserted || provisional) {
+            return inserted;
+        }
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recordingId);
     };
-    auto result = m_databaseManager.executionLeaseTransaction(jobId, ownerToken, operation);
-    if (!result)
-        return result;
-    if (provisional)
-        return Result<void>::success();
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
+    return m_databaseManager.executionLeaseTransaction(jobId, ownerToken, operation);
 }
 
 Result<void> SqliteTranscriptRepository::saveEditedSegment(const TranscriptSegment& segment) {
     if (segment.startMs < 0 || segment.endMs <= segment.startMs)
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("The segment time range is invalid.")));
-    QString durableRecordingId;
-    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
         const auto current = loadSegment(database, segment.id);
         if (!current) {
             return Result<void>::failure(current.error());
@@ -439,18 +439,13 @@ Result<void> SqliteTranscriptRepository::saveEditedSegment(const TranscriptSegme
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::NotFound, QStringLiteral("The transcript segment no longer exists.")));
         }
-        durableRecordingId = durable.recordingId;
-        return Result<void>::success();
+        return DatabaseSearchService(m_databaseManager)
+            .rebuildRecording(database, durable.recordingId);
     });
-    if (!result) {
-        return result;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(durableRecordingId);
 }
 
 Result<void> SqliteTranscriptRepository::deleteSegment(const QString& segmentId) {
-    QString durableRecordingId;
-    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
         const auto current = loadSegment(database, segmentId);
         if (!current) {
             return Result<void>::failure(current.error());
@@ -477,13 +472,9 @@ Result<void> SqliteTranscriptRepository::deleteSegment(const QString& segmentId)
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::NotFound, QStringLiteral("The transcript segment no longer exists.")));
         }
-        durableRecordingId = durable.recordingId;
-        return Result<void>::success();
+        return DatabaseSearchService(m_databaseManager)
+            .rebuildRecording(database, durable.recordingId);
     });
-    if (!result || durableRecordingId.isEmpty()) {
-        return result;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(durableRecordingId);
 }
 
 } // namespace BreezeDesk

@@ -147,8 +147,56 @@ Result<void> ensureJobBelongsToRecording(QSqlDatabase& database, const QString& 
     return Result<void>::success();
 }
 
+QStringList normalizedTags(const QStringList& tags) {
+    QStringList unique;
+    QSet<QString> seen;
+    for (const QString& tag : tags) {
+        const QString clean = tag.trimmed();
+        const QString key = clean.toCaseFolded();
+        if (!clean.isEmpty() && !seen.contains(key)) {
+            seen.insert(key);
+            unique.append(clean);
+        }
+    }
+    return unique;
+}
+
+Result<void> replaceTags(QSqlDatabase& database, const QString& recordingId,
+                         const QStringList& tags) {
+    QSqlQuery remove(database);
+    remove.prepare(QStringLiteral("DELETE FROM recording_tags WHERE recording_id=?"));
+    remove.addBindValue(recordingId);
+    if (!remove.exec()) {
+        return Result<void>::failure(
+            queryError(QStringLiteral("Existing tags could not be replaced."), remove));
+    }
+    for (const QString& tag : tags) {
+        QSqlQuery insertTag(database);
+        const QString tagId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+        insertTag.prepare(QStringLiteral("INSERT OR IGNORE INTO tags(id,name,created_at) VALUES(?,?,?)"));
+        insertTag.addBindValue(tagId);
+        insertTag.addBindValue(tag);
+        insertTag.addBindValue(TimeUtils::nowStorageString());
+        if (!insertTag.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("A tag could not be created."), insertTag));
+        }
+        QSqlQuery attach(database);
+        attach.prepare(QStringLiteral("INSERT INTO recording_tags(recording_id,tag_id) SELECT ?,id FROM "
+                                      "tags WHERE name=? COLLATE NOCASE"));
+        attach.addBindValue(recordingId);
+        attach.addBindValue(tag);
+        if (!attach.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("A tag could not be attached."), attach));
+        }
+    }
+    return Result<void>::success();
+}
+
 Result<void> updateMetadataColumn(DatabaseManager& databaseManager, const QString& recordingId,
-                                  const QString& column, const QVariant& value) {
+                                  const QString& column, const QVariant& value,
+                                  const bool rebuildSearch) {
     if (recordingId.trimmed().isEmpty()) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A recording ID is required.")));
@@ -167,7 +215,9 @@ Result<void> updateMetadataColumn(DatabaseManager& databaseManager, const QStrin
             return Result<void>::failure(UserFacingError::database(
                 ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recordingId));
         }
-        return Result<void>::success();
+        return rebuildSearch
+                   ? DatabaseSearchService(databaseManager).rebuildRecording(database, recordingId)
+                   : Result<void>::success();
     });
 }
 
@@ -187,7 +237,8 @@ Result<void> SqliteRecordingRepository::create(Recording recording) {
     if (!recording.createdAt.isValid())
         recording.createdAt = now;
     recording.updatedAt = now;
-    auto result = m_databaseManager.transaction([&recording](QSqlDatabase& database) {
+    const QStringList tags = normalizedTags(recording.tags);
+    return m_databaseManager.transaction([&](QSqlDatabase& database) {
         QSqlQuery query(database);
         query.prepare(QStringLiteral(
             "INSERT INTO recordings(id,title,source_path,managed_media_path,normalized_pcm_path,"
@@ -214,16 +265,12 @@ Result<void> SqliteRecordingRepository::create(Recording recording) {
         if (!query.exec())
             return Result<void>::failure(
                 queryError(QStringLiteral("The recording could not be created."), query));
-        return Result<void>::success();
+        const auto tagsResult = replaceTags(database, recording.id, tags);
+        if (!tagsResult) {
+            return tagsResult;
+        }
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recording.id);
     });
-    if (!result)
-        return result;
-    if (!recording.tags.isEmpty()) {
-        auto tagResult = setTags(recording.id, recording.tags);
-        if (!tagResult)
-            return tagResult;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recording.id);
 }
 
 Result<void> SqliteRecordingRepository::update(const Recording& recording, const QString& jobId,
@@ -238,6 +285,8 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording, const
             ErrorCode::InvalidArgument,
             QStringLiteral("A transcription job and lease owner must be supplied together.")));
     }
+    const bool replaceRecordingTags = !recording.tags.isEmpty();
+    const QStringList tags = normalizedTags(recording.tags);
     const auto updateAllFields = [&](QSqlDatabase& database) {
         const auto leaseCheck = ensureNoActiveExecutionLease(database, recording.id);
         if (!leaseCheck) {
@@ -269,7 +318,13 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording, const
             return Result<void>::failure(UserFacingError::database(
                 ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recording.id));
         }
-        return Result<void>::success();
+        if (replaceRecordingTags) {
+            const auto tagsResult = replaceTags(database, recording.id, tags);
+            if (!tagsResult) {
+                return tagsResult;
+            }
+        }
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recording.id);
     };
     const auto updateDerivedFields = [&](QSqlDatabase& database) {
         const auto jobCheck = ensureJobBelongsToRecording(database, jobId, recording.id);
@@ -299,22 +354,10 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording, const
         }
         return Result<void>::success();
     };
-    const auto result = ownerToken.isEmpty()
-                            ? m_databaseManager.immediateTransaction(updateAllFields)
-                            : m_databaseManager.executionLeaseTransaction(jobId, ownerToken,
-                                                                          updateDerivedFields);
-    if (!result) {
-        return result;
-    }
-    if (!ownerToken.isEmpty()) {
-        return Result<void>::success();
-    }
-    if (!recording.tags.isEmpty()) {
-        auto tagResult = setTags(recording.id, recording.tags);
-        if (!tagResult)
-            return tagResult;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recording.id);
+    return ownerToken.isEmpty()
+               ? m_databaseManager.immediateTransaction(updateAllFields)
+               : m_databaseManager.executionLeaseTransaction(jobId, ownerToken,
+                                                               updateDerivedFields);
 }
 
 Result<void> SqliteRecordingRepository::updateTitle(const QString& recordingId, const QString& title) {
@@ -323,21 +366,13 @@ Result<void> SqliteRecordingRepository::updateTitle(const QString& recordingId, 
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A recording title is required.")));
     }
-    const auto result =
-        updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("title"), trimmedTitle);
-    if (!result) {
-        return result;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
+    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("title"),
+                                trimmedTitle, true);
 }
 
 Result<void> SqliteRecordingRepository::updateNotes(const QString& recordingId, const QString& notes) {
-    const auto result = updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("notes"),
-                                             nonNull(notes));
-    if (!result) {
-        return result;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
+    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("notes"),
+                                nonNull(notes), true);
 }
 
 Result<void> SqliteRecordingRepository::updateReviewState(const QString& recordingId,
@@ -347,7 +382,7 @@ Result<void> SqliteRecordingRepository::updateReviewState(const QString& recordi
             ErrorCode::InvalidArgument, QStringLiteral("A review state is required.")));
     }
     return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("review_state"),
-                                reviewState);
+                                reviewState, false);
 }
 
 Result<void> SqliteRecordingRepository::relinkSource(const QString& recordingId,
@@ -511,47 +546,14 @@ Result<RecordingPage> SqliteRecordingRepository::list(const RecordingQuery& requ
 }
 
 Result<void> SqliteRecordingRepository::setTags(const QString& recordingId, const QStringList& tags) {
-    QStringList unique;
-    QSet<QString> seen;
-    for (const QString& tag : tags) {
-        const QString clean = tag.trimmed();
-        const QString key = clean.toCaseFolded();
-        if (!clean.isEmpty() && !seen.contains(key)) {
-            seen.insert(key);
-            unique.append(clean);
+    const QStringList unique = normalizedTags(tags);
+    return m_databaseManager.transaction([&](QSqlDatabase& database) {
+        const auto tagsResult = replaceTags(database, recordingId, unique);
+        if (!tagsResult) {
+            return tagsResult;
         }
-    }
-    auto result = m_databaseManager.transaction([&](QSqlDatabase& database) {
-        QSqlQuery remove(database);
-        remove.prepare(QStringLiteral("DELETE FROM recording_tags WHERE recording_id=?"));
-        remove.addBindValue(recordingId);
-        if (!remove.exec())
-            return Result<void>::failure(
-                queryError(QStringLiteral("Existing tags could not be replaced."), remove));
-        for (const QString& tag : unique) {
-            QSqlQuery insertTag(database);
-            const QString tagId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-            insertTag.prepare(QStringLiteral("INSERT OR IGNORE INTO tags(id,name,created_at) VALUES(?,?,?)"));
-            insertTag.addBindValue(tagId);
-            insertTag.addBindValue(tag);
-            insertTag.addBindValue(TimeUtils::nowStorageString());
-            if (!insertTag.exec())
-                return Result<void>::failure(
-                    queryError(QStringLiteral("A tag could not be created."), insertTag));
-            QSqlQuery attach(database);
-            attach.prepare(QStringLiteral("INSERT INTO recording_tags(recording_id,tag_id) SELECT ?,id FROM "
-                                          "tags WHERE name=? COLLATE NOCASE"));
-            attach.addBindValue(recordingId);
-            attach.addBindValue(tag);
-            if (!attach.exec())
-                return Result<void>::failure(
-                    queryError(QStringLiteral("A tag could not be attached."), attach));
-        }
-        return Result<void>::success();
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recordingId);
     });
-    if (!result)
-        return result;
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
 }
 
 Result<void> SqliteRecordingRepository::moveToTrash(const QString& id) {
@@ -614,7 +616,7 @@ Result<void> SqliteRecordingRepository::setActiveTranscriptJob(const QString& re
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A recording and transcript job are required.")));
     }
-    const auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
         QSqlQuery job(database);
         job.prepare(
             QStringLiteral("SELECT state FROM transcription_jobs WHERE id=? AND recording_id=?"));
@@ -647,12 +649,8 @@ Result<void> SqliteRecordingRepository::setActiveTranscriptJob(const QString& re
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::NotFound, QStringLiteral("The recording no longer exists.")));
         }
-        return Result<void>::success();
+        return DatabaseSearchService(m_databaseManager).rebuildRecording(database, recordingId);
     });
-    if (!result) {
-        return result;
-    }
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
 }
 
 } // namespace BreezeDesk

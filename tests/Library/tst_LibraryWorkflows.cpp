@@ -278,6 +278,45 @@ class LibraryWorkflowsTest final : public QObject {
         QCOMPARE(managed.readAll(), QByteArrayLiteral("media"));
     }
 
+    void managedImportSearchFailureLeavesNoDanglingRecording() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+        qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
+        QVERIFY(BreezeDesk::StoragePaths::ensureLayout());
+
+        const QString source = directory.filePath(QStringLiteral("來源/atomic-managed.wav"));
+        createFile(source);
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("managed-failure.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        const auto connection = database.connection();
+        QVERIFY(connection);
+        QSqlQuery injectFailure(connection.value());
+        QVERIFY(injectFailure.exec(QStringLiteral(
+            "CREATE TRIGGER fail_managed_search_insert BEFORE INSERT ON search_index_fallback "
+            "BEGIN SELECT RAISE(ABORT,'injected managed search insert failure'); END")));
+
+        BreezeDesk::SqliteRecordingRepository repository(database);
+        BreezeDesk::ApplicationViewModel viewModel(&repository);
+        viewModel.setManagedMediaCopyEnabled(true);
+        QSignalSpy rejected(viewModel.library(), &BreezeDesk::LibraryViewModel::importRejected);
+        QVERIFY(rejected.isValid());
+
+        QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(source)}), 1);
+        QTRY_COMPARE_WITH_TIMEOUT(rejected.count(), 1, 5'000);
+        QCOMPARE(rejected.constFirst().at(1).toString(),
+                 QStringLiteral("The fallback search entry could not be written."));
+        QTRY_VERIFY_WITH_TIMEOUT(
+            QDir(BreezeDesk::StoragePaths::recordings()).entryList(QDir::Files).isEmpty(), 5'000);
+
+        const auto recordings = repository.list({});
+        QVERIFY(recordings);
+        QVERIFY(recordings.value().items.isEmpty());
+        QCOMPARE(viewModel.library()->recordings()->rowCount(), 0);
+        QVERIFY(QFileInfo::exists(source));
+    }
+
     void renameRelinkSortFilterAndRevealArePersistent() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());

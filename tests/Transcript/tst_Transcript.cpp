@@ -17,6 +17,20 @@
 
 using namespace BreezeDesk;
 
+static bool injectSearchIndexInsertFailure(DatabaseManager& manager, QString recordingId) {
+    const auto connection = manager.connection();
+    if (!connection) {
+        return false;
+    }
+    recordingId.replace(QLatin1Char('\''), QStringLiteral("''"));
+    QSqlQuery trigger(connection.value());
+    return trigger.exec(QStringLiteral(
+                            "CREATE TRIGGER fail_search_index_insert BEFORE INSERT ON "
+                            "search_index_fallback WHEN NEW.recording_id='%1' BEGIN "
+                            "SELECT RAISE(ABORT,'injected search index insert failure'); END")
+                            .arg(recordingId));
+}
+
 class TranscriptTest final : public QObject {
     Q_OBJECT
 
@@ -29,6 +43,8 @@ class TranscriptTest final : public QObject {
     void repositoryDistinguishesGlossaryReplacementsFromManualEdits();
     void replaceChunkRejectsCrossLinkedTargetsWithoutMutation();
     void ownerlessEditsRejectActiveExecutionWithoutMutation();
+    void ownerlessMutationsRollBackWhenSearchRebuildFails();
+    void finalLeasedChunkRollsBackWhenSearchRebuildFails();
     void staleOwnerCannotReplaceReclaimedChunkTranscript();
     void viewModelPreservesMetadataAndControlsGlossaryAudit();
 };
@@ -519,6 +535,162 @@ void TranscriptTest::ownerlessEditsRejectActiveExecutionWithoutMutation() {
     QVERIFY(durable);
     QCOMPARE(durable.value().size(), 1);
     QCOMPARE(durable.value().constFirst().editedText, QStringLiteral("completed job edit"));
+}
+
+void TranscriptTest::ownerlessMutationsRollBackWhenSearchRebuildFails() {
+    QTemporaryDir directory;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    Recording recording;
+    recording.id = QStringLiteral("atomic-ownerless-transcript-recording");
+    recording.title = QStringLiteral("Atomic ownerless transcript");
+    QVERIFY(recordings.create(recording));
+    TranscriptionJob job;
+    job.id = QStringLiteral("atomic-ownerless-transcript-job");
+    job.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(job));
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery complete(connection.value());
+    complete.prepare(QStringLiteral(
+        "UPDATE transcription_jobs SET state='Completed',stage='Completed',progress=1 WHERE id=?"));
+    complete.addBindValue(job.id);
+    QVERIFY(complete.exec());
+    QVERIFY(recordings.setActiveTranscriptJob(recording.id, job.id));
+
+    TranscriptSegment original;
+    original.id = QStringLiteral("atomic-ownerless-original-segment");
+    original.recordingId = recording.id;
+    original.jobId = job.id;
+    original.startMs = 0;
+    original.endMs = 1'000;
+    original.originalText = QStringLiteral("Original indexed transcript");
+    original.editedText = original.originalText;
+    QVERIFY(transcripts.replaceTranscript(recording.id, job.id, {original}));
+    QVERIFY(injectSearchIndexInsertFailure(database, recording.id));
+
+    TranscriptSegment replacement = original;
+    replacement.id = QStringLiteral("atomic-ownerless-replacement-segment");
+    replacement.originalText = QStringLiteral("Rejected replace transcript");
+    replacement.editedText = replacement.originalText;
+    const auto replace = transcripts.replaceTranscript(recording.id, job.id, {replacement});
+    QVERIFY(!replace);
+    QCOMPARE(replace.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(replace.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+
+    replacement.id = QStringLiteral("atomic-ownerless-save-segment");
+    replacement.originalText = QStringLiteral("Rejected save transcript");
+    replacement.editedText = replacement.originalText;
+    const auto saveAll = transcripts.saveEditedTranscript(recording.id, job.id, {replacement});
+    QVERIFY(!saveAll);
+    QCOMPARE(saveAll.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(saveAll.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+
+    TranscriptSegment edited = original;
+    edited.editedText = QStringLiteral("Rejected single segment edit");
+    const auto saveOne = transcripts.saveEditedSegment(edited);
+    QVERIFY(!saveOne);
+    QCOMPARE(saveOne.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(saveOne.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+    const auto remove = transcripts.deleteSegment(original.id);
+    QVERIFY(!remove);
+    QCOMPARE(remove.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(remove.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+
+    const auto durable = transcripts.segmentsForJob(job.id, true);
+    QVERIFY(durable);
+    QCOMPARE(durable.value().size(), 1);
+    QCOMPARE(durable.value().constFirst().id, original.id);
+    QCOMPARE(durable.value().constFirst().originalText, original.originalText);
+    QCOMPARE(durable.value().constFirst().editedText, original.editedText);
+
+    QSqlQuery rawIndex(connection.value());
+    rawIndex.prepare(QStringLiteral(
+        "SELECT title,transcript FROM search_index_fallback WHERE recording_id=?"));
+    rawIndex.addBindValue(recording.id);
+    QVERIFY(rawIndex.exec());
+    QVERIFY(rawIndex.next());
+    QCOMPARE(rawIndex.value(0).toString(), recording.title);
+    QCOMPARE(rawIndex.value(1).toString(), original.originalText);
+}
+
+void TranscriptTest::finalLeasedChunkRollsBackWhenSearchRebuildFails() {
+    QTemporaryDir directory;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    Recording recording;
+    recording.id = QStringLiteral("atomic-leased-chunk-recording");
+    recording.title = QStringLiteral("Atomic leased chunk");
+    QVERIFY(recordings.create(recording));
+    TranscriptionJob job;
+    job.id = QStringLiteral("atomic-leased-chunk-job");
+    job.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(job));
+    JobChunk chunk;
+    chunk.id = QStringLiteral("atomic-leased-chunk");
+    chunk.jobId = job.id;
+    chunk.startMs = 0;
+    chunk.endMs = 1'000;
+    QVERIFY(jobs.replaceChunks(job.id, {chunk}));
+    const QString owner = QStringLiteral("atomic-leased-chunk-owner");
+    const auto claim = jobs.claimQueued(job.id, owner, 10'000);
+    QVERIFY(claim);
+    QVERIFY(claim.value().claimed);
+    QVERIFY(jobs.transition(job.id, JobState::LoadingModel, {}, {}, owner));
+    QVERIFY(jobs.transition(job.id, JobState::Transcribing, {}, {}, owner));
+
+    TranscriptSegment provisional;
+    provisional.id = QStringLiteral("atomic-provisional-segment");
+    provisional.recordingId = recording.id;
+    provisional.jobId = job.id;
+    provisional.chunkId = chunk.id;
+    provisional.startMs = 0;
+    provisional.endMs = 1'000;
+    provisional.originalText = QStringLiteral("Durable provisional transcript");
+    QVERIFY(transcripts.replaceChunk(recording.id, job.id, chunk.id, {provisional}, true, 1,
+                                     owner));
+    QVERIFY(injectSearchIndexInsertFailure(database, recording.id));
+
+    TranscriptSegment finalSegment = provisional;
+    finalSegment.id = QStringLiteral("atomic-final-segment");
+    finalSegment.originalText = QStringLiteral("Rejected final transcript");
+    const auto finalized = transcripts.replaceChunk(recording.id, job.id, chunk.id, {finalSegment},
+                                                     false, 2, owner);
+    QVERIFY(!finalized);
+    QCOMPARE(finalized.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(finalized.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+
+    const auto durable = transcripts.segmentsForJob(job.id, true);
+    QVERIFY(durable);
+    QCOMPARE(durable.value().size(), 1);
+    QCOMPARE(durable.value().constFirst().id, provisional.id);
+    QCOMPARE(durable.value().constFirst().originalText, provisional.originalText);
+    QVERIFY(durable.value().constFirst().provisional);
+    QCOMPARE(durable.value().constFirst().attempt, 1);
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery rawIndex(connection.value());
+    rawIndex.prepare(QStringLiteral(
+        "SELECT title,transcript FROM search_index_fallback WHERE recording_id=?"));
+    rawIndex.addBindValue(recording.id);
+    QVERIFY(rawIndex.exec());
+    QVERIFY(rawIndex.next());
+    QCOMPARE(rawIndex.value(0).toString(), recording.title);
+    QVERIFY(rawIndex.value(1).toString().isEmpty());
 }
 
 void TranscriptTest::staleOwnerCannotReplaceReclaimedChunkTranscript() {

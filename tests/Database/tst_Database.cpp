@@ -59,6 +59,20 @@ bool createRecordingWithTranscript(DatabaseManager& manager, const QString& id, 
         return false;
     return insertTranscript(manager, id, segments);
 }
+
+bool injectSearchIndexInsertFailure(DatabaseManager& manager, QString recordingId) {
+    const auto connection = manager.connection();
+    if (!connection) {
+        return false;
+    }
+    recordingId.replace(QLatin1Char('\''), QStringLiteral("''"));
+    QSqlQuery trigger(connection.value());
+    return trigger.exec(QStringLiteral(
+                            "CREATE TRIGGER fail_search_index_insert BEFORE INSERT ON "
+                            "search_index_fallback WHEN NEW.recording_id='%1' BEGIN "
+                            "SELECT RAISE(ABORT,'injected search index insert failure'); END")
+                            .arg(recordingId));
+}
 } // namespace
 
 class DatabaseTest final : public QObject {
@@ -67,6 +81,8 @@ class DatabaseTest final : public QObject {
   private slots:
     void cleanMigrationConfiguresSQLite();
     void failedTransactionRollsBack();
+    void recordingCreateRollsBackWhenSearchRebuildFails();
+    void recordingMutationsRollBackWhenSearchRebuildFails();
     void connectionsAreThreadLocal();
     void recordingTrashAndSearchWork();
     void permanentDeletePurgesRawSearchIndexes();
@@ -123,6 +139,126 @@ void DatabaseTest::failedTransactionRollsBack() {
     QVERIFY(count.exec(QStringLiteral("SELECT COUNT(*) FROM tags")));
     QVERIFY(count.next());
     QCOMPARE(count.value(0).toInt(), 0);
+}
+
+void DatabaseTest::recordingCreateRollsBackWhenSearchRebuildFails() {
+    QTemporaryDir directory;
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    const QString recordingId = QStringLiteral("atomic-index-create-recording");
+    QVERIFY(injectSearchIndexInsertFailure(manager, recordingId));
+
+    SqliteRecordingRepository repository(manager);
+    Recording recording;
+    recording.id = recordingId;
+    recording.title = QStringLiteral("Atomic create");
+    recording.tags = {QStringLiteral("AtomicCreateTag")};
+    const auto created = repository.create(recording);
+    QVERIFY(!created);
+    QCOMPARE(created.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(created.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+
+    const auto durable = repository.findById(recordingId);
+    QVERIFY(durable);
+    QVERIFY(!durable.value().has_value());
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    QSqlQuery counts(connection.value());
+    QVERIFY(counts.exec(QStringLiteral(
+        "SELECT (SELECT COUNT(*) FROM recording_tags WHERE recording_id="
+        "'atomic-index-create-recording'),"
+        "(SELECT COUNT(*) FROM tags WHERE name='AtomicCreateTag'),"
+        "(SELECT COUNT(*) FROM search_index_fallback WHERE recording_id="
+        "'atomic-index-create-recording')")));
+    QVERIFY(counts.next());
+    QCOMPARE(counts.value(0).toInt(), 0);
+    QCOMPARE(counts.value(1).toInt(), 0);
+    QCOMPARE(counts.value(2).toInt(), 0);
+}
+
+void DatabaseTest::recordingMutationsRollBackWhenSearchRebuildFails() {
+    QTemporaryDir directory;
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    const QString recordingId = QStringLiteral("atomic-index-update-recording");
+    Recording recording;
+    recording.id = recordingId;
+    recording.title = QStringLiteral("Original title");
+    recording.notes = QStringLiteral("Original notes");
+    recording.tags = {QStringLiteral("OriginalTag")};
+    QVERIFY(repository.create(recording));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    QSqlQuery job(connection.value());
+    QVERIFY(job.exec(QStringLiteral(
+        "INSERT INTO transcription_jobs(id,recording_id,state,stage,progress,queue_position,created_at) "
+        "VALUES('atomic-index-update-job','atomic-index-update-recording','Completed','Completed',"
+        "1,0,'2026-01-01T00:00:00.000Z')")));
+    QVERIFY(injectSearchIndexInsertFailure(manager, recordingId));
+
+    const auto original = repository.findById(recordingId);
+    QVERIFY(original && original.value().has_value());
+    Recording replacement = *original.value();
+    replacement.title = QStringLiteral("Rejected full update");
+    replacement.notes = QStringLiteral("Rejected full notes");
+    replacement.tags = {QStringLiteral("RejectedUpdateTag")};
+    const auto fullUpdate = repository.update(replacement);
+    QVERIFY(!fullUpdate);
+    QCOMPARE(fullUpdate.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(fullUpdate.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+
+    const auto titleUpdate =
+        repository.updateTitle(recordingId, QStringLiteral("Rejected title update"));
+    QVERIFY(!titleUpdate);
+    QCOMPARE(titleUpdate.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(titleUpdate.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+    const auto notesUpdate =
+        repository.updateNotes(recordingId, QStringLiteral("Rejected notes update"));
+    QVERIFY(!notesUpdate);
+    QCOMPARE(notesUpdate.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(notesUpdate.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+    const auto tagsUpdate =
+        repository.setTags(recordingId, {QStringLiteral("RejectedSetTag")});
+    QVERIFY(!tagsUpdate);
+    QCOMPARE(tagsUpdate.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(tagsUpdate.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+    const auto activation =
+        repository.setActiveTranscriptJob(recordingId, QStringLiteral("atomic-index-update-job"));
+    QVERIFY(!activation);
+    QCOMPARE(activation.error().code, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(activation.error().technicalDetails.contains(
+        QStringLiteral("injected search index insert failure")));
+
+    const auto durable = repository.findById(recordingId);
+    QVERIFY(durable && durable.value().has_value());
+    QCOMPARE(durable.value()->title, QStringLiteral("Original title"));
+    QCOMPARE(durable.value()->notes, QStringLiteral("Original notes"));
+    QCOMPARE(durable.value()->tags, QStringList({QStringLiteral("OriginalTag")}));
+    QVERIFY(durable.value()->activeJobId.isEmpty());
+
+    QSqlQuery rawIndex(connection.value());
+    rawIndex.prepare(QStringLiteral(
+        "SELECT title,notes,tags,transcript FROM search_index_fallback WHERE recording_id=?"));
+    rawIndex.addBindValue(recordingId);
+    QVERIFY(rawIndex.exec());
+    QVERIFY(rawIndex.next());
+    QCOMPARE(rawIndex.value(0).toString(), QStringLiteral("Original title"));
+    QCOMPARE(rawIndex.value(1).toString(), QStringLiteral("Original notes"));
+    QCOMPARE(rawIndex.value(2).toString(), QStringLiteral("OriginalTag"));
+    QVERIFY(rawIndex.value(3).toString().isEmpty());
+
+    QSqlQuery rejectedTags(connection.value());
+    QVERIFY(rejectedTags.exec(QStringLiteral(
+        "SELECT COUNT(*) FROM tags WHERE name IN ('RejectedUpdateTag','RejectedSetTag')")));
+    QVERIFY(rejectedTags.next());
+    QCOMPARE(rejectedTags.value(0).toInt(), 0);
 }
 
 void DatabaseTest::connectionsAreThreadLocal() {
