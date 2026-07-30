@@ -10,6 +10,7 @@
 #include <breezedesk/asr/WhisperParameterMapper.h>
 #include <breezedesk/asr/WhisperTranscriptionEngine.h>
 #include <breezedesk/asr/WorkerOperationState.h>
+#include <breezedesk/asr/WorkerSegmentValidator.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QCryptographicHash>
@@ -36,7 +37,66 @@ class AsrCoreTest final : public QObject {
     void cancellationRequestSurvivesUntilTranscriptionStarts();
     void disabledRuntimeReturnsTypedError();
     void rejectsChecksumMismatchBeforeModelLoad();
+    void validatesAndClampsWorkerSegmentTimestamps();
+    void rejectsMalformedWorkerSegmentTimestamps();
 };
+
+void AsrCoreTest::validatesAndClampsWorkerSegmentTimestamps() {
+    const QCborMap payload{{QStringLiteral("startMs"), 500},
+                           {QStringLiteral("endMs"), 3'500}};
+    const WorkerSegmentValidationResult clamped =
+        validateWorkerSegmentRange(payload, 1'000, 3'000, 4'000);
+    QVERIFY(clamped);
+    QCOMPARE(clamped.startMs, 1'000);
+    QCOMPARE(clamped.endMs, 3'000);
+
+    const QCborMap canonicalTail{{QStringLiteral("startMs"), 3'900},
+                                 {QStringLiteral("endMs"), 4'500}};
+    const WorkerSegmentValidationResult canonicalClamp =
+        validateWorkerSegmentRange(canonicalTail, 3'000, 5'000, 4'000);
+    QVERIFY(canonicalClamp);
+    QCOMPARE(canonicalClamp.startMs, 3'900);
+    QCOMPARE(canonicalClamp.endMs, 4'000);
+
+    const QCborMap crossChunk{{QStringLiteral("startMs"), 999},
+                              {QStringLiteral("endMs"), 2'500}};
+    const WorkerSegmentValidationResult rejected =
+        validateWorkerSegmentRange(crossChunk, 2'000, 3'000, 4'000);
+    QVERIFY(!rejected);
+    QCOMPARE(static_cast<int>(rejected.error),
+             static_cast<int>(WorkerSegmentValidationError::OutsideActiveRange));
+
+    const QCborMap firstPayload{{QStringLiteral("startMs"), 100},
+                                {QStringLiteral("endMs"), 1'000}};
+    const QCborMap secondPayload{{QStringLiteral("startMs"), 200},
+                                 {QStringLiteral("endMs"), 1'000}};
+    const WorkerSegmentValidationResult first =
+        reconcileWorkerSegmentRange(validateWorkerSegmentRange(firstPayload, 0, 1'000, 1'000), 0);
+    QVERIFY(first);
+    const WorkerSegmentValidationResult fullyOverlapped = reconcileWorkerSegmentRange(
+        validateWorkerSegmentRange(secondPayload, 0, 1'000, 1'000), first.endMs);
+    QVERIFY(!fullyOverlapped);
+    QCOMPARE(fullyOverlapped.endMs, 1'000);
+    QCOMPARE(static_cast<int>(fullyOverlapped.error),
+             static_cast<int>(WorkerSegmentValidationError::EmptyRange));
+}
+
+void AsrCoreTest::rejectsMalformedWorkerSegmentTimestamps() {
+    const QCborMap missingStart{{QStringLiteral("endMs"), 500}};
+    const WorkerSegmentValidationResult missing =
+        validateWorkerSegmentRange(missingStart, 0, 1'000, 1'000);
+    QVERIFY(!missing);
+    QCOMPARE(static_cast<int>(missing.error),
+             static_cast<int>(WorkerSegmentValidationError::MalformedTimestamps));
+
+    const QCborMap floatingStart{{QStringLiteral("startMs"), 0.5},
+                                 {QStringLiteral("endMs"), 500}};
+    const WorkerSegmentValidationResult floating =
+        validateWorkerSegmentRange(floatingStart, 0, 1'000, 1'000);
+    QVERIFY(!floating);
+    QCOMPARE(static_cast<int>(floating.error),
+             static_cast<int>(WorkerSegmentValidationError::MalformedTimestamps));
+}
 
 void AsrCoreTest::mapsPresets() {
     const auto fast = PresetRegistry::configuration(TranscriptionPreset::Fast);

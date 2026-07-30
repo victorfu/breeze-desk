@@ -1,6 +1,7 @@
 add_library(breezedesk_cli_support STATIC
     CliForwardingPolicy.cpp
     CliTranscriptionPersistence.cpp
+    ${PROJECT_SOURCE_DIR}/include/breezedesk/cli/CliChunkEnvelopeGate.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/cli/CliForwardingPolicy.h)
 target_include_directories(breezedesk_cli_support PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_link_libraries(breezedesk_cli_support PUBLIC

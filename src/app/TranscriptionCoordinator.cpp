@@ -5,6 +5,7 @@
 #include "breezedesk/asr/AsrTypes.h"
 #include "breezedesk/asr/LongFormChunkPlanner.h"
 #include "breezedesk/asr/OverlapDeduplicator.h"
+#include "breezedesk/asr/WorkerSegmentValidator.h"
 #include "breezedesk/audio/AudioCacheManager.h"
 #include "breezedesk/audio/FFmpegLocator.h"
 #include "breezedesk/audio/FFmpegNormalizationService.h"
@@ -48,7 +49,6 @@ constexpr int WorkerReadyAttempts = 100;
 constexpr int WorkerReadyIntervalMs = 100;
 constexpr int WorkerCapabilitiesTimeoutMs = 5'000;
 constexpr qsizetype MaximumWorkerChunks = 4'096;
-constexpr qint64 SegmentTimestampToleranceMs = 1'000;
 constexpr qint64 ShortAudioThresholdMs = 12 * 60 * 1'000;
 constexpr double DefaultVadThreshold = 0.5;
 constexpr qint64 DefaultVadMinimumSpeechMs = 250;
@@ -1862,12 +1862,17 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         }
     } else if (envelope.type == Ipc::MessageType::PartialSegment) {
         const JobChunk& chunk = m_chunks.at(m_currentChunkIndex);
-        const qint64 rawStartMs = envelope.payload.value(QStringLiteral("startMs")).toInteger(-1);
-        const qint64 rawEndMs = envelope.payload.value(QStringLiteral("endMs")).toInteger(-1);
-        if (rawStartMs < chunk.startMs - SegmentTimestampToleranceMs ||
-            rawEndMs > chunk.endMs + SegmentTimestampToleranceMs || rawEndMs <= rawStartMs) {
+        const qint64 recordingDurationMs =
+            m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
+        const Asr::WorkerSegmentValidationResult validated = Asr::validateWorkerSegmentRange(
+            envelope.payload, chunk.startMs, chunk.endMs, recordingDurationMs);
+        if (!validated) {
+            const QString message =
+                validated.error == Asr::WorkerSegmentValidationError::EmptyRange
+                    ? tr("The ASR worker returned an empty segment time range.")
+                    : tr("The ASR worker returned a segment outside the active chunk.");
             failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
-                          tr("The ASR worker returned a segment outside the active chunk."));
+                          message);
             return;
         }
         TranscriptSegment segment;
@@ -1876,13 +1881,8 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         segment.jobId = m_activeJob.id;
         segment.chunkId = chunk.id;
         segment.ordinal = m_nextOrdinal++;
-        segment.startMs = std::max(chunk.startMs, rawStartMs);
-        segment.endMs = std::min(chunk.endMs, rawEndMs);
-        if (segment.endMs <= segment.startMs) {
-            failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
-                          tr("The ASR worker returned an empty segment time range."));
-            return;
-        }
+        segment.startMs = validated.startMs;
+        segment.endMs = validated.endMs;
         segment.originalText = envelope.payload.value(QStringLiteral("originalText")).toString();
         const GlossaryPostProcessResult postProcessed = GlossaryPostProcessor().applyExplicitAliases(
             segment.originalText, glossaryTermsFromParameters(m_activeJob.parameters));

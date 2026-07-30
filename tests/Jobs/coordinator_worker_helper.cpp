@@ -125,6 +125,7 @@ int main(int argc, char* argv[]) {
         return 2;
     }
     QHash<QString, QString> deferredAnalysisRequests;
+    QHash<QString, QString> malformedSegmentRequests;
     Ipc::Envelope deferredModelLoaded;
     quint64 deferredModelClientId = 0;
     const QString deferredModelStatePath =
@@ -132,7 +133,8 @@ int main(int argc, char* argv[]) {
 
     QObject::connect(
         &server, &Ipc::WorkerServer::envelopeReceived, &application,
-        [&server, &deferredAnalysisRequests, &deferredModelLoaded, &deferredModelClientId,
+        [&server, &deferredAnalysisRequests, &malformedSegmentRequests, &deferredModelLoaded,
+         &deferredModelClientId,
          deferredModelStatePath, staleGraceLaunch,
          forcedRecoveryLaunch](const quint64 clientId, const Ipc::Envelope& request) {
             if (request.type == Ipc::MessageType::GetCapabilities) {
@@ -247,11 +249,17 @@ int main(int argc, char* argv[]) {
                     request.jobId == QStringLiteral("job-worker-crash");
                 const bool postWorkerCrashRequest =
                     request.jobId == QStringLiteral("job-after-worker-crash");
+                const bool missingSegmentStartRequest =
+                    request.jobId == QStringLiteral("job-missing-segment-start");
+                const bool floatingSegmentStartRequest =
+                    request.jobId == QStringLiteral("job-floating-segment-start");
+                const bool malformedSegmentRequest =
+                    missingSegmentStartRequest || floatingSegmentStartRequest;
                 const bool validVadPayload =
                     (leaseHandoffRequest || postHandoffRequest || staleGraceHandoffRequest ||
                      staleGraceNextRequest || checkpointFailureRequest ||
                      postCheckpointFailureRequest || completedCheckpointFailureRequest ||
-                     workerCrashRequest || postWorkerCrashRequest)
+                     workerCrashRequest || postWorkerCrashRequest || malformedSegmentRequest)
                         ? !request.payload.value(QStringLiteral("vadEnabled")).toBool()
                         : request.payload.value(QStringLiteral("vadEnabled")).toBool() &&
                               QFileInfo(request.payload.value(QStringLiteral("vadModelPath")).toString())
@@ -261,7 +269,8 @@ int main(int argc, char* argv[]) {
                     (request.jobId == QStringLiteral("job-coordinator") || leaseHandoffRequest ||
                      postHandoffRequest || staleGraceHandoffRequest || staleGraceNextRequest ||
                      checkpointFailureRequest || postCheckpointFailureRequest || workerCrashRequest ||
-                     postWorkerCrashRequest || completedCheckpointFailureRequest) &&
+                     postWorkerCrashRequest || completedCheckpointFailureRequest ||
+                     malformedSegmentRequest) &&
                     QFileInfo(request.payload.value(QStringLiteral("pcmPath")).toString()).isFile() &&
                     startMs >= 0 && endMs > startMs && validVadPayload &&
                     (!staleGraceNextRequest || staleGraceLaunch >= 2);
@@ -290,7 +299,11 @@ int main(int argc, char* argv[]) {
                 segment.type = Ipc::MessageType::PartialSegment;
                 segment.requestId = request.requestId;
                 segment.jobId = request.jobId;
-                segment.payload.insert(QStringLiteral("startMs"), startMs + 100);
+                if (floatingSegmentStartRequest) {
+                    segment.payload.insert(QStringLiteral("startMs"), 0.5);
+                } else if (!missingSegmentStartRequest) {
+                    segment.payload.insert(QStringLiteral("startMs"), startMs + 100);
+                }
                 segment.payload.insert(QStringLiteral("endMs"), startMs + 1'000);
                 segment.payload.insert(QStringLiteral("originalText"), startMs == 0
                                                                            ? QStringLiteral("first chunk")
@@ -300,6 +313,11 @@ int main(int argc, char* argv[]) {
                 segment.payload.insert(QStringLiteral("noSpeechProbability"), 0.1);
                 segment.payload.insert(QStringLiteral("lowConfidence"), false);
                 server.send(clientId, segment);
+
+                if (malformedSegmentRequest) {
+                    malformedSegmentRequests.insert(request.jobId, request.requestId);
+                    return;
+                }
 
                 if (leaseHandoffRequest || staleGraceHandoffRequest) {
                     return;
@@ -358,7 +376,10 @@ int main(int argc, char* argv[]) {
                 }
                 Ipc::Envelope cancelled;
                 cancelled.type = Ipc::MessageType::JobCancelled;
-                cancelled.requestId = deferredAnalysisRequests.take(request.jobId);
+                cancelled.requestId = malformedSegmentRequests.take(request.jobId);
+                if (cancelled.requestId.isEmpty()) {
+                    cancelled.requestId = deferredAnalysisRequests.take(request.jobId);
+                }
                 if (cancelled.requestId.isEmpty()) {
                     cancelled.requestId = request.requestId;
                 }

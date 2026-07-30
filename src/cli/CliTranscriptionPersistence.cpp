@@ -15,6 +15,7 @@
 #include <QUuid>
 
 #include <algorithm>
+#include <utility>
 
 namespace BreezeDesk {
 namespace {
@@ -431,15 +432,34 @@ Result<void> CliTranscriptionPersistence::saveChunkSegments(const int ordinal,
     auto chunkResult = chunk(ordinal);
     if (!chunkResult)
         return Result<void>::failure(chunkResult.error());
+    const auto recordingResult = m_recordings.findById(m_identity.recordingId);
+    if (!recordingResult)
+        return Result<void>::failure(recordingResult.error());
+    if (!recordingResult.value().has_value())
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::NotFound, QStringLiteral("The transcription recording no longer exists.")));
+    const JobChunk& activeChunk = chunkResult.value();
+    const qint64 allowedStartMs = std::max<qint64>(0, activeChunk.startMs);
+    const qint64 allowedEndMs = recordingResult.value()->durationMs > 0
+                                    ? std::min(activeChunk.endMs, recordingResult.value()->durationMs)
+                                    : activeChunk.endMs;
+    for (const TranscriptSegment& segment : std::as_const(segments)) {
+        if (allowedEndMs <= allowedStartMs || segment.startMs < allowedStartMs ||
+            segment.endMs > allowedEndMs || segment.endMs <= segment.startMs) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::WorkerProtocolMismatch,
+                QStringLiteral("The ASR worker returned a segment outside the active chunk.")));
+        }
+    }
     for (TranscriptSegment& segment : segments) {
         segment.recordingId = m_identity.recordingId;
         segment.jobId = m_identity.jobId;
-        segment.chunkId = chunkResult.value().id;
+        segment.chunkId = activeChunk.id;
         segment.provisional = provisional;
-        segment.attempt = chunkResult.value().attempts;
+        segment.attempt = activeChunk.attempts;
     }
-    return m_transcripts.replaceChunk(m_identity.recordingId, m_identity.jobId, chunkResult.value().id,
-                                      std::move(segments), provisional, chunkResult.value().attempts,
+    return m_transcripts.replaceChunk(m_identity.recordingId, m_identity.jobId, activeChunk.id,
+                                      std::move(segments), provisional, activeChunk.attempts,
                                       m_ownerToken);
 }
 

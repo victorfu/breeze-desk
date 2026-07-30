@@ -1,4 +1,5 @@
 #include "breezedesk/cli/CliTranscriptionPersistence.h"
+#include "breezedesk/cli/CliChunkEnvelopeGate.h"
 #include "breezedesk/cli/CliExitCode.h"
 #include "breezedesk/core/TimeUtils.h"
 #include "breezedesk/database/DatabaseManager.h"
@@ -60,7 +61,166 @@ class CliTranscriptionPersistenceTest final : public QObject {
     void externallyCancelledLeaseWaitDoesNotInterruptCurrentOwner();
     void quiescenceRetainsLeaseUntilCancellationCheckpoint();
     void quiescenceStillStopsAfterLeaseLoss();
+    void rejectsOutOfRangeSegmentsWithoutReplacingValidPartial();
+    void protocolFailureQuiescesBeforeOwnerFencedCheckpoint();
+    void protocolFailureGateIgnoresLateBatchUntilTerminal();
 };
+
+void CliTranscriptionPersistenceTest::protocolFailureGateIgnoresLateBatchUntilTerminal() {
+    CliChunkEnvelopeGate gate;
+    gate.protocolFailurePending = true;
+    QString chosenError =
+        QStringLiteral("The ASR worker returned a segment outside the active chunk.");
+    int persistedSegmentCount = 1;
+    bool completed = false;
+
+    const auto deliver = [&](const Ipc::MessageType type) {
+        if (!gate.shouldProcess(type)) {
+            return;
+        }
+        if (type == Ipc::MessageType::PartialSegment) {
+            ++persistedSegmentCount;
+        } else if (type == Ipc::MessageType::JobCancelled) {
+            chosenError = QStringLiteral("Transcription was cancelled.");
+        } else if (type == Ipc::MessageType::TranscriptionCompleted) {
+            completed = true;
+        }
+    };
+
+    deliver(Ipc::MessageType::PartialSegment);
+    QCOMPARE(persistedSegmentCount, 1);
+    QCOMPARE(chosenError,
+             QStringLiteral("The ASR worker returned a segment outside the active chunk."));
+    QVERIFY(gate.requestInFlight);
+
+    deliver(Ipc::MessageType::ModelLoaded);
+    QVERIFY(gate.requestInFlight);
+    QCOMPARE(persistedSegmentCount, 1);
+    QCOMPARE(chosenError,
+             QStringLiteral("The ASR worker returned a segment outside the active chunk."));
+
+    deliver(Ipc::MessageType::JobCancelled);
+    QVERIFY(!gate.requestInFlight);
+    QVERIFY(gate.protocolFailurePending);
+    QCOMPARE(persistedSegmentCount, 1);
+    QCOMPARE(chosenError,
+             QStringLiteral("The ASR worker returned a segment outside the active chunk."));
+    QVERIFY(!completed);
+}
+
+void CliTranscriptionPersistenceTest::protocolFailureQuiescesBeforeOwnerFencedCheckpoint() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("protocol-quiescence.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-protocol-quiescence");
+    descriptor.recording.title = QStringLiteral("Protocol quiescence");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.recording.durationMs = 1'000;
+    descriptor.job.id = QStringLiteral("job-protocol-quiescence");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+    const QString ownerToken = QStringLiteral("protocol-quiescence-owner");
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts, ownerToken);
+    QVERIFY(persistence.beginNew(descriptor));
+    QVERIFY(persistence.beginModelLoad());
+    QVERIFY(persistence.beginTranscription());
+    QVERIFY(persistence.beginChunk(0));
+    QVERIFY(persistence.saveChunkSegments(
+        0, {segment(100, 500, QStringLiteral("preserved before protocol failure"))}, true));
+
+    bool workerStopped = false;
+    const auto quiesced = persistence.quiesceWorkerBeforeTerminalCheckpoint([&] {
+        workerStopped = true;
+        const auto activeLease = jobs.activeLease();
+        QVERIFY(activeLease && activeLease.value().has_value());
+        QCOMPARE(activeLease.value()->jobId, descriptor.job.id);
+        QCOMPARE(activeLease.value()->ownerToken, ownerToken);
+        QCOMPARE(jobs.findById(descriptor.job.id).value()->state, JobState::Transcribing);
+        QCOMPARE(jobs.chunks(descriptor.job.id).value().constFirst().state,
+                 ChunkState::Running);
+    });
+    QVERIFY(quiesced);
+    QVERIFY(workerStopped);
+
+    const QString reason =
+        QStringLiteral("The ASR worker returned a segment outside the active chunk.");
+    QVERIFY(persistence.fail(QStringLiteral("WorkerProtocolMismatch"), reason));
+    const auto failedJob = jobs.findById(descriptor.job.id);
+    QVERIFY(failedJob && failedJob.value().has_value());
+    QCOMPARE(failedJob.value()->state, JobState::Failed);
+    QCOMPARE(failedJob.value()->errorCode, QStringLiteral("WorkerProtocolMismatch"));
+    QCOMPARE(failedJob.value()->errorMessage, reason);
+    QCOMPARE(jobs.chunks(descriptor.job.id).value().constFirst().state, ChunkState::Failed);
+    QVERIFY(!jobs.activeLease().value().has_value());
+
+    const auto persisted = transcripts.segmentsForJob(descriptor.job.id, true);
+    QVERIFY(persisted);
+    QCOMPARE(persisted.value().size(), 1);
+    QCOMPARE(persisted.value().constFirst().originalText,
+             QStringLiteral("preserved before protocol failure"));
+}
+
+void CliTranscriptionPersistenceTest::rejectsOutOfRangeSegmentsWithoutReplacingValidPartial() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("segment-range.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-segment-range");
+    descriptor.recording.title = QStringLiteral("Segment range");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.recording.durationMs = 1'000;
+    descriptor.job.id = QStringLiteral("job-segment-range");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts,
+                                            QStringLiteral("segment-range-owner"));
+    QVERIFY(persistence.beginNew(descriptor));
+    QVERIFY(persistence.beginModelLoad());
+    QVERIFY(persistence.beginTranscription());
+    QVERIFY(persistence.beginChunk(0));
+    QVERIFY(persistence.saveChunkSegments(
+        0, {segment(100, 500, QStringLiteral("preserved valid partial"))}, true));
+
+    const auto rejected = persistence.saveChunkSegments(
+        0, {segment(100, 500, QStringLiteral("preserved valid partial")),
+            segment(900, 1'001, QStringLiteral("cross-chunk partial"))},
+        true);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.error().code, ErrorCode::WorkerProtocolMismatch);
+
+    const auto persisted = transcripts.segmentsForJob(descriptor.job.id, true);
+    QVERIFY(persisted);
+    QCOMPARE(persisted.value().size(), 1);
+    QCOMPARE(persisted.value().constFirst().originalText,
+             QStringLiteral("preserved valid partial"));
+    QCOMPARE(persisted.value().constFirst().startMs, 100);
+    QCOMPARE(persisted.value().constFirst().endMs, 500);
+}
 
 void CliTranscriptionPersistenceTest::mapsStartupLeaseLossToDatabaseFailure() {
     const UserFacingError error = UserFacingError::validation(

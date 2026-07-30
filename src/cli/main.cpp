@@ -2,11 +2,13 @@
 #include "breezedesk/app_config.h"
 #include "breezedesk/asr/LongFormChunkPlanner.h"
 #include "breezedesk/asr/OverlapDeduplicator.h"
+#include "breezedesk/asr/WorkerSegmentValidator.h"
 #include "breezedesk/audio/AudioCacheManager.h"
 #include "breezedesk/audio/FFmpegLocator.h"
 #include "breezedesk/audio/FFmpegNormalizationService.h"
 #include "breezedesk/audio/FFprobeService.h"
 #include "breezedesk/audio/NormalizedAudioValidator.h"
+#include "breezedesk/cli/CliChunkEnvelopeGate.h"
 #include "breezedesk/cli/CliExitCode.h"
 #include "breezedesk/cli/CliForwardingPolicy.h"
 #include "breezedesk/cli/CliTranscriptionPersistence.h"
@@ -1855,7 +1857,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         QString chunkCheckpointError;
         bool completed = false;
         bool chunkTimedOut = false;
-        bool chunkRequestInFlight = true;
+        CliChunkEnvelopeGate chunkEnvelopeGate;
         QList<TranscriptSegment> incoming;
         QCborArray currentPromptParts = promptConfiguration.parts;
         QString previousContext;
@@ -1885,12 +1887,18 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         const QString requestId = client->sendRequest(Ipc::MessageType::StartTranscription, jobId, payload);
         QMetaObject::Connection connection = QObject::connect(
             client, &Ipc::AsrWorkerClient::envelopeReceived, &chunkLoop,
-            [&chunkLoop, &chunkError, &chunkCheckpointError, &completed, &chunkRequestInFlight,
-             &incoming, &persistence, &worker, requestId, jobId, &segments, &completedChunks, chunk,
-             finalChunk,
+            [&chunkLoop, &chunkError, &chunkCheckpointError, &completed, &chunkEnvelopeGate,
+             &incoming, &persistence, &worker, requestId, jobId, &segments,
+             &completedChunks, chunk, finalChunk, recordingDurationMs = metadata.durationMs,
              glossaryTerms = promptConfiguration.terms,
              chunkCount = chunks.size()](const Ipc::Envelope& envelope) {
                 if (envelope.requestId != requestId || envelope.jobId != jobId) {
+                    return;
+                }
+                if (!chunkEnvelopeGate.shouldProcess(envelope.type)) {
+                    if (!chunkEnvelopeGate.requestInFlight) {
+                        chunkLoop.quit();
+                    }
                     return;
                 }
                 if (envelope.type == Ipc::MessageType::Progress) {
@@ -1908,12 +1916,31 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                         chunkLoop.quit();
                     }
                 } else if (envelope.type == Ipc::MessageType::PartialSegment) {
+                    const auto rejectSegment = [&chunkLoop, &chunkError, &chunkEnvelopeGate,
+                                                &worker, &jobId, &requestId](const QString& reason) {
+                        chunkError = reason;
+                        chunkEnvelopeGate.protocolFailurePending = true;
+                        worker.forceCancelAfterGrace(jobId, requestId);
+                        chunkLoop.quit();
+                    };
+                    const Asr::WorkerSegmentValidationResult validated =
+                        Asr::validateWorkerSegmentRange(envelope.payload, chunk.startMs, chunk.endMs,
+                                                        recordingDurationMs);
+                    if (!validated) {
+                        rejectSegment(
+                            validated.error == Asr::WorkerSegmentValidationError::EmptyRange
+                                ? QStringLiteral(
+                                      "The ASR worker returned an empty segment time range.")
+                                : QStringLiteral(
+                                      "The ASR worker returned a segment outside the active chunk."));
+                        return;
+                    }
                     TranscriptSegment segment;
                     segment.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
                     segment.jobId = jobId;
                     segment.ordinal = static_cast<int>(segments.size() + incoming.size());
-                    segment.startMs = envelope.payload.value(QStringLiteral("startMs")).toInteger();
-                    segment.endMs = envelope.payload.value(QStringLiteral("endMs")).toInteger();
+                    segment.startMs = validated.startMs;
+                    segment.endMs = validated.endMs;
                     segment.originalText = envelope.payload.value(QStringLiteral("originalText")).toString();
                     const GlossaryPostProcessResult postProcessed =
                         GlossaryPostProcessor().applyExplicitAliases(segment.originalText, glossaryTerms);
@@ -1932,21 +1959,26 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                     incoming.push_back(std::move(segment));
                     const auto saved = persistence.saveChunkSegments(chunk.ordinal, incoming, true);
                     if (!saved) {
-                        chunkCheckpointError = saved.error().diagnosticString();
+                        if (saved.error().code == ErrorCode::WorkerProtocolMismatch) {
+                            chunkError = saved.error().message;
+                            chunkEnvelopeGate.protocolFailurePending = true;
+                        } else {
+                            chunkCheckpointError = saved.error().diagnosticString();
+                        }
                         worker.forceCancelAfterGrace(jobId, requestId);
                         chunkLoop.quit();
                     }
                 } else if ((envelope.type == Ipc::MessageType::ChunkCompleted && !finalChunk) ||
                            (envelope.type == Ipc::MessageType::TranscriptionCompleted && finalChunk)) {
-                    chunkRequestInFlight = false;
+                    chunkEnvelopeGate.requestInFlight = false;
                     completed = true;
                     chunkLoop.quit();
                 } else if (envelope.type == Ipc::MessageType::Error) {
-                    chunkRequestInFlight = false;
+                    chunkEnvelopeGate.requestInFlight = false;
                     chunkError = envelope.payload.value(QStringLiteral("message")).toString();
                     chunkLoop.quit();
                 } else if (envelope.type == Ipc::MessageType::JobCancelled) {
-                    chunkRequestInFlight = false;
+                    chunkEnvelopeGate.requestInFlight = false;
                     chunkError = QStringLiteral("Transcription was cancelled.");
                     chunkLoop.quit();
                 }
@@ -1958,8 +1990,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             chunkLoop.quit();
         });
         QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &chunkLoop,
-                         [&chunkLoop, &chunkRequestInFlight] {
-                             chunkRequestInFlight = false;
+                         [&chunkLoop, &chunkEnvelopeGate] {
+                             chunkEnvelopeGate.requestInFlight = false;
                              chunkLoop.quit();
                          });
         QTimer cancellationPoll;
@@ -1984,12 +2016,26 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         QObject::disconnect(connection);
         finishProgress();
         if (detectStop()) {
-            (void)quiesceWorkerRequest(chunkRequestInFlight);
+            (void)quiesceWorkerRequest(chunkEnvelopeGate.requestInFlight);
             return makeStopResult(segments);
         }
         if (!completed) {
+            if (chunkEnvelopeGate.protocolFailurePending) {
+                if (!quiesceWorkerRequest(chunkEnvelopeGate.requestInFlight)) {
+                    return makeResult(CliExitCode::DatabaseFailure, segments, leaseFailure);
+                }
+                const auto failed =
+                    persistence.fail(QStringLiteral("WorkerProtocolMismatch"), chunkError);
+                if (const auto stopped = stopResultIfRequested(segments)) {
+                    stopWorker();
+                    return *stopped;
+                }
+                recordTerminalCheckpointFailure(failed, chunkError);
+                stopWorker();
+                return makeResult(CliExitCode::TranscriptionFailure, segments, chunkError);
+            }
             if (!chunkCheckpointError.isEmpty()) {
-                if (!quiesceWorkerRequest(chunkRequestInFlight)) {
+                if (!quiesceWorkerRequest(chunkEnvelopeGate.requestInFlight)) {
                     return makeResult(CliExitCode::DatabaseFailure, segments, leaseFailure);
                 }
                 interruptSession(chunkCheckpointError, QStringLiteral("DatabaseQueryFailed"));
@@ -2001,7 +2047,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                     workerInterruption.isEmpty()
                         ? QStringLiteral("The ASR worker timed out while transcribing a chunk.")
                         : workerInterruption;
-                if (chunkTimedOut && !quiesceWorkerRequest(chunkRequestInFlight)) {
+                if (chunkTimedOut && !quiesceWorkerRequest(chunkEnvelopeGate.requestInFlight)) {
                     return makeResult(CliExitCode::DatabaseFailure, segments, leaseFailure);
                 }
                 interruptSession(reason, chunkTimedOut ? QStringLiteral("WorkerTimeout")
@@ -2038,11 +2084,28 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         }
         qint64 previousEnd = segments.isEmpty() ? 0 : segments.constLast().endMs;
         for (TranscriptSegment& segment : incoming) {
-            segment.startMs = qMax(segment.startMs, previousEnd);
-            if (segment.endMs <= segment.startMs) {
-                segment.endMs = segment.startMs + 1;
+            Asr::WorkerSegmentValidationResult reconciled;
+            reconciled.startMs = segment.startMs;
+            reconciled.endMs = segment.endMs;
+            reconciled = Asr::reconcileWorkerSegmentRange(reconciled, previousEnd);
+            if (!reconciled) {
+                chunkError = QStringLiteral("The ASR worker returned an empty segment time range.");
+                break;
             }
+            segment.startMs = reconciled.startMs;
+            segment.endMs = reconciled.endMs;
             previousEnd = segment.endMs;
+        }
+        if (!chunkError.isEmpty()) {
+            const auto failed =
+                persistence.fail(QStringLiteral("WorkerProtocolMismatch"), chunkError);
+            if (const auto stopped = stopResultIfRequested(segments)) {
+                stopWorker();
+                return *stopped;
+            }
+            recordTerminalCheckpointFailure(failed, chunkError);
+            stopWorker();
+            return makeResult(CliExitCode::TranscriptionFailure, segments, chunkError);
         }
         if (const auto stopped = stopResultIfRequested(segments)) {
             stopWorker();
@@ -2050,6 +2113,18 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         }
         const auto completedChunk = persistence.completeChunk(chunk.ordinal, incoming);
         if (!completedChunk) {
+            if (completedChunk.error().code == ErrorCode::WorkerProtocolMismatch) {
+                chunkError = completedChunk.error().message;
+                const auto failed =
+                    persistence.fail(QStringLiteral("WorkerProtocolMismatch"), chunkError);
+                if (const auto stopped = stopResultIfRequested(segments)) {
+                    stopWorker();
+                    return *stopped;
+                }
+                recordTerminalCheckpointFailure(failed, chunkError);
+                stopWorker();
+                return makeResult(CliExitCode::TranscriptionFailure, segments, chunkError);
+            }
             if (const auto stopped = stopResultIfRequested(segments)) {
                 stopWorker();
                 return *stopped;

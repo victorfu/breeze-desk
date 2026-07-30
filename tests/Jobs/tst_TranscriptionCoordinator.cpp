@@ -92,7 +92,92 @@ class TranscriptionCoordinatorTest final : public QObject {
     void rejectsResumedChunksBoundToDifferentSource();
     void rejectsStartedPlanThatWouldOmitCanonicalTail();
     void runtimeUnavailableFailsBeforeMediaPreparation();
+    void rejectsMalformedWorkerSegmentTimestamp_data();
+    void rejectsMalformedWorkerSegmentTimestamp();
 };
+
+void TranscriptionCoordinatorTest::rejectsMalformedWorkerSegmentTimestamp_data() {
+    QTest::addColumn<QString>("jobId");
+    QTest::newRow("missing start") << QStringLiteral("job-missing-segment-start");
+    QTest::newRow("floating start") << QStringLiteral("job-floating-segment-start");
+}
+
+void TranscriptionCoordinatorTest::rejectsMalformedWorkerSegmentTimestamp() {
+    QFETCH(QString, jobId);
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
+    const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
+    const auto restoreEnvironment =
+        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
+            const auto restore = [](const char* name, const QByteArray& value) {
+                if (value.isNull()) {
+                    qunsetenv(name);
+                } else {
+                    qputenv(name, value);
+                }
+            };
+            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+            restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
+        });
+    qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+    qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
+    qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
+    QVERIFY(StoragePaths::ensureLayout());
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    ModelManager models;
+    WorkerProcessManager worker;
+    QVERIFY(writeFixture(models.modelPath(models.defaultModelId())));
+    SettingsStore settingsStore(directory.filePath(QStringLiteral("settings.ini")));
+    TranscriptionSettingsManager settings(settingsStore);
+    settings.setDefaultModelId(models.defaultModelId());
+    settings.setVadEnabled(false);
+
+    Recording recording;
+    recording.id = QStringLiteral("recording-malformed-segment-") + jobId;
+    recording.title = QStringLiteral("Malformed worker segment");
+    recording.sourcePath = directory.filePath(QStringLiteral("malformed-segment-source.mp4"));
+    recording.normalizedPcmPath =
+        directory.filePath(QStringLiteral("malformed-segment-normalized.wav"));
+    QVERIFY(writeFixture(recording.sourcePath));
+    QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
+    recording.sourceHash = FileHash::sha256(recording.sourcePath);
+    recording.durationMs = 2'000;
+    recording.sampleRate = 16'000;
+    recording.channelCount = 1;
+    QVERIFY(recordings.create(recording));
+
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker, &settings);
+    QSignalSpy finished(&coordinator, &TranscriptionCoordinator::transcriptionFinished);
+    coordinator.initialize();
+    coordinator.enqueue(jobId, recording.id);
+
+    const auto failedWithProtocolMismatch = [&jobs, &jobId] {
+        const auto current = jobs.findById(jobId);
+        return current && current.value().has_value() && current.value()->state == JobState::Failed &&
+               current.value()->errorCode == QStringLiteral("WorkerProtocolMismatch");
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(failedWithProtocolMismatch(), 30'000);
+    QVERIFY(!worker.forcedCancellationPending());
+
+    const auto persisted = transcripts.segmentsForJob(jobId, true);
+    QVERIFY(persisted);
+    QVERIFY(persisted.value().isEmpty());
+    const auto chunks = jobs.chunks(jobId);
+    QVERIFY(chunks);
+    QCOMPARE(chunks.value().size(), 1);
+    QCOMPARE(chunks.value().constFirst().state, ChunkState::Failed);
+    QCOMPARE(finished.size(), 1);
+    QVERIFY(!finished.constFirst().at(2).toBool());
+}
 
 void TranscriptionCoordinatorTest::externalOwnedRunningJobReceivesCancellationRequest() {
     QTemporaryDir directory;

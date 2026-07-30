@@ -12,6 +12,7 @@ add_library(breezedesk_asr STATIC
     WhisperContext.cpp
     WhisperBackendInfo.cpp
     WhisperLogBridge.cpp
+    WorkerSegmentValidator.cpp
     WhisperSegmentCollector.cpp
     WhisperModelSession.cpp
     WhisperTranscriptionEngine.cpp
