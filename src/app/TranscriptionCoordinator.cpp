@@ -717,6 +717,7 @@ void TranscriptionCoordinator::beginJob(const TranscriptionJob& job) {
     m_activeJob = job;
     m_activeJob.state = JobState::Preparing;
     m_activeSourceHash.clear();
+    m_activeAudioStreamIndex = -1;
     m_vadModelVerified = false;
     m_vadRecoveryAttempted = false;
     publishEvents(job.id);
@@ -907,7 +908,8 @@ void TranscriptionCoordinator::inspectMedia() {
         if (!activeJobMatches(jobId, ownerToken) || m_activeJob.state == JobState::Cancelling) {
             return;
         }
-        if (!result.metadata.hasAudio || result.metadata.durationMs <= 0) {
+        if (!result.metadata.hasAudio || result.metadata.audioStreamIndex < 0 ||
+            result.metadata.durationMs <= 0) {
             failActiveJob(QStringLiteral("UnsupportedMedia"),
                           result.error.isEmpty() ? tr("The media does not contain supported audio.")
                                                  : result.error);
@@ -929,6 +931,7 @@ void TranscriptionCoordinator::inspectMedia() {
             return;
         }
         m_activeJob.parameters.insert(QStringLiteral("durationMs"), result.metadata.durationMs);
+        m_activeAudioStreamIndex = result.metadata.audioStreamIndex;
         if (!advanceProgress(JobStage::InspectingMedia, 1.0)) {
             return;
         }
@@ -956,7 +959,8 @@ void TranscriptionCoordinator::beginNormalization() {
     m_lastNormalizationPercent = -1;
     const qint64 duration =
         m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
-    m_normalization = m_normalizer->normalize(m_activeSourcePath, m_activeNormalizedPath, duration, this);
+    m_normalization = m_normalizer->normalize(m_activeSourcePath, m_activeNormalizedPath, duration,
+                                              m_activeAudioStreamIndex, this);
     NormalizationOperation* operation = m_normalization;
     const QString jobId = m_activeJob.id;
     const QString ownerToken = m_ownerToken;
@@ -2600,6 +2604,7 @@ void TranscriptionCoordinator::clearActive() {
     m_activeSourcePath.clear();
     m_activeNormalizedPath.clear();
     m_activeSourceHash.clear();
+    m_activeAudioStreamIndex = -1;
     m_ownerToken.clear();
     m_latestPartialText.clear();
     m_normalization = nullptr;

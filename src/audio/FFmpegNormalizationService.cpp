@@ -19,8 +19,13 @@ constexpr qint64 DiskSafetyMargin = 256LL * 1024LL * 1024LL;
 class FFmpegNormalizationOperation final : public NormalizationOperation {
   public:
     FFmpegNormalizationOperation(QString executable, QString source, QString output, qint64 duration,
-                                 QObject* parent)
+                                 int audioStreamIndex, QObject* parent)
         : NormalizationOperation(parent), m_outputPath(std::move(output)), m_durationMs(duration) {
+        if (audioStreamIndex < 0) {
+            setError(QStringLiteral("The selected audio stream is invalid."));
+            QTimer::singleShot(0, this, [this] { emit finished(false, {}); });
+            return;
+        }
         const QFileInfo outputInfo(m_outputPath);
         QDir().mkpath(outputInfo.absolutePath());
         const QStorageInfo storage(outputInfo.absolutePath());
@@ -58,6 +63,8 @@ class FFmpegNormalizationOperation final : public NormalizationOperation {
                                     QStringLiteral("file,pipe"),
                                     QStringLiteral("-i"),
                                     std::move(source),
+                                    QStringLiteral("-map"),
+                                    QStringLiteral("0:a:%1").arg(audioStreamIndex),
                                     QStringLiteral("-vn"),
                                     QStringLiteral("-ac"),
                                     QStringLiteral("1"),
@@ -175,8 +182,10 @@ FFmpegNormalizationService::FFmpegNormalizationService(QString ffmpegPath, QObje
 
 NormalizationOperation* FFmpegNormalizationService::normalize(const QString& sourcePath,
                                                               const QString& outputPath, qint64 durationMs,
+                                                              const int audioStreamIndex,
                                                               QObject* parent) {
-    return new FFmpegNormalizationOperation(m_ffmpegPath, sourcePath, outputPath, durationMs, parent);
+    return new FFmpegNormalizationOperation(m_ffmpegPath, sourcePath, outputPath, durationMs,
+                                            audioStreamIndex, parent);
 }
 
 } // namespace BreezeDesk

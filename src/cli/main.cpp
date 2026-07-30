@@ -1246,7 +1246,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         }
         FFmpegNormalizationService normalizer(tools.ffmpegPath);
         NormalizationOperation* operation =
-            normalizer.normalize(source, pcmPath, metadata.durationMs, &normalizer);
+            normalizer.normalize(source, pcmPath, metadata.durationMs, metadata.audioStreamIndex,
+                                 &normalizer);
         QEventLoop normalizationLoop;
         bool normalized = false;
         QString checkpointError;

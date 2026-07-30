@@ -112,6 +112,7 @@ class AudioTest final : public QObject {
     void executionScopedCachePathsDoNotCollide();
     void removesOnlyExpiredUnreferencedGenerationFiles();
     void parsesFfprobeMetadata();
+    void prefersDefaultAudioStreamMetadata();
     void generatesMultiresolutionWaveformFromUnicodePath();
     void cancellationLeavesNoWaveform();
     void rejectsTruncatedWaveformCacheHeaders();
@@ -123,6 +124,7 @@ class AudioTest final : public QObject {
     void rejectsWrongFormatTruncationAndDurationMismatch();
     void normalizationReportsMissingExecutableAfterReturn();
     void normalizationCanCancelBeforeDeferredStart();
+    void normalizationMapsSelectedAudioStream();
     void normalizationCommitsOnlyValidatedOutput();
     void normalizationRejectsExistingGenerationTarget();
     void normalizationPreservesExistingOutputWhenValidationFails();
@@ -229,6 +231,31 @@ void AudioTest::parsesFfprobeMetadata() {
     QCOMPARE(metadata.channelCount, 2);
     QCOMPARE(metadata.durationMs, 12345);
     QCOMPARE(metadata.bitRate, 128000);
+    QCOMPARE(metadata.audioStreamIndex, 0);
+}
+
+void AudioTest::prefersDefaultAudioStreamMetadata() {
+    const QByteArray json = R"({
+      "streams": [
+        {"codec_type":"audio","codec_name":"aac","sample_rate":"16000","channels":1,
+         "duration":"1.000","disposition":{"default":0}},
+        {"codec_type":"video","codec_name":"h264"},
+        {"codec_type":"audio","codec_name":"opus","sample_rate":"48000","channels":2,
+         "duration":"3.000","disposition":{"default":1}}
+      ],
+      "format":{"format_name":"mov,mp4","duration":"3.000","bit_rate":"128000"}
+    })";
+    QString error;
+    const MediaMetadata metadata =
+        MediaMetadata::fromFfprobeJson(QJsonDocument::fromJson(json).object(), &error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QVERIFY(metadata.hasAudio);
+    QVERIFY(metadata.hasVideo);
+    QCOMPARE(metadata.codecName, QStringLiteral("opus"));
+    QCOMPARE(metadata.sampleRate, 48'000);
+    QCOMPARE(metadata.channelCount, 2);
+    QCOMPARE(metadata.durationMs, 3'000);
+    QCOMPARE(metadata.audioStreamIndex, 1);
 }
 
 void AudioTest::generatesMultiresolutionWaveformFromUnicodePath() {
@@ -451,6 +478,26 @@ void AudioTest::normalizationCanCancelBeforeDeferredStart() {
     QVERIFY(!QFileInfo::exists(outputPath));
     QVERIFY(
         QDir(temporary.path()).entryList({QStringLiteral("normalized.wav.tmp.*")}, QDir::Files).isEmpty());
+}
+
+void AudioTest::normalizationMapsSelectedAudioStream() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString sourcePath = temporary.filePath(QStringLiteral("mapped-stream-1.media"));
+    const QString outputPath = temporary.filePath(QStringLiteral("normalized.wav"));
+    QVERIFY(writeSourceFixture(sourcePath));
+
+    FFmpegNormalizationService service(QString::fromUtf8(BREEZEDESK_NORMALIZATION_HELPER_PATH));
+    QScopedPointer<NormalizationOperation> operation(
+        service.normalize(sourcePath, outputPath, 1'000, 1));
+    QSignalSpy finished(operation.data(), &NormalizationOperation::finished);
+    if (finished.isEmpty()) {
+        QVERIFY(finished.wait(5'000));
+    }
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(finished.constFirst().at(0).toBool(), true);
+    QCOMPARE(finished.constFirst().at(1).toString(), outputPath);
+    QVERIFY(QFileInfo(outputPath).isFile());
 }
 
 void AudioTest::normalizationCommitsOnlyValidatedOutput() {

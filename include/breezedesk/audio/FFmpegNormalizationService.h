@@ -12,6 +12,7 @@ class FFmpegNormalizationService final : public QObject, public IAudioNormalizer
   public:
     explicit FFmpegNormalizationService(QString ffmpegPath, QObject* parent = nullptr);
     NormalizationOperation* normalize(const QString& sourcePath, const QString& outputPath, qint64 durationMs,
+                                      int audioStreamIndex = 0,
                                       QObject* parent = nullptr) override;
 
   private:

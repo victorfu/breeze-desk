@@ -40,7 +40,8 @@ class IAudioNormalizer {
   public:
     virtual ~IAudioNormalizer() = default;
     virtual NormalizationOperation* normalize(const QString& sourcePath, const QString& outputPath,
-                                              qint64 durationMs, QObject* parent = nullptr) = 0;
+                                              qint64 durationMs, int audioStreamIndex = 0,
+                                              QObject* parent = nullptr) = 0;
 };
 
 } // namespace BreezeDesk

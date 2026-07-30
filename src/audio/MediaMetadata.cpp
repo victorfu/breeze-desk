@@ -22,15 +22,27 @@ int parseInt(const QJsonValue& value) {
 MediaMetadata MediaMetadata::fromFfprobeJson(const QJsonObject& root, QString* error) {
     MediaMetadata metadata;
     const QJsonArray streams = root.value(QStringLiteral("streams")).toArray();
+    int audioStreamIndex = 0;
+    bool selectedAudioIsDefault = false;
     for (const QJsonValue& entry : streams) {
         const QJsonObject stream = entry.toObject();
         const QString type = stream.value(QStringLiteral("codec_type")).toString();
-        if (type == QStringLiteral("audio") && !metadata.hasAudio) {
+        if (type == QStringLiteral("audio")) {
+            const bool isDefault =
+                parseInt(stream.value(QStringLiteral("disposition"))
+                             .toObject()
+                             .value(QStringLiteral("default"))) != 0;
+            const bool select = !metadata.hasAudio || (!selectedAudioIsDefault && isDefault);
             metadata.hasAudio = true;
-            metadata.codecName = stream.value(QStringLiteral("codec_name")).toString();
-            metadata.sampleRate = parseInt(stream.value(QStringLiteral("sample_rate")));
-            metadata.channelCount = stream.value(QStringLiteral("channels")).toInt();
-            metadata.durationMs = parseMilliseconds(stream.value(QStringLiteral("duration")));
+            if (select) {
+                metadata.audioStreamIndex = audioStreamIndex;
+                metadata.codecName = stream.value(QStringLiteral("codec_name")).toString();
+                metadata.sampleRate = parseInt(stream.value(QStringLiteral("sample_rate")));
+                metadata.channelCount = parseInt(stream.value(QStringLiteral("channels")));
+                metadata.durationMs = parseMilliseconds(stream.value(QStringLiteral("duration")));
+                selectedAudioIsDefault = isDefault;
+            }
+            ++audioStreamIndex;
         } else if (type == QStringLiteral("video")) {
             metadata.hasVideo = true;
         }

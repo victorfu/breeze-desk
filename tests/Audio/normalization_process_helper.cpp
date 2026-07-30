@@ -60,6 +60,13 @@ int main(int argc, char* argv[]) {
     }
     const QString sourcePath = arguments.at(inputOption + 1);
     const QString outputPath = arguments.constLast();
+    if (sourcePath.contains(QStringLiteral("mapped-stream-1"))) {
+        const qsizetype mapOption = arguments.indexOf(QStringLiteral("-map"));
+        if (mapOption < 0 || mapOption + 1 >= arguments.size() ||
+            arguments.at(mapOption + 1) != QLatin1String("0:a:1")) {
+            return 5;
+        }
+    }
     QByteArray output = validWave();
     if (sourcePath.contains(QStringLiteral("bad-source"))) {
         output.chop(1);

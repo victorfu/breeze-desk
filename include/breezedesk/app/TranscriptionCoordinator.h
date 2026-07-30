@@ -151,6 +151,7 @@ class TranscriptionCoordinator final : public QObject {
     int m_currentChunkIndex{-1};
     int m_nextOrdinal{0};
     int m_lastNormalizationPercent{-1};
+    int m_activeAudioStreamIndex{-1};
     QString m_activeSourcePath;
     QString m_activeNormalizedPath;
     QString m_activeSourceHash;
