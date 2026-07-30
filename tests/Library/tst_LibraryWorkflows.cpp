@@ -1,6 +1,7 @@
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
+#include "breezedesk/jobs/SqliteJobRepository.h"
 #include "breezedesk/platform/IPlatformService.h"
 #include "breezedesk/ui/ApplicationViewModel.h"
 #include "breezedesk/ui/LibraryViewModel.h"
@@ -440,6 +441,82 @@ class LibraryWorkflowsTest final : public QObject {
         QCOMPARE(pending.value(0).toInt(), 1);
         QCOMPARE(pending.value(1).toString(), QStringLiteral("injected sharing violation"));
         QVERIFY(!pending.next());
+    }
+
+    void permanentDeleteRejectionKeepsActivePlaybackUntilCommit() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString source = directory.filePath(QStringLiteral("active.wav"));
+        createFile(source);
+
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("delete-rejection.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteRecordingRepository repository(database);
+        BreezeDesk::SqliteJobRepository jobs(database);
+
+        BreezeDesk::Recording recording;
+        recording.id = QStringLiteral("active-delete-rejection");
+        recording.title = QStringLiteral("Active delete rejection");
+        recording.sourcePath = source;
+        QVERIFY(repository.create(recording));
+
+        BreezeDesk::TranscriptionJob job;
+        job.id = QStringLiteral("active-delete-job");
+        job.recordingId = recording.id;
+        QVERIFY(jobs.createQueued(job));
+        const QString owner = QStringLiteral("active-delete-owner");
+        const auto claim = jobs.claimQueued(job.id, owner, 120'000);
+        QVERIFY(claim);
+        QVERIFY(claim.value().claimed);
+
+        BreezeDesk::ApplicationViewModel viewModel(&repository);
+        viewModel.openRecording(recording.id);
+        QCOMPARE(viewModel.activeRecordingId(), recording.id);
+        const QUrl activeSource = viewModel.player()->source();
+        QVERIFY(!activeSource.isEmpty());
+        QCOMPARE(activeSource, QUrl::fromLocalFile(source));
+
+        QSignalSpy aboutToDelete(
+            viewModel.library(),
+            &BreezeDesk::LibraryViewModel::recordingAboutToBePermanentlyDeleted);
+        QSignalSpy deleted(viewModel.library(),
+                           &BreezeDesk::LibraryViewModel::recordingPermanentlyDeleted);
+        QSignalSpy failures(viewModel.library(), &BreezeDesk::LibraryViewModel::operationFailed);
+        QVERIFY(aboutToDelete.isValid());
+        QVERIFY(deleted.isValid());
+        QVERIFY(failures.isValid());
+
+        viewModel.library()->moveToTrash(recording.id);
+        QCOMPARE(viewModel.library()->trash()->rowCount(), 1);
+        viewModel.library()->deletePermanently(recording.id);
+
+        QCOMPARE(failures.count(), 1);
+        QVERIFY(failures.constFirst().constFirst().toString().contains(
+            QStringLiteral("being transcribed"), Qt::CaseInsensitive));
+        QCOMPARE(aboutToDelete.count(), 0);
+        QCOMPARE(deleted.count(), 0);
+        QCOMPARE(viewModel.activeRecordingId(), recording.id);
+        QCOMPARE(viewModel.library()->selectedRecordingId(), recording.id);
+        QCOMPARE(viewModel.player()->source(), activeSource);
+        QCOMPARE(viewModel.currentPage(), QStringLiteral("Recording"));
+        QCOMPARE(viewModel.library()->trash()->rowCount(), 1);
+        const auto preserved = repository.findById(recording.id);
+        QVERIFY(preserved && preserved.value().has_value());
+        QVERIFY(preserved.value()->deletedAt.isValid());
+
+        QVERIFY(jobs.releaseLease(job.id, owner));
+        viewModel.library()->deletePermanently(recording.id);
+
+        QCOMPARE(failures.count(), 1);
+        QCOMPARE(aboutToDelete.count(), 1);
+        QCOMPARE(deleted.count(), 1);
+        QVERIFY(viewModel.activeRecordingId().isEmpty());
+        QVERIFY(viewModel.player()->source().isEmpty());
+        QCOMPARE(viewModel.currentPage(), QStringLiteral("Library"));
+        QCOMPARE(viewModel.library()->trash()->rowCount(), 0);
+        const auto removed = repository.findById(recording.id);
+        QVERIFY(removed && !removed.value().has_value());
     }
 
     void renameRelinkSortFilterAndRevealArePersistent() {

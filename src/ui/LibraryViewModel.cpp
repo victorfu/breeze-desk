@@ -251,13 +251,13 @@ void LibraryViewModel::deletePermanently(const QString& id) {
             return;
         }
         storedRecording = existing.value().value();
-        if (storedRecording->deletedAt.isValid()) {
-            emit recordingAboutToBePermanentlyDeleted(id);
-        }
         const auto result = m_repository->permanentlyDelete(id);
         if (!result) {
             emit operationFailed(result.error().message);
             return;
+        }
+        if (storedRecording->deletedAt.isValid()) {
+            emit recordingAboutToBePermanentlyDeleted(id);
         }
     }
     m_source.removePermanently(id);
