@@ -6,12 +6,18 @@
 
 #include <QCborMap>
 #include <QFile>
+#include <QProcess>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
 #include <QtTest>
+
+#ifdef Q_OS_WIN
+#include <QtCore/qt_windows.h>
+#endif
 
 using namespace BreezeDesk;
 
@@ -62,6 +68,28 @@ bool writeFile(const QString& path, const QByteArray& contents) {
     return file.open(QIODevice::WriteOnly) && file.write(contents) == contents.size();
 }
 
+bool createDirectoryLink(const QString& target, const QString& link) {
+#ifdef Q_OS_WIN
+    QProcess junction;
+    junction.start(QStringLiteral("cmd.exe"),
+                   {QStringLiteral("/d"), QStringLiteral("/c"), QStringLiteral("mklink"),
+                    QStringLiteral("/J"), QDir::toNativeSeparators(link),
+                    QDir::toNativeSeparators(target)});
+    return junction.waitForStarted(5'000) && junction.waitForFinished(5'000) &&
+           junction.exitStatus() == QProcess::NormalExit && junction.exitCode() == 0;
+#else
+    return QFile::link(target, link);
+#endif
+}
+
+void removeDirectoryLink(const QString& link) {
+#ifdef Q_OS_WIN
+    (void)::RemoveDirectoryW(reinterpret_cast<LPCWSTR>(link.utf16()));
+#else
+    (void)QFile::remove(link);
+#endif
+}
+
 } // namespace
 
 class MaintenanceControllerTest final : public QObject {
@@ -70,6 +98,8 @@ class MaintenanceControllerTest final : public QObject {
   private slots:
     void clearCacheRemovesOnlyCacheContents();
     void clearCacheRefusesBusyOrBroadLocation();
+    void clearCacheRefusesLinkedRoot();
+    void clearCacheRefusesOutsideDataRoot();
     void databaseBackupIsConsistentAndAtomic();
     void diagnosticsRefreshUsesWorkerCapabilities();
     void diagnosticsArchiveRedactsSensitiveContent();
@@ -78,7 +108,9 @@ class MaintenanceControllerTest final : public QObject {
 
 void MaintenanceControllerTest::clearCacheRemovesOnlyCacheContents() {
     QTemporaryDir directory;
+    QTemporaryDir externalDirectory;
     QVERIFY(directory.isValid());
+    QVERIFY(externalDirectory.isValid());
     const MaintenancePaths paths = pathsFor(directory);
     QVERIFY(QDir().mkpath(QDir(paths.cacheDirectory).filePath(QStringLiteral("nested"))));
     QVERIFY(writeFile(QDir(paths.cacheDirectory).filePath(QStringLiteral("nested/cache.bin")),
@@ -87,6 +119,20 @@ void MaintenanceControllerTest::clearCacheRemovesOnlyCacheContents() {
     QVERIFY(writeFile(outside, QByteArrayLiteral("keep")));
     const QString linkedOutside = QDir(paths.cacheDirectory).filePath(QStringLiteral("outside-link"));
     const bool linkCreated = QFile::link(outside, linkedOutside);
+    const QString externalSentinel =
+        externalDirectory.filePath(QStringLiteral("junction-target/sentinel.txt"));
+    QVERIFY(QDir().mkpath(QFileInfo(externalSentinel).absolutePath()));
+    QVERIFY(writeFile(externalSentinel, QByteArrayLiteral("keep-junction-target")));
+    const QString linkedDirectory =
+        QDir(paths.cacheDirectory).filePath(QStringLiteral("outside-directory-link"));
+    const bool directoryLinkCreated =
+        createDirectoryLink(QFileInfo(externalSentinel).absolutePath(), linkedDirectory);
+    const auto removeLinkedDirectory = qScopeGuard([linkedDirectory, directoryLinkCreated] {
+        if (directoryLinkCreated) {
+            removeDirectoryLink(linkedDirectory);
+        }
+    });
+    Q_UNUSED(removeLinkedDirectory)
 
     MaintenanceController controller({nullptr, nullptr, nullptr, paths});
     QSignalSpy cleared(&controller, &MaintenanceController::cacheCleared);
@@ -99,6 +145,10 @@ void MaintenanceControllerTest::clearCacheRemovesOnlyCacheContents() {
     QVERIFY(QFileInfo::exists(outside));
     if (linkCreated) {
         QCOMPARE(QFile(outside).size(), 4);
+    }
+    if (directoryLinkCreated) {
+        QVERIFY(QFileInfo::exists(externalSentinel));
+        QVERIFY(!QFileInfo(linkedDirectory).isJunction());
     }
 }
 
@@ -121,6 +171,63 @@ void MaintenanceControllerTest::clearCacheRefusesBusyOrBroadLocation() {
     broadController.clearCache();
     QVERIFY(broadErrors.wait(5'000));
     QCOMPARE(broadErrors.first().first().toString(), QStringLiteral("ClearCache"));
+}
+
+void MaintenanceControllerTest::clearCacheRefusesLinkedRoot() {
+    QTemporaryDir applicationData;
+    QTemporaryDir external;
+    QVERIFY(applicationData.isValid());
+    QVERIFY(external.isValid());
+    const QString sentinel = external.filePath(QStringLiteral("keep/sentinel.txt"));
+    QVERIFY(QDir().mkpath(QFileInfo(sentinel).absolutePath()));
+    QVERIFY(writeFile(sentinel, QByteArrayLiteral("outside-cache")));
+
+    const MaintenancePaths paths = pathsFor(applicationData);
+    if (!createDirectoryLink(external.path(), paths.cacheDirectory)) {
+        QSKIP("This environment cannot create a directory symbolic link.");
+    }
+    const auto removeLink = qScopeGuard([link = paths.cacheDirectory] { removeDirectoryLink(link); });
+    Q_UNUSED(removeLink)
+    const QFileInfo linkedRoot(paths.cacheDirectory);
+    bool linkedRootDetected = linkedRoot.isSymLink();
+#ifdef Q_OS_WIN
+    linkedRootDetected = linkedRootDetected || linkedRoot.isJunction();
+#endif
+    QVERIFY(linkedRootDetected);
+
+    MaintenanceController controller({nullptr, nullptr, nullptr, paths});
+    QSignalSpy errors(&controller, &MaintenanceController::operationFailed);
+    QSignalSpy cleared(&controller, &MaintenanceController::cacheCleared);
+    controller.clearCache();
+    QTRY_VERIFY_WITH_TIMEOUT(errors.size() + cleared.size() > 0, 5'000);
+
+    QCOMPARE(errors.size(), 1);
+    QCOMPARE(cleared.size(), 0);
+    QVERIFY(QFileInfo::exists(sentinel));
+    QFile preserved(sentinel);
+    QVERIFY(preserved.open(QIODevice::ReadOnly));
+    QCOMPARE(preserved.readAll(), QByteArrayLiteral("outside-cache"));
+}
+
+void MaintenanceControllerTest::clearCacheRefusesOutsideDataRoot() {
+    QTemporaryDir applicationData;
+    QTemporaryDir external;
+    QVERIFY(applicationData.isValid());
+    QVERIFY(external.isValid());
+    const QString sentinel = external.filePath(QStringLiteral("sentinel.txt"));
+    QVERIFY(writeFile(sentinel, QByteArrayLiteral("outside-cache")));
+
+    MaintenancePaths paths = pathsFor(applicationData);
+    paths.cacheDirectory = external.path();
+    MaintenanceController controller({nullptr, nullptr, nullptr, paths});
+    QSignalSpy errors(&controller, &MaintenanceController::operationFailed);
+    QSignalSpy cleared(&controller, &MaintenanceController::cacheCleared);
+    controller.clearCache();
+    QTRY_VERIFY_WITH_TIMEOUT(errors.size() + cleared.size() > 0, 5'000);
+
+    QCOMPARE(errors.size(), 1);
+    QCOMPARE(cleared.size(), 0);
+    QVERIFY(QFileInfo::exists(sentinel));
 }
 
 void MaintenanceControllerTest::databaseBackupIsConsistentAndAtomic() {

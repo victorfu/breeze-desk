@@ -58,6 +58,34 @@ QString normalizedPath(const QString& path) {
     return QDir::cleanPath(canonical.isEmpty() ? info.absoluteFilePath() : canonical);
 }
 
+QString absoluteCleanPath(const QString& path) {
+    if (path.trimmed().isEmpty()) {
+        return {};
+    }
+    return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+}
+
+bool isStrictChildPath(const QString& path, const QString& directory) {
+    if (path.isEmpty() || directory.isEmpty()) {
+        return false;
+    }
+    const QString relative = QDir(directory).relativeFilePath(path);
+    return !relative.isEmpty() && relative != QLatin1String(".") && relative != QLatin1String("..") &&
+           !relative.startsWith(QLatin1String("../")) &&
+           !relative.startsWith(QLatin1String("..\\")) && !QDir::isAbsolutePath(relative);
+}
+
+bool isLinkOrJunction(const QFileInfo& info) {
+    if (info.isSymLink()) {
+        return true;
+    }
+#ifdef Q_OS_WIN
+    return info.isJunction();
+#else
+    return false;
+#endif
+}
+
 bool pathsEqual(const QString& left, const QString& right) {
     return !left.isEmpty() && !right.isEmpty() && normalizedPath(left) == normalizedPath(right);
 }
@@ -70,7 +98,7 @@ bool isAncestorOf(const QString& ancestor, const QString& descendant) {
 }
 
 qint64 entrySize(const QFileInfo& info) {
-    if (info.isSymLink() || info.isFile()) {
+    if (isLinkOrJunction(info) || info.isFile()) {
         return std::max<qint64>(0, info.size());
     }
     if (!info.isDir()) {
@@ -91,7 +119,17 @@ qint64 entrySize(const QFileInfo& info) {
 }
 
 bool removeEntryWithoutFollowingLinks(const QFileInfo& info, QString* error) {
-    if (info.isSymLink() || info.isFile()) {
+    if (isLinkOrJunction(info)) {
+        QDir parent(info.absolutePath());
+        if (parent.rmdir(info.fileName()) || QFile::remove(info.absoluteFilePath())) {
+            return true;
+        }
+        if (error != nullptr) {
+            *error = QStringLiteral("Unable to remove cache link: %1").arg(info.absoluteFilePath());
+        }
+        return false;
+    }
+    if (info.isFile()) {
         if (QFile::remove(info.absoluteFilePath())) {
             return true;
         }
@@ -124,9 +162,32 @@ bool removeEntryWithoutFollowingLinks(const QFileInfo& info, QString* error) {
 
 OperationResult clearCacheDirectory(const QString& cachePath, const QString& dataRoot) {
     OperationResult result;
-    const QString cache = normalizedPath(cachePath);
+    const QString cache = absoluteCleanPath(cachePath);
+    const QString root = absoluteCleanPath(dataRoot);
     if (cache.isEmpty()) {
         result.message = QStringLiteral("The cache location is empty.");
+        return result;
+    }
+    if (root.isEmpty() || !isStrictChildPath(cache, root)) {
+        result.message =
+            QStringLiteral("The configured cache location is outside the application data directory.");
+        result.technicalDetails = cache;
+        return result;
+    }
+
+    const QFileInfo configuredCache(cache);
+    if (isLinkOrJunction(configuredCache) ||
+        (configuredCache.exists() && !configuredCache.isDir())) {
+        result.message = QStringLiteral("The configured cache location is not a regular directory.");
+        result.technicalDetails = cache;
+        return result;
+    }
+
+    const QFileInfo rootInfo(root);
+    const QString canonicalRoot = normalizedPath(root);
+    if (!rootInfo.isDir() || canonicalRoot.isEmpty()) {
+        result.message = QStringLiteral("The application data directory is unavailable.");
+        result.technicalDetails = root;
         return result;
     }
 
@@ -140,20 +201,45 @@ OperationResult clearCacheDirectory(const QString& cachePath, const QString& dat
     };
     const bool isProtected = std::any_of(protectedPaths.cbegin(), protectedPaths.cend(),
                                          [&cache](const QString& path) { return pathsEqual(cache, path); });
-    if (isProtected || pathsEqual(cache, dataRoot) || isAncestorOf(cache, dataRoot)) {
+    if (isProtected || pathsEqual(cache, root) || isAncestorOf(cache, root)) {
         result.message = QStringLiteral("The configured cache location is too broad to clear safely.");
         result.technicalDetails = cache;
         return result;
     }
 
-    const QFileInfo cacheInfo(cache);
-    if (cacheInfo.exists() && (cacheInfo.isSymLink() || !cacheInfo.isDir())) {
+    QString existingAncestor = QFileInfo(cache).absolutePath();
+    while (existingAncestor != root) {
+        const QFileInfo ancestorInfo(existingAncestor);
+        if (ancestorInfo.exists() || isLinkOrJunction(ancestorInfo)) {
+            break;
+        }
+        const QString parent = QFileInfo(existingAncestor).absolutePath();
+        if (parent == existingAncestor || !isStrictChildPath(parent, root)) {
+            existingAncestor = root;
+            break;
+        }
+        existingAncestor = parent;
+    }
+    const QFileInfo ancestorInfo(existingAncestor);
+    const QString canonicalAncestor = normalizedPath(existingAncestor);
+    if ((existingAncestor != root && isLinkOrJunction(ancestorInfo)) ||
+        (!pathsEqual(canonicalAncestor, canonicalRoot) &&
+         !isStrictChildPath(canonicalAncestor, canonicalRoot))) {
         result.message = QStringLiteral("The configured cache location is not a regular directory.");
         result.technicalDetails = cache;
         return result;
     }
     if (!QDir().mkpath(cache)) {
         result.message = QStringLiteral("The cache directory could not be created.");
+        result.technicalDetails = cache;
+        return result;
+    }
+
+    const QFileInfo cacheInfo(cache);
+    const QString canonicalCache = normalizedPath(cache);
+    if (!cacheInfo.isDir() || isLinkOrJunction(cacheInfo) || canonicalCache.isEmpty() ||
+        !isStrictChildPath(canonicalCache, canonicalRoot)) {
+        result.message = QStringLiteral("The configured cache location is not a regular directory.");
         result.technicalDetails = cache;
         return result;
     }
