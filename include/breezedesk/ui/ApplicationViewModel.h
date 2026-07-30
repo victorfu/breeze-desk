@@ -106,6 +106,8 @@ class ApplicationViewModel : public QObject {
     void transcriptionJobRequested(const QString& jobId, const QString& recordingId);
 
   private:
+    struct ManagedCopyState;
+
     [[nodiscard]] bool saveActiveTranscript();
     [[nodiscard]] bool requestActiveTranscriptDraftCommit();
     int importUrlsInternal(const QVariantList& urls, quint64 folderOperation, bool openSingleImport = false);
@@ -142,6 +144,7 @@ class ApplicationViewModel : public QObject {
     IPlatformService* m_platformService{nullptr};
     bool m_activeDraftCommitPending{false};
     bool m_activeDraftCommitAccepted{true};
+    std::unique_ptr<ManagedCopyState> m_managedCopyState;
 };
 
 } // namespace BreezeDesk

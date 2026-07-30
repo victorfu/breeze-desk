@@ -15,17 +15,24 @@
 #include <QFileInfo>
 #include <QFutureWatcher>
 #include <QGuiApplication>
+#include <QHash>
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QStorageInfo>
+#include <QThreadPool>
 #include <QUrl>
 #include <QUuid>
 #include <QtConcurrentRun>
 
 #include <algorithm>
 #include <atomic>
+#include <filesystem>
 #include <memory>
 #include <utility>
+
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 namespace {
 
@@ -39,7 +46,8 @@ struct WaveformLoadResult {
 
 struct ManagedCopyResult {
     QUrl originalUrl;
-    QString managedPath;
+    QString stagingPath;
+    QString destinationPath;
     QString error;
     bool cancelled{false};
 };
@@ -66,9 +74,83 @@ bool isInsideDirectory(const QString& filePath, const QString& directoryPath) {
     return file.startsWith(directory + QLatin1Char('/'), PathCaseSensitivity);
 }
 
-ManagedCopyResult copyManagedMedia(const QUrl& originalUrl, const QString& destinationPath,
+bool isDirectChildOfDirectory(const QString& filePath, const QString& directoryPath) {
+    const QFileInfo fileInfo(filePath);
+    const QFileInfo parentInfo(fileInfo.absolutePath());
+    const QFileInfo directoryInfo(directoryPath);
+    const QString parent = QDir::fromNativeSeparators(
+        QDir::cleanPath(parentInfo.canonicalFilePath().isEmpty() ? parentInfo.absoluteFilePath()
+                                                                 : parentInfo.canonicalFilePath()));
+    const QString directory = QDir::fromNativeSeparators(
+        QDir::cleanPath(directoryInfo.canonicalFilePath().isEmpty() ? directoryInfo.absoluteFilePath()
+                                                                    : directoryInfo.canonicalFilePath()));
+#ifdef Q_OS_WIN
+    constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseInsensitive;
+#else
+    constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseSensitive;
+#endif
+    return !fileInfo.fileName().isEmpty() && parent.compare(directory, PathCaseSensitivity) == 0;
+}
+
+QString managedImportStagingDirectory() {
+    return QDir(BreezeDesk::StoragePaths::temporary()).filePath(QStringLiteral("managed-imports"));
+}
+
+void removeManagedImportStagingFile(const QString& path) {
+    if (!path.isEmpty() && isInsideDirectory(path, managedImportStagingDirectory())) {
+        (void)QFile::remove(path);
+    }
+}
+
+bool publishManagedImport(const QString& stagingPath, const QString& destinationPath) {
+    const QStorageInfo stagingStorage(QFileInfo(stagingPath).absolutePath());
+    const QStorageInfo destinationStorage(QFileInfo(destinationPath).absolutePath());
+    if (!stagingStorage.isValid() || !stagingStorage.isReady() || !destinationStorage.isValid() ||
+        !destinationStorage.isReady()) {
+        return false;
+    }
+    if (!stagingStorage.device().isEmpty() && !destinationStorage.device().isEmpty()) {
+        if (stagingStorage.device() != destinationStorage.device()) {
+            return false;
+        }
+    } else {
+#ifdef Q_OS_WIN
+        constexpr Qt::CaseSensitivity StorageCaseSensitivity = Qt::CaseInsensitive;
+#else
+        constexpr Qt::CaseSensitivity StorageCaseSensitivity = Qt::CaseSensitive;
+#endif
+        if (stagingStorage.rootPath().compare(destinationStorage.rootPath(), StorageCaseSensitivity) != 0) {
+            return false;
+        }
+    }
+    if (QFileInfo::exists(destinationPath)) {
+        return false;
+    }
+
+#ifdef Q_OS_WIN
+    const QString nativeStagingPath = QDir::toNativeSeparators(stagingPath);
+    const QString nativeDestinationPath = QDir::toNativeSeparators(destinationPath);
+    return MoveFileExW(reinterpret_cast<LPCWSTR>(nativeStagingPath.utf16()),
+                       reinterpret_cast<LPCWSTR>(nativeDestinationPath.utf16()),
+                       MOVEFILE_WRITE_THROUGH) != 0;
+#else
+    std::error_code error;
+    const QByteArray encodedStagingPath = QFile::encodeName(stagingPath);
+    const QByteArray encodedDestinationPath = QFile::encodeName(destinationPath);
+    std::filesystem::rename(std::filesystem::path(encodedStagingPath.constData()),
+                            std::filesystem::path(encodedDestinationPath.constData()), error);
+    return !error;
+#endif
+}
+
+ManagedCopyResult copyManagedMedia(const QUrl& originalUrl, const QString& stagingPath,
+                                   const QString& destinationPath,
                                    const std::shared_ptr<std::atomic_bool>& cancellation) {
-    ManagedCopyResult result{originalUrl, destinationPath, {}, false};
+    ManagedCopyResult result{originalUrl, stagingPath, destinationPath, {}, false};
+    if (cancellation && cancellation->load(std::memory_order_relaxed)) {
+        result.cancelled = true;
+        return result;
+    }
     const QString sourcePath = originalUrl.toLocalFile();
     QFile source(sourcePath);
     const QFileInfo sourceInfo(sourcePath);
@@ -83,7 +165,7 @@ ManagedCopyResult copyManagedMedia(const QUrl& originalUrl, const QString& desti
         result.error = QStringLiteral("There is not enough free disk space to copy this media file.");
         return result;
     }
-    QSaveFile destination(destinationPath);
+    QSaveFile destination(stagingPath);
     if (!destination.open(QIODevice::WriteOnly)) {
         result.error = QStringLiteral("The managed media copy could not be created.");
         return result;
@@ -167,6 +249,16 @@ WaveformLoadResult loadWaveform(const QString& recordingId, const QString& wavef
 
 namespace BreezeDesk {
 
+struct ApplicationViewModel::ManagedCopyState {
+    ManagedCopyState() {
+        pool.setMaxThreadCount(2);
+    }
+
+    QThreadPool pool;
+    QHash<QFutureWatcher<ManagedCopyResult>*, std::shared_ptr<std::atomic_bool>> activeCopies;
+    bool shuttingDown{false};
+};
+
 ApplicationViewModel::ApplicationViewModel(QObject* parent)
     : ApplicationViewModel(nullptr, nullptr, parent) {}
 
@@ -177,7 +269,8 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
                                            ITranscriptRepository* transcriptRepository, QObject* parent)
     : QObject(parent), m_library(recordingRepository, this), m_recordingDetail(this), m_transcript(this),
       m_jobQueue(this), m_player(this), m_modelManager(this), m_glossary(this), m_settings(this),
-      m_diagnostics(this), m_transcriptRepository(transcriptRepository) {
+      m_diagnostics(this), m_transcriptRepository(transcriptRepository),
+      m_managedCopyState(std::make_unique<ManagedCopyState>()) {
     m_transcriptAutosaveTimer.setSingleShot(true);
     m_transcriptAutosaveTimer.setInterval(750);
     connect(&m_library, &LibraryViewModel::recordingActivated, this, &ApplicationViewModel::openRecording);
@@ -283,13 +376,27 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
 }
 
 ApplicationViewModel::~ApplicationViewModel() {
+    m_managedCopyState->shuttingDown = true;
     m_transcriptAutosaveTimer.stop();
+    m_folderImportBatchTimer.stop();
     if (m_transcript.dirty()) {
         (void)saveActiveTranscript();
     }
     if (m_folderImportCancellation) {
         m_folderImportCancellation->store(true, std::memory_order_relaxed);
     }
+    for (const auto& cancellation : std::as_const(m_managedCopyState->activeCopies)) {
+        cancellation->store(true, std::memory_order_relaxed);
+    }
+    m_managedCopyState->pool.waitForDone();
+    const auto unfinishedCallbacks = m_managedCopyState->activeCopies.keys();
+    for (QFutureWatcher<ManagedCopyResult>* watcher : unfinishedCallbacks) {
+        disconnect(watcher, nullptr, this, nullptr);
+        watcher->future().waitForFinished();
+        removeManagedImportStagingFile(watcher->result().stagingPath);
+        delete watcher;
+    }
+    m_managedCopyState->activeCopies.clear();
 }
 
 LibraryViewModel* ApplicationViewModel::library() noexcept {
@@ -361,8 +468,8 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                                              const bool openSingleImport) {
     const bool trackedFolderImport = folderOperation != 0;
     const bool openAfterImport = openSingleImport && urls.size() == 1;
-    const auto cancellation =
-        trackedFolderImport ? m_folderImportCancellation : std::shared_ptr<std::atomic_bool>{};
+    const auto cancellation = trackedFolderImport ? m_folderImportCancellation
+                                                   : std::make_shared<std::atomic_bool>(false);
     QStringList synchronouslyImportedIds;
     const QMetaObject::Connection importedConnection =
         openAfterImport ? connect(&m_library, &LibraryViewModel::recordingImported, this,
@@ -415,34 +522,46 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
         safeSuffix = safeSuffix.left(16);
         const QString safeName =
             safeSuffix.isEmpty() ? safeStem : QStringLiteral("%1.%2").arg(safeStem, safeSuffix);
+        const QString operationId = QUuid::createUuid().toString(QUuid::WithoutBraces);
         const QString destination = QDir(StoragePaths::recordings())
-                                        .filePath(QStringLiteral("%1-%2").arg(
-                                            QUuid::createUuid().toString(QUuid::WithoutBraces), safeName));
+                                        .filePath(QStringLiteral("%1-%2").arg(operationId, safeName));
+        const QString stagingDirectory = managedImportStagingDirectory();
+        if (!QDir().mkpath(stagingDirectory)) {
+            if (trackedFolderImport) {
+                ++folderSynchronousProcessed;
+            } else {
+                showToast(tr("The managed media staging directory could not be created."));
+            }
+            continue;
+        }
+        const QString stagingPath =
+            QDir(stagingDirectory).filePath(QStringLiteral("%1.pending").arg(operationId));
         auto* watcher = new QFutureWatcher<ManagedCopyResult>(this);
+        m_managedCopyState->activeCopies.insert(watcher, cancellation);
         if (trackedFolderImport) {
             ++m_folderImportActiveCopies;
         }
         connect(watcher, &QFutureWatcher<ManagedCopyResult>::finished, this,
                 [this, watcher, folderOperation, cancellation, openAfterImport] {
                     const ManagedCopyResult result = watcher->result();
+                    m_managedCopyState->activeCopies.remove(watcher);
                     watcher->deleteLater();
                     const bool tracked = folderOperation != 0 && folderOperation == m_folderImportGeneration;
                     if (tracked) {
                         --m_folderImportActiveCopies;
                     }
                     const bool cancelled =
-                        result.cancelled || (cancellation && cancellation->load(std::memory_order_relaxed));
+                        m_managedCopyState->shuttingDown || result.cancelled ||
+                        cancellation->load(std::memory_order_relaxed);
                     if (cancelled) {
-                        if (!result.managedPath.isEmpty() &&
-                            isInsideDirectory(result.managedPath, StoragePaths::recordings())) {
-                            (void)QFile::remove(result.managedPath);
-                        }
+                        removeManagedImportStagingFile(result.stagingPath);
                         if (tracked) {
                             completeFolderImportItems(folderOperation, 1, 0);
                         }
                         return;
                     }
                     if (!result.error.isEmpty()) {
+                        removeManagedImportStagingFile(result.stagingPath);
                         if (!tracked) {
                             showToast(result.error);
                         }
@@ -451,11 +570,26 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                         }
                         return;
                     }
+                    const bool validStagingPath =
+                        isInsideDirectory(result.stagingPath, managedImportStagingDirectory());
+                    const bool validDestinationPath =
+                        isDirectChildOfDirectory(result.destinationPath, StoragePaths::recordings());
+                    if (!validStagingPath || !validDestinationPath ||
+                        !QFileInfo(result.stagingPath).isFile() ||
+                        !publishManagedImport(result.stagingPath, result.destinationPath)) {
+                        removeManagedImportStagingFile(result.stagingPath);
+                        if (!tracked) {
+                            showToast(tr("The managed media copy could not be published."));
+                        } else {
+                            completeFolderImportItems(folderOperation, 1, 0);
+                        }
+                        return;
+                    }
                     const QString recordingId =
-                        m_library.importManagedCopy(result.originalUrl, result.managedPath);
+                        m_library.importManagedCopy(result.originalUrl, result.destinationPath);
                     if (recordingId.isEmpty()) {
-                        if (isInsideDirectory(result.managedPath, StoragePaths::recordings())) {
-                            (void)QFile::remove(result.managedPath);
+                        if (isInsideDirectory(result.destinationPath, StoragePaths::recordings())) {
+                            (void)QFile::remove(result.destinationPath);
                         }
                         if (tracked) {
                             completeFolderImportItems(folderOperation, 1, 0);
@@ -471,7 +605,8 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                         }
                     }
                 });
-        watcher->setFuture(QtConcurrent::run(copyManagedMedia, url, destination, cancellation));
+        watcher->setFuture(QtConcurrent::run(&m_managedCopyState->pool, copyManagedMedia, url,
+                                             stagingPath, destination, cancellation));
         ++scheduledCount;
     }
     const int referencedCount = static_cast<int>(referencedUrls.size());

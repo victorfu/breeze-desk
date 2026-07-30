@@ -6,10 +6,12 @@
 #include "breezedesk/ui/LibraryViewModel.h"
 
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QtTest>
 
 #include <utility>
@@ -276,6 +278,58 @@ class LibraryWorkflowsTest final : public QObject {
         QFile managed(stored.managedMediaPath);
         QVERIFY(managed.open(QIODevice::ReadOnly));
         QCOMPARE(managed.readAll(), QByteArrayLiteral("media"));
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
+                         .filePath(QStringLiteral("managed-imports")))
+                    .entryList(QDir::Files)
+                    .isEmpty());
+    }
+
+    void managedImportShutdownRemovesUnpublishedCopy() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+        qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
+        QVERIFY(BreezeDesk::StoragePaths::ensureLayout());
+
+        const QString source = directory.filePath(QStringLiteral("source/shutdown.wav"));
+        createFile(source);
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("managed-shutdown.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteRecordingRepository repository(database);
+
+        {
+            BreezeDesk::ApplicationViewModel viewModel(&repository);
+            viewModel.setManagedMediaCopyEnabled(true);
+            QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(source)}), 1);
+
+            const QString stagingDirectory = QDir(BreezeDesk::StoragePaths::temporary())
+                                                 .filePath(QStringLiteral("managed-imports"));
+            QElapsedTimer timeout;
+            timeout.start();
+            const QStringList committedFilter{QStringLiteral("*.pending")};
+            while (QDir(stagingDirectory).entryList(committedFilter, QDir::Files).isEmpty() &&
+                   timeout.elapsed() < 5'000) {
+                QThread::msleep(1);
+            }
+            const QStringList committedFiles =
+                QDir(stagingDirectory).entryList(committedFilter, QDir::Files);
+            QCOMPARE(committedFiles.size(), 1);
+            QCOMPARE(QFileInfo(QDir(stagingDirectory).filePath(committedFiles.constFirst())).size(), qint64{5});
+            // Keep the GUI event queue blocked after the worker commits so its finished callback remains
+            // undispatched when the view model begins destruction.
+            QThread::msleep(25);
+        }
+
+        const auto recordings = repository.list({});
+        QVERIFY(recordings);
+        QVERIFY(recordings.value().items.isEmpty());
+        QVERIFY(QDir(BreezeDesk::StoragePaths::recordings()).entryList(QDir::Files).isEmpty());
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
+                         .filePath(QStringLiteral("managed-imports")))
+                    .entryList(QDir::Files)
+                    .isEmpty());
+        QVERIFY(QFileInfo::exists(source));
     }
 
     void managedImportSearchFailureLeavesNoDanglingRecording() {
@@ -309,6 +363,10 @@ class LibraryWorkflowsTest final : public QObject {
                  QStringLiteral("The fallback search entry could not be written."));
         QTRY_VERIFY_WITH_TIMEOUT(
             QDir(BreezeDesk::StoragePaths::recordings()).entryList(QDir::Files).isEmpty(), 5'000);
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
+                         .filePath(QStringLiteral("managed-imports")))
+                    .entryList(QDir::Files)
+                    .isEmpty());
 
         const auto recordings = repository.list({});
         QVERIFY(recordings);
