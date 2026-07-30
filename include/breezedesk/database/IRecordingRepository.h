@@ -7,6 +7,15 @@
 
 namespace BreezeDesk {
 
+struct PendingArtifactDeletionReport {
+    int entriesClaimed{0};
+    int filesRemoved{0};
+    int missingFiles{0};
+    int referencedFilesDeferred{0};
+    int unsafeEntriesDiscarded{0};
+    int failures{0};
+};
+
 class IRecordingRepository {
   public:
     virtual ~IRecordingRepository() = default;
@@ -33,6 +42,8 @@ class IRecordingRepository {
     [[nodiscard]] virtual Result<void> moveToTrash(const QString& id) = 0;
     [[nodiscard]] virtual Result<void> restore(const QString& id) = 0;
     [[nodiscard]] virtual Result<void> permanentlyDelete(const QString& id) = 0;
+    [[nodiscard]] virtual Result<PendingArtifactDeletionReport>
+    drainPendingArtifactDeletions(const QString& recordingId = {}) = 0;
     [[nodiscard]] virtual Result<void> setActiveTranscriptJob(const QString& recordingId,
                                                               const QString& jobId) = 0;
 };

@@ -222,6 +222,19 @@ int main(int argc, char* argv[]) {
     BreezeDesk::SqliteTranscriptRepository transcriptRepository(database);
     BreezeDesk::SqliteJobRepository jobRepository(database);
     BreezeDesk::SqliteGlossaryRepository glossaryRepository(database);
+    const auto pendingArtifactCleanup = recordingRepository.drainPendingArtifactDeletions();
+    if (!pendingArtifactCleanup) {
+        qCWarning(BreezeDesk::logDatabase, "Pending managed file cleanup could not be resumed: %s",
+                  qUtf8Printable(pendingArtifactCleanup.error().diagnosticString()));
+    } else if (pendingArtifactCleanup.value().failures > 0 ||
+               pendingArtifactCleanup.value().unsafeEntriesDiscarded > 0) {
+        qCWarning(BreezeDesk::logDatabase,
+                  "%d managed file cleanup attempt(s) failed and will retry; %d were deferred "
+                  "because the file is still referenced; %d unsafe entry/entries were discarded",
+                  pendingArtifactCleanup.value().failures,
+                  pendingArtifactCleanup.value().referencedFilesDeferred,
+                  pendingArtifactCleanup.value().unsafeEntriesDiscarded);
+    }
     removeExpiredOrphanedAudioCacheFiles(recordingRepository, jobRepository);
     BreezeDesk::ModelManager modelManager;
     const QString configuredModel = transcriptionSettings.defaultModelId();

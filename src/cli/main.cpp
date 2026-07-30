@@ -2456,6 +2456,19 @@ int main(int argc, char* argv[]) {
     BreezeDesk::SqliteJobRepository jobs(database);
     BreezeDesk::SqliteTranscriptRepository transcripts(database);
     BreezeDesk::SqliteGlossaryRepository glossaries(database);
+    const auto pendingArtifactCleanup = recordings.drainPendingArtifactDeletions();
+    if (!pendingArtifactCleanup) {
+        qCWarning(BreezeDesk::logCli, "Pending managed file cleanup could not be resumed: %s",
+                  qUtf8Printable(pendingArtifactCleanup.error().diagnosticString()));
+    } else if (pendingArtifactCleanup.value().failures > 0 ||
+               pendingArtifactCleanup.value().unsafeEntriesDiscarded > 0) {
+        qCWarning(BreezeDesk::logCli,
+                  "%d managed file cleanup attempt(s) failed and will retry; %d were deferred "
+                  "because the file is still referenced; %d unsafe entry/entries were discarded",
+                  pendingArtifactCleanup.value().failures,
+                  pendingArtifactCleanup.value().referencedFilesDeferred,
+                  pendingArtifactCleanup.value().unsafeEntriesDiscarded);
+    }
     BreezeDesk::removeExpiredOrphanedAudioCacheFiles(recordings, jobs);
     BreezeDesk::ModelManager models;
 

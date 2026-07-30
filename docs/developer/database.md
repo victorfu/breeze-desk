@@ -27,12 +27,13 @@ must request a connection on the thread that uses it and release queries before 
 
 ## Schema and migrations
 
-Schema version 10 contains these durable groups:
+Schema version 11 contains these durable groups:
 
 - `recordings`, tags, and `recording_tags` for Library/Trash metadata;
 - `transcription_jobs`, `job_chunks`, and `transcript_segments` for processing and resume state;
 - `glossary_profiles` and `glossary_terms`;
 - `installed_models` and `database_features`;
+- `pending_recording_artifact_deletions` for durable managed-media/cache cleanup;
 - `schema_migrations`, FTS5 `search_index` when available, and `search_index_fallback` always.
 
 Migration history is checksummed and verified at every startup:
@@ -49,6 +50,7 @@ Migration history is checksummed and verified at every startup:
 | 8 | `search_index_trigram` | Trigram FTS5 index with a rebuilt fallback index. |
 | 9 | `single_glossary` | Consolidates profile terms into one shared glossary and removes duplicate names. |
 | 10 | `single_transcript` | Keeps one current transcript per recording and removes stored transcript history. |
+| 11 | `recording_artifact_deletion_outbox` | Atomically records managed-media/cache cleanup before permanent recording deletion. |
 
 Before upgrading a non-empty older schema, `VACUUM INTO` creates a consistent timestamped backup.
 Statements and migration-row insertion share one transaction; failure rolls back. A database newer than
@@ -75,9 +77,16 @@ uses Unicode tokenization; the fallback uses escaped, paged `LIKE` predicates ov
 Repository operations refresh the index after relevant writes.
 
 Trash sets `deleted_at`; restore clears it. Permanent delete relies on foreign-key cascades for database
-content, while the application separately validates that any media/cache path is managed before deleting
-it. Original source paths are never deletion targets. Manual backups use the same consistent
-`VACUUM INTO` snapshot and atomic `QSaveFile` copy.
+content and enqueues eligible managed-media/cache paths in the same immediate transaction. The outbox
+processor retries sharing violations with exponential backoff at startup and after Library deletion;
+missing files count as complete, paths still referenced by another recording are deferred, and every path
+is revalidated against its app-owned root immediately before removal. On Windows, deletion pins the opened
+entry, validates its final handle path, and marks that handle for deletion so a parent junction cannot be
+swapped between validation and removal; Unix builds traverse pinned parent descriptors and call
+`unlinkat`. Writers that introduce a new app-owned path acquire an immediate transaction and recheck that
+entry while holding the same SQLite write fence, including aliases from outside the storage root. Original
+source paths are never deletion targets unless the same path is independently valid as the managed media
+copy. Manual backups use the same consistent `VACUUM INTO` snapshot and atomic `QSaveFile` copy.
 
 See [long-form-transcription.md](long-form-transcription.md) for chunk commit ordering and
 [testing.md](testing.md) for migration/recovery coverage.

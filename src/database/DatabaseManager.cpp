@@ -261,6 +261,22 @@ QStringList singleTranscriptSchema() {
     };
 }
 
+QStringList recordingArtifactDeletionSchema() {
+    return {
+        QStringLiteral(
+            "CREATE TABLE IF NOT EXISTS pending_recording_artifact_deletions ("
+            "id TEXT PRIMARY KEY, recording_id TEXT NOT NULL, artifact_kind TEXT NOT NULL "
+            "CHECK(artifact_kind IN ('managed_media','normalized_pcm','waveform')), "
+            "absolute_path TEXT NOT NULL CHECK(length(trim(absolute_path))>0), created_at TEXT NOT NULL, "
+            "attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count>=0), next_attempt_at TEXT NOT "
+            "NULL, last_error TEXT NOT NULL DEFAULT '')"),
+        QStringLiteral("CREATE INDEX IF NOT EXISTS idx_pending_artifact_deletions_ready ON "
+                       "pending_recording_artifact_deletions(next_attempt_at)"),
+        QStringLiteral("CREATE INDEX IF NOT EXISTS idx_pending_artifact_deletions_recording ON "
+                       "pending_recording_artifact_deletions(recording_id)"),
+    };
+}
+
 QString migrationChecksum(const QStringList& statements) {
     return QString::fromLatin1(
         QCryptographicHash::hash(statements.join(QLatin1Char('\n')).toUtf8(), QCryptographicHash::Sha256)
@@ -403,7 +419,7 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
         }
         currentVersion = query.value(0).toInt();
     }
-    constexpr int latestSchemaVersion = 10;
+    constexpr int latestSchemaVersion = 11;
     if (currentVersion > latestSchemaVersion) {
         return Result<void>::failure(
             UserFacingError::database(ErrorCode::DatabaseMigrationFailed,
@@ -441,6 +457,9 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
                                   .toHex())}},
         {9, {QStringLiteral("single_glossary"), migrationChecksum(singleGlossarySchema())}},
         {10, {QStringLiteral("single_transcript"), migrationChecksum(singleTranscriptSchema())}},
+        {11,
+         {QStringLiteral("recording_artifact_deletion_outbox"),
+          migrationChecksum(recordingArtifactDeletionSchema())}},
     };
     QSet<int> appliedVersions;
     QSqlQuery applied(database);
@@ -741,6 +760,13 @@ Result<void> DatabaseManager::applyMigrations(QSqlDatabase& database) {
                          record.lastError()));
         }
         currentVersion = 10;
+    }
+    if (currentVersion < 11) {
+        auto result = applyStatements(11, QStringLiteral("recording_artifact_deletion_outbox"),
+                                      recordingArtifactDeletionSchema());
+        if (!result)
+            return result;
+        currentVersion = 11;
     }
     m_schemaVersion = currentVersion;
     return Result<void>::success();

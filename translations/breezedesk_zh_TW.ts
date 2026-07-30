@@ -4,89 +4,100 @@
 <context>
     <name>BreezeDesk::ApplicationViewModel</name>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="257"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="357"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="361"/>
         <source>The transcript could not be saved before transcription resumed.</source>
         <translation>無法在繼續轉錄前儲存逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="453"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="533"/>
+        <source>The managed media staging directory could not be created.</source>
+        <translation>無法建立受管理媒體的暫存目錄。</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="582"/>
+        <source>The managed media copy could not be published.</source>
+        <translation>無法發佈受管理的媒體副本。</translation>
+    </message>
+    <message>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="602"/>
         <source>Imported a managed media copy.</source>
         <translation>已匯入受管理的媒體副本。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="473"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="623"/>
         <source>Imported %n media file(s).</source>
         <translation>
             <numerusform>已匯入 %n 個媒體檔案。</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="481"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="631"/>
         <source>Copying %n media file(s) into managed storage…</source>
         <translation>
             <numerusform>正在將 %n 個媒體檔案複製到受管理儲存空間…</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="490"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="640"/>
         <source>A folder import is already running.</source>
         <translation>已有一項資料夾匯入作業正在執行。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="495"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="645"/>
         <source>Choose a readable local folder.</source>
         <translation>請選擇可讀取的本機資料夾。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="529"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="679"/>
         <source>The folder does not contain supported audio or video files.</source>
         <translation>此資料夾不含支援的音訊或影片檔案。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="619"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="769"/>
         <source>Folder import cancelled.</source>
         <translation>已取消資料夾匯入。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="623"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="773"/>
         <source>Imported %n media file(s) from the folder.</source>
         <translation>
             <numerusform>已從資料夾匯入 %n 個媒體檔案。</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="625"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="775"/>
         <source>Imported %1 media file(s); %2 could not be imported.</source>
         <translation>已匯入 %1 個媒體檔案；另有 %2 個無法匯入。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="635"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="785"/>
         <source>File manager integration is unavailable.</source>
         <translation>檔案管理器整合目前無法使用。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="643"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="793"/>
         <source>The recording source is missing. Relink it to continue.</source>
         <translation>錄音來源已遺失。請重新連結來源後繼續。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="648"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="798"/>
         <source>The recording could not be revealed in the file manager.</source>
         <translation>無法在檔案管理器中顯示錄音來源。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="666"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="819"/>
         <source>The selected recording is no longer available.</source>
         <translation>所選錄音已不存在。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="687"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="840"/>
         <source>The waveform preview could not be loaded: %1</source>
         <translation>無法載入波形預覽：%1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="701"/>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="729"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="854"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="882"/>
         <source>Choose an imported recording first.</source>
         <translation>請先選擇已匯入的錄音。</translation>
     </message>
@@ -95,42 +106,43 @@
         <translation type="vanished">已將轉錄工作加入佇列。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="720"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="873"/>
         <source>Downloading and verifying Breeze-ASR-25 Q5_K. Transcription will start automatically when it is ready.</source>
         <translation>正在下載並驗證 Breeze-ASR-25 Q5_K；模型準備完成後會自動開始轉錄。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="740"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="896"/>
         <source>Transcription started. You can continue using the app.</source>
         <translation>轉錄已開始。您可以繼續使用應用程式。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="746"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="902"/>
         <source>Open a recording before exporting.</source>
         <translation>請先開啟錄音再匯出。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="756"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="912"/>
         <source>Transcribe and open a recording before exporting.</source>
         <translation>請先轉錄並開啟錄音再匯出。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="760"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="916"/>
         <source>Choose a local destination for the export.</source>
         <translation>請選擇本機匯出位置。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="773"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="929"/>
         <source>The selected export format is not supported.</source>
         <translation>不支援所選的匯出格式。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="804"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="960"/>
         <source>Transcript exported to %1</source>
         <translation>逐字稿已匯出至 %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="884"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="1064"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="1086"/>
         <source>Save or discard the current transcript edits before refreshing live results.</source>
         <translation>請先儲存或捨棄目前的逐字稿編輯，再重新整理即時結果。</translation>
     </message>
@@ -147,7 +159,7 @@
         <translation type="vanished">已刪除逐字稿版本。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="947"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="1144"/>
         <source>The transcript could not be saved because its recording is unavailable.</source>
         <translation>錄音目前無法使用，因此無法儲存逐字稿。</translation>
     </message>
@@ -223,51 +235,59 @@
 <context>
     <name>BreezeDesk::LibraryViewModel</name>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="174"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="162"/>
         <source>The selected file does not exist or is not a local file.</source>
         <translation>所選檔案不存在，或不是本機檔案。</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="213"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="201"/>
         <source>The managed media copy could not be imported.</source>
         <translation>無法匯入受管理的媒體副本。</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="262"/>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="326"/>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="362"/>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="418"/>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="440"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="250"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="327"/>
         <source>The recording no longer exists.</source>
         <translation>錄音已不存在。</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="305"/>
         <source>The recording was deleted, but some managed files could not be removed: %1</source>
-        <translation>錄音已刪除，但部分受管理檔案無法移除：%1</translation>
+        <translation type="vanished">錄音已刪除，但部分受管理檔案無法移除：%1</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="313"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="272"/>
+        <source>The recording was deleted, but managed file cleanup will retry automatically.</source>
+        <translation>錄音已刪除，但受管理檔案的清理作業將自動重試。</translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../src/ui/LibraryViewModel.cpp" line="275"/>
+        <source>The recording was deleted, but %n managed file(s) could not be removed. Cleanup will retry automatically.</source>
+        <translation>
+            <numerusform>錄音已刪除，但有 %n 個受管理檔案無法移除。清理作業將自動重試。</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="284"/>
         <source>A recording title is required.</source>
         <translation>請輸入錄音標題。</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="318"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="289"/>
         <source>The recording could not be renamed.</source>
         <translation>無法重新命名錄音。</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="345"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="310"/>
         <source>Choose an existing local media file.</source>
         <translation>請選擇現有的本機媒體檔案。</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="349"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="314"/>
         <source>The selected file is not a supported audio or video file.</source>
         <translation>所選檔案不是支援的音訊或影片檔案。</translation>
     </message>
     <message>
-        <location filename="../src/ui/LibraryViewModel.cpp" line="354"/>
+        <location filename="../src/ui/LibraryViewModel.cpp" line="319"/>
         <source>The recording source could not be relinked.</source>
         <translation>無法重新連結錄音來源。</translation>
     </message>
@@ -363,82 +383,87 @@
 <context>
     <name>BreezeDesk::ModelManagerViewModel</name>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="438"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="543"/>
         <source>This model is not present in the signed model manifest.</source>
         <translation>簽署的模型清單中沒有此模型。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="482"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="591"/>
         <source>Unload this model before deleting it.</source>
         <translation>刪除前請先卸載此模型。</translation>
     </message>
     <message>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="587"/>
         <source>Wait for model verification to finish before deleting it.</source>
         <translation>請等待模型驗證完成後再刪除。</translation>
     </message>
     <message>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="614"/>
         <source>This model is already being verified.</source>
         <translation>此模型正在驗證中。</translation>
     </message>
     <message>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="659"/>
         <source>Model verification failed.</source>
         <translation>模型驗證失敗。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="495"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="604"/>
         <source>Model deleted.</source>
         <translation>已刪除模型。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="512"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="657"/>
         <source>Model checksum verified.</source>
         <translation>模型檢查碼驗證成功。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="542"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="682"/>
         <source>Choose an existing local GGML .bin file.</source>
         <translation>請選擇現有的本機 GGML .bin 檔案。</translation>
     </message>
     <message>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="687"/>
         <source>This model is already being imported.</source>
         <translation>此模型正在匯入中。</translation>
     </message>
     <message>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="730"/>
         <source>The custom model could not be imported.</source>
         <translation>無法匯入自訂模型。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="652"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="830"/>
         <source>Custom whisper.cpp GGML model imported from local storage.</source>
         <translation>已從本機儲存空間匯入自訂 whisper.cpp GGML 模型。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="653"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="831"/>
         <source>Custom</source>
         <translation>自訂</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="655"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="833"/>
         <source>User supplied</source>
         <translation>使用者提供</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="556"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="742"/>
         <source>Custom model imported.</source>
         <translation>已匯入自訂模型。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="576"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="754"/>
         <source>Choose a transcription model as the default.</source>
         <translation>請選擇預設轉錄模型。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="624"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="802"/>
         <source>Unknown</source>
         <translation>未知</translation>
     </message>
     <message>
-        <location filename="../src/ui/ModelManagerViewModel.cpp" line="705"/>
+        <location filename="../src/ui/ModelManagerViewModel.cpp" line="883"/>
         <source>Model downloaded and verified.</source>
         <translation>模型已下載並通過驗證。</translation>
     </message>
@@ -542,8 +567,8 @@
 <context>
     <name>BreezeDesk::SettingsViewModel</name>
     <message>
-        <location filename="../src/ui/SettingsViewModel.cpp" line="265"/>
-        <location filename="../src/ui/SettingsViewModel.cpp" line="277"/>
+        <location filename="../src/ui/SettingsViewModel.cpp" line="266"/>
+        <location filename="../src/ui/SettingsViewModel.cpp" line="278"/>
         <source>System default</source>
         <translation>系統預設</translation>
     </message>
@@ -565,23 +590,23 @@
 <context>
     <name>BreezeDesk::TranscriptViewModel</name>
     <message>
-        <location filename="../src/ui/TranscriptViewModel.cpp" line="126"/>
+        <location filename="../src/ui/TranscriptViewModel.cpp" line="139"/>
         <source>The split position must be inside the selected segment.</source>
         <translation>分割位置必須位於所選段落內。</translation>
     </message>
     <message>
-        <location filename="../src/ui/TranscriptViewModel.cpp" line="151"/>
-        <location filename="../src/ui/TranscriptViewModel.cpp" line="169"/>
+        <location filename="../src/ui/TranscriptViewModel.cpp" line="164"/>
+        <location filename="../src/ui/TranscriptViewModel.cpp" line="182"/>
         <source>Segment times must be ordered and cannot overlap.</source>
         <translation>段落時間必須依序排列且不可重疊。</translation>
     </message>
     <message>
-        <location filename="../src/ui/TranscriptViewModel.cpp" line="190"/>
+        <location filename="../src/ui/TranscriptViewModel.cpp" line="203"/>
         <source>This glossary replacement cannot be changed after the segment text was manually edited.</source>
         <translation>手動編輯段落文字後，無法變更這筆專有名詞替換。</translation>
     </message>
     <message>
-        <location filename="../src/ui/TranscriptViewModel.cpp" line="370"/>
+        <location filename="../src/ui/TranscriptViewModel.cpp" line="383"/>
         <source>Transcript editing is available after the active transcription stops.</source>
         <translation>目前轉錄停止後即可編輯逐字稿。</translation>
     </message>
@@ -597,107 +622,120 @@
         <translation type="vanished">%1 上次未正常關閉，此工作當時仍在執行。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="373"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="377"/>
         <source>%1 closed while this job was running.</source>
         <translation>%1 關閉時，此工作仍在執行。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="378"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="405"/>
         <source>A recording and job ID are required.</source>
         <translation>必須提供錄音 ID 與工作 ID。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="383"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="671"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="708"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="796"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="838"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1618"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="410"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="739"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="781"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="872"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="918"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1769"/>
         <source>The recording no longer exists.</source>
         <translation>錄音已不存在。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="417"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="444"/>
         <source>The glossary could not be loaded.</source>
         <translation>無法載入專有名詞。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="455"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="482"/>
         <source>The job no longer exists.</source>
         <translation>工作已不存在。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="628"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="390"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="712"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1455"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2132"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2171"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2205"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2223"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2278"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2306"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2325"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2367"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2390"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2410"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2762"/>
         <source>This transcription lost the global execution lease and was stopped.</source>
         <translation>此轉錄工作已失去全域執行租約，因此已停止。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="681"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="749"/>
         <source>The source media file is missing.</source>
         <translation>找不到來源媒體檔案。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="700"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="773"/>
         <source>The source media file could not be read: %1</source>
         <translation>無法讀取來源媒體檔案：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="729"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="799"/>
         <source>This transcription has no verified source-media identity. Start a new transcription so existing chunks are not mixed with different audio.</source>
         <translation>此轉錄工作沒有可驗證的來源媒體識別。請建立新的轉錄工作，以免既有分段與不同音訊混合。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="731"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="801"/>
         <source>The source media changed after this transcription started. Start a new transcription so existing chunks are not mixed with different audio.</source>
         <translation>此轉錄開始後，來源媒體已變更。請建立新的轉錄工作，以免既有分段與不同音訊混合。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="789"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="865"/>
         <source>The normalized recording duration is invalid.</source>
         <translation>標準化錄音長度無效。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="832"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="912"/>
         <source>The media does not contain supported audio.</source>
         <translation>媒體中沒有支援的音訊。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="864"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="946"/>
         <source>ffmpeg is not available.</source>
         <translation>無法使用 ffmpeg。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="897"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="992"/>
         <source>Audio normalization failed.</source>
         <translation>音訊標準化失敗。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="910"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1006"/>
         <source>The decoded audio could not be validated: %1</source>
         <translation>無法驗證解碼後的音訊：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="934"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1033"/>
         <source>The source media could not be verified after audio decoding: %1</source>
         <translation>音訊解碼後無法驗證來源媒體：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="936"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1034"/>
         <source>The source media changed while its audio was being decoded. Start the transcription again.</source>
         <translation>音訊解碼期間來源媒體已變更。請重新開始轉錄。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="986"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1099"/>
         <source>The audio waveform could not be generated.</source>
         <translation>無法產生音訊波形。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="993"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1108"/>
         <source>The normalized recording could not be saved.</source>
         <translation>無法儲存標準化後的錄音。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1021"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1140"/>
         <source>The recording duration is invalid.</source>
         <translation>錄音長度無效。</translation>
     </message>
@@ -706,82 +744,82 @@
         <translation type="vanished">使用 VAD 轉錄長錄音前，請先安裝 Silero VAD 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1243"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1371"/>
         <source>The required Silero VAD model is not present in the trusted model manifest.</source>
         <translation>受信任的模型清單中沒有必要的 Silero VAD 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1251"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1380"/>
         <source>The required Silero VAD model is missing or invalid. Downloading and verifying it now.</source>
         <translation>必要的 Silero VAD 模型缺少或無效，正在自動下載並驗證。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1270"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1401"/>
         <source>The Silero VAD model could not be downloaded and verified.</source>
         <translation>無法下載並驗證 Silero VAD 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1271"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1402"/>
         <source>The Silero VAD model could not be downloaded and verified: %1</source>
         <translation>無法下載並驗證 Silero VAD 模型：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1277"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1408"/>
         <source>The downloaded Silero VAD model failed verification: %1</source>
         <translation>下載的 Silero VAD 模型驗證失敗：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1282"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1413"/>
         <source>The Silero VAD model was downloaded and verified.</source>
         <translation>Silero VAD 模型已下載並通過驗證。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1420"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1563"/>
         <source>The active transcription unit is no longer available.</source>
         <translation>目前的轉錄單元已無法使用。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2093"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2707"/>
         <source>Downloading Silero VAD model</source>
         <translation>正在下載 Silero VAD 模型</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2095"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2709"/>
         <source>Silero VAD model downloaded</source>
         <translation>Silero VAD 模型下載完成</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2102"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2716"/>
         <source>Silero VAD model download failed</source>
         <translation>Silero VAD 模型下載失敗</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1084"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1204"/>
         <source>Speech analysis did not produce a transcription chunk plan.</source>
         <translation>語音分析未產生轉錄分段計畫。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1038"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1156"/>
         <source>The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. Start a new transcription so the audio tail is not omitted.</source>
         <translation>標準化音訊長度為 %1 毫秒，但續傳的分段計畫僅到 %2 毫秒。請建立新的轉錄工作，以免遺漏音訊尾端。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1132"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1257"/>
         <source>The ASR worker did not become ready.</source>
         <translation>ASR 背景處理程序未能就緒。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1147"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1274"/>
         <source>The ASR worker capability request could not be sent.</source>
         <translation>無法傳送本機語音辨識程序的能力查詢。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1156"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1284"/>
         <source>The ASR worker did not report its runtime capabilities.</source>
         <translation>本機語音辨識程序未回報其執行能力。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1172"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1300"/>
         <source>Speech recognition is unavailable because this ASR worker does not include whisper.cpp. Reinstall the application or use a build configured with whisper.cpp.</source>
         <translation>這個本機語音辨識程序未包含 whisper.cpp，因此無法進行語音辨識。請重新安裝應用程式，或使用已啟用 whisper.cpp 的版本。</translation>
     </message>
@@ -794,157 +832,165 @@
         <translation type="vanished">Silero VAD 模型沒有可信任的檢查碼。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1216"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1344"/>
         <source>The speech-analysis request could not be sent to the ASR worker.</source>
         <translation>無法將語音分析要求傳送至 ASR 背景處理程序。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1330"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1469"/>
         <source>Install the selected ASR model before starting transcription.</source>
         <translation>開始轉錄前，請先安裝所選的 ASR 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1338"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1477"/>
         <source>The selected ASR model does not have a trusted checksum.</source>
         <translation>選取的 ASR 模型沒有可信任的檢查碼。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1375"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1518"/>
         <source>The model-load request could not be sent to the ASR worker.</source>
         <translation>無法將模型載入要求傳送至 ASR 背景處理程序。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1498"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1641"/>
         <source>The transcription request could not be sent to the ASR worker.</source>
         <translation>無法將轉錄要求傳送至 ASR 背景處理程序。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1549"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1701"/>
         <source>The ASR worker rejected the request.</source>
         <translation>ASR 背景處理程序拒絕了要求。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1559"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1711"/>
         <source>The ASR worker returned an invalid capability response.</source>
         <translation>本機語音辨識程序回傳了無效的能力資訊。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1565"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1717"/>
         <source>The ASR worker capability response is missing runtime availability.</source>
         <translation>本機語音辨識程序的能力資訊缺少執行狀態。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1580"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1732"/>
         <source>The ASR worker cancelled the active operation.</source>
         <translation>ASR 背景處理程序已取消目前的操作。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1610"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1761"/>
         <source>Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.</source>
         <translation>語音分析回報的標準化音訊長度為 %1 毫秒，但實際長度為 %2 毫秒。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1714"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1873"/>
         <source>The ASR worker returned a segment outside the active chunk.</source>
         <translation>ASR 背景處理程序傳回的段落超出目前分段範圍。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1727"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1872"/>
         <source>The ASR worker returned an empty segment time range.</source>
         <translation>ASR 背景處理程序傳回的段落時間範圍為空。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1923"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2011"/>
+        <source>The transcription progress could not be saved.</source>
+        <translation>無法儲存轉錄進度。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2140"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2283"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2301"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2321"/>
         <source>Transcription was cancelled.</source>
         <translation>轉錄已取消。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2026"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2639"/>
         <source>The loaded ASR runtime did not report its backend and version.</source>
         <translation>已載入的 ASR 執行階段未回報後端與版本。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2075"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2689"/>
         <source>Added to queue</source>
         <translation>已加入佇列</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2077"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2691"/>
         <source>Started processing</source>
         <translation>已開始處理</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2079"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2693"/>
         <source>Stage changed</source>
         <translation>處理階段已變更</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2081"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2695"/>
         <source>Transcription unit started</source>
         <translation>轉錄區塊已開始</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2083"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2697"/>
         <source>Transcription unit completed</source>
         <translation>轉錄區塊已完成</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2085"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2699"/>
         <source>Transcription unit failed</source>
         <translation>轉錄區塊失敗</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2087"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2701"/>
         <source>Transcription unit cancelled</source>
         <translation>轉錄區塊已取消</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2089"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2703"/>
         <source>Transcription unit interrupted</source>
         <translation>轉錄區塊已中斷</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2091"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2705"/>
         <source>Transcription unit reset</source>
         <translation>轉錄區塊已重設</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2097"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2711"/>
         <source>Transcription completed</source>
         <translation>轉錄已完成</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2099"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2713"/>
         <source>Transcription cancelled</source>
         <translation>轉錄已取消</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2103"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2717"/>
         <source>Transcription failed</source>
         <translation>轉錄失敗</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2105"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2719"/>
         <source>Transcription interrupted</source>
         <translation>轉錄已中斷</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2107"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2721"/>
         <source>Retry queued</source>
         <translation>已排入重試</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2109"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2723"/>
         <source>Resume queued</source>
         <translation>已排入繼續執行</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2112"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2726"/>
         <source>Previous transcription worker stopped responding</source>
         <translation>上一個轉錄執行程序已停止回應</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2114"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2728"/>
         <source>Transcript updated</source>
         <translation>逐字稿已更新</translation>
     </message>
@@ -953,17 +999,17 @@
         <translation type="vanished">已設為最新完成版本</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2118"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2732"/>
         <source>Transcription status updated</source>
         <translation>轉錄狀態已更新</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2124"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2738"/>
         <source>Unit %1 of %2</source>
         <translation>區塊 %1 / %2</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2125"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2739"/>
         <source>Unit %1</source>
         <translation>區塊 %1</translation>
     </message>
@@ -1647,7 +1693,7 @@
         <translation>此版本無法使用麥克風錄音。</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="128"/>
+        <location filename="../src/qml/Main.qml" line="139"/>
         <source>Diagnostics export is unavailable in this build.</source>
         <translation>此版本無法匯出診斷資料。</translation>
     </message>
@@ -1656,12 +1702,12 @@
         <translation type="vanished">BreezeDesk 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="212"/>
+        <location filename="../src/qml/Main.qml" line="229"/>
         <source>%1 logo</source>
         <translation>%1 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="243"/>
+        <location filename="../src/qml/Main.qml" line="260"/>
         <source>Library</source>
         <translation>錄音庫</translation>
     </message>
@@ -1682,7 +1728,7 @@
         <translation type="vanished">專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="249"/>
+        <location filename="../src/qml/Main.qml" line="266"/>
         <source>Name Dictionary</source>
         <translation>專有名詞</translation>
     </message>
@@ -1695,117 +1741,117 @@
         <translation type="vanished">開始錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="262"/>
+        <location filename="../src/qml/Main.qml" line="279"/>
         <source>Activity</source>
         <translation>活動</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="270"/>
+        <location filename="../src/qml/Main.qml" line="287"/>
         <source>Settings</source>
         <translation>設定</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="322"/>
+        <location filename="../src/qml/Main.qml" line="339"/>
         <source>Import Audio or Video</source>
         <translation>匯入音訊或影片</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="325"/>
+        <location filename="../src/qml/Main.qml" line="342"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>媒體檔案 (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="326"/>
+        <location filename="../src/qml/Main.qml" line="343"/>
         <source>All files (*)</source>
         <translation>所有檔案 (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="334"/>
+        <location filename="../src/qml/Main.qml" line="351"/>
         <source>Import Media Folder</source>
         <translation>匯入媒體資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="340"/>
+        <location filename="../src/qml/Main.qml" line="357"/>
         <source>Export Transcript</source>
         <translation>匯出逐字稿</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="343"/>
+        <location filename="../src/qml/Main.qml" line="360"/>
         <source>Plain text (*.txt)</source>
         <translation>純文字 (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="344"/>
+        <location filename="../src/qml/Main.qml" line="361"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="345"/>
+        <location filename="../src/qml/Main.qml" line="362"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip 字幕 (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="346"/>
+        <location filename="../src/qml/Main.qml" line="363"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT 字幕 (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="347"/>
+        <location filename="../src/qml/Main.qml" line="364"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="348"/>
+        <location filename="../src/qml/Main.qml" line="365"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="358"/>
+        <location filename="../src/qml/Main.qml" line="379"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>匯入 whisper.cpp GGML 模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="360"/>
+        <location filename="../src/qml/Main.qml" line="381"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML 模型 (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="393"/>
+        <location filename="../src/qml/Main.qml" line="414"/>
         <source>Recording is still in progress</source>
         <translation>錄音仍在進行中</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="401"/>
+        <location filename="../src/qml/Main.qml" line="422"/>
         <source>Stop and save the recording before quitting so it remains available in your library.</source>
         <translation>請先停止並儲存錄音再結束，讓錄音能保留在錄音庫中。</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="411"/>
+        <location filename="../src/qml/Main.qml" line="432"/>
         <source>Continue Recording</source>
         <translation>繼續錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="416"/>
+        <location filename="../src/qml/Main.qml" line="437"/>
         <source>Stop, Save, and Quit</source>
         <translation>停止、儲存並結束</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="432"/>
+        <location filename="../src/qml/Main.qml" line="453"/>
         <source>Transcription is still running</source>
         <translation>轉錄仍在進行中</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="440"/>
+        <location filename="../src/qml/Main.qml" line="461"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>已完成的分段都已安全儲存。現在結束會將目前工作標記為中斷，之後可繼續執行。</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="448"/>
+        <location filename="../src/qml/Main.qml" line="469"/>
         <source>Continue in Background</source>
         <translation>在背景繼續</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="449"/>
+        <location filename="../src/qml/Main.qml" line="471"/>
         <source>Quit and Resume Later</source>
         <translation>結束並於稍後繼續</translation>
     </message>
@@ -2027,32 +2073,32 @@
         <translation type="vanished">BreezeDesk 已是最新版本。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="368"/>
+        <location filename="../src/app/main.cpp" line="442"/>
         <source>%1 %2 is available.</source>
         <translation>已有 %1 %2 可供更新。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="374"/>
+        <location filename="../src/app/main.cpp" line="448"/>
         <source>%1 is up to date.</source>
         <translation>%1 已是最新版本。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="409"/>
+        <location filename="../src/app/main.cpp" line="483"/>
         <source>Model test passed using %1 (whisper.cpp %2; loaded in %3 ms).</source>
         <translation>模型測試通過，使用 %1（whisper.cpp %2；載入耗時 %3 毫秒）。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="426"/>
+        <location filename="../src/app/main.cpp" line="500"/>
         <source>Model test cancelled.</source>
         <translation>模型測試已取消。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="476"/>
+        <location filename="../src/app/main.cpp" line="534"/>
         <source>The configured application data folder was unavailable. BreezeDesk restored the default data location.</source>
         <translation>先前設定的應用程式資料夾無法使用。BreezeDesk 已改回預設資料位置。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="478"/>
+        <location filename="../src/app/main.cpp" line="536"/>
         <source>The configured application data folder was unavailable. BreezeDesk is using the default data location for this launch, but the invalid setting could not be cleared.</source>
         <translation>先前設定的應用程式資料夾無法使用。BreezeDesk 本次啟動將使用預設資料位置，但無法清除該設定。</translation>
     </message>
@@ -2061,73 +2107,73 @@
         <translation type="vanished">顯示 BreezeDesk</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="467"/>
-        <location filename="../src/app/main.cpp" line="815"/>
+        <location filename="../src/app/main.cpp" line="550"/>
+        <location filename="../src/app/main.cpp" line="912"/>
         <source>Show %1</source>
         <translation>顯示 %1</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="468"/>
-        <location filename="../src/app/main.cpp" line="816"/>
+        <location filename="../src/app/main.cpp" line="551"/>
+        <location filename="../src/app/main.cpp" line="913"/>
         <source>Import Files</source>
         <translation>匯入檔案</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="469"/>
-        <location filename="../src/app/main.cpp" line="817"/>
+        <location filename="../src/app/main.cpp" line="552"/>
+        <location filename="../src/app/main.cpp" line="914"/>
         <source>Start Recording</source>
         <translation>開始錄音</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="470"/>
-        <location filename="../src/app/main.cpp" line="807"/>
+        <location filename="../src/app/main.cpp" line="553"/>
+        <location filename="../src/app/main.cpp" line="904"/>
         <source>Queue: idle</source>
         <translation>佇列：閒置</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="472"/>
-        <location filename="../src/app/main.cpp" line="818"/>
+        <location filename="../src/app/main.cpp" line="555"/>
+        <location filename="../src/app/main.cpp" line="915"/>
         <source>Pause after current job</source>
         <translation>目前工作完成後暫停</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="474"/>
-        <location filename="../src/app/main.cpp" line="819"/>
+        <location filename="../src/app/main.cpp" line="557"/>
+        <location filename="../src/app/main.cpp" line="916"/>
         <source>Quit</source>
         <translation>結束</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="513"/>
+        <location filename="../src/app/main.cpp" line="596"/>
         <source>A microphone recording is already in progress.</source>
         <translation>已有麥克風錄音正在進行。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="517"/>
+        <location filename="../src/app/main.cpp" line="600"/>
         <source>Waiting for microphone permission.</source>
         <translation>正在等待麥克風權限。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="525"/>
+        <location filename="../src/app/main.cpp" line="608"/>
         <source>Requesting microphone access…</source>
         <translation>正在要求麥克風存取權限…</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="535"/>
+        <location filename="../src/app/main.cpp" line="618"/>
         <source>Microphone permission was not granted.</source>
         <translation>未取得麥克風權限。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="541"/>
+        <location filename="../src/app/main.cpp" line="624"/>
         <source>The microphone recording could not be started.</source>
         <translation>無法開始麥克風錄音。</translation>
     </message>
     <message>
-        <location filename="../src/app/main.cpp" line="564"/>
+        <location filename="../src/app/main.cpp" line="647"/>
         <source>The recording was saved but could not be opened.</source>
         <translation>錄音已儲存，但無法開啟。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/main.cpp" line="808"/>
+        <location filename="../src/app/main.cpp" line="905"/>
         <source>Queue: %n active job(s)</source>
         <translation>
             <numerusform>佇列：%n 項進行中的工作</numerusform>
@@ -2411,12 +2457,12 @@
 <context>
     <name>RecordingPage</name>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="169"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="195"/>
         <source>Downloading transcription model</source>
         <translation>正在下載轉錄模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="174"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="200"/>
         <source>Downloading Q5_K…</source>
         <translation>正在下載 Q5_K…</translation>
     </message>
@@ -2425,23 +2471,23 @@
         <translation type="vanished">轉錄</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="184"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="210"/>
         <source>Export</source>
         <translation>匯出</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="188"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="653"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="214"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="697"/>
         <source>Details</source>
         <translation>詳細資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="189"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="215"/>
         <source>Show recording details</source>
         <translation>顯示錄音詳細資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="224"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="250"/>
         <source>Recording waveform</source>
         <translation>錄音波形</translation>
     </message>
@@ -2450,17 +2496,17 @@
         <translation type="vanished">−5 秒</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="266"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="292"/>
         <source>Back 5 seconds</source>
         <translation>倒退 5 秒</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="278"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="304"/>
         <source>Pause</source>
         <translation>暫停</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="278"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="304"/>
         <source>Play</source>
         <translation>播放</translation>
     </message>
@@ -2551,89 +2597,89 @@
         <translation type="vanished">這是目前正在查看的版本，且含有尚未儲存的變更。這些變更將被捨棄。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="76"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="99"/>
         <source>Duration</source>
         <translation>長度</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="82"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="105"/>
         <source>Status</source>
         <translation>狀態</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="88"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="111"/>
         <source>Model</source>
         <translation>模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="144"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="167"/>
         <source>← Library</source>
         <translation>← 錄音庫</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="145"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="168"/>
         <source>Back to Library</source>
         <translation>返回錄音庫</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="178"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="204"/>
         <source>Transcribe Again…</source>
         <translation>再次轉錄…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="178"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="498"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="204"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="527"/>
         <source>Start Transcription</source>
         <translation>開始轉錄</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="285"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="311"/>
         <source>Forward 5 seconds</source>
         <translation>快進 5 秒</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="307"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="333"/>
         <source>Playback position</source>
         <translation>播放位置</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="328"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="354"/>
         <source>Playback rate</source>
         <translation>播放速度</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="340"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="366"/>
         <source>Mute</source>
         <translation>靜音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="340"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="366"/>
         <source>Unmute</source>
         <translation>取消靜音</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="350"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="376"/>
         <source>Volume</source>
         <translation>音量</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="358"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="384"/>
         <source>Loop selection</source>
         <translation>循環播放選取範圍</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="497"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="526"/>
         <source>Start transcription to create an editable transcript.</source>
         <translation>開始轉錄以建立可編輯的逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="176"/>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="438"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="202"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="464"/>
         <source>Transcribing…</source>
         <translation>解譯中…</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="496"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="525"/>
         <source>Transcription is in progress. The transcript will appear when processing completes.</source>
         <translation>解譯正在進行。處理完成後會顯示新的逐字稿。</translation>
     </message>
@@ -2642,7 +2688,7 @@
         <translation type="vanished">將這段錄音加入佇列以建立逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="357"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="383"/>
         <source>Disable loop selection</source>
         <translation>停止循環播放選取範圍</translation>
     </message>
@@ -2675,57 +2721,57 @@
         <translation type="vanished">即時轉錄中 — 已鎖定編輯</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="405"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="431"/>
         <source>Find in transcript</source>
         <translation>在逐字稿中尋找</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="424"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="450"/>
         <source>Low-confidence only</source>
         <translation>僅顯示低信心</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="411"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="437"/>
         <source>Previous</source>
         <translation>上一個</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="418"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="444"/>
         <source>Next</source>
         <translation>下一個</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="445"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="471"/>
         <source>Undo</source>
         <translation>復原</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="453"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="479"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="469"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="495"/>
         <source>Copy Transcript</source>
         <translation>複製逐字稿</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="473"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="501"/>
         <source>Transcript copied to clipboard.</source>
         <translation>已將逐字稿複製到剪貼簿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="479"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="508"/>
         <source>Save Changes</source>
         <translation>儲存變更</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="479"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="508"/>
         <source>Saved</source>
         <translation>已儲存</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="494"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="523"/>
         <source>No completed transcript yet</source>
         <translation>尚無完成的逐字稿</translation>
     </message>
@@ -2754,42 +2800,42 @@
         <translation type="vanished">加入佇列</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="507"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="536"/>
         <source>No matching segments</source>
         <translation>找不到符合條件的段落</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="508"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="537"/>
         <source>Clear the search or low-confidence filter to show the transcript.</source>
         <translation>清除搜尋或低信心篩選條件以顯示逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="509"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="538"/>
         <source>Clear Filters</source>
         <translation>清除篩選條件</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="607"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="651"/>
         <source>Replace the current transcript?</source>
         <translation>取代目前的逐字稿？</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="608"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="652"/>
         <source>Transcribing this recording again will replace the current transcript when the new one is ready.</source>
         <translation>再次轉錄此錄音後，新逐字稿完成時將取代目前的內容。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="627"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="671"/>
         <source>Close recording details</source>
         <translation>關閉錄音詳細資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="660"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="704"/>
         <source>Close</source>
         <translation>關閉</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="73"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="96"/>
         <source>Recording</source>
         <translation>錄音</translation>
     </message>
@@ -2806,34 +2852,34 @@
         <translation type="vanished">模型：%1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="91"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="114"/>
         <source>Not transcribed</source>
         <translation>尚未轉錄</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="103"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="126"/>
         <source>Transcript</source>
         <translation>逐字稿</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/qml/pages/RecordingPage.qml" line="106"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="129"/>
         <source>%n segment(s)</source>
         <translation>
             <numerusform>%n 個段落</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="108"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="131"/>
         <source>Auto-scroll</source>
         <translation>自動捲動</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="113"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="136"/>
         <source>Notes</source>
         <translation>備註</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/RecordingPage.qml" line="119"/>
+        <location filename="../src/qml/pages/RecordingPage.qml" line="142"/>
         <source>Recording notes</source>
         <translation>錄音備註</translation>
     </message>
@@ -2859,62 +2905,62 @@
         <translation type="vanished">從 %1 開始的逐字稿段落</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="54"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="83"/>
         <source>Transcript segment from %1 to %2</source>
         <translation>逐字稿段落，時間從 %1 至 %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="56"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="85"/>
         <source>Low-confidence transcript segment</source>
         <translation>低信心逐字稿段落</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="57"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="86"/>
         <source>Transcript segment</source>
         <translation>逐字稿段落</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="147"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="176"/>
         <source>Segment text</source>
         <translation>段落文字</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="148"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="177"/>
         <source>Transcript text from %1 to %2</source>
         <translation>時間從 %1 至 %2 的逐字稿文字</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="220"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="251"/>
         <source>Done Editing</source>
         <translation>完成編輯</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="220"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="251"/>
         <source>Edit Text</source>
         <translation>編輯文字</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="357"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="390"/>
         <source>Low confidence</source>
         <translation>低信心</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="193"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="224"/>
         <source>Edited</source>
         <translation>已編輯</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="198"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="229"/>
         <source>Glossary</source>
         <translation>專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="252"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="285"/>
         <source>Merge with Previous</source>
         <translation>與上一段合併</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="261"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="294"/>
         <source>Merge with Next</source>
         <translation>與下一段合併</translation>
     </message>
@@ -2923,7 +2969,7 @@
         <translation type="vanished">已檢閱</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="243"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="276"/>
         <source>Split</source>
         <translation>分割</translation>
     </message>
@@ -2936,7 +2982,7 @@
         <translation type="vanished">與下一段合併</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="270"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="303"/>
         <source>Delete segment</source>
         <translation>刪除逐字稿段落</translation>
     </message>
@@ -2945,32 +2991,32 @@
         <translation type="vanished">刪除</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="291"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="324"/>
         <source>Glossary replacements</source>
         <translation>專有名詞替換</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="312"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="345"/>
         <source>%1 → %2</source>
         <translation>%1 → %2</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="319"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="352"/>
         <source>Applied</source>
         <translation>已套用</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="319"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="352"/>
         <source>Reverted</source>
         <translation>已撤銷</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="323"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="356"/>
         <source>Undo</source>
         <translation>撤銷</translation>
     </message>
     <message>
-        <location filename="../src/qml/components/SegmentEditor.qml" line="323"/>
+        <location filename="../src/qml/components/SegmentEditor.qml" line="356"/>
         <source>Apply</source>
         <translation>套用</translation>
     </message>
@@ -3045,7 +3091,7 @@
         <translation type="vanished">匯入方式</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="323"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="327"/>
         <source>Reference original</source>
         <translation>直接使用原始檔案</translation>
     </message>
@@ -3335,75 +3381,74 @@
         <translation>儲存空間</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="316"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="318"/>
         <source>Application data</source>
         <translation>應用程式資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="316"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="317"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="321"/>
         <source>Choose</source>
         <translation>選擇</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="317"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="321"/>
         <source>Export directory</source>
         <translation>匯出資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="319"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="322"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="323"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="326"/>
         <source>Managed media</source>
         <translation>管理的媒體檔案</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="323"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="327"/>
         <source>Copy managed media</source>
         <translation>複製媒體檔案以供管理</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="328"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="332"/>
         <source>Cache</source>
         <translation>快取</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="328"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="332"/>
         <source>Clear Cache</source>
         <translation>清除快取</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="329"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="333"/>
         <source>Database backup</source>
         <translation>資料庫備份</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="329"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="333"/>
         <source>Back Up Now</source>
         <translation>立即備份</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="334"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="338"/>
         <source>Updates</source>
         <translation>更新</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="336"/>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="339"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="340"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="343"/>
         <source>Automatic update checks</source>
         <translation>自動檢查更新</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="337"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="341"/>
         <source>Disabled by default. No update check runs during startup.</source>
         <translation>預設停用。啟動時不會執行更新檢查。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="345"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="349"/>
         <source>Update channel</source>
         <translation>更新頻道</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="346"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="350"/>
         <source>Stable</source>
         <translation>穩定版</translation>
     </message>
@@ -3412,27 +3457,27 @@
         <translation type="vanished">測試版</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="348"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="352"/>
         <source>Version %1</source>
         <translation>版本 %1</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="348"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="352"/>
         <source>Check Now</source>
         <translation>立即檢查</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="353"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="357"/>
         <source>Privacy</source>
         <translation>隱私權</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="356"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="360"/>
         <source>Audio and transcripts are processed locally. This app has no accounts, telemetry, analytics, crash upload, cloud ASR, or cloud AI. The only network activities are verified model downloads, including automatic Silero VAD retrieval when required, and optional app update checks.</source>
         <translation>音訊與逐字稿皆在本機處理。本應用程式不包含帳號、遙測、分析、當機上傳、雲端 ASR 或雲端 AI。唯一的網路活動是經過驗證的模型下載（包含需要時自動取得 Silero VAD），以及選用的應用程式更新檢查。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="368"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="372"/>
         <source>Application and whisper.cpp: MIT · Qt: LGPL · FFmpeg: LGPL · Lucide: ISC</source>
         <translation>應用程式與 whisper.cpp：MIT · Qt：LGPL · FFmpeg：LGPL · Lucide：ISC</translation>
     </message>
@@ -3441,7 +3486,7 @@
         <translation type="vanished">音訊與逐字稿都在本機處理。BreezeDesk 不使用帳號、遙測、分析、當機上傳、雲端語音辨識或雲端 AI。唯一的網路活動，是您主動開始的模型下載，以及可選擇啟用的應用程式更新檢查。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="365"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="369"/>
         <source>Open Source Licenses</source>
         <translation>開放原始碼授權</translation>
     </message>
@@ -3450,37 +3495,36 @@
         <translation type="vanished">BreezeDesk 與 whisper.cpp：MIT · Qt：LGPL · FFmpeg：LGPL · Lucide：ISC</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="375"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="379"/>
         <source>Complete third-party notices, license texts, and FFmpeg build/source information are included with every packaged copy.</source>
         <translation>每個封裝版本皆包含完整的第三方聲明、授權條款，以及 FFmpeg 建置與原始碼資訊。</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="384"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="388"/>
         <source>Diagnostics</source>
         <translation>診斷</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="385"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="389"/>
         <source>Qt %1 · %2 · %3</source>
         <translation>Qt %1 · %2 · %3</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="396"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="400"/>
         <source>Refresh</source>
         <translation>重新整理</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="397"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="401"/>
         <source>Export Sanitized Diagnostics</source>
         <translation>匯出已移除敏感資訊的診斷資料</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="406"/>
         <source>Choose Application Data Folder</source>
-        <translation>選擇應用程式資料資料夾</translation>
+        <translation type="vanished">選擇應用程式資料資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/pages/SettingsPage.qml" line="411"/>
+        <location filename="../src/qml/pages/SettingsPage.qml" line="410"/>
         <source>Choose Default Export Folder</source>
         <translation>選擇預設匯出資料夾</translation>
     </message>

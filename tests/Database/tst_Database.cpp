@@ -1,18 +1,51 @@
+#include "breezedesk/core/StoragePaths.h"
+#include "breezedesk/core/TimeUtils.h"
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/DatabaseSearchService.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
 
 #include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QSemaphore>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QtTest>
 
 #include <thread>
+#include <utility>
 
 using namespace BreezeDesk;
 
 namespace {
+class EnvironmentVariableGuard final {
+  public:
+    explicit EnvironmentVariableGuard(QByteArray name)
+        : m_name(std::move(name)), m_wasSet(qEnvironmentVariableIsSet(m_name.constData())),
+          m_value(qgetenv(m_name.constData())) {}
+    ~EnvironmentVariableGuard() {
+        if (m_wasSet) {
+            qputenv(m_name.constData(), m_value);
+        } else {
+            qunsetenv(m_name.constData());
+        }
+    }
+
+  private:
+    QByteArray m_name;
+    bool m_wasSet{false};
+    QByteArray m_value;
+};
+
+bool createFile(const QString& path) {
+    if (!QDir().mkpath(QFileInfo(path).absolutePath())) {
+        return false;
+    }
+    QFile file(path);
+    return file.open(QIODevice::WriteOnly) && file.write("media") == qint64{5} && file.flush();
+}
+
 bool insertTranscript(DatabaseManager& manager, const QString& recordingId, const QStringList& segments) {
     auto connection = manager.connection();
     if (!connection)
@@ -87,6 +120,16 @@ class DatabaseTest final : public QObject {
     void recordingTrashAndSearchWork();
     void permanentDeletePurgesRawSearchIndexes();
     void permanentDeleteRollsBackWhenSearchIndexDeleteFails();
+    void permanentDeleteOutboxRetriesAndConverges();
+    void permanentDeleteOutboxRemovesOwnedArtifacts();
+    void permanentDeleteOutboxQueuesDistinctAliases();
+    void permanentDeleteOutboxTreatsMissingFilesAsComplete();
+    void permanentDeleteOutboxDefersSharedArtifacts();
+    void permanentDeleteOutboxDiscardsUnsafeEntries();
+    void permanentDeleteOutboxRejectsUnsafeManagedSourceAlias();
+    void permanentDeleteOutboxFencesConcurrentReferences();
+    void managedReferenceFenceRecognizesExternalFileAlias();
+    void managedReferenceFenceRecognizesDeepAliasChain();
     void chineseSubstringSearchFindsRecordings();
     void multiKeywordSearchRequiresAllTerms();
     void searchEscapesLikeWildcards();
@@ -103,7 +146,7 @@ void DatabaseTest::cleanMigrationConfiguresSQLite() {
     QVERIFY(directory.isValid());
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
-    QCOMPARE(manager.schemaVersion(), 10);
+    QCOMPARE(manager.schemaVersion(), 11);
     auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery foreignKeys(connection.value());
@@ -409,6 +452,16 @@ void DatabaseTest::permanentDeletePurgesRawSearchIndexes() {
 
 void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
     QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+    const QString sourcePath = directory.filePath(QStringLiteral("source/original.wav"));
+    const QString managedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("atomic-managed.wav"));
+    QVERIFY2(createFile(sourcePath), qPrintable(sourcePath));
+    QVERIFY2(createFile(managedPath), qPrintable(managedPath));
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
     SqliteRecordingRepository repository(manager);
@@ -417,6 +470,8 @@ void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
     recording.id = recordingId;
     recording.title = QStringLiteral("AtomicTitleSecret-a77bf1");
     recording.notes = QStringLiteral("AtomicNotesSecret-8cb053");
+    recording.sourcePath = sourcePath;
+    recording.managedMediaPath = managedPath;
     QVERIFY(repository.create(recording));
     QVERIFY(insertTranscript(manager, recordingId,
                              {QStringLiteral("AtomicTranscriptSecret-2706ce")}));
@@ -470,6 +525,620 @@ void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
     QVERIFY(searchIndexCount.exec());
     QVERIFY(searchIndexCount.next());
     QCOMPARE(searchIndexCount.value(0).toInt(), 1);
+
+    QSqlQuery pendingCount(connection.value());
+    QVERIFY(pendingCount.exec(
+        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.next());
+    QCOMPARE(pendingCount.value(0).toInt(), 0);
+    QVERIFY(QFileInfo::exists(sourcePath));
+    QVERIFY(QFileInfo::exists(managedPath));
+}
+
+void DatabaseTest::permanentDeleteOutboxRetriesAndConverges() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString sourcePath = directory.filePath(QStringLiteral("source/original.wav"));
+    const QString managedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("retry-managed.wav"));
+    QVERIFY2(createFile(sourcePath), qPrintable(sourcePath));
+    QVERIFY2(createFile(managedPath), qPrintable(managedPath));
+
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    int removalAttempts = 0;
+    SqliteRecordingRepository failingRepository(
+        manager, [&removalAttempts](const QString&, QString* error) {
+            ++removalAttempts;
+            if (error != nullptr) {
+                *error = QStringLiteral("injected sharing violation");
+            }
+            return false;
+        });
+    Recording recording;
+    recording.id = QStringLiteral("outbox-retry");
+    recording.title = QStringLiteral("Outbox retry");
+    recording.sourcePath = sourcePath;
+    recording.managedMediaPath = managedPath;
+    // Derived metadata that aliases the user's source must never make the source deletable.
+    recording.normalizedPcmPath = sourcePath;
+    recording.waveformPath = sourcePath;
+    QVERIFY(failingRepository.create(recording));
+    QVERIFY(failingRepository.moveToTrash(recording.id));
+    QVERIFY(failingRepository.permanentlyDelete(recording.id));
+
+    const auto deletedRecording = failingRepository.findById(recording.id);
+    QVERIFY(deletedRecording);
+    QVERIFY(!deletedRecording.value().has_value());
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    {
+        QSqlQuery queued(connection.value());
+        queued.prepare(QStringLiteral(
+            "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+        queued.addBindValue(recording.id);
+        QVERIFY(queued.exec());
+        QVERIFY(queued.next());
+        QCOMPARE(queued.value(0).toInt(), 1);
+    }
+
+    const auto firstDrain = failingRepository.drainPendingArtifactDeletions(recording.id);
+    QVERIFY(firstDrain);
+    QCOMPARE(firstDrain.value().entriesClaimed, 1);
+    QCOMPARE(firstDrain.value().failures, 1);
+    QCOMPARE(removalAttempts, 1);
+    QVERIFY(QFileInfo::exists(managedPath));
+    QVERIFY(QFileInfo::exists(sourcePath));
+
+    const auto immediateRetry = failingRepository.drainPendingArtifactDeletions(recording.id);
+    QVERIFY(immediateRetry);
+    QCOMPARE(immediateRetry.value().entriesClaimed, 0);
+    QCOMPARE(removalAttempts, 1);
+
+    QSqlQuery pending(connection.value());
+    pending.prepare(QStringLiteral(
+        "SELECT attempt_count,next_attempt_at,last_error FROM "
+        "pending_recording_artifact_deletions WHERE recording_id=?"));
+    pending.addBindValue(recording.id);
+    QVERIFY(pending.exec());
+    QVERIFY(pending.next());
+    QCOMPARE(pending.value(0).toInt(), 1);
+    QVERIFY(TimeUtils::fromStorageString(pending.value(1).toString()) >
+            QDateTime::currentDateTimeUtc());
+    QCOMPARE(pending.value(2).toString(), QStringLiteral("injected sharing violation"));
+    QVERIFY(!pending.next());
+    pending.finish();
+
+    QSqlQuery makeDue(connection.value());
+    makeDue.prepare(QStringLiteral(
+        "UPDATE pending_recording_artifact_deletions SET next_attempt_at=? WHERE recording_id=?"));
+    makeDue.addBindValue(QStringLiteral("1970-01-01T00:00:00.000Z"));
+    makeDue.addBindValue(recording.id);
+    QVERIFY(makeDue.exec());
+    QCOMPARE(makeDue.numRowsAffected(), 1);
+
+    SqliteRecordingRepository resumedRepository(manager);
+    const auto resumedDrain = resumedRepository.drainPendingArtifactDeletions(recording.id);
+    QVERIFY(resumedDrain);
+    QCOMPARE(resumedDrain.value().entriesClaimed, 1);
+    QCOMPARE(resumedDrain.value().filesRemoved, 1);
+    QCOMPARE(resumedDrain.value().failures, 0);
+    QVERIFY(!QFileInfo::exists(managedPath));
+    QVERIFY(QFileInfo::exists(sourcePath));
+
+    QSqlQuery pendingCount(connection.value());
+    QVERIFY(pendingCount.exec(
+        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.next());
+    QCOMPARE(pendingCount.value(0).toInt(), 0);
+}
+
+void DatabaseTest::permanentDeleteOutboxRemovesOwnedArtifacts() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString sourcePath = directory.filePath(QStringLiteral("source/original.mp4"));
+    const QString managedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("owned-media.mp4"));
+    const QString normalizedPath =
+        QDir(StoragePaths::cache()).filePath(QStringLiteral("audio/owned-audio.wav"));
+    const QString waveformPath =
+        QDir(StoragePaths::cache()).filePath(QStringLiteral("waveforms/owned-waveform.bwpk"));
+    QVERIFY2(createFile(sourcePath), qPrintable(sourcePath));
+    QVERIFY2(createFile(managedPath), qPrintable(managedPath));
+    QVERIFY2(createFile(normalizedPath), qPrintable(normalizedPath));
+    QVERIFY2(createFile(waveformPath), qPrintable(waveformPath));
+
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    Recording recording;
+    recording.id = QStringLiteral("outbox-owned-artifacts");
+    recording.title = QStringLiteral("Owned artifacts");
+    recording.sourcePath = sourcePath;
+    recording.managedMediaPath = managedPath;
+    recording.normalizedPcmPath = normalizedPath;
+    recording.waveformPath = waveformPath;
+    QVERIFY(repository.create(recording));
+    QVERIFY(repository.moveToTrash(recording.id));
+    QVERIFY(repository.permanentlyDelete(recording.id));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    {
+        QSqlQuery queued(connection.value());
+        queued.prepare(QStringLiteral(
+            "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+        queued.addBindValue(recording.id);
+        QVERIFY(queued.exec());
+        QVERIFY(queued.next());
+        QCOMPARE(queued.value(0).toInt(), 3);
+    }
+    const auto drain = repository.drainPendingArtifactDeletions(recording.id);
+    QVERIFY(drain);
+    QCOMPARE(drain.value().entriesClaimed, 3);
+    QCOMPARE(drain.value().filesRemoved, 3);
+    QCOMPARE(drain.value().failures, 0);
+    QVERIFY(QFileInfo::exists(sourcePath));
+    QVERIFY(!QFileInfo::exists(managedPath));
+    QVERIFY(!QFileInfo::exists(normalizedPath));
+    QVERIFY(!QFileInfo::exists(waveformPath));
+}
+
+void DatabaseTest::permanentDeleteOutboxQueuesDistinctAliases() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString managedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("aliased-media.wav"));
+    const QString cacheAlias =
+        QDir(StoragePaths::cache()).filePath(QStringLiteral("audio/aliased-media.lnk"));
+    QVERIFY2(createFile(managedPath), qPrintable(managedPath));
+    QVERIFY(QDir().mkpath(QFileInfo(cacheAlias).absolutePath()));
+    QVERIFY2(QFile::link(managedPath, cacheAlias), qPrintable(cacheAlias));
+    QVERIFY(QFileInfo(cacheAlias).isSymLink());
+
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    Recording recording;
+    recording.id = QStringLiteral("outbox-distinct-aliases");
+    recording.title = QStringLiteral("Distinct aliases");
+    recording.sourcePath = directory.filePath(QStringLiteral("external-source.wav"));
+    recording.managedMediaPath = managedPath;
+    recording.normalizedPcmPath = cacheAlias;
+    QVERIFY(repository.create(recording));
+    QVERIFY(repository.moveToTrash(recording.id));
+    QVERIFY(repository.permanentlyDelete(recording.id));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    QSqlQuery queued(connection.value());
+    queued.prepare(QStringLiteral(
+        "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+    queued.addBindValue(recording.id);
+    QVERIFY(queued.exec());
+    QVERIFY(queued.next());
+    QCOMPARE(queued.value(0).toInt(), 2);
+
+    const auto drain = repository.drainPendingArtifactDeletions(recording.id);
+    QVERIFY(drain);
+    QCOMPARE(drain.value().entriesClaimed, 2);
+    QCOMPARE(drain.value().filesRemoved, 2);
+    QVERIFY(!QFileInfo::exists(managedPath));
+    QVERIFY(!QFileInfo(cacheAlias).isSymLink());
+}
+
+void DatabaseTest::permanentDeleteOutboxTreatsMissingFilesAsComplete() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString missingManagedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("already-missing.wav"));
+    QVERIFY2(createFile(missingManagedPath), qPrintable(missingManagedPath));
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    int removalAttempts = 0;
+    SqliteRecordingRepository repository(
+        manager, [&removalAttempts](const QString&, QString*) {
+            ++removalAttempts;
+            return false;
+        });
+    Recording recording;
+    recording.id = QStringLiteral("outbox-missing");
+    recording.title = QStringLiteral("Outbox missing");
+    recording.sourcePath = directory.filePath(QStringLiteral("external-source.wav"));
+    recording.managedMediaPath = missingManagedPath;
+    QVERIFY(repository.create(recording));
+    QVERIFY(repository.moveToTrash(recording.id));
+    QVERIFY(repository.permanentlyDelete(recording.id));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    {
+        QSqlQuery queued(connection.value());
+        queued.prepare(QStringLiteral(
+            "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+        queued.addBindValue(recording.id);
+        QVERIFY(queued.exec());
+        QVERIFY(queued.next());
+        QCOMPARE(queued.value(0).toInt(), 1);
+    }
+    QVERIFY(QFile::remove(missingManagedPath));
+
+    const auto drain = repository.drainPendingArtifactDeletions(recording.id);
+    QVERIFY(drain);
+    QCOMPARE(drain.value().entriesClaimed, 1);
+    QCOMPARE(drain.value().missingFiles, 1);
+    QCOMPARE(drain.value().failures, 0);
+    QCOMPARE(removalAttempts, 0);
+
+    QSqlQuery pendingCount(connection.value());
+    QVERIFY(pendingCount.exec(
+        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.next());
+    QCOMPARE(pendingCount.value(0).toInt(), 0);
+}
+
+void DatabaseTest::permanentDeleteOutboxDefersSharedArtifacts() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString sharedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("shared-managed.wav"));
+    QVERIFY2(createFile(sharedPath), qPrintable(sharedPath));
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    Recording first;
+    first.id = QStringLiteral("outbox-shared-first");
+    first.title = QStringLiteral("Shared first");
+    first.sourcePath = directory.filePath(QStringLiteral("first-source.wav"));
+    first.managedMediaPath = sharedPath;
+    Recording second;
+    second.id = QStringLiteral("outbox-shared-second");
+    second.title = QStringLiteral("Shared second");
+    second.sourcePath = directory.filePath(QStringLiteral("second-source.wav"));
+    second.managedMediaPath = sharedPath;
+    QVERIFY(repository.create(first));
+    QVERIFY(repository.create(second));
+
+    QVERIFY(repository.moveToTrash(first.id));
+    QVERIFY(repository.permanentlyDelete(first.id));
+    const auto deferred = repository.drainPendingArtifactDeletions(first.id);
+    QVERIFY(deferred);
+    QCOMPARE(deferred.value().entriesClaimed, 1);
+    QCOMPARE(deferred.value().referencedFilesDeferred, 1);
+    QCOMPARE(deferred.value().filesRemoved, 0);
+    QVERIFY(QFileInfo::exists(sharedPath));
+
+    QVERIFY(repository.moveToTrash(second.id));
+    QVERIFY(repository.permanentlyDelete(second.id));
+    const auto finalReference = repository.drainPendingArtifactDeletions(second.id);
+    QVERIFY(finalReference);
+    QCOMPARE(finalReference.value().entriesClaimed, 1);
+    QCOMPARE(finalReference.value().filesRemoved, 1);
+    QVERIFY(!QFileInfo::exists(sharedPath));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    QSqlQuery makeDue(connection.value());
+    QVERIFY(makeDue.exec(QStringLiteral(
+        "UPDATE pending_recording_artifact_deletions SET "
+        "next_attempt_at='1970-01-01T00:00:00.000Z'")));
+    QCOMPARE(makeDue.numRowsAffected(), 1);
+    const auto convergence = repository.drainPendingArtifactDeletions();
+    QVERIFY(convergence);
+    QCOMPARE(convergence.value().missingFiles, 1);
+
+    QSqlQuery pendingCount(connection.value());
+    QVERIFY(pendingCount.exec(
+        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.next());
+    QCOMPARE(pendingCount.value(0).toInt(), 0);
+}
+
+void DatabaseTest::permanentDeleteOutboxDiscardsUnsafeEntries() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString externalPath = directory.filePath(QStringLiteral("external/keep.wav"));
+    const QString managedDirectory =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("not-a-media-file"));
+    QVERIFY2(createFile(externalPath), qPrintable(externalPath));
+    QVERIFY(QDir().mkpath(managedDirectory));
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    const QString now = TimeUtils::nowStorageString();
+    QSqlQuery insert(connection.value());
+    insert.prepare(QStringLiteral(
+        "INSERT INTO pending_recording_artifact_deletions("
+        "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
+        "VALUES('unsafe-row','deleted-recording','managed_media',?,?,?)"));
+    insert.addBindValue(QFileInfo(externalPath).absoluteFilePath());
+    insert.addBindValue(now);
+    insert.addBindValue(now);
+    QVERIFY(insert.exec());
+    QSqlQuery insertDirectory(connection.value());
+    insertDirectory.prepare(QStringLiteral(
+        "INSERT INTO pending_recording_artifact_deletions("
+        "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
+        "VALUES('directory-row','deleted-recording','managed_media',?,?,?)"));
+    insertDirectory.addBindValue(QFileInfo(managedDirectory).absoluteFilePath());
+    insertDirectory.addBindValue(now);
+    insertDirectory.addBindValue(now);
+    QVERIFY(insertDirectory.exec());
+
+    SqliteRecordingRepository repository(manager);
+    const auto drain = repository.drainPendingArtifactDeletions();
+    QVERIFY(drain);
+    QCOMPARE(drain.value().entriesClaimed, 2);
+    QCOMPARE(drain.value().unsafeEntriesDiscarded, 2);
+    QCOMPARE(drain.value().filesRemoved, 0);
+    QVERIFY(QFileInfo::exists(externalPath));
+    QVERIFY(QFileInfo(managedDirectory).isDir());
+
+    QSqlQuery pendingCount(connection.value());
+    QVERIFY(pendingCount.exec(
+        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.next());
+    QCOMPARE(pendingCount.value(0).toInt(), 0);
+}
+
+void DatabaseTest::permanentDeleteOutboxRejectsUnsafeManagedSourceAlias() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString sourcePath =
+        QDir(StoragePaths::cache()).filePath(QStringLiteral("audio/user-source.wav"));
+    QVERIFY2(createFile(sourcePath), qPrintable(sourcePath));
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    Recording recording;
+    recording.id = QStringLiteral("outbox-unsafe-managed-alias");
+    recording.title = QStringLiteral("Unsafe managed alias");
+    recording.sourcePath = sourcePath;
+    // A corrupt/legacy managed marker outside the recordings root must not authorize a cache-kind
+    // deletion of the same original source path.
+    recording.managedMediaPath = sourcePath;
+    recording.normalizedPcmPath = sourcePath;
+    QVERIFY(repository.create(recording));
+    QVERIFY(repository.moveToTrash(recording.id));
+    QVERIFY(repository.permanentlyDelete(recording.id));
+    const auto drain = repository.drainPendingArtifactDeletions(recording.id);
+    QVERIFY(drain);
+    QCOMPARE(drain.value().entriesClaimed, 0);
+    QVERIFY(QFileInfo::exists(sourcePath));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    QSqlQuery pendingCount(connection.value());
+    QVERIFY(pendingCount.exec(
+        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.next());
+    QCOMPARE(pendingCount.value(0).toInt(), 0);
+}
+
+void DatabaseTest::permanentDeleteOutboxFencesConcurrentReferences() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString managedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("concurrent-managed.wav"));
+    QVERIFY2(createFile(managedPath), qPrintable(managedPath));
+    DatabaseManager manager(
+        {directory.filePath(QStringLiteral("library.sqlite")), 100, true, false});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository setupRepository(manager);
+    Recording deleted;
+    deleted.id = QStringLiteral("outbox-concurrent-deleted");
+    deleted.title = QStringLiteral("Concurrent deleted");
+    deleted.sourcePath = directory.filePath(QStringLiteral("deleted-source.wav"));
+    deleted.managedMediaPath = managedPath;
+    QVERIFY(setupRepository.create(deleted));
+    QVERIFY(setupRepository.moveToTrash(deleted.id));
+    QVERIFY(setupRepository.permanentlyDelete(deleted.id));
+
+    QSemaphore writerLocked;
+    QSemaphore allowWriter;
+    QSemaphore drainerReady;
+    QSemaphore startDrainer;
+    QSemaphore drainerFinished;
+    bool drainerConnectionReady = false;
+    bool creationSucceeded = false;
+    bool blockedDrainFailed = false;
+    ErrorCode blockedDrainError = ErrorCode::None;
+    std::thread drainer([&] {
+        drainerConnectionReady = static_cast<bool>(manager.connection());
+        drainerReady.release();
+        startDrainer.acquire();
+        SqliteRecordingRepository repository(manager);
+        const auto result = repository.drainPendingArtifactDeletions(deleted.id);
+        blockedDrainFailed = !result;
+        blockedDrainError = result ? ErrorCode::None : result.error().code;
+        drainerFinished.release();
+    });
+    const bool drainerPrepared = drainerReady.tryAcquire(1, 5'000);
+
+    std::thread creator([&] {
+        SqliteRecordingRepository repository(
+            manager, {}, [&] {
+                writerLocked.release();
+                allowWriter.acquire();
+            });
+        Recording replacement;
+        replacement.id = QStringLiteral("outbox-concurrent-replacement");
+        replacement.title = QStringLiteral("Concurrent replacement");
+        replacement.sourcePath = directory.filePath(QStringLiteral("replacement-source.wav"));
+        replacement.managedMediaPath = managedPath;
+        creationSucceeded = static_cast<bool>(repository.create(replacement));
+    });
+
+    const bool writerAcquiredTransaction = writerLocked.tryAcquire(1, 5'000);
+    startDrainer.release();
+    // The short busy timeout makes completion deterministic: an immediate writer forces the
+    // drainer's BEGIN IMMEDIATE to fail before the writer is released. A deferred writer would let
+    // the drainer delete the file and report success here.
+    const bool drainerFinishedWhileWriterLocked =
+        writerAcquiredTransaction && drainerFinished.tryAcquire(1, 5'000);
+    allowWriter.release();
+    creator.join();
+    drainer.join();
+
+    QVERIFY2(drainerPrepared && drainerConnectionReady,
+             "The concurrent drainer database connection was not prepared.");
+    QVERIFY2(writerAcquiredTransaction,
+             "The writer did not reach the managed-reference transaction hook.");
+    QVERIFY2(drainerFinishedWhileWriterLocked,
+             "The concurrent drainer did not finish within its database busy timeout.");
+    QVERIFY(blockedDrainFailed);
+    QCOMPARE(blockedDrainError, ErrorCode::DatabaseQueryFailed);
+    QVERIFY(creationSucceeded);
+    QVERIFY(QFileInfo::exists(managedPath));
+    const auto replacement = setupRepository.findById(
+        QStringLiteral("outbox-concurrent-replacement"));
+    QVERIFY(replacement);
+    QVERIFY(replacement.value().has_value());
+    QCOMPARE(replacement.value()->managedMediaPath, managedPath);
+
+    const auto deferred = setupRepository.drainPendingArtifactDeletions(deleted.id);
+    QVERIFY(deferred);
+    QCOMPARE(deferred.value().referencedFilesDeferred, 1);
+    QCOMPARE(deferred.value().filesRemoved, 0);
+    QVERIFY(QFileInfo::exists(managedPath));
+}
+
+void DatabaseTest::managedReferenceFenceRecognizesExternalFileAlias() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString managedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("aliased-managed.wav"));
+    const QString externalAlias = directory.filePath(QStringLiteral("external-managed-alias.lnk"));
+    QVERIFY2(createFile(managedPath), qPrintable(managedPath));
+    QVERIFY2(QFile::link(managedPath, externalAlias), qPrintable(externalAlias));
+    QVERIFY(QFileInfo(externalAlias).isSymLink());
+    QVERIFY(QFileInfo(externalAlias).isFile());
+
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    Recording deleted;
+    deleted.id = QStringLiteral("outbox-aliased-deleted");
+    deleted.title = QStringLiteral("Aliased deleted");
+    deleted.managedMediaPath = managedPath;
+    QVERIFY(repository.create(deleted));
+    QVERIFY(repository.moveToTrash(deleted.id));
+    QVERIFY(repository.permanentlyDelete(deleted.id));
+    const auto drain = repository.drainPendingArtifactDeletions(deleted.id);
+    QVERIFY(drain);
+    QCOMPARE(drain.value().filesRemoved, 1);
+    QVERIFY(!QFileInfo::exists(managedPath));
+    QVERIFY(QFileInfo(externalAlias).isSymLink());
+    QVERIFY(!QFileInfo(externalAlias).isFile());
+
+    Recording replacement;
+    replacement.id = QStringLiteral("outbox-aliased-replacement");
+    replacement.title = QStringLiteral("Aliased replacement");
+    replacement.sourcePath = externalAlias;
+    const auto created = repository.create(replacement);
+    QVERIFY(!created);
+    QCOMPARE(created.error().code, ErrorCode::NotFound);
+    const auto stored = repository.findById(replacement.id);
+    QVERIFY(stored);
+    QVERIFY(!stored.value().has_value());
+}
+
+void DatabaseTest::managedReferenceFenceRecognizesDeepAliasChain() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+    qputenv("BREEZEDESK_DATA_ROOT",
+            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    QVERIFY(StoragePaths::ensureLayout());
+
+    const QString managedPath =
+        QDir(StoragePaths::recordings()).filePath(QStringLiteral("deep-aliased-managed.wav"));
+    const QString aliasesDirectory = directory.filePath(QStringLiteral("external-aliases"));
+    QVERIFY2(createFile(managedPath), qPrintable(managedPath));
+    QVERIFY(QDir().mkpath(aliasesDirectory));
+    QString deepAlias = managedPath;
+    constexpr int AliasDepth = 20;
+    for (int index = 0; index < AliasDepth; ++index) {
+        QString alias = QDir(aliasesDirectory).filePath(
+            QStringLiteral("alias-%1").arg(index, 2, 10, QLatin1Char('0')));
+#if defined(Q_OS_WIN)
+        alias += QStringLiteral(".lnk");
+#endif
+        QVERIFY2(QFile::link(deepAlias, alias), qPrintable(alias));
+        QVERIFY(QFileInfo(alias).isSymLink());
+        deepAlias = alias;
+    }
+    QVERIFY(QFileInfo(deepAlias).isFile());
+
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    Recording deleted;
+    deleted.id = QStringLiteral("outbox-deep-alias-deleted");
+    deleted.title = QStringLiteral("Deep alias deleted");
+    deleted.managedMediaPath = managedPath;
+    QVERIFY(repository.create(deleted));
+    QVERIFY(repository.moveToTrash(deleted.id));
+    QVERIFY(repository.permanentlyDelete(deleted.id));
+
+    Recording replacement;
+    replacement.id = QStringLiteral("outbox-deep-alias-replacement");
+    replacement.title = QStringLiteral("Deep alias replacement");
+    replacement.managedMediaPath = deepAlias;
+    QVERIFY(repository.create(replacement));
+
+    const auto drain = repository.drainPendingArtifactDeletions(deleted.id);
+    QVERIFY(drain);
+    QCOMPARE(drain.value().entriesClaimed, 1);
+    QCOMPARE(drain.value().referencedFilesDeferred, 1);
+    QCOMPARE(drain.value().filesRemoved, 0);
+    QVERIFY(QFileInfo::exists(managedPath));
 }
 
 void DatabaseTest::chineseSubstringSearchFindsRecordings() {
@@ -574,11 +1243,11 @@ void DatabaseTest::searchIndexMigrationRebuildsWithTrigram() {
             "transcript, tokenize='unicode61 remove_diacritics 2')")));
         QVERIFY(query.exec(QStringLiteral(
             "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
-        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (8,9,10)")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (8,9,10,11)")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 10);
+    QCOMPARE(upgraded.schemaVersion(), 11);
     QVERIFY(upgraded.hasFts5());
     auto connection = upgraded.connection();
     QVERIFY(connection);
@@ -621,13 +1290,13 @@ void DatabaseTest::upgradeMigrationCreatesBackup() {
         QVERIFY(removeVersion.exec(QStringLiteral(
             "ALTER TABLE transcription_jobs ADD COLUMN revision_number INTEGER NOT NULL DEFAULT 1")));
         QVERIFY(removeVersion.exec(
-            QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8,9,10)")));
+            QStringLiteral("DELETE FROM schema_migrations WHERE version IN (4,5,6,7,8,9,10,11)")));
         QSqlQuery removeIndex(connection.value());
         QVERIFY(removeIndex.exec(QStringLiteral("DROP INDEX idx_recordings_source_path")));
     }
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 10);
+    QCOMPARE(upgraded.schemaVersion(), 11);
     const QStringList backups =
         QDir(directory.path()).entryList({QStringLiteral("library.sqlite.backup-*")}, QDir::Files);
     QCOMPARE(backups.size(), 1);
@@ -655,7 +1324,7 @@ void DatabaseTest::executionLeaseAndSingleTranscriptMigrationsNormalizeLegacyDat
         QVERIFY(query.exec(QStringLiteral("DROP INDEX idx_jobs_single_execution")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE asr_execution_lease")));
         QVERIFY(query.exec(QStringLiteral("DROP TABLE transcription_job_events")));
-        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (7,8,9,10)")));
+        QVERIFY(query.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (7,8,9,10,11)")));
 
         const auto insertJob = [&](const QString& id, const QString& state, const int queuePosition,
                                    const QString& createdAt) {
@@ -699,7 +1368,7 @@ void DatabaseTest::executionLeaseAndSingleTranscriptMigrationsNormalizeLegacyDat
 
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 10);
+    QCOMPARE(upgraded.schemaVersion(), 11);
     auto connection = upgraded.connection();
     QVERIFY(connection);
     QSqlQuery jobs(connection.value());
@@ -769,12 +1438,12 @@ void DatabaseTest::singleGlossaryMigrationConsolidatesProfiles() {
             "VALUES('term-1','product','BreezeDesk',1,'now','now'),"
             "('term-duplicate','customer','breezedesk',0,'now','now'),"
             "('term-2','customer','MediaTek',0,'now','now')")));
-        QVERIFY(setup.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (9,10)")));
+        QVERIFY(setup.exec(QStringLiteral("DELETE FROM schema_migrations WHERE version IN (9,10,11)")));
     }
 
     DatabaseManager upgraded({path});
     QVERIFY(upgraded.initialize());
-    QCOMPARE(upgraded.schemaVersion(), 10);
+    QCOMPARE(upgraded.schemaVersion(), 11);
     auto connection = upgraded.connection();
     QVERIFY(connection);
     QSqlQuery profiles(connection.value());

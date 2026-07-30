@@ -5,7 +5,6 @@
 #include "breezedesk/database/IRecordingRepository.h"
 
 #include <QDir>
-#include <QFile>
 #include <QFileInfo>
 #include <QSet>
 #include <QUrl>
@@ -47,17 +46,6 @@ bool isFileWithin(const QString& path, const QString& allowedDirectory) {
     const QString canonicalDirectory = QFileInfo(allowedDirectory).canonicalFilePath();
     return canonicalPath.isEmpty() || canonicalDirectory.isEmpty() ||
            isStrictChildPath(canonicalPath, canonicalDirectory);
-}
-
-bool removeFileWithin(const QString& path, const QString& allowedDirectory) {
-    if (!isFileWithin(path, allowedDirectory)) {
-        return true;
-    }
-    const QFileInfo fileInfo(path);
-    if (!fileInfo.exists() && !fileInfo.isSymLink()) {
-        return true;
-    }
-    return QFile::remove(fileInfo.absoluteFilePath());
 }
 
 } // namespace
@@ -278,32 +266,15 @@ void LibraryViewModel::deletePermanently(const QString& id) {
         return;
     }
 
-    const QString sourcePath = absoluteCleanPath(storedRecording->sourcePath);
-    const QString managedPath = absoluteCleanPath(storedRecording->managedMediaPath);
-    QStringList removalFailures;
-    const auto removeArtifact = [&removalFailures](const QString& path, const QString& directory) {
-        if (path.isEmpty()) {
-            return;
-        }
-        const QString absolutePath = absoluteCleanPath(path);
-        if (!removeFileWithin(absolutePath, directory)) {
-            removalFailures.append(QFileInfo(absolutePath).fileName());
-        }
-    };
-    removeArtifact(storedRecording->managedMediaPath, StoragePaths::recordings());
-    // Cache metadata must never turn an original source into a deletion target. A source is
-    // removable only when it is also explicitly recorded as the managed media copy.
-    if (absoluteCleanPath(storedRecording->normalizedPcmPath) != sourcePath ||
-        absoluteCleanPath(storedRecording->normalizedPcmPath) == managedPath) {
-        removeArtifact(storedRecording->normalizedPcmPath, StoragePaths::cache());
-    }
-    if (absoluteCleanPath(storedRecording->waveformPath) != sourcePath ||
-        absoluteCleanPath(storedRecording->waveformPath) == managedPath) {
-        removeArtifact(storedRecording->waveformPath, StoragePaths::cache());
-    }
-    if (!removalFailures.isEmpty()) {
-        emit operationFailed(tr("The recording was deleted, but some managed files could not be removed: %1")
-                                 .arg(removalFailures.join(QStringLiteral(", "))));
+    const auto cleanup = m_repository->drainPendingArtifactDeletions(id);
+    if (!cleanup) {
+        emit operationFailed(
+            tr("The recording was deleted, but managed file cleanup will retry automatically."));
+    } else if (cleanup.value().failures > 0) {
+        emit operationFailed(
+            tr("The recording was deleted, but %n managed file(s) could not be removed. Cleanup will retry "
+               "automatically.",
+               nullptr, cleanup.value().failures));
     }
     emit recordingPermanentlyDeleted(id);
 }

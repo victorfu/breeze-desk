@@ -375,6 +375,73 @@ class LibraryWorkflowsTest final : public QObject {
         QVERIFY(QFileInfo::exists(source));
     }
 
+    void permanentDeleteFailureKeepsDurableCleanupAndUpdatesUi() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+        qputenv("BREEZEDESK_DATA_ROOT",
+                directory.filePath(QStringLiteral("application-data")).toUtf8());
+        QVERIFY(BreezeDesk::StoragePaths::ensureLayout());
+
+        const QString source = directory.filePath(QStringLiteral("source/original.wav"));
+        const QString managed = QDir(BreezeDesk::StoragePaths::recordings())
+                                    .filePath(QStringLiteral("locked-managed.wav"));
+        createFile(source);
+        createFile(managed);
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("delete-library.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteRecordingRepository repository(
+            database, [](const QString&, QString* error) {
+                if (error != nullptr) {
+                    *error = QStringLiteral("injected sharing violation");
+                }
+                return false;
+            });
+        BreezeDesk::Recording recording;
+        recording.id = QStringLiteral("locked-delete");
+        recording.title = QStringLiteral("Locked delete");
+        recording.sourcePath = source;
+        recording.managedMediaPath = managed;
+        QVERIFY(repository.create(recording));
+
+        BreezeDesk::LibraryViewModel library(&repository);
+        QCOMPARE(library.recordings()->rowCount(), 1);
+        QSignalSpy failures(&library, &BreezeDesk::LibraryViewModel::operationFailed);
+        QSignalSpy deleted(&library, &BreezeDesk::LibraryViewModel::recordingPermanentlyDeleted);
+        QVERIFY(failures.isValid());
+        QVERIFY(deleted.isValid());
+        library.moveToTrash(recording.id);
+        QCOMPARE(library.recordings()->rowCount(), 0);
+        QCOMPARE(library.trash()->rowCount(), 1);
+        library.deletePermanently(recording.id);
+
+        QCOMPARE(library.trash()->rowCount(), 0);
+        QCOMPARE(deleted.count(), 1);
+        QCOMPARE(deleted.constFirst().constFirst().toString(), recording.id);
+        QCOMPARE(failures.count(), 1);
+        QVERIFY(failures.constFirst().constFirst().toString().contains(
+            QStringLiteral("retry automatically"), Qt::CaseInsensitive));
+        const auto durableRecording = repository.findById(recording.id);
+        QVERIFY(durableRecording);
+        QVERIFY(!durableRecording.value().has_value());
+        QVERIFY(QFileInfo::exists(source));
+        QVERIFY(QFileInfo::exists(managed));
+
+        const auto connection = database.connection();
+        QVERIFY(connection);
+        QSqlQuery pending(connection.value());
+        pending.prepare(QStringLiteral(
+            "SELECT attempt_count,last_error FROM pending_recording_artifact_deletions "
+            "WHERE recording_id=?"));
+        pending.addBindValue(recording.id);
+        QVERIFY(pending.exec());
+        QVERIFY(pending.next());
+        QCOMPARE(pending.value(0).toInt(), 1);
+        QCOMPARE(pending.value(1).toString(), QStringLiteral("injected sharing violation"));
+        QVERIFY(!pending.next());
+    }
+
     void renameRelinkSortFilterAndRevealArePersistent() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
