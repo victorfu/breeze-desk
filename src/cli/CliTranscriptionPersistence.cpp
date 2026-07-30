@@ -59,6 +59,50 @@ UserFacingError jobCancelledError() {
                                        QStringLiteral("The transcription was cancelled."));
 }
 
+Result<void> validateDurableChunkGeometry(const QList<JobChunk>& chunks) {
+    if (chunks.isEmpty()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("The durable transcription chunk plan is empty.")));
+    }
+    qint64 previousEndMs = 0;
+    qint64 previousOverlapAfterMs = 0;
+    for (qsizetype index = 0; index < chunks.size(); ++index) {
+        const JobChunk& chunk = chunks.at(index);
+        if (chunk.ordinal != static_cast<int>(index) || chunk.startMs < 0 ||
+            chunk.endMs <= chunk.startMs) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidArgument,
+                QStringLiteral("The durable transcription chunk plan contains an invalid chunk.")));
+        }
+        const qint64 lengthMs = chunk.endMs - chunk.startMs;
+        if (chunk.overlapBeforeMs < 0 || chunk.overlapAfterMs < 0 ||
+            chunk.overlapBeforeMs >= lengthMs || chunk.overlapAfterMs >= lengthMs) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidArgument,
+                QStringLiteral("The durable transcription chunk plan contains an invalid chunk.")));
+        }
+        const bool continuous =
+            index == 0
+                ? chunk.startMs == 0 && chunk.overlapBeforeMs == 0
+                : chunk.overlapBeforeMs == previousOverlapAfterMs &&
+                      chunk.startMs == previousEndMs - chunk.overlapBeforeMs;
+        if (!continuous) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidArgument,
+                QStringLiteral("The durable transcription chunk plan is discontinuous.")));
+        }
+        previousEndMs = chunk.endMs;
+        previousOverlapAfterMs = chunk.overlapAfterMs;
+    }
+    if (chunks.constLast().overlapAfterMs != 0) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("The durable transcription chunk plan has an invalid trailing overlap.")));
+    }
+    return Result<void>::success();
+}
+
 } // namespace
 
 CliTranscriptionPersistence::CliTranscriptionPersistence(IRecordingRepository& recordings,
@@ -85,14 +129,9 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
             ErrorCode::InvalidArgument,
             QStringLiteral("A source recording and at least one transcription chunk are required.")));
     }
-    const bool hasInvalidChunkRange =
-        std::any_of(descriptor.chunks.cbegin(), descriptor.chunks.cend(), [](const JobChunk& chunk) {
-            return chunk.startMs < 0 || chunk.endMs <= chunk.startMs;
-        });
-    if (hasInvalidChunkRange) {
-        return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
-            ErrorCode::InvalidArgument,
-            QStringLiteral("Job chunks must be ordered and have valid time ranges.")));
+    const auto chunkPlanValidation = validateDurableChunkGeometry(descriptor.chunks);
+    if (!chunkPlanValidation) {
+        return Result<DurableTranscriptionIdentity>::failure(chunkPlanValidation.error());
     }
     const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
     if (!recovered)
@@ -171,45 +210,97 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::InvalidStateTransition,
             QStringLiteral("A durable transcription session is already active.")));
-    const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
-    if (!recovered)
-        return Result<DurableTranscriptionIdentity>::failure(recovered.error());
-    auto jobResult = m_jobs.findById(jobId);
-    if (!jobResult)
-        return Result<DurableTranscriptionIdentity>::failure(jobResult.error());
-    if (!jobResult.value())
-        return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The interrupted transcription job does not exist.")));
-    if (jobResult.value()->state == JobState::Cancelling || jobResult.value()->state == JobState::Cancelled) {
+
+    struct ResumeSnapshot {
+        TranscriptionJob job;
+        Recording recording;
+        QList<JobChunk> chunks;
+    };
+    const auto loadSnapshot = [&]() -> Result<ResumeSnapshot> {
+        const auto jobResult = m_jobs.findById(jobId);
+        if (!jobResult) {
+            return Result<ResumeSnapshot>::failure(jobResult.error());
+        }
+        if (!jobResult.value()) {
+            return Result<ResumeSnapshot>::failure(UserFacingError::validation(
+                ErrorCode::NotFound,
+                QStringLiteral("The interrupted transcription job does not exist.")));
+        }
+        const auto recordingResult = m_recordings.findById(jobResult.value()->recordingId);
+        if (!recordingResult) {
+            return Result<ResumeSnapshot>::failure(recordingResult.error());
+        }
+        if (!recordingResult.value()) {
+            return Result<ResumeSnapshot>::failure(UserFacingError::validation(
+                ErrorCode::NotFound,
+                QStringLiteral("The source recording for this job no longer exists.")));
+        }
+        if (normalizedPath(recordingResult.value()->sourcePath) != normalizedPath(sourcePath)) {
+            return Result<ResumeSnapshot>::failure(UserFacingError::validation(
+                ErrorCode::InvalidArgument,
+                QStringLiteral("The resume source does not match the interrupted job.")));
+        }
+        const auto savedChunks = m_jobs.chunks(jobId);
+        if (!savedChunks) {
+            return Result<ResumeSnapshot>::failure(savedChunks.error());
+        }
+        if (savedChunks.value().isEmpty()) {
+            return Result<ResumeSnapshot>::failure(UserFacingError::validation(
+                ErrorCode::InvalidStateTransition,
+                QStringLiteral("The interrupted job has no durable chunk plan.")));
+        }
+        return Result<ResumeSnapshot>::success(
+            {*jobResult.value(), *recordingResult.value(), savedChunks.value()});
+    };
+
+    const auto preflight = loadSnapshot();
+    if (!preflight) {
+        return Result<DurableTranscriptionIdentity>::failure(preflight.error());
+    }
+    if (preflight.value().job.state == JobState::Cancelling ||
+        preflight.value().job.state == JobState::Cancelled) {
         return Result<DurableTranscriptionIdentity>::failure(jobCancelledError());
     }
-    if (jobResult.value()->state != JobState::Interrupted && jobResult.value()->state != JobState::Failed)
+    const bool stateCanBecomeResumable =
+        preflight.value().job.state == JobState::Interrupted ||
+        preflight.value().job.state == JobState::Failed ||
+        JobStateMachine::isRunning(preflight.value().job.state);
+    if (!stateCanBecomeResumable) {
         return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::InvalidStateTransition,
             QStringLiteral("Only interrupted or failed transcription jobs can be resumed.")));
-    auto recordingResult = m_recordings.findById(jobResult.value()->recordingId);
-    if (!recordingResult)
-        return Result<DurableTranscriptionIdentity>::failure(recordingResult.error());
-    if (!recordingResult.value())
-        return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The source recording for this job no longer exists.")));
-    if (normalizedPath(recordingResult.value()->sourcePath) != normalizedPath(sourcePath))
-        return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
-            ErrorCode::InvalidArgument,
-            QStringLiteral("The resume source does not match the interrupted job.")));
+    }
+    const auto preflightPlan = validateDurableChunkGeometry(preflight.value().chunks);
+    if (!preflightPlan) {
+        return Result<DurableTranscriptionIdentity>::failure(preflightPlan.error());
+    }
 
-    auto savedChunks = m_jobs.chunks(jobId);
-    if (!savedChunks)
-        return Result<DurableTranscriptionIdentity>::failure(savedChunks.error());
-    if (savedChunks.value().isEmpty())
-        return Result<DurableTranscriptionIdentity>::failure(
-            UserFacingError::validation(ErrorCode::InvalidStateTransition,
-                                        QStringLiteral("The interrupted job has no durable chunk plan.")));
+    const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
+    if (!recovered)
+        return Result<DurableTranscriptionIdentity>::failure(recovered.error());
+    const auto snapshot = loadSnapshot();
+    if (!snapshot) {
+        return Result<DurableTranscriptionIdentity>::failure(snapshot.error());
+    }
+    if (snapshot.value().job.state == JobState::Cancelling ||
+        snapshot.value().job.state == JobState::Cancelled) {
+        return Result<DurableTranscriptionIdentity>::failure(jobCancelledError());
+    }
+    if (snapshot.value().job.state != JobState::Interrupted &&
+        snapshot.value().job.state != JobState::Failed) {
+        return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
+            ErrorCode::InvalidStateTransition,
+            QStringLiteral("Only interrupted or failed transcription jobs can be resumed.")));
+    }
+    const auto snapshotPlan = validateDurableChunkGeometry(snapshot.value().chunks);
+    if (!snapshotPlan) {
+        return Result<DurableTranscriptionIdentity>::failure(snapshotPlan.error());
+    }
 
-    m_identity = {jobResult.value()->recordingId, jobId, savedChunks.value(), true};
-    m_sourceBindingStage = jobResult.value()->stage;
+    m_identity = {snapshot.value().job.recordingId, jobId, snapshot.value().chunks, true};
+    m_sourceBindingStage = snapshot.value().job.stage;
     m_active = true;
-    const bool retryingFailedJob = jobResult.value()->state == JobState::Failed;
+    const bool retryingFailedJob = snapshot.value().job.state == JobState::Failed;
     auto resumeResult =
         retryingFailedJob ? m_jobs.transition(jobId, JobState::Queued) : JobQueue(m_jobs).resume(jobId);
     if (!resumeResult) {
@@ -360,6 +451,25 @@ Result<void> CliTranscriptionPersistence::replaceChunkPlan(QList<JobChunk> chunk
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument,
             QStringLiteral("Speech analysis must produce at least one transcription chunk.")));
+    const auto recording = m_recordings.findById(m_identity.recordingId);
+    if (!recording) {
+        return Result<void>::failure(recording.error());
+    }
+    if (!recording.value()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::NotFound,
+            QStringLiteral("The durable source recording no longer exists.")));
+    }
+    const auto chunkPlanValidation = validateDurableChunkGeometry(chunks);
+    if (!chunkPlanValidation) {
+        return chunkPlanValidation;
+    }
+    if (recording.value()->durationMs > 0 &&
+        chunks.constLast().endMs != recording.value()->durationMs) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("The new transcription chunk plan does not cover the audio exactly.")));
+    }
     const bool hasStartedChunk =
         std::any_of(m_identity.chunks.cbegin(), m_identity.chunks.cend(), [](const JobChunk& saved) {
             return saved.state != ChunkState::Pending || saved.attempts > 0;

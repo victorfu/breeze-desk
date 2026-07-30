@@ -21,12 +21,13 @@ using namespace BreezeDesk;
 namespace {
 
 JobChunk chunk(const int ordinal, const qint64 startMs, const qint64 endMs,
-               const qint64 overlapBeforeMs = 0) {
+               const qint64 overlapBeforeMs = 0, const qint64 overlapAfterMs = 0) {
     JobChunk value;
     value.ordinal = ordinal;
     value.startMs = startMs;
     value.endMs = endMs;
     value.overlapBeforeMs = overlapBeforeMs;
+    value.overlapAfterMs = overlapAfterMs;
     return value;
 }
 
@@ -46,6 +47,9 @@ class CliTranscriptionPersistenceTest final : public QObject {
   private slots:
     void mapsStartupLeaseLossToDatabaseFailure();
     void beginNewRejectsInvalidChunkRangesBeforeMutation();
+    void resumeRejectsDiscontinuousChunkPlanBeforeMutation();
+    void resumeAllowsPendingPlanDurationCorrection();
+    void resumeAllowsStartedPlanDurationOvershoot();
     void checkpointsPartialResultsAndResumesOnlyUnfinishedChunks();
     void bindsSourceAfterPreparingInterruption();
     void rejectsSourceBindingAfterPreparation();
@@ -293,6 +297,179 @@ void CliTranscriptionPersistenceTest::beginNewRejectsInvalidChunkRangesBeforeMut
     const auto leaseAfter = jobs.activeLease();
     QVERIFY(leaseAfter);
     QVERIFY(!leaseAfter.value().has_value());
+}
+
+void CliTranscriptionPersistenceTest::resumeRejectsDiscontinuousChunkPlanBeforeMutation() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("discontinuous-resume.wav"));
+    QFile source(sourcePath);
+    QVERIFY2(source.open(QIODevice::WriteOnly), qPrintable(sourcePath));
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    Recording recording;
+    recording.id = QStringLiteral("discontinuous-resume-recording");
+    recording.title = QStringLiteral("Discontinuous resume");
+    recording.sourcePath = sourcePath;
+    recording.durationMs = 2'000;
+    QVERIFY(recordings.create(recording));
+    TranscriptionJob job;
+    job.id = QStringLiteral("discontinuous-resume-job");
+    job.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(job));
+    QVERIFY(jobs.replaceChunks(job.id, {chunk(0, 0, 900), chunk(1, 1'000, 2'000)}));
+    const QString owner = QStringLiteral("discontinuous-resume-owner");
+    const auto claim = jobs.claimQueued(job.id, owner);
+    QVERIFY(claim && claim.value().claimed);
+    QVERIFY(jobs.transition(job.id, JobState::LoadingModel, {}, {}, owner));
+    QVERIFY(jobs.transition(job.id, JobState::Transcribing, {}, {}, owner));
+    QVERIFY(jobs.updateProgress(job.id, JobStage::Transcribing, 0.5, -1, owner));
+    QVERIFY(jobs.transition(job.id, JobState::Interrupted, QStringLiteral("WorkerCrashed"),
+                            QStringLiteral("seed interrupted plan"), owner));
+
+    Recording recoverySentinel;
+    recoverySentinel.id = QStringLiteral("discontinuous-recovery-sentinel-recording");
+    recoverySentinel.title = QStringLiteral("Discontinuous recovery sentinel");
+    QVERIFY(recordings.create(recoverySentinel));
+    TranscriptionJob sentinelJob;
+    sentinelJob.id = QStringLiteral("discontinuous-recovery-sentinel-job");
+    sentinelJob.recordingId = recoverySentinel.id;
+    QVERIFY(jobs.createQueued(sentinelJob));
+    QVERIFY(jobs.replaceChunks(sentinelJob.id, {chunk(0, 0, 1'000)}));
+    const QString sentinelOwner = QStringLiteral("discontinuous-recovery-sentinel-owner");
+    const auto sentinelClaim = jobs.claimQueued(sentinelJob.id, sentinelOwner);
+    QVERIFY(sentinelClaim && sentinelClaim.value().claimed);
+    QVERIFY(jobs.transition(sentinelJob.id, JobState::LoadingModel, {}, {}, sentinelOwner));
+    QVERIFY(jobs.transition(sentinelJob.id, JobState::Transcribing, {}, {}, sentinelOwner));
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery removeSentinelLease(connection.value());
+    removeSentinelLease.prepare(QStringLiteral(
+        "DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
+    removeSentinelLease.addBindValue(sentinelJob.id);
+    QVERIFY(removeSentinelLease.exec());
+    QCOMPARE(removeSentinelLease.numRowsAffected(), 1);
+    const auto eventCount = [&connection](const QString& jobId) {
+        QSqlQuery count(connection.value());
+        count.prepare(
+            QStringLiteral("SELECT COUNT(*) FROM transcription_job_events WHERE job_id=?"));
+        count.addBindValue(jobId);
+        if (!count.exec() || !count.next()) {
+            return -1;
+        }
+        return count.value(0).toInt();
+    };
+    const int targetEventsBefore = eventCount(job.id);
+    const int sentinelEventsBefore = eventCount(sentinelJob.id);
+    QVERIFY(targetEventsBefore >= 0);
+    QVERIFY(sentinelEventsBefore >= 0);
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts);
+    const auto resumed = persistence.resume(job.id, sourcePath);
+    QVERIFY(!resumed);
+    QCOMPARE(resumed.error().code, ErrorCode::InvalidArgument);
+    const auto targetAfter = jobs.findById(job.id);
+    QVERIFY(targetAfter && targetAfter.value().has_value());
+    QCOMPARE(targetAfter.value()->state, JobState::Interrupted);
+    const auto chunksAfter = jobs.chunks(job.id);
+    QVERIFY(chunksAfter);
+    QCOMPARE(chunksAfter.value().size(), 2);
+    QCOMPARE(chunksAfter.value().at(0).startMs, qint64{0});
+    QCOMPARE(chunksAfter.value().at(0).endMs, qint64{900});
+    QCOMPARE(chunksAfter.value().at(1).startMs, qint64{1'000});
+    QCOMPARE(chunksAfter.value().at(1).endMs, qint64{2'000});
+    QCOMPARE(eventCount(job.id), targetEventsBefore);
+    const auto sentinelAfter = jobs.findById(sentinelJob.id);
+    QVERIFY(sentinelAfter && sentinelAfter.value().has_value());
+    QCOMPARE(sentinelAfter.value()->state, JobState::Transcribing);
+    QCOMPARE(eventCount(sentinelJob.id), sentinelEventsBefore);
+    const auto leaseAfter = jobs.activeLease();
+    QVERIFY(leaseAfter);
+    QVERIFY(!leaseAfter.value().has_value());
+}
+
+void CliTranscriptionPersistenceTest::resumeAllowsPendingPlanDurationCorrection() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("pending-duration-correction.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("pending-duration-correction-recording");
+    descriptor.recording.title = QStringLiteral("Pending duration correction");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.recording.durationMs = 2'000;
+    descriptor.job.id = QStringLiteral("pending-duration-correction-job");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 2'000)};
+
+    CliTranscriptionPersistence firstRun(recordings, jobs, transcripts);
+    QVERIFY(firstRun.beginNew(descriptor));
+    QVERIFY(firstRun.updateNormalizedAudio(directory.filePath(QStringLiteral("normalized.wav")),
+                                           1'900, QString(64, QLatin1Char('a')), true));
+    QVERIFY(firstRun.interrupt(QStringLiteral("interrupted before provisional plan replacement")));
+
+    CliTranscriptionPersistence resumedRun(recordings, jobs, transcripts);
+    const auto resumed = resumedRun.resume(descriptor.job.id, sourcePath);
+    QVERIFY(resumed);
+    QCOMPARE(resumed.value().chunks.constLast().endMs, qint64{2'000});
+    QCOMPARE(recordings.findById(descriptor.recording.id).value()->durationMs, qint64{1'900});
+    QVERIFY(resumedRun.interrupt(QStringLiteral("test complete")));
+}
+
+void CliTranscriptionPersistenceTest::resumeAllowsStartedPlanDurationOvershoot() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("started-duration-overshoot.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("started-duration-overshoot-recording");
+    descriptor.recording.title = QStringLiteral("Started duration overshoot");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.recording.durationMs = 2'000;
+    descriptor.job.id = QStringLiteral("started-duration-overshoot-job");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 2'000)};
+
+    CliTranscriptionPersistence firstRun(recordings, jobs, transcripts);
+    QVERIFY(firstRun.beginNew(descriptor));
+    QVERIFY(firstRun.beginModelLoad());
+    QVERIFY(firstRun.beginTranscription());
+    QVERIFY(firstRun.interrupt(QStringLiteral("interrupted after transcription started")));
+    const auto storedRecording = recordings.findById(descriptor.recording.id);
+    QVERIFY(storedRecording && storedRecording.value().has_value());
+    Recording corrected = *storedRecording.value();
+    corrected.durationMs = 1'900;
+    QVERIFY(recordings.update(corrected));
+
+    CliTranscriptionPersistence resumedRun(recordings, jobs, transcripts);
+    const auto resumed = resumedRun.resume(descriptor.job.id, sourcePath);
+    QVERIFY(resumed);
+    QCOMPARE(resumed.value().chunks.constLast().endMs, qint64{2'000});
+    QCOMPARE(recordings.findById(descriptor.recording.id).value()->durationMs, qint64{1'900});
+    QVERIFY(resumedRun.interrupt(QStringLiteral("test complete")));
 }
 
 void CliTranscriptionPersistenceTest::staleOwnerCannotUseNoOpFastPaths() {
@@ -877,7 +1054,7 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
     descriptor.job.language = QStringLiteral("zh");
     descriptor.job.preset = QStringLiteral("balanced");
     descriptor.job.vadEnabled = true;
-    descriptor.chunks = {chunk(0, 0, 1'000), chunk(1, 900, 2'000, 100)};
+    descriptor.chunks = {chunk(0, 0, 1'000, 0, 100), chunk(1, 900, 2'000, 100)};
     const QString sourceHash(64, QLatin1Char('a'));
 
     CliTranscriptionPersistence firstRun(recordings, jobs, transcripts);
@@ -892,7 +1069,8 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
     QVERIFY(firstRun.updateNormalizationProgress(0.75));
     QVERIFY(firstRun.beginModelLoad());
     QVERIFY(firstRun.beginSpeechAnalysis());
-    QVERIFY(firstRun.replaceChunkPlan({chunk(0, 0, 1'000), chunk(1, 900, 2'000, 100)}));
+    QVERIFY(firstRun.replaceChunkPlan(
+        {chunk(0, 0, 1'000, 0, 100), chunk(1, 900, 2'000, 100)}));
     QVERIFY(firstRun.beginTranscription());
 
     const auto firstChunk = firstRun.beginChunk(0);
