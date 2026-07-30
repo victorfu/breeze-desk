@@ -17,6 +17,7 @@
 #include <QtTest>
 
 #include <atomic>
+#include <functional>
 #include <limits>
 
 using namespace BreezeDesk;
@@ -89,6 +90,19 @@ bool writeSourceFixture(const QString& path) {
     return source.open(QIODevice::WriteOnly) && source.write("fixture") == 7;
 }
 
+bool writeWaveformCacheFixture(const QString& path, quint16 levelCount,
+                               const std::function<void(QDataStream&)>& writeLevels) {
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly))
+        return false;
+    QDataStream stream(&file);
+    stream.setByteOrder(QDataStream::LittleEndian);
+    stream << quint32{0x4257504BU} << quint16{1} << levelCount;
+    if (writeLevels)
+        writeLevels(stream);
+    return stream.status() == QDataStream::Ok;
+}
+
 } // namespace
 
 class AudioTest final : public QObject {
@@ -100,6 +114,10 @@ class AudioTest final : public QObject {
     void parsesFfprobeMetadata();
     void generatesMultiresolutionWaveformFromUnicodePath();
     void cancellationLeavesNoWaveform();
+    void rejectsTruncatedWaveformCacheHeaders();
+    void rejectsWaveformCachePayloadBeforeAllocation();
+    void rejectsOversizedWaveformCacheBeforeAllocation();
+    void rejectsInvalidWaveformCacheMetadata();
     void missingFfprobeIsActionable();
     void validatesNormalizedPcmWithAncillaryChunks();
     void rejectsWrongFormatTruncationAndDurationMismatch();
@@ -249,6 +267,81 @@ void AudioTest::cancellationLeavesNoWaveform() {
     QVERIFY(!WaveformGenerator::generate(inputPath, outputPath, &cancelled, &error));
     QVERIFY(error.contains(QStringLiteral("cancel"), Qt::CaseInsensitive));
     QVERIFY(!QFileInfo::exists(outputPath));
+}
+
+void AudioTest::rejectsTruncatedWaveformCacheHeaders() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    QString error;
+
+    const QString mainHeaderPath = temporary.filePath(QStringLiteral("truncated-main.bwpk"));
+    QFile mainHeader(mainHeaderPath);
+    QVERIFY(mainHeader.open(QIODevice::WriteOnly));
+    QDataStream mainStream(&mainHeader);
+    mainStream.setByteOrder(QDataStream::LittleEndian);
+    mainStream << quint32{0x4257504BU};
+    mainHeader.close();
+    QVERIFY(WaveformGenerator::read(mainHeaderPath, &error).isEmpty());
+    QVERIFY2(error.contains(QStringLiteral("truncated"), Qt::CaseInsensitive), qPrintable(error));
+
+    const QString levelHeaderPath = temporary.filePath(QStringLiteral("truncated-level.bwpk"));
+    QVERIFY(writeWaveformCacheFixture(levelHeaderPath, 1, [](QDataStream& stream) {
+        stream << quint32{256};
+    }));
+    QVERIFY(WaveformGenerator::read(levelHeaderPath, &error).isEmpty());
+    QVERIFY2(error.contains(QStringLiteral("truncated"), Qt::CaseInsensitive), qPrintable(error));
+}
+
+void AudioTest::rejectsWaveformCachePayloadBeforeAllocation() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("missing-payload.bwpk"));
+    QVERIFY(writeWaveformCacheFixture(path, 1, [](QDataStream& stream) {
+        stream << quint32{256} << quint64{4096};
+    }));
+
+    QString error;
+    QVERIFY(WaveformGenerator::read(path, &error).isEmpty());
+    QVERIFY2(error.contains(QStringLiteral("truncated"), Qt::CaseInsensitive), qPrintable(error));
+}
+
+void AudioTest::rejectsOversizedWaveformCacheBeforeAllocation() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("oversized.bwpk"));
+    QVERIFY(writeWaveformCacheFixture(path, 1, [](QDataStream& stream) {
+        stream << quint32{256}
+               << quint64{WaveformGenerator::MaximumSerializedPeakPairs + 1ULL};
+    }));
+
+    QString error;
+    QVERIFY(WaveformGenerator::read(path, &error).isEmpty());
+    QVERIFY2(error.contains(QStringLiteral("too large"), Qt::CaseInsensitive), qPrintable(error));
+}
+
+void AudioTest::rejectsInvalidWaveformCacheMetadata() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    QString error;
+
+    const QString noLevelsPath = temporary.filePath(QStringLiteral("no-levels.bwpk"));
+    QVERIFY(writeWaveformCacheFixture(noLevelsPath, 0, {}));
+    QVERIFY(WaveformGenerator::read(noLevelsPath, &error).isEmpty());
+    QVERIFY2(error.contains(QStringLiteral("level count"), Qt::CaseInsensitive), qPrintable(error));
+
+    const QString zeroWindowPath = temporary.filePath(QStringLiteral("zero-window.bwpk"));
+    QVERIFY(writeWaveformCacheFixture(zeroWindowPath, 1, [](QDataStream& stream) {
+        stream << quint32{0} << quint64{1} << qint16{-1} << qint16{1};
+    }));
+    QVERIFY(WaveformGenerator::read(zeroWindowPath, &error).isEmpty());
+    QVERIFY2(error.contains(QStringLiteral("metadata"), Qt::CaseInsensitive), qPrintable(error));
+
+    const QString zeroCountPath = temporary.filePath(QStringLiteral("zero-count.bwpk"));
+    QVERIFY(writeWaveformCacheFixture(zeroCountPath, 1, [](QDataStream& stream) {
+        stream << quint32{256} << quint64{0};
+    }));
+    QVERIFY(WaveformGenerator::read(zeroCountPath, &error).isEmpty());
+    QVERIFY2(error.contains(QStringLiteral("metadata"), Qt::CaseInsensitive), qPrintable(error));
 }
 
 void AudioTest::missingFfprobeIsActionable() {

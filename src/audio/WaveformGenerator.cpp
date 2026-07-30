@@ -15,6 +15,10 @@ namespace {
 constexpr quint32 Magic = 0x4257504BU; // BWPK
 constexpr quint16 FormatVersion = 1;
 constexpr qsizetype BaseWindowSamples = 256;
+constexpr qint64 SerializedLevelHeaderBytes = sizeof(quint32) + sizeof(quint64);
+constexpr quint64 SerializedPeakPairBytes = sizeof(qint16) * 2ULL;
+static_assert(WaveformGenerator::MaximumSerializedPeakPairs <=
+              static_cast<quint64>(std::numeric_limits<qsizetype>::max()));
 
 struct PcmLayout {
     qint64 dataOffset = 0;
@@ -106,10 +110,16 @@ bool inspectPcmLayout(QFile* file, PcmLayout* layout, QString* error) {
     return true;
 }
 
-WaveformLevel aggregate(const WaveformLevel& source) {
-    WaveformLevel result;
-    result.samplesPerPeak = source.samplesPerPeak * 4U;
+bool aggregate(const WaveformLevel& source, WaveformLevel* result) {
+    if (result == nullptr || source.samplesPerPeak == 0 ||
+        source.samplesPerPeak > std::numeric_limits<quint32>::max() / 4U ||
+        source.minimums.isEmpty() || source.minimums.size() != source.maximums.size()) {
+        return false;
+    }
+    result->samplesPerPeak = source.samplesPerPeak * 4U;
     const qsizetype count = source.minimums.size();
+    result->minimums.reserve(count / 4 + (count % 4 != 0 ? 1 : 0));
+    result->maximums.reserve(count / 4 + (count % 4 != 0 ? 1 : 0));
     for (qsizetype index = 0; index < count; index += 4) {
         const qsizetype end = qMin(index + 4, count);
         qint16 minimum = std::numeric_limits<qint16>::max();
@@ -118,15 +128,66 @@ WaveformLevel aggregate(const WaveformLevel& source) {
             minimum = qMin(minimum, source.minimums.at(candidate));
             maximum = qMax(maximum, source.maximums.at(candidate));
         }
-        result.minimums.push_back(minimum);
-        result.maximums.push_back(maximum);
+        result->minimums.push_back(minimum);
+        result->maximums.push_back(maximum);
     }
-    return result;
+    return true;
+}
+
+bool peakPlanFits(quint64 basePeakCount) {
+    if (basePeakCount == 0 ||
+        basePeakCount > WaveformGenerator::MaximumSerializedPeakPairs) {
+        return false;
+    }
+    quint64 totalPeakCount = basePeakCount;
+    quint64 currentPeakCount = basePeakCount;
+    quint32 samplesPerPeak = static_cast<quint32>(BaseWindowSamples);
+    quint16 levelCount = 1;
+    while (currentPeakCount > 2048) {
+        if (samplesPerPeak > std::numeric_limits<quint32>::max() / 4U || levelCount >= 32U) {
+            return false;
+        }
+        samplesPerPeak *= 4U;
+        currentPeakCount = currentPeakCount / 4U + (currentPeakCount % 4U != 0 ? 1U : 0U);
+        if (currentPeakCount > WaveformGenerator::MaximumSerializedPeakPairs - totalPeakCount) {
+            return false;
+        }
+        totalPeakCount += currentPeakCount;
+        ++levelCount;
+    }
+    return true;
+}
+
+bool levelsFitSerializedLimits(const QVector<WaveformLevel>& levels, QString* error) {
+    if (levels.isEmpty() || levels.size() > 32) {
+        if (error != nullptr)
+            *error = QStringLiteral("Waveform cache has an invalid level count.");
+        return false;
+    }
+    quint64 totalPeakCount = 0;
+    for (const WaveformLevel& level : levels) {
+        if (level.samplesPerPeak == 0 || level.minimums.isEmpty() ||
+            level.minimums.size() != level.maximums.size()) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform cache contains invalid level data.");
+            return false;
+        }
+        const quint64 count = static_cast<quint64>(level.minimums.size());
+        if (count > WaveformGenerator::MaximumSerializedPeakPairs - totalPeakCount) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform cache is too large.");
+            return false;
+        }
+        totalPeakCount += count;
+    }
+    return true;
 }
 } // namespace
 
 bool WaveformGenerator::generate(const QString& pcm16Path, const QString& waveformPath,
                                  std::atomic_bool* cancelled, QString* error) {
+    if (error != nullptr)
+        error->clear();
     QFile input(pcm16Path);
     if (!input.open(QIODevice::ReadOnly)) {
         if (error != nullptr) {
@@ -141,8 +202,20 @@ bool WaveformGenerator::generate(const QString& pcm16Path, const QString& wavefo
         return false;
     }
 
+    const quint64 sampleCount = static_cast<quint64>(layout.dataSize / 2);
+    const quint64 baseWindowSamples = static_cast<quint64>(BaseWindowSamples);
+    const quint64 basePeakCount =
+        sampleCount / baseWindowSamples + (sampleCount % baseWindowSamples != 0 ? 1U : 0U);
+    if (!peakPlanFits(basePeakCount)) {
+        if (error != nullptr)
+            *error = QStringLiteral("The audio is too large to generate a bounded waveform cache.");
+        return false;
+    }
+
     WaveformLevel base;
     base.samplesPerPeak = static_cast<quint32>(BaseWindowSamples);
+    base.minimums.reserve(static_cast<qsizetype>(basePeakCount));
+    base.maximums.reserve(static_cast<qsizetype>(basePeakCount));
     QByteArray bytes(static_cast<qsizetype>(BaseWindowSamples * 2), Qt::Uninitialized);
     qint64 remaining = layout.dataSize;
     while (remaining > 0) {
@@ -154,7 +227,7 @@ bool WaveformGenerator::generate(const QString& pcm16Path, const QString& wavefo
         }
         const qint64 requested = qMin<qint64>(bytes.size(), remaining);
         const qint64 read = input.read(bytes.data(), requested);
-        if (read <= 0 || (read % 2) != 0) {
+        if (read != requested || (read % 2) != 0) {
             if (error != nullptr)
                 *error = QStringLiteral("The PCM sample data is truncated.");
             return false;
@@ -171,6 +244,11 @@ bool WaveformGenerator::generate(const QString& pcm16Path, const QString& wavefo
             minimum = qMin(minimum, value);
             maximum = qMax(maximum, value);
         }
+        if (static_cast<quint64>(base.minimums.size()) >= basePeakCount) {
+            if (error != nullptr)
+                *error = QStringLiteral("The PCM sample layout changed during waveform generation.");
+            return false;
+        }
         base.minimums.push_back(minimum);
         base.maximums.push_back(maximum);
     }
@@ -180,10 +258,34 @@ bool WaveformGenerator::generate(const QString& pcm16Path, const QString& wavefo
         return false;
     }
 
-    QVector<WaveformLevel> levels{base};
-    while (levels.constLast().minimums.size() > 2048) {
-        levels.push_back(aggregate(levels.constLast()));
+    quint64 totalPeakCount = static_cast<quint64>(base.minimums.size());
+    if (totalPeakCount != basePeakCount) {
+        if (error != nullptr)
+            *error = QStringLiteral("The PCM sample layout changed during waveform generation.");
+        return false;
     }
+    QVector<WaveformLevel> levels;
+    levels.reserve(32);
+    levels.push_back(std::move(base));
+    while (levels.constLast().minimums.size() > 2048) {
+        WaveformLevel aggregated;
+        if (!aggregate(levels.constLast(), &aggregated)) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform resolution exceeds the supported range.");
+            return false;
+        }
+        const quint64 aggregatedCount = static_cast<quint64>(aggregated.minimums.size());
+        if (aggregatedCount > MaximumSerializedPeakPairs - totalPeakCount) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform cache is too large.");
+            return false;
+        }
+        totalPeakCount += aggregatedCount;
+        levels.push_back(std::move(aggregated));
+    }
+
+    if (!levelsFitSerializedLimits(levels, error))
+        return false;
 
     QSaveFile output(waveformPath);
     if (!output.open(QIODevice::WriteOnly)) {
@@ -211,6 +313,8 @@ bool WaveformGenerator::generate(const QString& pcm16Path, const QString& wavefo
 }
 
 QVector<WaveformLevel> WaveformGenerator::read(const QString& waveformPath, QString* error) {
+    if (error != nullptr)
+        error->clear();
     QFile input(waveformPath);
     if (!input.open(QIODevice::ReadOnly)) {
         if (error != nullptr) {
@@ -224,29 +328,74 @@ QVector<WaveformLevel> WaveformGenerator::read(const QString& waveformPath, QStr
     quint16 version = 0;
     quint16 levelCount = 0;
     stream >> magic >> version >> levelCount;
-    if (magic != Magic || version != FormatVersion || levelCount > 32U) {
+    if (stream.status() != QDataStream::Ok) {
+        if (error != nullptr)
+            *error = QStringLiteral("Waveform cache header is truncated.");
+        return {};
+    }
+    if (magic != Magic || version != FormatVersion) {
         if (error != nullptr) {
             *error = QStringLiteral("Unsupported waveform cache format.");
         }
         return {};
     }
+    if (levelCount == 0 || levelCount > 32U) {
+        if (error != nullptr)
+            *error = QStringLiteral("Waveform cache has an invalid level count.");
+        return {};
+    }
     QVector<WaveformLevel> result;
+    result.reserve(levelCount);
+    quint64 totalPeakCount = 0;
     for (quint16 levelIndex = 0; levelIndex < levelCount; ++levelIndex) {
         WaveformLevel level;
         quint64 count = 0;
         stream >> level.samplesPerPeak >> count;
-        if (count > 100000000ULL) {
-            if (error != nullptr) {
-                *error = QStringLiteral("Waveform cache is too large.");
-            }
+        if (stream.status() != QDataStream::Ok) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform cache level header is truncated.");
             return {};
         }
+        if (level.samplesPerPeak == 0 || count == 0) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform cache contains invalid level metadata.");
+            return {};
+        }
+        if (count > MaximumSerializedPeakPairs ||
+            count > MaximumSerializedPeakPairs - totalPeakCount) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform cache is too large.");
+            return {};
+        }
+
+        const qint64 remainingBytes = input.size() - input.pos();
+        const qint64 remainingLevelHeaders =
+            static_cast<qint64>(levelCount - levelIndex - 1U) * SerializedLevelHeaderBytes;
+        if (remainingBytes < remainingLevelHeaders ||
+            count > static_cast<quint64>(remainingBytes - remainingLevelHeaders) /
+                        SerializedPeakPairBytes) {
+            if (error != nullptr)
+                *error = QStringLiteral("Waveform cache peak data is truncated.");
+            return {};
+        }
+
+        totalPeakCount += count;
         level.minimums.reserve(static_cast<qsizetype>(count));
         level.maximums.reserve(static_cast<qsizetype>(count));
         for (quint64 index = 0; index < count; ++index) {
             qint16 minimum = 0;
             qint16 maximum = 0;
             stream >> minimum >> maximum;
+            if (stream.status() != QDataStream::Ok) {
+                if (error != nullptr)
+                    *error = QStringLiteral("Waveform cache peak data is truncated.");
+                return {};
+            }
+            if (minimum > maximum) {
+                if (error != nullptr)
+                    *error = QStringLiteral("Waveform cache contains an invalid peak range.");
+                return {};
+            }
             level.minimums.push_back(minimum);
             level.maximums.push_back(maximum);
         }
@@ -256,6 +405,11 @@ QVector<WaveformLevel> WaveformGenerator::read(const QString& waveformPath, QStr
         if (error != nullptr) {
             *error = QStringLiteral("Waveform cache is truncated.");
         }
+        return {};
+    }
+    if (input.pos() != input.size()) {
+        if (error != nullptr)
+            *error = QStringLiteral("Waveform cache contains unexpected trailing data.");
         return {};
     }
     return result;
