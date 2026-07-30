@@ -146,7 +146,7 @@ void TranscriptionCoordinatorTest::rejectsMalformedWorkerSegmentTimestamp() {
     recording.title = QStringLiteral("Malformed worker segment");
     recording.sourcePath = directory.filePath(QStringLiteral("malformed-segment-source.mp4"));
     recording.normalizedPcmPath =
-        directory.filePath(QStringLiteral("malformed-segment-normalized.wav"));
+        directory.filePath(QStringLiteral("malformed-segment-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -505,7 +505,8 @@ void TranscriptionCoordinatorTest::leaseHandoffAbandonsLocalSessionWithoutCheckp
     recording.id = QStringLiteral("recording-lease-handoff");
     recording.title = QStringLiteral("Lease handoff");
     recording.sourcePath = directory.filePath(QStringLiteral("lease-handoff-source.mp4"));
-    recording.normalizedPcmPath = directory.filePath(QStringLiteral("lease-handoff-normalized.wav"));
+    recording.normalizedPcmPath =
+        directory.filePath(QStringLiteral("lease-handoff-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -679,7 +680,8 @@ void TranscriptionCoordinatorTest::leaseHandoffDuringModelLoadUsesRequestScopedB
     recording.id = QStringLiteral("recording-model-load-handoff");
     recording.title = QStringLiteral("Model load handoff");
     recording.sourcePath = directory.filePath(QStringLiteral("model-load-source.mp4"));
-    recording.normalizedPcmPath = directory.filePath(QStringLiteral("model-load-normalized.wav"));
+    recording.normalizedPcmPath =
+        directory.filePath(QStringLiteral("model-load-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -786,7 +788,7 @@ void TranscriptionCoordinatorTest::progressCheckpointFailureKeepsNextJobQueuedBe
     recording.title = QStringLiteral("Progress checkpoint failure");
     recording.sourcePath = directory.filePath(QStringLiteral("progress-checkpoint-source.mp4"));
     recording.normalizedPcmPath =
-        directory.filePath(QStringLiteral("progress-checkpoint-normalized.wav"));
+        directory.filePath(QStringLiteral("progress-checkpoint-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -913,7 +915,7 @@ void TranscriptionCoordinatorTest::completedChunkCheckpointFailureRetainsRunning
     recording.title = QStringLiteral("Completed chunk checkpoint failure");
     recording.sourcePath = directory.filePath(QStringLiteral("completed-chunk-source.mp4"));
     recording.normalizedPcmPath =
-        directory.filePath(QStringLiteral("completed-chunk-normalized.wav"));
+        directory.filePath(QStringLiteral("completed-chunk-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -1051,7 +1053,7 @@ void TranscriptionCoordinatorTest::modelLoadCancellationKeepsLeaseUntilTerminalE
     recording.title = QStringLiteral("Cancel model load");
     recording.sourcePath = directory.filePath(QStringLiteral("cancel-model-source.mp4"));
     recording.normalizedPcmPath =
-        directory.filePath(QStringLiteral("cancel-model-normalized.wav"));
+        directory.filePath(QStringLiteral("cancel-model-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -1260,7 +1262,8 @@ void TranscriptionCoordinatorTest::workerCrashContinuesWithNextQueuedJob() {
     recording.id = QStringLiteral("recording-worker-crash");
     recording.title = QStringLiteral("Worker crash recovery");
     recording.sourcePath = directory.filePath(QStringLiteral("worker-crash-source.mp4"));
-    recording.normalizedPcmPath = directory.filePath(QStringLiteral("worker-crash-normalized.wav"));
+    recording.normalizedPcmPath =
+        directory.filePath(QStringLiteral("worker-crash-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -1347,7 +1350,8 @@ void TranscriptionCoordinatorTest::staleCancellationGraceDoesNotKillReplacementW
     recording.id = QStringLiteral("recording-stale-grace");
     recording.title = QStringLiteral("Stale cancellation grace");
     recording.sourcePath = directory.filePath(QStringLiteral("stale-grace-source.mp4"));
-    recording.normalizedPcmPath = directory.filePath(QStringLiteral("stale-grace-normalized.wav"));
+    recording.normalizedPcmPath =
+        directory.filePath(QStringLiteral("stale-grace-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(recording.sourcePath));
     QVERIFY(writePcmWaveFixture(recording.normalizedPcmPath, 2'000));
     recording.sourceHash = FileHash::sha256(recording.sourcePath);
@@ -1503,7 +1507,8 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
     SqliteTranscriptRepository transcripts(database);
 
     const QString sourcePath = directory.filePath(QStringLiteral("長會議 source.m4a"));
-    const QString normalizedPath = directory.filePath(QStringLiteral("長會議 normalized.wav"));
+    const QString normalizedPath =
+        directory.filePath(QStringLiteral("長會議 normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(sourcePath));
     QVERIFY(writePcmWaveFixture(normalizedPath, 1'300'000));
     Recording recording;
@@ -1666,7 +1671,8 @@ void TranscriptionCoordinatorTest::rejectsStaleCacheWhenSourceContentsChange() {
     ModelManager models;
 
     const QString sourcePath = directory.filePath(QStringLiteral("replaced-source.mp4"));
-    const QString normalizedPath = directory.filePath(QStringLiteral("stale-normalized.wav"));
+    const QString normalizedPath =
+        directory.filePath(QStringLiteral("stale-normalized.timeline-v2.test.wav"));
     const QString waveformPath = directory.filePath(QStringLiteral("stale.waveform"));
     QVERIFY(writeFixture(sourcePath));
     QVERIFY(writePcmWaveFixture(normalizedPath, 1'000));
@@ -1732,7 +1738,8 @@ void TranscriptionCoordinatorTest::rejectsResumedChunksBoundToDifferentSource() 
     ModelManager models;
 
     const QString sourcePath = directory.filePath(QStringLiteral("current-source.mp4"));
-    const QString normalizedPath = directory.filePath(QStringLiteral("current-normalized.wav"));
+    const QString normalizedPath =
+        directory.filePath(QStringLiteral("current-normalized.timeline-v2.test.wav"));
     QVERIFY(writeFixture(sourcePath));
     QVERIFY(writePcmWaveFixture(normalizedPath, 1'000));
     Recording recording;
@@ -1812,7 +1819,8 @@ void TranscriptionCoordinatorTest::rejectsStartedPlanThatWouldOmitCanonicalTail(
     ModelManager models;
 
     const QString sourcePath = directory.filePath(QStringLiteral("tail-source.mp4"));
-    const QString normalizedPath = directory.filePath(QStringLiteral("tail-normalized.wav"));
+    const QString normalizedPath =
+        directory.filePath(QStringLiteral("tail-normalized.timeline-v2.test.wav"));
     const QString waveformPath = directory.filePath(QStringLiteral("tail.waveform"));
     QVERIFY(writeFixture(sourcePath));
     QVERIFY(writePcmWaveFixture(normalizedPath, 1'000));

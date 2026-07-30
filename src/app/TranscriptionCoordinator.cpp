@@ -817,6 +817,8 @@ void TranscriptionCoordinator::verifySourceMedia() {
                 NormalizedAudioInfo cachedAudio;
                 QString cacheError;
         const bool reusableCache = cacheSourceMatches && value.durationMs > 0 &&
+                                   AudioCacheManager::isReusableNormalizedAudioPath(
+                                       m_activeNormalizedPath) &&
                                    NormalizedAudioValidator::validate(
                                        m_activeNormalizedPath, value.durationMs, &cachedAudio, &cacheError);
                 if (reusableCache) {

@@ -10,6 +10,7 @@ class AudioCacheManager final {
     [[nodiscard]] static QString cacheRoot();
     [[nodiscard]] static QString normalizedAudioPath(const QString& recordingId,
                                                      const QString& generationId);
+    [[nodiscard]] static bool isReusableNormalizedAudioPath(const QString& path);
     [[nodiscard]] static QString waveformPath(const QString& recordingId,
                                               const QString& generationId);
     [[nodiscard]] static qint64 cacheSizeBytes();

@@ -103,6 +103,31 @@ bool writeWaveformCacheFixture(const QString& path, quint16 levelCount,
     return stream.status() == QDataStream::Ok;
 }
 
+int maximumPcmMagnitude(const QString& path, const NormalizedAudioInfo& info, const qint64 startMs,
+                        const qint64 endMs) {
+    constexpr qint64 SamplesPerMillisecond = 16;
+    constexpr qint64 BytesPerSample = 2;
+    QFile file(path);
+    const qint64 firstSample = startMs * SamplesPerMillisecond;
+    const qint64 sampleCount = (endMs - startMs) * SamplesPerMillisecond;
+    if (startMs < 0 || endMs <= startMs || !file.open(QIODevice::ReadOnly) ||
+        !file.seek(info.dataOffset + firstSample * BytesPerSample)) {
+        return -1;
+    }
+    QDataStream stream(&file);
+    stream.setByteOrder(QDataStream::LittleEndian);
+    int maximum = 0;
+    for (qint64 index = 0; index < sampleCount; ++index) {
+        qint16 sample = 0;
+        stream >> sample;
+        if (stream.status() != QDataStream::Ok) {
+            return -1;
+        }
+        maximum = qMax(maximum, qAbs(static_cast<int>(sample)));
+    }
+    return maximum;
+}
+
 } // namespace
 
 class AudioTest final : public QObject {
@@ -113,6 +138,9 @@ class AudioTest final : public QObject {
     void removesOnlyExpiredUnreferencedGenerationFiles();
     void parsesFfprobeMetadata();
     void prefersDefaultAudioStreamMetadata();
+    void usesAudioEndOnTheContainerTimeline();
+    void trimsAudioBeforeTheContainerTimeline();
+    void usesEarliestStreamStartWhenFormatStartIsMissing();
     void generatesMultiresolutionWaveformFromUnicodePath();
     void cancellationLeavesNoWaveform();
     void rejectsTruncatedWaveformCacheHeaders();
@@ -125,6 +153,7 @@ class AudioTest final : public QObject {
     void normalizationReportsMissingExecutableAfterReturn();
     void normalizationCanCancelBeforeDeferredStart();
     void normalizationMapsSelectedAudioStream();
+    void normalizationPreservesContainerTimelineGaps();
     void normalizationCommitsOnlyValidatedOutput();
     void normalizationRejectsExistingGenerationTarget();
     void normalizationPreservesExistingOutputWhenValidationFails();
@@ -134,6 +163,14 @@ void AudioTest::executionScopedCachePathsDoNotCollide() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const auto restoreDataRoot = qScopeGuard([previousDataRoot] {
+        if (previousDataRoot.isNull()) {
+            qunsetenv("BREEZEDESK_DATA_ROOT");
+        } else {
+            qputenv("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        }
+    });
+    Q_UNUSED(restoreDataRoot)
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
 
     const QString normalizedA =
@@ -145,15 +182,14 @@ void AudioTest::executionScopedCachePathsDoNotCollide() {
     const QString waveformB =
         AudioCacheManager::waveformPath(QStringLiteral("recording"), QStringLiteral("owner-b"));
 
-    if (previousDataRoot.isNull()) {
-        qunsetenv("BREEZEDESK_DATA_ROOT");
-    } else {
-        qputenv("BREEZEDESK_DATA_ROOT", previousDataRoot);
-    }
     QVERIFY(!normalizedA.isEmpty());
     QVERIFY(!normalizedB.isEmpty());
     QVERIFY(normalizedA != normalizedB);
     QVERIFY(waveformA != waveformB);
+    QVERIFY(AudioCacheManager::isReusableNormalizedAudioPath(normalizedA));
+    const QString legacyNormalized =
+        QDir(QFileInfo(normalizedA).absolutePath()).filePath(QStringLiteral("recording.owner-a.wav"));
+    QVERIFY(!AudioCacheManager::isReusableNormalizedAudioPath(legacyNormalized));
     QVERIFY(QFileInfo(normalizedA).fileName().contains(QStringLiteral("owner-a")));
     QVERIFY(QFileInfo(waveformB).fileName().contains(QStringLiteral("owner-b")));
 }
@@ -216,9 +252,11 @@ void AudioTest::parsesFfprobeMetadata() {
     const QByteArray json = R"({
       "streams": [
         {"codec_type":"video","codec_name":"h264"},
-        {"codec_type":"audio","codec_name":"aac","sample_rate":"48000","channels":2,"duration":"12.345"}
+        {"codec_type":"audio","codec_name":"aac","sample_rate":"48000","channels":2,
+         "start_time":"0.273","duration":"12.345"}
       ],
-      "format":{"format_name":"mov,mp4","duration":"12.345","bit_rate":"128000"}
+      "format":{"format_name":"mov,mp4","start_time":"0.273","duration":"12.345",
+                "bit_rate":"128000"}
     })";
     QString error;
     const MediaMetadata metadata =
@@ -256,6 +294,56 @@ void AudioTest::prefersDefaultAudioStreamMetadata() {
     QCOMPARE(metadata.channelCount, 2);
     QCOMPARE(metadata.durationMs, 3'000);
     QCOMPARE(metadata.audioStreamIndex, 1);
+}
+
+void AudioTest::usesAudioEndOnTheContainerTimeline() {
+    const QByteArray json = R"({
+      "streams": [
+        {"codec_type":"video","codec_name":"mpeg4","start_time":"0.000","duration":"4.000"},
+        {"codec_type":"audio","codec_name":"aac","sample_rate":"48000","channels":2,
+         "start_time":"1.976","duration":"1.045"}
+      ],
+      "format":{"format_name":"mov,mp4","start_time":"0.000","duration":"4.000"}
+    })";
+    QString error;
+    const MediaMetadata metadata =
+        MediaMetadata::fromFfprobeJson(QJsonDocument::fromJson(json).object(), &error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QVERIFY(metadata.hasAudio);
+    QVERIFY(metadata.hasVideo);
+    QCOMPARE(metadata.audioStreamIndex, 0);
+    QCOMPARE(metadata.durationMs, 3'021);
+}
+
+void AudioTest::trimsAudioBeforeTheContainerTimeline() {
+    const QByteArray json = R"({
+      "streams": [
+        {"codec_type":"audio","codec_name":"aac","sample_rate":"48000","channels":2,
+         "start_time":"-1.000","duration":"2.000"}
+      ],
+      "format":{"format_name":"mov,mp4","start_time":"0.000","duration":"1.000"}
+    })";
+    QString error;
+    const MediaMetadata metadata =
+        MediaMetadata::fromFfprobeJson(QJsonDocument::fromJson(json).object(), &error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(metadata.durationMs, 1'000);
+}
+
+void AudioTest::usesEarliestStreamStartWhenFormatStartIsMissing() {
+    const QByteArray json = R"({
+      "streams": [
+        {"codec_type":"video","codec_name":"mpeg4","start_time":"0.000","duration":"3.000"},
+        {"codec_type":"audio","codec_name":"aac","sample_rate":"48000","channels":2,
+         "start_time":"1.500","duration":"1.500"}
+      ],
+      "format":{"format_name":"mov,mp4","duration":"3.000"}
+    })";
+    QString error;
+    const MediaMetadata metadata =
+        MediaMetadata::fromFfprobeJson(QJsonDocument::fromJson(json).object(), &error);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    QCOMPARE(metadata.durationMs, 3'000);
 }
 
 void AudioTest::generatesMultiresolutionWaveformFromUnicodePath() {
@@ -498,6 +586,30 @@ void AudioTest::normalizationMapsSelectedAudioStream() {
     QCOMPARE(finished.constFirst().at(0).toBool(), true);
     QCOMPARE(finished.constFirst().at(1).toString(), outputPath);
     QVERIFY(QFileInfo(outputPath).isFile());
+}
+
+void AudioTest::normalizationPreservesContainerTimelineGaps() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString sourcePath = temporary.filePath(QStringLiteral("delayed-audio.media"));
+    const QString outputPath = temporary.filePath(QStringLiteral("normalized.wav"));
+    QVERIFY(writeSourceFixture(sourcePath));
+
+    FFmpegNormalizationService service(QString::fromUtf8(BREEZEDESK_NORMALIZATION_HELPER_PATH));
+    QScopedPointer<NormalizationOperation> operation(service.normalize(sourcePath, outputPath, 3'021));
+    QSignalSpy finished(operation.data(), &NormalizationOperation::finished);
+    if (finished.isEmpty()) {
+        QVERIFY(finished.wait(5'000));
+    }
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(finished.constFirst().at(0).toBool(), true);
+
+    NormalizedAudioInfo info;
+    QString error;
+    QVERIFY2(NormalizedAudioValidator::validate(outputPath, 3'021, &info, &error), qPrintable(error));
+    QCOMPARE(info.durationMs, 3'021);
+    QCOMPARE(maximumPcmMagnitude(outputPath, info, 0, 1'900), 0);
+    QVERIFY(maximumPcmMagnitude(outputPath, info, 2'050, 2'900) > 1'000);
 }
 
 void AudioTest::normalizationCommitsOnlyValidatedOutput() {

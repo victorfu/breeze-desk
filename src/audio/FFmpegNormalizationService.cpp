@@ -68,6 +68,8 @@ class FFmpegNormalizationOperation final : public NormalizationOperation {
                                     QStringLiteral("-vn"),
                                     QStringLiteral("-ac"),
                                     QStringLiteral("1"),
+                                    QStringLiteral("-af"),
+                                    QStringLiteral("aresample=16000:async=1:first_pts=0"),
                                     QStringLiteral("-ar"),
                                     QStringLiteral("16000"),
                                     QStringLiteral("-c:a"),

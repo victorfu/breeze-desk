@@ -1328,6 +1328,7 @@ class tst_QmlSmoke final : public QObject {
         auto* mainPane = root->findChild<QQuickItem*>(QStringLiteral("recordingMainPane"));
         auto* header = root->findChild<QQuickItem*>(QStringLiteral("recordingHeader"));
         auto* waveform = root->findChild<QQuickItem*>(QStringLiteral("recordingWaveformCard"));
+        auto* waveformItem = root->findChild<QQuickItem*>(QStringLiteral("recordingWaveform"));
         auto* transport = root->findChild<QQuickItem*>(QStringLiteral("recordingTransportCard"));
         auto* timeline = root->findChild<QQuickItem*>(QStringLiteral("recordingPlaybackTimeline"));
         auto* playPauseButton = root->findChild<QQuickItem*>(QStringLiteral("recordingPlayPauseButton"));
@@ -1345,6 +1346,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(mainPane);
         QVERIFY(header);
         QVERIFY(waveform);
+        QVERIFY(waveformItem);
         QVERIFY(transport);
         QVERIFY(timeline);
         QVERIFY(playPauseButton);
@@ -1361,8 +1363,12 @@ class tst_QmlSmoke final : public QObject {
         vm->settings()->setCompactMode(false);
         vm->settings()->setTextScale(1.0);
         vm->settings()->setTextScale(1.5);
+        vm->recordingDetail()->setDetails(
+            {{QStringLiteral("durationMs"), qint64{3'021}}});
         vm->navigate(QStringLiteral("Recording"));
         window->show();
+        QTRY_COMPARE_WITH_TIMEOUT(waveformItem->property("durationMs").toLongLong(), qint64{3'021},
+                                  1'000);
 
         const auto verifyWidth = [&](int width, bool compactInspector) {
             window->setWidth(width);

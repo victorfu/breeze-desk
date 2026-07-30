@@ -11,6 +11,8 @@
 namespace BreezeDesk {
 namespace {
 
+constexpr auto NormalizationProfileTag = ".timeline-v2";
+
 QString pathComparisonKey(const QString& path) {
     if (path.isEmpty()) {
         return {};
@@ -54,7 +56,17 @@ QString AudioCacheManager::normalizedAudioPath(const QString& recordingId,
     QDir().mkpath(directory);
     const QString generationSuffix =
         generationId.isEmpty() ? QString{} : QStringLiteral(".") + generationId;
-    return QDir(directory).filePath(recordingId + generationSuffix + QStringLiteral(".wav"));
+    return QDir(directory).filePath(recordingId + QString::fromLatin1(NormalizationProfileTag) +
+                                    generationSuffix + QStringLiteral(".wav"));
+}
+
+bool AudioCacheManager::isReusableNormalizedAudioPath(const QString& path) {
+    if (path.trimmed().isEmpty()) {
+        return false;
+    }
+    const QString profileToken =
+        QString::fromLatin1(NormalizationProfileTag) + QLatin1Char('.');
+    return QFileInfo(path).fileName().contains(profileToken, fileNameCaseSensitivity());
 }
 
 QString AudioCacheManager::waveformPath(const QString& recordingId, const QString& generationId) {

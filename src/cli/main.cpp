@@ -775,7 +775,8 @@ bool validateAnalyzedChunkPlan(const QList<JobChunk>& chunks, const qint64 durat
 }
 
 bool isReusableNormalizedAudio(const QString& path, qint64 durationMs, NormalizedAudioInfo* info) {
-    return NormalizedAudioValidator::validate(path, durationMs, info, nullptr);
+    return AudioCacheManager::isReusableNormalizedAudioPath(path) &&
+           NormalizedAudioValidator::validate(path, durationMs, info, nullptr);
 }
 
 TranscribeRunResult runHeadlessTranscription(const QString& source, const QString& modelPath,

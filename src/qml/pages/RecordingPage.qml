@@ -237,10 +237,11 @@ Item {
                     radius: SemanticTokens.radiusMd
                     WaveformItem {
                         id: waveform
+                        objectName: "recordingWaveform"
                         anchors.fill: parent
                         anchors.margins: SemanticTokens.spacingSm
                         peaks: root.player.waveformPeaks
-                        durationMs: root.player.duration
+                        durationMs: root.detail.durationMs > 0 ? root.detail.durationMs : root.player.duration
                         positionMs: root.player.position
                         selectionStartMs: root.player.selectionStart
                         selectionEndMs: root.player.selectionEnd
