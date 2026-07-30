@@ -1,12 +1,11 @@
 #pragma once
 
 #include <breezedesk/asr/AsrTypes.h>
+#include <breezedesk/asr/CancellationFlag.h>
 #include <breezedesk/asr/WhisperContext.h>
 
 #include <QtCore/QMutex>
 #include <QtCore/QVector>
-
-#include <atomic>
 
 namespace BreezeDesk::Asr {
 
@@ -25,7 +24,7 @@ class WhisperModelSession final {
     [[nodiscard]] TranscriptionResult transcribe(const QVector<float>& samples, qint64 globalOffsetMs,
                                                  const TranscriptionOptions& options,
                                                  const TranscriptionCallbacks& callbacks,
-                                                 std::atomic_bool& cancelRequested);
+                                                 const CancellationFlag& cancellation);
 
   private:
     mutable QMutex m_mutex;

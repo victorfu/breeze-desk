@@ -1,10 +1,9 @@
 #pragma once
 
 #include <breezedesk/asr/AsrTypes.h>
+#include <breezedesk/asr/CancellationFlag.h>
 
 #include <QtCore/QVector>
-
-#include <atomic>
 
 namespace BreezeDesk::Asr {
 
@@ -17,8 +16,8 @@ class ITranscriptionEngine {
     [[nodiscard]] virtual bool isModelLoaded() const noexcept = 0;
     [[nodiscard]] virtual TranscriptionResult transcribe(const QVector<float>& samples, qint64 globalOffsetMs,
                                                          const TranscriptionOptions& options,
-                                                         const TranscriptionCallbacks& callbacks) = 0;
-    virtual void requestCancellation() noexcept = 0;
+                                                         const TranscriptionCallbacks& callbacks,
+                                                         const CancellationFlag& cancellation) = 0;
 };
 
 } // namespace BreezeDesk::Asr

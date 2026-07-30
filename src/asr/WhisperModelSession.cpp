@@ -27,7 +27,7 @@ namespace {
 
 #ifdef BREEZEDESK_HAS_WHISPER
 struct CallbackState {
-    std::atomic_bool* cancelRequested = nullptr;
+    const CancellationFlag* cancellation = nullptr;
     std::function<void(int)> progress;
     int lastProgress = -1;
 };
@@ -51,8 +51,7 @@ void progressCallback(whisper_context*, whisper_state*, int progress, void* user
 
 bool abortCallback(void* userData) {
     const auto* state = static_cast<const CallbackState*>(userData);
-    return state != nullptr && state->cancelRequested != nullptr &&
-           state->cancelRequested->load(std::memory_order_relaxed);
+    return state != nullptr && state->cancellation != nullptr && state->cancellation->isRequested();
 }
 
 struct LoadAttempt {
@@ -180,9 +179,13 @@ int WhisperModelSession::maximumPromptTokens() const {
 TranscriptionResult WhisperModelSession::transcribe(const QVector<float>& samples, qint64 globalOffsetMs,
                                                     const TranscriptionOptions& options,
                                                     const TranscriptionCallbacks& callbacks,
-                                                    std::atomic_bool& cancelRequested) {
+                                                    const CancellationFlag& cancellation) {
     TranscriptionResult result;
     QMutexLocker locker(&m_mutex);
+    if (cancellation.isRequested()) {
+        result.error = {AsrErrorCode::Cancelled, QStringLiteral("Transcription was cancelled"), {}};
+        return result;
+    }
     if (samples.isEmpty() || samples.size() > std::numeric_limits<int>::max()) {
         result.error = {AsrErrorCode::InvalidAudio,
                         QStringLiteral("Transcription requires non-empty 16 kHz mono samples"),
@@ -192,10 +195,6 @@ TranscriptionResult WhisperModelSession::transcribe(const QVector<float>& sample
 #ifdef BREEZEDESK_HAS_WHISPER
     if (!m_context) {
         result.error = {AsrErrorCode::ModelLoadFailed, QStringLiteral("No ASR model is loaded"), {}};
-        return result;
-    }
-    if (cancelRequested.load(std::memory_order_relaxed)) {
-        result.error = {AsrErrorCode::Cancelled, QStringLiteral("Transcription was cancelled"), {}};
         return result;
     }
 
@@ -247,7 +246,7 @@ TranscriptionResult WhisperModelSession::transcribe(const QVector<float>& sample
     parameters.vad_params.speech_pad_ms = options.vad.speechPaddingMs;
     parameters.vad_params.samples_overlap = options.vad.samplesOverlapSeconds;
 
-    CallbackState callbackState{&cancelRequested, callbacks.progress, -1};
+    CallbackState callbackState{&cancellation, callbacks.progress, -1};
     WhisperSegmentCollector collector(globalOffsetMs, options.lowConfidenceThreshold, callbacks);
     parameters.progress_callback = &progressCallback;
     parameters.progress_callback_user_data = &callbackState;
@@ -274,7 +273,7 @@ TranscriptionResult WhisperModelSession::transcribe(const QVector<float>& sample
         result.timingsMs.insert(QStringLiteral("prompt"), timings->prompt_ms);
     }
 
-    if (cancelRequested.load(std::memory_order_relaxed)) {
+    if (cancellation.isRequested()) {
         result.error = {AsrErrorCode::Cancelled, QStringLiteral("Transcription was cancelled"), {}};
     } else if (status != 0) {
         result.error = {AsrErrorCode::InferenceFailed, QStringLiteral("whisper.cpp transcription failed"),
@@ -286,7 +285,6 @@ TranscriptionResult WhisperModelSession::transcribe(const QVector<float>& sample
     Q_UNUSED(globalOffsetMs)
     Q_UNUSED(options)
     Q_UNUSED(callbacks)
-    Q_UNUSED(cancelRequested)
     result.error = {
         AsrErrorCode::RuntimeUnavailable, QStringLiteral("This build does not include whisper.cpp"), {}};
 #endif

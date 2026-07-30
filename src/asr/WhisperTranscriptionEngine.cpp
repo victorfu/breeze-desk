@@ -6,12 +6,10 @@ WhisperTranscriptionEngine::WhisperTranscriptionEngine() = default;
 WhisperTranscriptionEngine::~WhisperTranscriptionEngine() = default;
 
 ModelLoadResult WhisperTranscriptionEngine::loadModel(const ModelLoadOptions& options) {
-    m_cancelRequested.store(false, std::memory_order_relaxed);
     return m_session.load(options);
 }
 
 void WhisperTranscriptionEngine::unloadModel() {
-    m_cancelRequested.store(true, std::memory_order_relaxed);
     m_session.unload();
 }
 
@@ -22,13 +20,9 @@ bool WhisperTranscriptionEngine::isModelLoaded() const noexcept {
 TranscriptionResult WhisperTranscriptionEngine::transcribe(const QVector<float>& samples,
                                                            qint64 globalOffsetMs,
                                                            const TranscriptionOptions& options,
-                                                           const TranscriptionCallbacks& callbacks) {
-    m_cancelRequested.store(false, std::memory_order_relaxed);
-    return m_session.transcribe(samples, globalOffsetMs, options, callbacks, m_cancelRequested);
-}
-
-void WhisperTranscriptionEngine::requestCancellation() noexcept {
-    m_cancelRequested.store(true, std::memory_order_relaxed);
+                                                           const TranscriptionCallbacks& callbacks,
+                                                           const CancellationFlag& cancellation) {
+    return m_session.transcribe(samples, globalOffsetMs, options, callbacks, cancellation);
 }
 
 int WhisperTranscriptionEngine::tokenCount(const QString& text) const {

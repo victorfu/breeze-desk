@@ -9,6 +9,7 @@
 #include <breezedesk/asr/WhisperBackendInfo.h>
 #include <breezedesk/asr/WhisperParameterMapper.h>
 #include <breezedesk/asr/WhisperTranscriptionEngine.h>
+#include <breezedesk/asr/WorkerOperationState.h>
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QCryptographicHash>
@@ -26,11 +27,13 @@ class AsrCoreTest final : public QObject {
     void budgetsPromptInPriorityOrder();
     void convertsTimestampAndConfidence();
     void cancellationFlagIsAtomicBoundary();
+    void workerOperationCancellationIsScopedToItsClaim();
     void plansSilenceBoundedChunks();
     void plansFourHourContinuousSpeechWithOverlap();
     void deduplicatesEnglishAndChinese();
     void retainsAmbiguousOverlap();
     void segmentsStreamingVadProbabilities();
+    void cancellationRequestSurvivesUntilTranscriptionStarts();
     void disabledRuntimeReturnsTypedError();
     void rejectsChecksumMismatchBeforeModelLoad();
 };
@@ -170,6 +173,39 @@ void AsrCoreTest::segmentsStreamingVadProbabilities() {
     QCOMPARE(regions.at(0).endMs, 450);
     QCOMPARE(regions.at(1).startMs, 650);
     QCOMPARE(regions.at(1).endMs, 1'050);
+}
+
+void AsrCoreTest::workerOperationCancellationIsScopedToItsClaim() {
+    WorkerOperationState operation;
+    QVERIFY(operation.claim(QStringLiteral("job-one")));
+    const auto firstCancellation = operation.cancellation();
+    QVERIFY(firstCancellation != nullptr);
+    QVERIFY(!firstCancellation->isRequested());
+    QVERIFY(!operation.cancel(QStringLiteral("another-job")));
+    QVERIFY(!firstCancellation->isRequested());
+    QVERIFY(operation.cancel(QStringLiteral("job-one")));
+    QVERIFY(firstCancellation->isRequested());
+
+    operation.finish();
+    QVERIFY(operation.claim(QStringLiteral("job-two")));
+    const auto secondCancellation = operation.cancellation();
+    QVERIFY(secondCancellation != nullptr);
+    QVERIFY(secondCancellation != firstCancellation);
+    QVERIFY(!secondCancellation->isRequested());
+}
+
+void AsrCoreTest::cancellationRequestSurvivesUntilTranscriptionStarts() {
+    WhisperTranscriptionEngine engine;
+    CancellationFlag cancellation;
+    cancellation.request();
+
+    const auto cancelled = engine.transcribe({0.0F}, 0, {}, {}, cancellation);
+    QCOMPARE(cancelled.error.code, AsrErrorCode::Cancelled);
+    QVERIFY(cancellation.isRequested());
+
+    CancellationFlag nextCancellation;
+    const auto nextOperation = engine.transcribe({0.0F}, 0, {}, {}, nextCancellation);
+    QVERIFY(nextOperation.error.code != AsrErrorCode::Cancelled);
 }
 
 void AsrCoreTest::disabledRuntimeReturnsTypedError() {

@@ -5,6 +5,7 @@
 #include <breezedesk/asr/StreamingVadSegmenter.h>
 #include <breezedesk/asr/WhisperBackendInfo.h>
 #include <breezedesk/asr/WhisperTranscriptionEngine.h>
+#include <breezedesk/asr/WorkerOperationState.h>
 #include <breezedesk/core/ApplicationLogger.h>
 #include <breezedesk/core/StoragePaths.h>
 #include <breezedesk/core/TemporaryFileJanitor.h>
@@ -19,7 +20,6 @@
 #include <QtCore/QThread>
 #include <QtCore/QtEndian>
 
-#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <functional>
@@ -168,7 +168,7 @@ AsrError inspectPcmLayout(QFile& file, PcmLayout* layout) {
 }
 
 AsrError readPcm16Chunk(const QString& path, qint64 startMs, qint64 endMs, bool finalChunk,
-                        std::atomic_bool& cancelled, QVector<float>* samples) {
+                        const CancellationFlag& cancellation, QVector<float>* samples) {
     constexpr qint64 sampleRate = 16'000;
     constexpr qint64 bytesPerSample = 2;
     constexpr qint64 blockBytes = 1024 * 1024;
@@ -217,7 +217,7 @@ AsrError readPcm16Chunk(const QString& path, qint64 startMs, qint64 endMs, bool 
     samples->reserve(static_cast<int>(byteCount / bytesPerSample));
     qint64 remaining = byteCount;
     while (remaining > 0) {
-        if (cancelled.load(std::memory_order_relaxed)) {
+        if (cancellation.isRequested()) {
             return {AsrErrorCode::Cancelled, QStringLiteral("Transcription was cancelled"), {}};
         }
         const QByteArray bytes = file.read(std::min(blockBytes, remaining));
@@ -243,7 +243,8 @@ struct VadAnalysis {
 };
 
 VadAnalysis analyzePcmSpeech(const QString& path, WhisperVadContext& vad, const VadOptions& options,
-                             std::atomic_bool& cancelled, const std::function<void(int)>& progress) {
+                             const CancellationFlag& cancellation,
+                             const std::function<void(int)>& progress) {
     constexpr qsizetype vadFrameSamples = 512;
     constexpr qsizetype framesPerBlock = 128;
     constexpr qsizetype samplesPerBlock = vadFrameSamples * framesPerBlock;
@@ -276,7 +277,7 @@ VadAnalysis analyzePcmSpeech(const QString& path, WhisperVadContext& vad, const 
     vad.resetStreamingState();
     qint64 processedBytes = 0;
     while (processedBytes < layout.dataSize) {
-        if (cancelled.load(std::memory_order_relaxed)) {
+        if (cancellation.isRequested()) {
             return {{AsrErrorCode::Cancelled, QStringLiteral("Speech analysis was cancelled"), {}}, {}, 0};
         }
         const qint64 requestedBytes =
@@ -398,11 +399,6 @@ class InferenceRunner final : public QObject {
   public:
     using QObject::QObject;
 
-    void cancel() {
-        m_cancelled.store(true, std::memory_order_relaxed);
-        m_engine.requestCancellation();
-    }
-
   public slots:
     void loadModel(quint64 clientId, QString requestId, ModelLoadOptions options) {
         const ModelLoadResult result = m_engine.loadModel(options);
@@ -435,8 +431,12 @@ class InferenceRunner final : public QObject {
     }
 
     void analyzeSpeech(quint64 clientId, QString requestId, QString jobId, QString pcmPath,
-                       VadOptions options) {
-        m_cancelled.store(false, std::memory_order_relaxed);
+                       VadOptions options, std::shared_ptr<const CancellationFlag> cancellation) {
+        if (cancellation == nullptr || cancellation->isRequested()) {
+            emit response(clientId, cancellationEnvelope(requestId, jobId));
+            emit operationFinished();
+            return;
+        }
         AsrError loadError;
         if (!m_vad.isLoaded() || m_vadModelPath != options.modelPath ||
             m_vadModelSha256 != options.expectedSha256.toLower()) {
@@ -474,7 +474,7 @@ class InferenceRunner final : public QObject {
             envelope.payload.insert(QStringLiteral("progress"), value);
             emit response(clientId, envelope);
         };
-        const VadAnalysis analysis = analyzePcmSpeech(pcmPath, m_vad, options, m_cancelled, progress);
+        const VadAnalysis analysis = analyzePcmSpeech(pcmPath, m_vad, options, *cancellation, progress);
         if (analysis.error.code == AsrErrorCode::Cancelled) {
             emit response(clientId, cancellationEnvelope(requestId, jobId));
         } else if (analysis.error.isError()) {
@@ -512,11 +512,15 @@ class InferenceRunner final : public QObject {
 
     void transcribe(quint64 clientId, QString requestId, QString jobId, QString pcmPath, qint64 startMs,
                     qint64 endMs, TranscriptionOptions options, QList<PromptPart> structuredPrompt,
-                    bool finalChunk) {
-        m_cancelled.store(false, std::memory_order_relaxed);
+                    bool finalChunk, std::shared_ptr<const CancellationFlag> cancellation) {
+        if (cancellation == nullptr || cancellation->isRequested()) {
+            emit response(clientId, cancellationEnvelope(requestId, jobId));
+            finishJob();
+            return;
+        }
         QVector<float> samples;
         const AsrError readError =
-            readPcm16Chunk(pcmPath, startMs, endMs, finalChunk, m_cancelled, &samples);
+            readPcm16Chunk(pcmPath, startMs, endMs, finalChunk, *cancellation, &samples);
         if (readError.isError()) {
             emit response(clientId, readError.code == AsrErrorCode::Cancelled
                                         ? cancellationEnvelope(requestId, jobId)
@@ -542,9 +546,6 @@ class InferenceRunner final : public QObject {
         int lastProgress = -1;
         TranscriptionCallbacks callbacks;
         callbacks.progress = [this, clientId, requestId, jobId, &lastProgress](int progress) {
-            if (m_cancelled.load(std::memory_order_relaxed)) {
-                m_engine.requestCancellation();
-            }
             progress = std::clamp(progress, lastProgress, 100);
             if (progress == lastProgress) {
                 return;
@@ -566,7 +567,7 @@ class InferenceRunner final : public QObject {
             emit response(clientId, envelope);
         };
 
-        const auto result = m_engine.transcribe(samples, startMs, options, callbacks);
+        const auto result = m_engine.transcribe(samples, startMs, options, callbacks, *cancellation);
         if (result.error.code == AsrErrorCode::Cancelled) {
             emit response(clientId, cancellationEnvelope(requestId, jobId));
         } else if (result.error.isError()) {
@@ -613,7 +614,6 @@ class InferenceRunner final : public QObject {
 
     WhisperTranscriptionEngine m_engine;
     WhisperVadContext m_vad;
-    std::atomic_bool m_cancelled = false;
     QString m_vadModelPath;
     QByteArray m_vadModelSha256;
 };
@@ -638,14 +638,15 @@ class WorkerController final : public QObject {
         connect(
             runner, &InferenceRunner::operationFinished, this,
             [this] {
-                m_busy = false;
-                m_activeJobId.clear();
+                m_operation.finish();
                 if (m_shutdownRequested) {
                     QCoreApplication::quit();
                 }
             },
             Qt::QueuedConnection);
     }
+
+    void cancelActiveOperation() { (void)m_operation.cancel(); }
 
   private slots:
     void handleEnvelope(quint64 clientId, const Envelope& envelope) {
@@ -685,14 +686,12 @@ class WorkerController final : public QObject {
             queueTranscription(clientId, envelope);
             break;
         case MessageType::CancelJob:
-            if (envelope.jobId.isEmpty() || envelope.jobId == m_activeJobId) {
-                m_runner->cancel();
-            }
+            (void)m_operation.cancel(envelope.jobId);
             break;
         case MessageType::Shutdown:
             m_shutdownRequested = true;
-            m_runner->cancel();
-            if (!m_busy) {
+            cancelActiveOperation();
+            if (!m_operation.active()) {
                 QCoreApplication::quit();
             }
             break;
@@ -707,14 +706,12 @@ class WorkerController final : public QObject {
 
   private:
     bool claimOperation(quint64 clientId, const Envelope& envelope) {
-        if (m_busy) {
+        if (!m_operation.claim(envelope.jobId)) {
             m_server->send(clientId, errorEnvelope(envelope.requestId, envelope.jobId,
                                                    {AsrErrorCode::Busy, QStringLiteral("ASR worker is busy"),
-                                                    m_activeJobId}));
+                                                    m_operation.jobId()}));
             return false;
         }
-        m_busy = true;
-        m_activeJobId = envelope.jobId;
         return true;
     }
 
@@ -762,12 +759,13 @@ class WorkerController final : public QObject {
         const bool finalChunk = envelope.payload.value(QStringLiteral("finalChunk")).toBool(false);
         const auto options = transcriptionOptions(envelope.payload);
         const auto structuredPrompt = promptParts(envelope.payload);
+        const auto cancellation = m_operation.cancellation();
         QMetaObject::invokeMethod(
             m_runner,
             [runner = m_runner, clientId, requestId = envelope.requestId, jobId = envelope.jobId, pcmPath,
-             startMs, endMs, options, structuredPrompt, finalChunk] {
+             startMs, endMs, options, structuredPrompt, finalChunk, cancellation] {
                 runner->transcribe(clientId, requestId, jobId, pcmPath, startMs, endMs, options,
-                                   structuredPrompt, finalChunk);
+                                   structuredPrompt, finalChunk, cancellation);
             },
             Qt::QueuedConnection);
     }
@@ -775,18 +773,20 @@ class WorkerController final : public QObject {
     void queueSpeechAnalysis(quint64 clientId, const Envelope& envelope) {
         const QString pcmPath = envelope.payload.value(QStringLiteral("pcmPath")).toString();
         const auto options = vadOptions(envelope.payload);
+        const auto cancellation = m_operation.cancellation();
         QMetaObject::invokeMethod(
             m_runner,
             [runner = m_runner, clientId, requestId = envelope.requestId, jobId = envelope.jobId, pcmPath,
-             options] { runner->analyzeSpeech(clientId, requestId, jobId, pcmPath, options); },
+             options, cancellation] {
+                runner->analyzeSpeech(clientId, requestId, jobId, pcmPath, options, cancellation);
+            },
             Qt::QueuedConnection);
     }
 
     WorkerServer* m_server;
     InferenceRunner* m_runner;
     QString m_workerVersion;
-    QString m_activeJobId;
-    bool m_busy = false;
+    WorkerOperationState m_operation;
     bool m_shutdownRequested = false;
 };
 
@@ -852,7 +852,7 @@ int main(int argc, char* argv[]) {
                                                     parser.value(QStringLiteral("worker-version")));
 
     const int exitCode = application.exec();
-    runner->cancel();
+    controller.cancelActiveOperation();
     inferenceThread->quit();
     if (!inferenceThread->wait(5'000)) {
         qCCritical(workerLog, "%s", "Inference did not abort within the worker shutdown grace period");
