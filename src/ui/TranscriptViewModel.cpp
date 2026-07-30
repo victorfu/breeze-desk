@@ -116,6 +116,19 @@ void TranscriptViewModel::editText(int proxyRow, const QString& text) {
     afterMutation(m_source.editText(sourceRowForProxyRow(proxyRow), text));
 }
 
+bool TranscriptViewModel::editTextById(const QString& segmentId, const QString& text) {
+    if (rejectIfEditingLocked())
+        return false;
+    const int sourceRow = sourceRowForSegmentId(segmentId);
+    if (sourceRow < 0)
+        return false;
+    beforeMutation();
+    const bool changed = m_source.editText(sourceRow, text);
+    afterMutation(changed);
+    return changed ||
+           m_source.data(m_source.index(sourceRow), TranscriptSegmentModel::EditedTextRole).toString() == text;
+}
+
 void TranscriptViewModel::splitAt(int proxyRow, qint64 positionMs) {
     if (rejectIfEditingLocked())
         return;
@@ -374,6 +387,16 @@ bool TranscriptViewModel::rejectIfEditingLocked() {
 int TranscriptViewModel::sourceRowForProxyRow(int proxyRow) const {
     const QModelIndex proxyIndex = m_proxy.index(proxyRow, 0);
     return proxyIndex.isValid() ? m_proxy.mapToSource(proxyIndex).row() : -1;
+}
+
+int TranscriptViewModel::sourceRowForSegmentId(const QString& segmentId) const {
+    if (segmentId.isEmpty())
+        return -1;
+    for (int row = 0; row < m_source.rowCount(); ++row) {
+        if (m_source.data(m_source.index(row), TranscriptSegmentModel::IdRole).toString() == segmentId)
+            return row;
+    }
+    return -1;
 }
 
 } // namespace BreezeDesk

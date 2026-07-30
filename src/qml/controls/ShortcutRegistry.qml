@@ -16,7 +16,11 @@ Item {
     Shortcut { sequence: "Meta+Shift+R"; onActivated: root.recordingTriggered() }
     Shortcut { sequence: "Space"; onActivated: root.playPauseTriggered() }
     Shortcut { sequences: ["Ctrl+F", "Meta+F"]; onActivated: root.searchTriggered() }
-    Shortcut { sequences: ["Ctrl+S", "Meta+S"]; onActivated: root.saveTriggered() }
+    Shortcut {
+        sequences: ["Ctrl+S", "Meta+S"]
+        context: Qt.ApplicationShortcut
+        onActivated: root.saveTriggered()
+    }
     Shortcut { sequence: "Ctrl+E"; onActivated: root.exportTriggered() }
     Shortcut { sequence: "Meta+E"; onActivated: root.exportTriggered() }
     Shortcut { sequences: ["Ctrl+Z", "Meta+Z"]; onActivated: root.undoTriggered() }

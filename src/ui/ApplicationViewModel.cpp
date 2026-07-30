@@ -248,18 +248,29 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
             m_transcriptAutosaveTimer.start();
         }
     });
-    connect(&m_transcriptAutosaveTimer, &QTimer::timeout, &m_transcript, &TranscriptViewModel::save);
-    const auto prepareTranscriptResume = [this](const QString& jobId) {
-        if (jobId != m_activeTranscriptJobId) {
+    connect(&m_transcriptAutosaveTimer, &QTimer::timeout, this, [this] {
+        if (!requestActiveTranscriptDraftCommit()) {
             return;
+        }
+        if (m_transcript.dirty()) {
+            (void)flushActiveTranscript();
+        }
+    });
+    m_jobQueue.setRetryResumeGate([this](const QString& jobId) {
+        if (jobId != m_activeTranscriptJobId) {
+            return true;
+        }
+        if (!requestActiveTranscriptDraftCommit()) {
+            showToast(tr("The transcript could not be saved before transcription resumed."));
+            return false;
         }
         if (m_transcript.dirty() && !saveActiveTranscript()) {
             showToast(tr("The transcript could not be saved before transcription resumed."));
+            return false;
         }
         m_transcript.setEditingLocked(true);
-    };
-    connect(&m_jobQueue, &JobQueueViewModel::retryRequested, this, prepareTranscriptResume);
-    connect(&m_jobQueue, &JobQueueViewModel::resumeRequested, this, prepareTranscriptResume);
+        return true;
+    });
     m_folderImportBatchTimer.setSingleShot(true);
     connect(&m_folderImportBatchTimer, &QTimer::timeout, this,
             &ApplicationViewModel::processFolderImportBatch);
@@ -272,6 +283,10 @@ ApplicationViewModel::ApplicationViewModel(IRecordingRepository* recordingReposi
 }
 
 ApplicationViewModel::~ApplicationViewModel() {
+    m_transcriptAutosaveTimer.stop();
+    if (m_transcript.dirty()) {
+        (void)saveActiveTranscript();
+    }
     if (m_folderImportCancellation) {
         m_folderImportCancellation->store(true, std::memory_order_relaxed);
     }
@@ -658,6 +673,9 @@ void ApplicationViewModel::setPlatformService(IPlatformService* platform) noexce
 }
 
 void ApplicationViewModel::openRecording(const QString& recordingId) {
+    if (!requestActiveTranscriptDraftCommit()) {
+        return;
+    }
     if (m_transcript.dirty() && !saveActiveTranscript()) {
         return;
     }
@@ -729,8 +747,11 @@ QString ApplicationViewModel::enqueueTranscription(const QString& recordingId) {
         showToast(tr("Choose an imported recording first."));
         return {};
     }
-    if (recordingId == m_activeRecordingId && m_transcript.dirty() && !saveActiveTranscript()) {
-        return {};
+    if (recordingId == m_activeRecordingId) {
+        if (!requestActiveTranscriptDraftCommit() ||
+            (m_transcript.dirty() && !saveActiveTranscript())) {
+            return {};
+        }
     }
     const QString jobId = m_jobQueue.allocateJobId();
     emit transcriptionJobRequested(jobId, recordingId);
@@ -804,6 +825,27 @@ void ApplicationViewModel::exportActiveRecordingTo(const QUrl& file, const QStri
     showToast(tr("Transcript exported to %1").arg(QDir::toNativeSeparators(destination)));
 }
 
+bool ApplicationViewModel::flushActiveTranscript() {
+    if (!m_transcript.dirty()) {
+        return true;
+    }
+    const bool saved = saveActiveTranscript();
+    if (saved) {
+        m_transcriptAutosaveTimer.stop();
+    }
+    return saved;
+}
+
+void ApplicationViewModel::reportActiveTranscriptDraftCommit(const bool accepted) {
+    if (m_activeDraftCommitPending) {
+        m_activeDraftCommitAccepted = m_activeDraftCommitAccepted && accepted;
+    }
+}
+
+void ApplicationViewModel::scheduleActiveTranscriptAutosave() {
+    m_transcriptAutosaveTimer.start();
+}
+
 void ApplicationViewModel::startRecording() {
     emit recordingRequested();
 }
@@ -872,6 +914,9 @@ void ApplicationViewModel::reloadTranscriptForJob(const QString& recordingId, co
     if (recordingId != m_activeRecordingId || jobId.isEmpty()) {
         return;
     }
+    if (!requestActiveTranscriptDraftCommit()) {
+        return;
+    }
 
     if (!m_activeTranscriptJobId.isEmpty() && m_activeTranscriptJobId != jobId) {
         if (m_transcript.dirty() && !saveActiveTranscript()) {
@@ -895,6 +940,23 @@ void ApplicationViewModel::finishLiveTranscript(const QString& recordingId, cons
     if (recordingId != m_activeRecordingId || jobId.isEmpty()) {
         return;
     }
+
+    if (!requestActiveTranscriptDraftCommit()) {
+        m_transcript.setEditingLocked(false);
+        return;
+    }
+    if (m_transcript.dirty()) {
+        if (m_activeTranscriptJobId == jobId) {
+            m_transcript.setEditingLocked(false);
+            showToast(tr("Save or discard the current transcript edits before refreshing live results."));
+            return;
+        }
+        if (!saveActiveTranscript()) {
+            m_transcript.setEditingLocked(false);
+            return;
+        }
+    }
+
     m_transcriptAutosaveTimer.stop();
     if (succeeded) {
         m_activeTranscriptJobId = jobId;
@@ -982,6 +1044,14 @@ bool ApplicationViewModel::saveActiveTranscript() {
     }
     m_transcript.markSaved();
     return true;
+}
+
+bool ApplicationViewModel::requestActiveTranscriptDraftCommit() {
+    m_activeDraftCommitAccepted = true;
+    m_activeDraftCommitPending = true;
+    emit activeTranscriptDraftCommitRequested();
+    m_activeDraftCommitPending = false;
+    return m_activeDraftCommitAccepted;
 }
 
 } // namespace BreezeDesk

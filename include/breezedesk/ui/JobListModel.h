@@ -60,6 +60,8 @@ class JobListModel final : public QAbstractListModel {
     bool cancel(const QString& id);
     bool retry(const QString& id);
     bool resume(const QString& id);
+    [[nodiscard]] bool canRetry(const QString& id) const;
+    [[nodiscard]] bool canResume(const QString& id) const;
     bool remove(const QString& id);
     [[nodiscard]] bool canRemove(const QString& id) const;
     bool moveQueued(const QString& id, int destination);

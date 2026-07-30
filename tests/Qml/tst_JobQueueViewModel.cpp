@@ -41,6 +41,7 @@ class JobQueueViewModelTest final : public QObject {
     void keepsRunningJobsBeforeQueuedAndFinishedJobs();
     void reordersOnlyQueuedJobsUsingQueuedPositions();
     void removeFinishedWaitsForPersistenceConfirmation();
+    void retryResumeGateRunsBeforeOptimisticMutation();
     void queuePageConfirmsPermanentRemoval();
     void enhancedJobCardRendersAndExposesAccessibleActions();
     void queuedCardCanBeDragReordered();
@@ -202,6 +203,42 @@ void JobQueueViewModelTest::removeFinishedWaitsForPersistenceConfirmation() {
     QVERIFY(rowForId(model, interrupted) >= 0);
     viewModel.confirmRemoved(interrupted);
     QCOMPARE(rowForId(model, interrupted), -1);
+}
+
+void JobQueueViewModelTest::retryResumeGateRunsBeforeOptimisticMutation() {
+    JobQueueViewModel viewModel;
+    JobListModel* model = jobModel(viewModel);
+    QVERIFY(model);
+    const QString failed = QStringLiteral("gated-failed-job");
+    const QString interrupted = QStringLiteral("gated-interrupted-job");
+    viewModel.updateJob(failed, QStringLiteral("recording"), QStringLiteral("Failed"),
+                        QStringLiteral("Failed"), QStringLiteral("Transcribing"), 0.4);
+    viewModel.updateJob(interrupted, QStringLiteral("recording"), QStringLiteral("Interrupted"),
+                        QStringLiteral("Interrupted"), QStringLiteral("Transcribing"), 0.6);
+    QSignalSpy retried(&viewModel, &JobQueueViewModel::retryRequested);
+    QSignalSpy resumed(&viewModel, &JobQueueViewModel::resumeRequested);
+    QStringList gatedJobs;
+    viewModel.setRetryResumeGate([&gatedJobs](const QString& jobId) {
+        gatedJobs.append(jobId);
+        return false;
+    });
+
+    viewModel.retry(failed);
+    viewModel.resume(interrupted);
+    QCOMPARE(gatedJobs, QStringList({failed, interrupted}));
+    QCOMPARE(retried.count(), 0);
+    QCOMPARE(resumed.count(), 0);
+    QCOMPARE(valueFor(model, failed, JobListModel::StateRole).toString(), QStringLiteral("Failed"));
+    QCOMPARE(valueFor(model, interrupted, JobListModel::StateRole).toString(),
+             QStringLiteral("Interrupted"));
+
+    viewModel.setRetryResumeGate([](const QString&) { return true; });
+    viewModel.retry(failed);
+    viewModel.resume(interrupted);
+    QCOMPARE(retried.count(), 1);
+    QCOMPARE(resumed.count(), 1);
+    QCOMPARE(valueFor(model, failed, JobListModel::StateRole).toString(), QStringLiteral("Queued"));
+    QCOMPARE(valueFor(model, interrupted, JobListModel::StateRole).toString(), QStringLiteral("Queued"));
 }
 
 void JobQueueViewModelTest::queuePageConfirmsPermanentRemoval() {

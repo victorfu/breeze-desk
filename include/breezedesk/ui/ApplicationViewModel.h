@@ -79,7 +79,10 @@ class ApplicationViewModel : public QObject {
     Q_INVOKABLE QString enqueueTranscription(const QString& recordingId);
     Q_INVOKABLE void exportActiveRecording();
     Q_INVOKABLE void exportActiveRecordingTo(const QUrl& file, const QString& format,
-                                             bool includeTimecodes = false);
+                                              bool includeTimecodes = false);
+    Q_INVOKABLE bool flushActiveTranscript();
+    Q_INVOKABLE void reportActiveTranscriptDraftCommit(bool accepted);
+    Q_INVOKABLE void scheduleActiveTranscriptAutosave();
     Q_INVOKABLE void startRecording();
     Q_INVOKABLE void dismissToast();
     Q_INVOKABLE void showToast(const QString& message);
@@ -98,11 +101,13 @@ class ApplicationViewModel : public QObject {
     void folderImportChanged();
     void openImportDialogRequested();
     void exportRequested(const QString& recordingId);
+    void activeTranscriptDraftCommitRequested();
     void recordingRequested();
     void transcriptionJobRequested(const QString& jobId, const QString& recordingId);
 
   private:
     [[nodiscard]] bool saveActiveTranscript();
+    [[nodiscard]] bool requestActiveTranscriptDraftCommit();
     int importUrlsInternal(const QVariantList& urls, quint64 folderOperation, bool openSingleImport = false);
     void processFolderImportBatch();
     void completeFolderImportItems(quint64 operation, int processed, int succeeded);
@@ -135,6 +140,8 @@ class ApplicationViewModel : public QObject {
     QStringList m_folderImportPendingPaths;
     std::shared_ptr<std::atomic_bool> m_folderImportCancellation;
     IPlatformService* m_platformService{nullptr};
+    bool m_activeDraftCommitPending{false};
+    bool m_activeDraftCommitAccepted{true};
 };
 
 } // namespace BreezeDesk

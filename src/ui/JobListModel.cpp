@@ -216,6 +216,16 @@ bool JobListModel::resume(const QString& id) {
     return true;
 }
 
+bool JobListModel::canRetry(const QString& id) const {
+    const int row = indexOf(id);
+    return row >= 0 && data(index(row), CanRetryRole).toBool();
+}
+
+bool JobListModel::canResume(const QString& id) const {
+    const int row = indexOf(id);
+    return row >= 0 && data(index(row), CanResumeRole).toBool();
+}
+
 bool JobListModel::remove(const QString& id) {
     const int row = indexOf(id);
     if (row < 0 || !data(index(row), CanRemoveRole).toBool()) {

@@ -18,6 +18,10 @@ Item {
     readonly property bool narrowTransport: recordingMainPane.width < 440 * DesignSystem.textScale
     readonly property int compactWaveformHeight: DesignSystem.compact ? 52 : 64
     readonly property var playbackRates: [0.5, 0.75, 1.0, 1.25, 1.5, 2.0]
+    readonly property bool activeDraftDirty: {
+        const activeSegment = segmentList.activeEditingSegment || segmentList.currentItem
+        return activeSegment ? activeSegment.draftDirty : false
+    }
     property bool compactInspectorOpen: false
 
     component ModeIconButton: IconButton {
@@ -47,6 +51,8 @@ Item {
     onCompactInspectorChanged: if (!compactInspector) compactInspectorOpen = false
 
     function requestTranscription() {
+        if (!commitActiveEdit())
+            return
         if (root.transcript.segmentCount > 0) {
             replaceTranscriptDialog.open()
             return
@@ -61,6 +67,23 @@ Item {
     function focusTranscriptSearch() {
         recordingTranscriptSearch.forceActiveFocus()
         recordingTranscriptSearch.selectAll()
+    }
+
+    function commitActiveEdit() {
+        const currentSegment = segmentList.activeEditingSegment || segmentList.currentItem
+        return !currentSegment || !currentSegment.commitDraft || currentSegment.commitDraft()
+    }
+
+    function saveTranscript() {
+        if (!commitActiveEdit())
+            return false
+        return root.vm.flushActiveTranscript()
+    }
+
+    function requestExport() {
+        if (!commitActiveEdit())
+            return
+        root.vm.exportActiveRecording()
     }
 
     Component {
@@ -143,7 +166,10 @@ Item {
                 objectName: "recordingBackButton"
                 text: qsTr("← Library")
                 accessibleName: qsTr("Back to Library")
-                onClicked: root.vm.navigate("Library")
+                onClicked: {
+                    if (root.commitActiveEdit())
+                        root.vm.navigate("Library")
+                }
             }
             ColumnLayout {
                 Layout.fillWidth: true
@@ -181,7 +207,7 @@ Item {
                 primary: true
                 onClicked: root.requestTranscription()
             }
-            AppButton { text: qsTr("Export"); onClicked: root.vm.exportActiveRecording() }
+            AppButton { text: qsTr("Export"); onClicked: root.requestExport() }
             AppButton {
                 objectName: "recordingInspectorButton"
                 visible: root.compactInspector
@@ -469,6 +495,8 @@ Item {
                                     accessibleName: qsTr("Copy Transcript")
                                     enabled: root.transcript.segmentCount > 0
                                     onClicked: {
+                                        if (!root.commitActiveEdit())
+                                            return
                                         root.vm.copyToClipboard(root.transcript.fullText())
                                         root.vm.showToast(qsTr("Transcript copied to clipboard."))
                                     }
@@ -476,10 +504,11 @@ Item {
                                 IconButton {
                                     objectName: "recordingSaveButton"
                                     iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/save.svg"
-                                    accessibleName: root.transcript.dirty ? qsTr("Save Changes") : qsTr("Saved")
+                                    accessibleName: root.transcript.dirty || root.activeDraftDirty
+                                                    ? qsTr("Save Changes") : qsTr("Saved")
                                     toolTipText: accessibleName + " · Ctrl+S"
-                                    enabled: root.transcript.dirty
-                                    onClicked: root.transcript.save()
+                                    enabled: root.transcript.dirty || root.activeDraftDirty
+                                    onClicked: root.saveTranscript()
                                 }
                             }
                         }
@@ -526,6 +555,7 @@ Item {
                     keyNavigationEnabled: true
                     activeFocusOnTab: true
                     currentIndex: root.transcript.selectedIndex
+                    property var activeEditingSegment: null
                     onCurrentIndexChanged: {
                         if (activeFocus && currentIndex >= 0
                                 && root.transcript.selectedIndex !== currentIndex) {
@@ -538,21 +568,35 @@ Item {
                                              root.transcript.selectedIndex = currentIndex
                     ScrollBar.vertical: ScrollBar { }
                     delegate: SegmentEditor {
+                        id: segmentDelegate
                         objectName: "segmentEditor"
                         width: ListView.view.width
                         editingLocked: root.transcript.editingLocked
-                        ListView.onPooled: editing = false
+                        ListView.onPooled: {
+                            if (segmentList.activeEditingSegment === segmentDelegate)
+                                segmentList.activeEditingSegment = null
+                            editing = false
+                        }
+                        onEditingChanged: {
+                            if (editing) {
+                                segmentList.activeEditingSegment = segmentDelegate
+                            } else if (segmentList.activeEditingSegment === segmentDelegate) {
+                                segmentList.activeEditingSegment = null
+                            }
+                        }
                         selected: root.transcript.selectedIndex === proxyRow
                                   || root.transcript.activePlaybackIndex === proxyRow
                         onSelectedRequested: function(segmentIndex) {
-                            root.transcript.selectedIndex = segmentIndex
+                            if (root.commitActiveEdit())
+                                root.transcript.selectedIndex = segmentIndex
                         }
                         onSeekRequested: function(position) {
                             root.player.position = position
                         }
-                        onTextEdited: function(segmentIndex, text) {
-                            root.transcript.editText(segmentIndex, text)
+                        onTextEdited: function(editor, segmentId, text) {
+                            editor.resolveCommit(root.transcript.editTextById(segmentId, text))
                         }
+                        onDraftChanged: root.vm.scheduleActiveTranscriptAutosave()
                         onSplitRequested: function(segmentIndex) {
                             root.transcript.splitAt(segmentIndex, root.player.position)
                         }

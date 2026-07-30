@@ -59,6 +59,7 @@ class TranscriptViewModel final : public QObject {
     [[nodiscard]] int activePlaybackIndex() const noexcept;
 
     Q_INVOKABLE void editText(int proxyRow, const QString& text);
+    Q_INVOKABLE bool editTextById(const QString& segmentId, const QString& text);
     Q_INVOKABLE void splitAt(int proxyRow, qint64 positionMs);
     Q_INVOKABLE void mergePrevious(int proxyRow);
     Q_INVOKABLE void mergeNext(int proxyRow);
@@ -105,6 +106,7 @@ class TranscriptViewModel final : public QObject {
     void remapTrackedRows();
     [[nodiscard]] bool rejectIfEditingLocked();
     [[nodiscard]] int sourceRowForProxyRow(int proxyRow) const;
+    [[nodiscard]] int sourceRowForSegmentId(const QString& segmentId) const;
 
     TranscriptSegmentModel m_source;
     TranscriptFilterProxyModel m_proxy;

@@ -296,6 +296,14 @@ void TranscriptTest::viewModelPreservesMetadataAndControlsGlossaryAudit() {
     filteredViewModel.editText(0, QStringLiteral("Edited filtered result"));
     QCOMPARE(filteredViewModel.snapshot().at(0).editedText, filteredOut.editedText);
     QCOMPARE(filteredViewModel.snapshot().at(1).editedText, QStringLiteral("Edited filtered result"));
+    QVERIFY(filteredViewModel.editTextById(QStringLiteral("filtered-in"),
+                                           QStringLiteral("No longer matches the filter")));
+    QCOMPARE(filteredViewModel.visibleSegmentCount(), 0);
+    QCOMPARE(filteredViewModel.snapshot().at(0).editedText, filteredOut.editedText);
+    QCOMPARE(filteredViewModel.snapshot().at(1).editedText,
+             QStringLiteral("No longer matches the filter"));
+    QVERIFY(filteredViewModel.editTextById(QStringLiteral("filtered-in"),
+                                           QStringLiteral("No longer matches the filter")));
     filteredViewModel.setSearchText(QStringLiteral("Unrelated"));
     QCOMPARE(filteredViewModel.visibleSegmentCount(), 1);
     QCOMPARE(filteredViewModel.selectedIndex(), -1);

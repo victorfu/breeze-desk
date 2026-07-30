@@ -8,6 +8,7 @@ Rectangle {
     id: root
 
     required property int proxyRow
+    required property string segmentId
     required property int startMs
     required property int endMs
     required property string originalText
@@ -20,11 +21,15 @@ Rectangle {
     required property bool editingLocked
     property bool selected: false
     property bool editing: false
+    property bool committingDraft: false
+    property bool commitAccepted: false
+    readonly property bool draftDirty: editor.text !== root.editedText
     readonly property int modelIndex: proxyRow
 
     signal selectedRequested(int index)
     signal seekRequested(int position)
-    signal textEdited(int index, string text)
+    signal textEdited(var editor, string segmentId, string text)
+    signal draftChanged()
     signal splitRequested(int index)
     signal mergePreviousRequested(int index)
     signal mergeNextRequested(int index)
@@ -36,10 +41,34 @@ Rectangle {
     readonly property int actionButtonSize: 32
     readonly property int actionIconSize: 18
 
+    function commitDraft() {
+        if (root.committingDraft)
+            return !root.draftDirty
+        if (!root.draftDirty)
+            return true
+        const stableSegmentId = root.segmentId
+        const draftText = editor.text
+        root.committingDraft = true
+        root.commitAccepted = false
+        root.textEdited(root, stableSegmentId, draftText)
+        const accepted = root.commitAccepted
+        root.committingDraft = false
+        return accepted
+    }
+
+    function resolveCommit(accepted) {
+        root.commitAccepted = accepted
+    }
+
     onSelectedChanged: {
         if (!selected) {
-            editing = false
+            if (root.commitDraft())
+                editing = false
         }
+    }
+    onEditingLockedChanged: {
+        if (editingLocked && editing && root.commitDraft())
+            editing = false
     }
     readonly property int timeColumnWidth: Math.max(
                                                80,
@@ -153,14 +182,16 @@ Rectangle {
                         border.width: editor.activeFocus ? ComponentTokens.focusWidth : 0
                         border.color: SemanticTokens.focusRing
                     }
+                    onTextChanged: {
+                        if (activeFocus && root.editing && text !== root.editedText)
+                            root.draftChanged()
+                    }
                     onActiveFocusChanged: {
                         if (activeFocus) {
                             root.selectedRequested(root.modelIndex)
                         } else {
-                            if (text !== root.editedText) {
-                                root.textEdited(root.modelIndex, text)
-                            }
-                            root.editing = false
+                            if (root.commitDraft())
+                                root.editing = false
                         }
                     }
                     TapHandler {
@@ -230,8 +261,10 @@ Rectangle {
                         focusPolicy: Qt.TabFocus
                         onClicked: {
                             if (root.editing) {
-                                root.editing = false
-                                root.forceActiveFocus()
+                                if (root.commitDraft()) {
+                                    root.editing = false
+                                    root.forceActiveFocus()
+                                }
                             } else {
                                 root.editing = true
                                 editor.forceActiveFocus()

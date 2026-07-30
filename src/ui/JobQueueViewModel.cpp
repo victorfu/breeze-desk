@@ -2,6 +2,8 @@
 
 #include <QUuid>
 
+#include <utility>
+
 namespace BreezeDesk {
 
 JobQueueViewModel::JobQueueViewModel(QObject* parent) : QObject(parent) {
@@ -58,12 +60,18 @@ void JobQueueViewModel::cancel(const QString& jobId) {
 }
 
 void JobQueueViewModel::retry(const QString& jobId) {
+    if (!m_jobs.canRetry(jobId) || (m_retryResumeGate && !m_retryResumeGate(jobId))) {
+        return;
+    }
     if (m_jobs.retry(jobId)) {
         emit retryRequested(jobId);
     }
 }
 
 void JobQueueViewModel::resume(const QString& jobId) {
+    if (!m_jobs.canResume(jobId) || (m_retryResumeGate && !m_retryResumeGate(jobId))) {
+        return;
+    }
     if (m_jobs.resume(jobId)) {
         emit resumeRequested(jobId);
     }
@@ -97,6 +105,10 @@ void JobQueueViewModel::moveDown(const QString& jobId) {
 
 void JobQueueViewModel::clearCompleted() {
     emit clearCompletedRequested();
+}
+
+void JobQueueViewModel::setRetryResumeGate(std::function<bool(const QString&)> gate) {
+    m_retryResumeGate = std::move(gate);
 }
 
 void JobQueueViewModel::confirmRemoved(const QString& jobId) {

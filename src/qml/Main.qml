@@ -55,12 +55,20 @@ ApplicationWindow {
     }
 
     function requestQuit() {
+        if (!flushTranscriptForExit())
+            return
         if (injectedRecorder && injectedRecorder.recording)
             recordingQuitDialog.open()
         else if (vm.jobQueue.activeCount > 0)
             quitDialog.open()
         else
             Qt.quit()
+    }
+
+    function flushTranscriptForExit() {
+        if (!recordingPage.commitActiveEdit())
+            return false
+        return vm.flushActiveTranscript()
     }
 
     property var pendingToasts: []
@@ -116,6 +124,9 @@ ApplicationWindow {
             if (recordingId.length > 0)
                 exportDialog.open()
         }
+        function onActiveTranscriptDraftCommitRequested() {
+            window.vm.reportActiveTranscriptDraftCommit(recordingPage.commitActiveEdit())
+        }
     }
 
     Connections {
@@ -152,10 +163,16 @@ ApplicationWindow {
                 window.vm.navigate("Library")
             }
         }
-        onSaveTriggered: if (window.vm.currentPage === "Recording") window.vm.transcript.save()
-        onExportTriggered: window.vm.exportActiveRecording()
-        onUndoTriggered: if (window.vm.currentPage === "Recording") window.vm.transcript.undo()
-        onRedoTriggered: if (window.vm.currentPage === "Recording") window.vm.transcript.redo()
+        onSaveTriggered: if (window.vm.currentPage === "Recording") recordingPage.saveTranscript()
+        onExportTriggered: recordingPage.requestExport()
+        onUndoTriggered: if (window.vm.currentPage === "Recording") {
+            if (recordingPage.commitActiveEdit())
+                window.vm.transcript.undo()
+        }
+        onRedoTriggered: if (window.vm.currentPage === "Recording") {
+            if (recordingPage.commitActiveEdit())
+                window.vm.transcript.redo()
+        }
         onSettingsTriggered: window.vm.navigate("Settings")
     }
 
@@ -347,10 +364,14 @@ ApplicationWindow {
             qsTr("JSON (*.json)"),
             qsTr("CSV (*.csv)")
         ]
-        onAccepted: window.vm.exportActiveRecordingTo(
+        onAccepted: {
+            if (!recordingPage.commitActiveEdit())
+                return
+            window.vm.exportActiveRecordingTo(
                         selectedFile,
                         window.exportFormat(selectedNameFilter.index),
                         false)
+        }
     }
 
     FileDialog {
@@ -446,7 +467,11 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
                 AppButton { text: qsTr("Continue in Background"); onClicked: { quitDialog.close(); window.hide() } }
-                AppButton { text: qsTr("Quit and Resume Later"); primary: true; onClicked: Qt.quit() }
+                AppButton {
+                    text: qsTr("Quit and Resume Later")
+                    primary: true
+                    onClicked: if (window.flushTranscriptForExit()) Qt.quit()
+                }
             }
         }
     }

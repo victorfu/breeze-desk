@@ -2,6 +2,8 @@
 
 #include <QObject>
 
+#include <functional>
+
 #include "breezedesk/ui/JobListModel.h"
 
 namespace BreezeDesk {
@@ -38,6 +40,8 @@ class JobQueueViewModel final : public QObject {
     Q_INVOKABLE void moveDown(const QString& jobId);
     Q_INVOKABLE void clearCompleted();
 
+    void setRetryResumeGate(std::function<bool(const QString&)> gate);
+
     void confirmRemoved(const QString& jobId);
     void confirmCompletedRemoved();
 
@@ -67,6 +71,7 @@ class JobQueueViewModel final : public QObject {
 
   private:
     JobListModel m_jobs;
+    std::function<bool(const QString&)> m_retryResumeGate;
     bool m_pauseAfterCurrent{false};
 };
 
