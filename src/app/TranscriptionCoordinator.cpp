@@ -11,6 +11,7 @@
 #include "breezedesk/audio/FFprobeService.h"
 #include "breezedesk/audio/NormalizedAudioValidator.h"
 #include "breezedesk/audio/WaveformGenerator.h"
+#include "breezedesk/core/FileHash.h"
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/database/IRecordingRepository.h"
 #include "breezedesk/glossary/GlossaryPostProcessor.h"
@@ -78,6 +79,11 @@ QList<GlossaryTerm> glossaryTermsFromParameters(const QJsonObject& parameters) {
 
 struct InspectionResult {
     MediaMetadata metadata;
+    QString error;
+};
+
+struct SourceHashResult {
+    QString sha256;
     QString error;
 };
 
@@ -646,6 +652,7 @@ void TranscriptionCoordinator::releaseActiveLease() {
 void TranscriptionCoordinator::beginJob(const TranscriptionJob& job) {
     m_activeJob = job;
     m_activeJob.state = JobState::Preparing;
+    m_activeSourceHash.clear();
     m_vadModelVerified = false;
     m_vadRecoveryAttempted = false;
     publishEvents(job.id);
@@ -674,23 +681,106 @@ void TranscriptionCoordinator::continuePreparingJob() {
         failActiveJob(QStringLiteral("SourceFileMissing"), tr("The source media file is missing."));
         return;
     }
-    NormalizedAudioInfo cachedAudio;
-    QString cacheError;
-    if (value.durationMs > 0 &&
-        NormalizedAudioValidator::validate(m_activeNormalizedPath, value.durationMs, &cachedAudio,
-                                           &cacheError)) {
-        if (!persistNormalizedDuration(cachedAudio.durationMs, &cacheError)) {
-            failActiveJob(QStringLiteral("DatabaseQueryFailed"), cacheError);
-            return;
-        }
-        if (!value.waveformPath.isEmpty() && QFileInfo(value.waveformPath).isFile()) {
-            prepareChunks();
-        } else {
-            beginWaveformGeneration();
-        }
-        return;
-    }
-    inspectMedia();
+    verifySourceMedia();
+}
+
+void TranscriptionCoordinator::verifySourceMedia() {
+    const QString jobId = m_activeJob.id;
+    const QString sourcePath = m_activeSourcePath;
+    auto* watcher = new QFutureWatcher<SourceHashResult>(this);
+    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this,
+            [this, watcher, jobId] {
+                const SourceHashResult result = watcher->result();
+                watcher->deleteLater();
+                if (!activeJobMatches(jobId)) {
+                    return;
+                }
+                if (result.sha256.isEmpty()) {
+                    failActiveJob(QStringLiteral("SourceFileMissing"),
+                                  tr("The source media file could not be read: %1").arg(result.error));
+                    return;
+                }
+                m_activeSourceHash = result.sha256;
+
+                const auto recording = m_recordings.findById(m_activeJob.recordingId);
+                if (!recording || !recording.value().has_value()) {
+                    failActiveJob(QStringLiteral("SourceFileMissing"),
+                                  recording ? tr("The recording no longer exists.")
+                                            : recording.error().message);
+                    return;
+                }
+                const Recording& value = recording.value().value();
+                const bool cacheSourceMatches =
+                    !value.sourceHash.isEmpty() &&
+                    value.sourceHash.compare(m_activeSourceHash, Qt::CaseInsensitive) == 0;
+                const auto chunks = m_jobs.chunks(m_activeJob.id);
+                if (!chunks) {
+                    failActiveJob(QStringLiteral("DatabaseQueryFailed"), chunks.error().message);
+                    return;
+                }
+                const QString jobSourceHash =
+                    m_activeJob.parameters.value(QStringLiteral("sourceHash")).toString();
+                if ((!jobSourceHash.isEmpty() &&
+                     jobSourceHash.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) ||
+                    (jobSourceHash.isEmpty() && !chunks.value().isEmpty())) {
+                    failActiveJob(
+                        QStringLiteral("SourceMediaChanged"),
+                        jobSourceHash.isEmpty()
+                            ? tr("This transcription has no verified source-media identity. Start a new "
+                                 "transcription so existing chunks are not mixed with different audio.")
+                            : tr("The source media changed after this transcription started. Start a new "
+                                 "transcription so existing chunks are not mixed with different audio."));
+                    return;
+                }
+                if (jobSourceHash.isEmpty()) {
+                    QJsonObject parameters = m_activeJob.parameters;
+                    parameters.insert(QStringLiteral("sourceHash"), m_activeSourceHash);
+                    const auto bound = m_jobs.updateParameters(m_activeJob.id, parameters);
+                    if (!bound) {
+                        failActiveJob(QStringLiteral("DatabaseQueryFailed"), bound.error().message);
+                        return;
+                    }
+                    m_activeJob.parameters = std::move(parameters);
+                }
+
+                NormalizedAudioInfo cachedAudio;
+                QString cacheError;
+                const bool reusableCache =
+                    cacheSourceMatches && value.durationMs > 0 &&
+                    NormalizedAudioValidator::validate(m_activeNormalizedPath, value.durationMs,
+                                                       &cachedAudio, &cacheError);
+                if (reusableCache) {
+                    if (!persistNormalizedDuration(cachedAudio.durationMs, &cacheError)) {
+                        failActiveJob(QStringLiteral("DatabaseQueryFailed"), cacheError);
+                        return;
+                    }
+                    if (!value.waveformPath.isEmpty() && QFileInfo(value.waveformPath).isFile()) {
+                        prepareChunks();
+                    } else {
+                        beginWaveformGeneration();
+                    }
+                    return;
+                }
+
+                Recording invalidated = value;
+                invalidated.sourceHash.clear();
+                invalidated.normalizedPcmPath.clear();
+                invalidated.waveformPath.clear();
+                invalidated.durationMs = 0;
+                invalidated.sampleRate = 0;
+                invalidated.channelCount = 0;
+                const auto saved = m_recordings.update(invalidated);
+                if (!saved) {
+                    failActiveJob(QStringLiteral("DatabaseQueryFailed"), saved.error().message);
+                    return;
+                }
+                inspectMedia();
+            });
+    watcher->setFuture(QtConcurrent::run([sourcePath] {
+        SourceHashResult result;
+        result.sha256 = FileHash::sha256(sourcePath, &result.error);
+        return result;
+    }));
 }
 
 bool TranscriptionCoordinator::persistNormalizedDuration(const qint64 durationMs, QString* error) {
@@ -821,12 +911,44 @@ void TranscriptionCoordinator::beginNormalization() {
                                       .arg(validationError));
                     return;
                 }
-                if (!persistNormalizedDuration(normalizedAudio.durationMs, &validationError)) {
-                    failActiveJob(QStringLiteral("DatabaseQueryFailed"), validationError);
+                verifyNormalizedSource(normalizedAudio.durationMs);
+            });
+}
+
+void TranscriptionCoordinator::verifyNormalizedSource(const qint64 durationMs) {
+    const QString jobId = m_activeJob.id;
+    const QString sourcePath = m_activeSourcePath;
+    auto* watcher = new QFutureWatcher<SourceHashResult>(this);
+    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this,
+            [this, watcher, jobId, durationMs] {
+                const SourceHashResult result = watcher->result();
+                watcher->deleteLater();
+                if (!activeJobMatches(jobId)) {
+                    return;
+                }
+                if (result.sha256.isEmpty() ||
+                    result.sha256.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) {
+                    failActiveJob(
+                        QStringLiteral("SourceMediaChanged"),
+                        result.sha256.isEmpty()
+                            ? tr("The source media could not be verified after audio decoding: %1")
+                                  .arg(result.error)
+                            : tr("The source media changed while its audio was being decoded. Start the "
+                                 "transcription again."));
+                    return;
+                }
+                QString error;
+                if (!persistNormalizedDuration(durationMs, &error)) {
+                    failActiveJob(QStringLiteral("DatabaseQueryFailed"), error);
                     return;
                 }
                 beginWaveformGeneration();
             });
+    watcher->setFuture(QtConcurrent::run([sourcePath] {
+        SourceHashResult result;
+        result.sha256 = FileHash::sha256(sourcePath, &result.error);
+        return result;
+    }));
 }
 
 void TranscriptionCoordinator::beginWaveformGeneration() {
@@ -874,6 +996,7 @@ void TranscriptionCoordinator::beginWaveformGeneration() {
                 Recording updated = recording.value().value();
                 updated.normalizedPcmPath = normalizedPath;
                 updated.waveformPath = result.path;
+                updated.sourceHash = m_activeSourceHash;
                 const auto saved = m_recordings.update(updated);
                 if (!saved) {
                     failActiveJob(QStringLiteral("DatabaseQueryFailed"), saved.error().message);
@@ -1864,6 +1987,7 @@ void TranscriptionCoordinator::clearActive() {
     m_requestKind = RequestKind::None;
     m_activeSourcePath.clear();
     m_activeNormalizedPath.clear();
+    m_activeSourceHash.clear();
     m_latestPartialText.clear();
     m_normalization = nullptr;
     m_activeTranscriptPublished = false;

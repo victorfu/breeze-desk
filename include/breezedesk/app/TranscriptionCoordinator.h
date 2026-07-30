@@ -78,6 +78,8 @@ class TranscriptionCoordinator final : public QObject {
     void releaseActiveLease();
     void beginJob(const TranscriptionJob& job);
     void continuePreparingJob();
+    void verifySourceMedia();
+    void verifyNormalizedSource(qint64 durationMs);
     bool persistNormalizedDuration(qint64 durationMs, QString* error = nullptr);
     void inspectMedia();
     void beginNormalization();
@@ -131,6 +133,7 @@ class TranscriptionCoordinator final : public QObject {
     int m_lastNormalizationPercent{-1};
     QString m_activeSourcePath;
     QString m_activeNormalizedPath;
+    QString m_activeSourceHash;
     QString m_ownerToken;
     QString m_runningJobId;
     QString m_latestPartialText;

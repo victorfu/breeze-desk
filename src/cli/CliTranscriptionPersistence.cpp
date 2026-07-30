@@ -40,6 +40,18 @@ QString segmentHash(const QList<TranscriptSegment>& segments) {
     return QString::fromLatin1(hash.result().toHex());
 }
 
+bool normalizeSha256(const QString& sourceHash, QString* normalized) {
+    if (normalized == nullptr) {
+        return false;
+    }
+    *normalized = sourceHash.trimmed().toLower();
+    return normalized->size() == 64 &&
+           std::all_of(normalized->cbegin(), normalized->cend(), [](const QChar character) {
+               return (character >= QLatin1Char('0') && character <= QLatin1Char('9')) ||
+                      (character >= QLatin1Char('a') && character <= QLatin1Char('f'));
+           });
+}
+
 } // namespace
 
 CliTranscriptionPersistence::CliTranscriptionPersistence(IRecordingRepository& recordings,
@@ -131,6 +143,7 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
     }
 
     m_identity = {recording.id, job.id, savedChunks.value(), false};
+    m_sourceBindingStage = JobStage::Preparing;
     m_active = true;
     auto claimResult = waitForExecutionClaim(job.id);
     if (!claimResult) {
@@ -187,6 +200,7 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
                                         QStringLiteral("The interrupted job has no durable chunk plan.")));
 
     m_identity = {jobResult.value()->recordingId, jobId, savedChunks.value(), true};
+    m_sourceBindingStage = jobResult.value()->stage;
     m_active = true;
     if (!normalizedPcmPath.isEmpty()) {
         auto pathResult = updateRecordingNormalizedPath(normalizedPcmPath);
@@ -227,6 +241,43 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
     return Result<DurableTranscriptionIdentity>::success(m_identity);
 }
 
+Result<void> CliTranscriptionPersistence::bindSourceMedia(const QString& sourceHash) {
+    auto activeResult = requireActive();
+    if (!activeResult)
+        return activeResult;
+    QString normalizedSourceHash;
+    if (!normalizeSha256(sourceHash, &normalizedSourceHash))
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument, QStringLiteral("A valid source-media SHA-256 is required.")));
+    auto jobResult = currentJob();
+    if (!jobResult)
+        return Result<void>::failure(jobResult.error());
+    const QString boundSourceHash =
+        jobResult.value().parameters.value(QStringLiteral("sourceHash")).toString();
+    if (!boundSourceHash.isEmpty()) {
+        if (boundSourceHash.compare(normalizedSourceHash, Qt::CaseInsensitive) != 0)
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidStateTransition,
+                QStringLiteral("The source media changed after this transcription started. Start a new "
+                               "transcription so existing chunks are not mixed with different audio.")));
+        return Result<void>::success();
+    }
+
+    const bool chunkHasStarted =
+        std::any_of(m_identity.chunks.cbegin(), m_identity.chunks.cend(), [](const JobChunk& chunk) {
+            return chunk.state != ChunkState::Pending || chunk.attempts > 0;
+        });
+    if (m_identity.resumed && (m_sourceBindingStage != JobStage::Preparing || chunkHasStarted))
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidStateTransition,
+            QStringLiteral("The interrupted job has no verified source-media identity. Start a new "
+                           "transcription so existing chunks are not mixed with different audio.")));
+
+    QJsonObject parameters = jobResult.value().parameters;
+    parameters.insert(QStringLiteral("sourceHash"), normalizedSourceHash);
+    return m_jobs.updateParameters(m_identity.jobId, parameters);
+}
+
 Result<void> CliTranscriptionPersistence::beginNormalization() {
     auto activeResult = requireActive();
     if (!activeResult)
@@ -246,14 +297,18 @@ Result<void> CliTranscriptionPersistence::updateNormalizationProgress(const doub
 }
 
 Result<void> CliTranscriptionPersistence::updateNormalizedAudio(const QString& path,
-                                                                const qint64 durationMs) {
+                                                                const qint64 durationMs,
+                                                                const QString& sourceHash,
+                                                                const bool regenerated) {
     auto activeResult = requireActive();
     if (!activeResult)
         return activeResult;
-    if (path.trimmed().isEmpty() || durationMs <= 0)
+    QString normalizedSourceHash;
+    if (path.trimmed().isEmpty() || durationMs <= 0 ||
+        !normalizeSha256(sourceHash, &normalizedSourceHash))
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument,
-            QStringLiteral("Normalized audio requires a path and a positive duration.")));
+            QStringLiteral("Normalized audio requires a path, positive duration, and source SHA-256.")));
     auto recording = m_recordings.findById(m_identity.recordingId);
     if (!recording)
         return Result<void>::failure(recording.error());
@@ -261,8 +316,12 @@ Result<void> CliTranscriptionPersistence::updateNormalizedAudio(const QString& p
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::NotFound, QStringLiteral("The durable source recording no longer exists.")));
     Recording changed = *recording.value();
+    if (regenerated || changed.sourceHash.compare(normalizedSourceHash, Qt::CaseInsensitive) != 0) {
+        changed.waveformPath.clear();
+    }
     changed.normalizedPcmPath = normalizedPath(path);
     changed.durationMs = durationMs;
+    changed.sourceHash = normalizedSourceHash;
     return m_recordings.update(changed);
 }
 

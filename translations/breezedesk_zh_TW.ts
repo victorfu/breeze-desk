@@ -9,84 +9,84 @@
         <translation>無法在繼續轉錄前儲存逐字稿。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="454"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="453"/>
         <source>Imported a managed media copy.</source>
         <translation>已匯入受管理的媒體副本。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="474"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="473"/>
         <source>Imported %n media file(s).</source>
         <translation>
             <numerusform>已匯入 %n 個媒體檔案。</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="482"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="481"/>
         <source>Copying %n media file(s) into managed storage…</source>
         <translation>
             <numerusform>正在將 %n 個媒體檔案複製到受管理儲存空間…</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="491"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="490"/>
         <source>A folder import is already running.</source>
         <translation>已有一項資料夾匯入作業正在執行。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="496"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="495"/>
         <source>Choose a readable local folder.</source>
         <translation>請選擇可讀取的本機資料夾。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="530"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="529"/>
         <source>The folder does not contain supported audio or video files.</source>
         <translation>此資料夾不含支援的音訊或影片檔案。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="620"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="619"/>
         <source>Folder import cancelled.</source>
         <translation>已取消資料夾匯入。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="624"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="623"/>
         <source>Imported %n media file(s) from the folder.</source>
         <translation>
             <numerusform>已從資料夾匯入 %n 個媒體檔案。</numerusform>
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="626"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="625"/>
         <source>Imported %1 media file(s); %2 could not be imported.</source>
         <translation>已匯入 %1 個媒體檔案；另有 %2 個無法匯入。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="636"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="635"/>
         <source>File manager integration is unavailable.</source>
         <translation>檔案管理器整合目前無法使用。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="644"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="643"/>
         <source>The recording source is missing. Relink it to continue.</source>
         <translation>錄音來源已遺失。請重新連結來源後繼續。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="649"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="648"/>
         <source>The recording could not be revealed in the file manager.</source>
         <translation>無法在檔案管理器中顯示錄音來源。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="667"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="666"/>
         <source>The selected recording is no longer available.</source>
         <translation>所選錄音已不存在。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="688"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="687"/>
         <source>The waveform preview could not be loaded: %1</source>
         <translation>無法載入波形預覽：%1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="702"/>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="730"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="701"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="729"/>
         <source>Choose an imported recording first.</source>
         <translation>請先選擇已匯入的錄音。</translation>
     </message>
@@ -95,42 +95,42 @@
         <translation type="vanished">已將轉錄工作加入佇列。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="721"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="720"/>
         <source>Downloading and verifying Breeze-ASR-25 Q5_K. Transcription will start automatically when it is ready.</source>
         <translation>正在下載並驗證 Breeze-ASR-25 Q5_K；模型準備完成後會自動開始轉錄。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="741"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="740"/>
         <source>Transcription started. You can continue using the app.</source>
         <translation>轉錄已開始。您可以繼續使用應用程式。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="747"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="746"/>
         <source>Open a recording before exporting.</source>
         <translation>請先開啟錄音再匯出。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="757"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="756"/>
         <source>Transcribe and open a recording before exporting.</source>
         <translation>請先轉錄並開啟錄音再匯出。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="761"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="760"/>
         <source>Choose a local destination for the export.</source>
         <translation>請選擇本機匯出位置。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="774"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="773"/>
         <source>The selected export format is not supported.</source>
         <translation>不支援所選的匯出格式。</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="805"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="804"/>
         <source>Transcript exported to %1</source>
         <translation>逐字稿已匯出至 %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="885"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="884"/>
         <source>Save or discard the current transcript edits before refreshing live results.</source>
         <translation>請先儲存或捨棄目前的逐字稿編輯，再重新整理即時結果。</translation>
     </message>
@@ -175,7 +175,7 @@
         <translation type="vanished">%1 副本</translation>
     </message>
     <message>
-        <location filename="../src/ui/GlossaryViewModel.cpp" line="375"/>
+        <location filename="../src/ui/GlossaryViewModel.cpp" line="374"/>
         <source>Enter a canonical term.</source>
         <translation>請輸入標準詞條。</translation>
     </message>
@@ -577,70 +577,107 @@
         <translation type="vanished">%1 上次未正常關閉，此工作當時仍在執行。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="366"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="373"/>
         <source>%1 closed while this job was running.</source>
         <translation>%1 關閉時，此工作仍在執行。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="371"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="378"/>
         <source>A recording and job ID are required.</source>
         <translation>必須提供錄音 ID 與工作 ID。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="376"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="663"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="713"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1414"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="383"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="671"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="708"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="796"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="838"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1618"/>
         <source>The recording no longer exists.</source>
         <translation>錄音已不存在。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="410"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="417"/>
         <source>The glossary could not be loaded.</source>
         <translation>無法載入專有名詞。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="448"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="455"/>
         <source>The job no longer exists.</source>
         <translation>工作已不存在。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="621"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="628"/>
         <source>This transcription lost the global execution lease and was stopped.</source>
         <translation>此轉錄工作已失去全域執行租約，因此已停止。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="673"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="681"/>
         <source>The source media file is missing.</source>
         <translation>找不到來源媒體檔案。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="707"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="700"/>
+        <source>The source media file could not be read: %1</source>
+        <translation>無法讀取來源媒體檔案：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="729"/>
+        <source>This transcription has no verified source-media identity. Start a new transcription so existing chunks are not mixed with different audio.</source>
+        <translation>此轉錄工作沒有可驗證的來源媒體識別。請建立新的轉錄工作，以免既有分段與不同音訊混合。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="731"/>
+        <source>The source media changed after this transcription started. Start a new transcription so existing chunks are not mixed with different audio.</source>
+        <translation>此轉錄開始後，來源媒體已變更。請建立新的轉錄工作，以免既有分段與不同音訊混合。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="789"/>
+        <source>The normalized recording duration is invalid.</source>
+        <translation>標準化錄音長度無效。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="832"/>
         <source>The media does not contain supported audio.</source>
         <translation>媒體中沒有支援的音訊。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="739"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="864"/>
         <source>ffmpeg is not available.</source>
         <translation>無法使用 ffmpeg。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="772"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="897"/>
         <source>Audio normalization failed.</source>
         <translation>音訊標準化失敗。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="814"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="910"/>
+        <source>The decoded audio could not be validated: %1</source>
+        <translation>無法驗證解碼後的音訊：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="934"/>
+        <source>The source media could not be verified after audio decoding: %1</source>
+        <translation>音訊解碼後無法驗證來源媒體：%1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="936"/>
+        <source>The source media changed while its audio was being decoded. Start the transcription again.</source>
+        <translation>音訊解碼期間來源媒體已變更。請重新開始轉錄。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="986"/>
         <source>The audio waveform could not be generated.</source>
         <translation>無法產生音訊波形。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="821"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="993"/>
         <source>The normalized recording could not be saved.</source>
         <translation>無法儲存標準化後的錄音。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="860"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1021"/>
         <source>The recording duration is invalid.</source>
         <translation>錄音長度無效。</translation>
     </message>
@@ -649,77 +686,82 @@
         <translation type="vanished">使用 VAD 轉錄長錄音前，請先安裝 Silero VAD 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1049"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1243"/>
         <source>The required Silero VAD model is not present in the trusted model manifest.</source>
         <translation>受信任的模型清單中沒有必要的 Silero VAD 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1057"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1251"/>
         <source>The required Silero VAD model is missing or invalid. Downloading and verifying it now.</source>
         <translation>必要的 Silero VAD 模型缺少或無效，正在自動下載並驗證。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1076"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1270"/>
         <source>The Silero VAD model could not be downloaded and verified.</source>
         <translation>無法下載並驗證 Silero VAD 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1077"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1271"/>
         <source>The Silero VAD model could not be downloaded and verified: %1</source>
         <translation>無法下載並驗證 Silero VAD 模型：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1083"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1277"/>
         <source>The downloaded Silero VAD model failed verification: %1</source>
         <translation>下載的 Silero VAD 模型驗證失敗：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1088"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1282"/>
         <source>The Silero VAD model was downloaded and verified.</source>
         <translation>Silero VAD 模型已下載並通過驗證。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1226"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1420"/>
         <source>The active transcription unit is no longer available.</source>
         <translation>目前的轉錄單元已無法使用。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1888"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2093"/>
         <source>Downloading Silero VAD model</source>
         <translation>正在下載 Silero VAD 模型</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1890"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2095"/>
         <source>Silero VAD model downloaded</source>
         <translation>Silero VAD 模型下載完成</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1897"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2102"/>
         <source>Silero VAD model download failed</source>
         <translation>Silero VAD 模型下載失敗</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="890"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1084"/>
         <source>Speech analysis did not produce a transcription chunk plan.</source>
         <translation>語音分析未產生轉錄分段計畫。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="938"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1038"/>
+        <source>The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. Start a new transcription so the audio tail is not omitted.</source>
+        <translation>標準化音訊長度為 %1 毫秒，但續傳的分段計畫僅到 %2 毫秒。請建立新的轉錄工作，以免遺漏音訊尾端。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1132"/>
         <source>The ASR worker did not become ready.</source>
         <translation>ASR 背景處理程序未能就緒。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="953"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1147"/>
         <source>The ASR worker capability request could not be sent.</source>
         <translation>無法傳送本機語音辨識程序的能力查詢。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="962"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1156"/>
         <source>The ASR worker did not report its runtime capabilities.</source>
         <translation>本機語音辨識程序未回報其執行能力。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="978"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1172"/>
         <source>Speech recognition is unavailable because this ASR worker does not include whisper.cpp. Reinstall the application or use a build configured with whisper.cpp.</source>
         <translation>這個本機語音辨識程序未包含 whisper.cpp，因此無法進行語音辨識。請重新安裝應用程式，或使用已啟用 whisper.cpp 的版本。</translation>
     </message>
@@ -732,152 +774,157 @@
         <translation type="vanished">Silero VAD 模型沒有可信任的檢查碼。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1022"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1216"/>
         <source>The speech-analysis request could not be sent to the ASR worker.</source>
         <translation>無法將語音分析要求傳送至 ASR 背景處理程序。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1136"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1330"/>
         <source>Install the selected ASR model before starting transcription.</source>
         <translation>開始轉錄前，請先安裝所選的 ASR 模型。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1144"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1338"/>
         <source>The selected ASR model does not have a trusted checksum.</source>
         <translation>選取的 ASR 模型沒有可信任的檢查碼。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1181"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1375"/>
         <source>The model-load request could not be sent to the ASR worker.</source>
         <translation>無法將模型載入要求傳送至 ASR 背景處理程序。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1304"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1498"/>
         <source>The transcription request could not be sent to the ASR worker.</source>
         <translation>無法將轉錄要求傳送至 ASR 背景處理程序。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1355"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1549"/>
         <source>The ASR worker rejected the request.</source>
         <translation>ASR 背景處理程序拒絕了要求。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1365"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1559"/>
         <source>The ASR worker returned an invalid capability response.</source>
         <translation>本機語音辨識程序回傳了無效的能力資訊。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1371"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1565"/>
         <source>The ASR worker capability response is missing runtime availability.</source>
         <translation>本機語音辨識程序的能力資訊缺少執行狀態。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1386"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1580"/>
         <source>The ASR worker cancelled the active operation.</source>
         <translation>ASR 背景處理程序已取消目前的操作。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1510"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1610"/>
+        <source>Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.</source>
+        <translation>語音分析回報的標準化音訊長度為 %1 毫秒，但實際長度為 %2 毫秒。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1714"/>
         <source>The ASR worker returned a segment outside the active chunk.</source>
         <translation>ASR 背景處理程序傳回的段落超出目前分段範圍。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1523"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1727"/>
         <source>The ASR worker returned an empty segment time range.</source>
         <translation>ASR 背景處理程序傳回的段落時間範圍為空。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1719"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1923"/>
         <source>Transcription was cancelled.</source>
         <translation>轉錄已取消。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1821"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2026"/>
         <source>The loaded ASR runtime did not report its backend and version.</source>
         <translation>已載入的 ASR 執行階段未回報後端與版本。</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1870"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2075"/>
         <source>Added to queue</source>
         <translation>已加入佇列</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1872"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2077"/>
         <source>Started processing</source>
         <translation>已開始處理</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1874"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2079"/>
         <source>Stage changed</source>
         <translation>處理階段已變更</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1876"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2081"/>
         <source>Transcription unit started</source>
         <translation>轉錄區塊已開始</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1878"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2083"/>
         <source>Transcription unit completed</source>
         <translation>轉錄區塊已完成</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1880"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2085"/>
         <source>Transcription unit failed</source>
         <translation>轉錄區塊失敗</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1882"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2087"/>
         <source>Transcription unit cancelled</source>
         <translation>轉錄區塊已取消</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1884"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2089"/>
         <source>Transcription unit interrupted</source>
         <translation>轉錄區塊已中斷</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1886"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2091"/>
         <source>Transcription unit reset</source>
         <translation>轉錄區塊已重設</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1892"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2097"/>
         <source>Transcription completed</source>
         <translation>轉錄已完成</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1894"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2099"/>
         <source>Transcription cancelled</source>
         <translation>轉錄已取消</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1898"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2103"/>
         <source>Transcription failed</source>
         <translation>轉錄失敗</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1900"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2105"/>
         <source>Transcription interrupted</source>
         <translation>轉錄已中斷</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1902"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2107"/>
         <source>Retry queued</source>
         <translation>已排入重試</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1904"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2109"/>
         <source>Resume queued</source>
         <translation>已排入繼續執行</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1907"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2112"/>
         <source>Previous transcription worker stopped responding</source>
         <translation>上一個轉錄執行程序已停止回應</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1909"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2114"/>
         <source>Transcript updated</source>
         <translation>逐字稿已更新</translation>
     </message>
@@ -886,17 +933,17 @@
         <translation type="vanished">已設為最新完成版本</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1913"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2118"/>
         <source>Transcription status updated</source>
         <translation>轉錄狀態已更新</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1919"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2124"/>
         <source>Unit %1 of %2</source>
         <translation>區塊 %1 / %2</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1920"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2125"/>
         <source>Unit %1</source>
         <translation>區塊 %1</translation>
     </message>
@@ -1580,7 +1627,7 @@
         <translation>此版本無法使用麥克風錄音。</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="126"/>
+        <location filename="../src/qml/Main.qml" line="128"/>
         <source>Diagnostics export is unavailable in this build.</source>
         <translation>此版本無法匯出診斷資料。</translation>
     </message>
@@ -1589,12 +1636,12 @@
         <translation type="vanished">BreezeDesk 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="210"/>
+        <location filename="../src/qml/Main.qml" line="212"/>
         <source>%1 logo</source>
         <translation>%1 標誌</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="241"/>
+        <location filename="../src/qml/Main.qml" line="243"/>
         <source>Library</source>
         <translation>錄音庫</translation>
     </message>
@@ -1615,7 +1662,7 @@
         <translation type="vanished">專有名詞</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="247"/>
+        <location filename="../src/qml/Main.qml" line="249"/>
         <source>Name Dictionary</source>
         <translation>專有名詞</translation>
     </message>
@@ -1628,77 +1675,77 @@
         <translation type="vanished">開始錄音</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="260"/>
+        <location filename="../src/qml/Main.qml" line="262"/>
         <source>Activity</source>
         <translation>活動</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="268"/>
+        <location filename="../src/qml/Main.qml" line="270"/>
         <source>Settings</source>
         <translation>設定</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="320"/>
+        <location filename="../src/qml/Main.qml" line="322"/>
         <source>Import Audio or Video</source>
         <translation>匯入音訊或影片</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="323"/>
+        <location filename="../src/qml/Main.qml" line="325"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>媒體檔案 (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="324"/>
+        <location filename="../src/qml/Main.qml" line="326"/>
         <source>All files (*)</source>
         <translation>所有檔案 (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="332"/>
+        <location filename="../src/qml/Main.qml" line="334"/>
         <source>Import Media Folder</source>
         <translation>匯入媒體資料夾</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="338"/>
+        <location filename="../src/qml/Main.qml" line="340"/>
         <source>Export Transcript</source>
         <translation>匯出逐字稿</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="341"/>
+        <location filename="../src/qml/Main.qml" line="343"/>
         <source>Plain text (*.txt)</source>
         <translation>純文字 (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="342"/>
+        <location filename="../src/qml/Main.qml" line="344"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="343"/>
+        <location filename="../src/qml/Main.qml" line="345"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip 字幕 (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="344"/>
+        <location filename="../src/qml/Main.qml" line="346"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT 字幕 (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="345"/>
+        <location filename="../src/qml/Main.qml" line="347"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="346"/>
+        <location filename="../src/qml/Main.qml" line="348"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="356"/>
+        <location filename="../src/qml/Main.qml" line="358"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>匯入 whisper.cpp GGML 模型</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="358"/>
+        <location filename="../src/qml/Main.qml" line="360"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML 模型 (*.bin)</translation>
     </message>
@@ -1985,37 +2032,37 @@
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="467"/>
-        <location filename="../src/app/main.cpp" line="810"/>
+        <location filename="../src/app/main.cpp" line="815"/>
         <source>Show %1</source>
         <translation>顯示 %1</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="468"/>
-        <location filename="../src/app/main.cpp" line="811"/>
+        <location filename="../src/app/main.cpp" line="816"/>
         <source>Import Files</source>
         <translation>匯入檔案</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="469"/>
-        <location filename="../src/app/main.cpp" line="812"/>
+        <location filename="../src/app/main.cpp" line="817"/>
         <source>Start Recording</source>
         <translation>開始錄音</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="470"/>
-        <location filename="../src/app/main.cpp" line="802"/>
+        <location filename="../src/app/main.cpp" line="807"/>
         <source>Queue: idle</source>
         <translation>佇列：閒置</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="472"/>
-        <location filename="../src/app/main.cpp" line="813"/>
+        <location filename="../src/app/main.cpp" line="818"/>
         <source>Pause after current job</source>
         <translation>目前工作完成後暫停</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="474"/>
-        <location filename="../src/app/main.cpp" line="814"/>
+        <location filename="../src/app/main.cpp" line="819"/>
         <source>Quit</source>
         <translation>結束</translation>
     </message>
@@ -2050,7 +2097,7 @@
         <translation>錄音已儲存，但無法開啟。</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/main.cpp" line="803"/>
+        <location filename="../src/app/main.cpp" line="808"/>
         <source>Queue: %n active job(s)</source>
         <translation>
             <numerusform>佇列：%n 項進行中的工作</numerusform>

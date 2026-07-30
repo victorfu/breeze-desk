@@ -37,9 +37,12 @@ class CliTranscriptionPersistence final {
     [[nodiscard]] Result<DurableTranscriptionIdentity> resume(const QString& jobId, const QString& sourcePath,
                                                               const QString& normalizedPcmPath);
 
+    [[nodiscard]] Result<void> bindSourceMedia(const QString& sourceHash);
     [[nodiscard]] Result<void> beginNormalization();
     [[nodiscard]] Result<void> updateNormalizationProgress(double fraction);
-    [[nodiscard]] Result<void> updateNormalizedAudio(const QString& path, qint64 durationMs);
+    [[nodiscard]] Result<void> updateNormalizedAudio(const QString& path, qint64 durationMs,
+                                                     const QString& sourceHash,
+                                                     bool regenerated = false);
     [[nodiscard]] Result<void> beginModelLoad();
     [[nodiscard]] Result<void> beginSpeechAnalysis();
     [[nodiscard]] Result<void> updateSpeechAnalysisProgress(double fraction);
@@ -81,6 +84,7 @@ class CliTranscriptionPersistence final {
     QString m_ownerToken;
     std::function<bool()> m_cancellationRequested;
     std::function<void(const QString&)> m_waitNotification;
+    JobStage m_sourceBindingStage = JobStage::Preparing;
     bool m_active = false;
 };
 

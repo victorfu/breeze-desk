@@ -26,6 +26,7 @@ class JobsTest final : public QObject {
     void clearingCompletedQueuePermanentlyDeletesJobs();
     void removingTerminalJobPermanentlyDeletesIt();
     void runtimeDiagnosticsArePersisted();
+    void jobParametersCanBeUpdated();
     void completedTranscriptionReplacesPreviousTranscript();
     void executionLeaseSerializesWorkersAndCompletesAtomically();
     void concurrentRepositoriesClaimOnlyOneJob();
@@ -201,6 +202,33 @@ void JobsTest::runtimeDiagnosticsArePersisted() {
     QCOMPARE(saved.value()->workerVersion, QStringLiteral("1.0.0"));
     QCOMPARE(saved.value()->diagnostics.value(QStringLiteral("loadTimeMs")).toInt(), 420);
     QVERIFY(saved.value()->diagnostics.value(QStringLiteral("existing")).toBool());
+}
+
+void JobsTest::jobParametersCanBeUpdated() {
+    QTemporaryDir directory;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    Recording recording;
+    recording.id = QStringLiteral("rec-parameters");
+    recording.title = QStringLiteral("Parameter persistence");
+    QVERIFY(recordings.create(recording));
+    SqliteJobRepository repository(database);
+    TranscriptionJob job;
+    job.id = QStringLiteral("job-parameters");
+    job.recordingId = recording.id;
+    job.parameters = {{QStringLiteral("existing"), true}};
+    QVERIFY(repository.create(job));
+
+    const QJsonObject parameters = {{QStringLiteral("sourceHash"), QString(64, QLatin1Char('a'))},
+                                    {QStringLiteral("durationMs"), 1'000}};
+    QVERIFY(repository.updateParameters(job.id, parameters));
+    const auto saved = repository.findById(job.id);
+    QVERIFY(saved && saved.value().has_value());
+    QCOMPARE(saved.value()->parameters, parameters);
+    const auto missing = repository.updateParameters(QStringLiteral("missing-job"), parameters);
+    QVERIFY(!missing);
+    QCOMPARE(missing.error().code, ErrorCode::NotFound);
 }
 
 void JobsTest::completedTranscriptionReplacesPreviousTranscript() {

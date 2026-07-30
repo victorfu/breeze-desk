@@ -980,6 +980,24 @@ Result<void> SqliteJobRepository::updateRuntimeInfo(const QString& id, const QSt
     return Result<void>::success();
 }
 
+Result<void> SqliteJobRepository::updateParameters(const QString& id,
+                                                   const QJsonObject& parameters) {
+    auto connectionResult = m_databaseManager.connection();
+    if (!connectionResult)
+        return Result<void>::failure(connectionResult.error());
+    QSqlQuery query(connectionResult.value());
+    query.prepare(QStringLiteral("UPDATE transcription_jobs SET parameters_json=? WHERE id=?"));
+    query.addBindValue(textFromObject(parameters));
+    query.addBindValue(id);
+    if (!query.exec())
+        return Result<void>::failure(
+            queryError(QStringLiteral("The transcription job parameters could not be saved."), query));
+    if (query.numRowsAffected() == 0)
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+    return Result<void>::success();
+}
+
 Result<void> SqliteJobRepository::replaceChunks(const QString& jobId, const QList<JobChunk>& chunks) {
     for (int i = 0; i < chunks.size(); ++i) {
         if (chunks.at(i).ordinal != i || chunks.at(i).startMs < 0 ||

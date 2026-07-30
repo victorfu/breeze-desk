@@ -17,7 +17,7 @@ target_link_libraries(breezedesk-cli PRIVATE
     breezedesk_build_config breezedesk_cli_support breezedesk_core breezedesk_database breezedesk_jobs
     breezedesk_transcript breezedesk_audio breezedesk_models breezedesk_asr
     breezedesk_glossary breezedesk_ipc breezedesk_worker_process
-    Qt6::Core Qt6::Network)
+    Qt6::Concurrent Qt6::Core Qt6::Network)
 breezedesk_enable_strict_warnings(breezedesk-cli)
 add_dependencies(breezedesk-cli breezedesk-asr-worker)
 add_custom_command(TARGET breezedesk-cli POST_BUILD

@@ -1,6 +1,7 @@
 add_library(breezedesk_core STATIC
     ApplicationLogger.cpp
     Error.cpp
+    FileHash.cpp
     LoggingCategories.cpp
     StoragePaths.cpp
     TemporaryFileJanitor.cpp

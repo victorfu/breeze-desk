@@ -9,12 +9,12 @@
         <translation>The transcript could not be saved before transcription resumed.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="454"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="453"/>
         <source>Imported a managed media copy.</source>
         <translation>Imported a managed media copy.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="474"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="473"/>
         <source>Imported %n media file(s).</source>
         <translation>
             <numerusform>Imported %n media file(s).</numerusform>
@@ -22,7 +22,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="482"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="481"/>
         <source>Copying %n media file(s) into managed storage…</source>
         <translation>
             <numerusform>Copying %n media file(s) into managed storage…</numerusform>
@@ -30,27 +30,27 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="491"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="490"/>
         <source>A folder import is already running.</source>
         <translation>A folder import is already running.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="496"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="495"/>
         <source>Choose a readable local folder.</source>
         <translation>Choose a readable local folder.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="530"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="529"/>
         <source>The folder does not contain supported audio or video files.</source>
         <translation>The folder does not contain supported audio or video files.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="620"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="619"/>
         <source>Folder import cancelled.</source>
         <translation>Folder import cancelled.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="624"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="623"/>
         <source>Imported %n media file(s) from the folder.</source>
         <translation>
             <numerusform>Imported %n media file from the folder.</numerusform>
@@ -58,38 +58,38 @@
         </translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="626"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="625"/>
         <source>Imported %1 media file(s); %2 could not be imported.</source>
         <translation>Imported %1 media file(s); %2 could not be imported.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="636"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="635"/>
         <source>File manager integration is unavailable.</source>
         <translation>File manager integration is unavailable.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="644"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="643"/>
         <source>The recording source is missing. Relink it to continue.</source>
         <translation>The recording source is missing. Relink it to continue.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="649"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="648"/>
         <source>The recording could not be revealed in the file manager.</source>
         <translation>The recording could not be revealed in the file manager.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="667"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="666"/>
         <source>The selected recording is no longer available.</source>
         <translation>The selected recording is no longer available.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="688"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="687"/>
         <source>The waveform preview could not be loaded: %1</source>
         <translation>The waveform preview could not be loaded: %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="702"/>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="730"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="701"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="729"/>
         <source>Choose an imported recording first.</source>
         <translation>Choose an imported recording first.</translation>
     </message>
@@ -98,42 +98,42 @@
         <translation type="vanished">Transcription added to the queue.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="721"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="720"/>
         <source>Downloading and verifying Breeze-ASR-25 Q5_K. Transcription will start automatically when it is ready.</source>
         <translation>Downloading and verifying Breeze-ASR-25 Q5_K. Transcription will start automatically when it is ready.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="741"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="740"/>
         <source>Transcription started. You can continue using the app.</source>
         <translation>Transcription started. You can continue using the app.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="747"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="746"/>
         <source>Open a recording before exporting.</source>
         <translation>Open a recording before exporting.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="757"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="756"/>
         <source>Transcribe and open a recording before exporting.</source>
         <translation>Transcribe and open a recording before exporting.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="761"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="760"/>
         <source>Choose a local destination for the export.</source>
         <translation>Choose a local destination for the export.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="774"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="773"/>
         <source>The selected export format is not supported.</source>
         <translation>The selected export format is not supported.</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="805"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="804"/>
         <source>Transcript exported to %1</source>
         <translation>Transcript exported to %1</translation>
     </message>
     <message>
-        <location filename="../src/ui/ApplicationViewModel.cpp" line="885"/>
+        <location filename="../src/ui/ApplicationViewModel.cpp" line="884"/>
         <source>Save or discard the current transcript edits before refreshing live results.</source>
         <translation>Save or discard the current transcript edits before refreshing live results.</translation>
     </message>
@@ -178,7 +178,7 @@
         <translation type="vanished">%1 Copy</translation>
     </message>
     <message>
-        <location filename="../src/ui/GlossaryViewModel.cpp" line="375"/>
+        <location filename="../src/ui/GlossaryViewModel.cpp" line="374"/>
         <source>Enter a canonical term.</source>
         <translation>Enter a canonical term.</translation>
     </message>
@@ -580,70 +580,107 @@
         <translation type="vanished">%1 was not shut down while this job was running.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="366"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="373"/>
         <source>%1 closed while this job was running.</source>
         <translation>%1 closed while this job was running.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="371"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="378"/>
         <source>A recording and job ID are required.</source>
         <translation>A recording and job ID are required.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="376"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="663"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="713"/>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1414"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="383"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="671"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="708"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="796"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="838"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1618"/>
         <source>The recording no longer exists.</source>
         <translation>The recording no longer exists.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="410"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="417"/>
         <source>The glossary could not be loaded.</source>
         <translation>The glossary could not be loaded.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="448"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="455"/>
         <source>The job no longer exists.</source>
         <translation>The job no longer exists.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="621"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="628"/>
         <source>This transcription lost the global execution lease and was stopped.</source>
         <translation>This transcription lost the global execution lease and was stopped.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="673"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="681"/>
         <source>The source media file is missing.</source>
         <translation>The source media file is missing.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="707"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="700"/>
+        <source>The source media file could not be read: %1</source>
+        <translation>The source media file could not be read: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="729"/>
+        <source>This transcription has no verified source-media identity. Start a new transcription so existing chunks are not mixed with different audio.</source>
+        <translation>This transcription has no verified source-media identity. Start a new transcription so existing chunks are not mixed with different audio.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="731"/>
+        <source>The source media changed after this transcription started. Start a new transcription so existing chunks are not mixed with different audio.</source>
+        <translation>The source media changed after this transcription started. Start a new transcription so existing chunks are not mixed with different audio.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="789"/>
+        <source>The normalized recording duration is invalid.</source>
+        <translation>The normalized recording duration is invalid.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="832"/>
         <source>The media does not contain supported audio.</source>
         <translation>The media does not contain supported audio.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="739"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="864"/>
         <source>ffmpeg is not available.</source>
         <translation>ffmpeg is not available.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="772"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="897"/>
         <source>Audio normalization failed.</source>
         <translation>Audio normalization failed.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="814"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="910"/>
+        <source>The decoded audio could not be validated: %1</source>
+        <translation>The decoded audio could not be validated: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="934"/>
+        <source>The source media could not be verified after audio decoding: %1</source>
+        <translation>The source media could not be verified after audio decoding: %1</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="936"/>
+        <source>The source media changed while its audio was being decoded. Start the transcription again.</source>
+        <translation>The source media changed while its audio was being decoded. Start the transcription again.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="986"/>
         <source>The audio waveform could not be generated.</source>
         <translation>The audio waveform could not be generated.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="821"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="993"/>
         <source>The normalized recording could not be saved.</source>
         <translation>The normalized recording could not be saved.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="860"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1021"/>
         <source>The recording duration is invalid.</source>
         <translation>The recording duration is invalid.</translation>
     </message>
@@ -652,77 +689,82 @@
         <translation type="vanished">Install the Silero VAD model before transcribing long recordings with VAD.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1049"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1243"/>
         <source>The required Silero VAD model is not present in the trusted model manifest.</source>
         <translation>The required Silero VAD model is not present in the trusted model manifest.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1057"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1251"/>
         <source>The required Silero VAD model is missing or invalid. Downloading and verifying it now.</source>
         <translation>The required Silero VAD model is missing or invalid. Downloading and verifying it now.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1076"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1270"/>
         <source>The Silero VAD model could not be downloaded and verified.</source>
         <translation>The Silero VAD model could not be downloaded and verified.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1077"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1271"/>
         <source>The Silero VAD model could not be downloaded and verified: %1</source>
         <translation>The Silero VAD model could not be downloaded and verified: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1083"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1277"/>
         <source>The downloaded Silero VAD model failed verification: %1</source>
         <translation>The downloaded Silero VAD model failed verification: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1088"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1282"/>
         <source>The Silero VAD model was downloaded and verified.</source>
         <translation>The Silero VAD model was downloaded and verified.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1226"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1420"/>
         <source>The active transcription unit is no longer available.</source>
         <translation>The active transcription unit is no longer available.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1888"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2093"/>
         <source>Downloading Silero VAD model</source>
         <translation>Downloading Silero VAD model</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1890"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2095"/>
         <source>Silero VAD model downloaded</source>
         <translation>Silero VAD model downloaded</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1897"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2102"/>
         <source>Silero VAD model download failed</source>
         <translation>Silero VAD model download failed</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="890"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1084"/>
         <source>Speech analysis did not produce a transcription chunk plan.</source>
         <translation>Speech analysis did not produce a transcription chunk plan.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="938"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1038"/>
+        <source>The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. Start a new transcription so the audio tail is not omitted.</source>
+        <translation>The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. Start a new transcription so the audio tail is not omitted.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1132"/>
         <source>The ASR worker did not become ready.</source>
         <translation>The ASR worker did not become ready.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="953"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1147"/>
         <source>The ASR worker capability request could not be sent.</source>
         <translation>The ASR worker capability request could not be sent.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="962"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1156"/>
         <source>The ASR worker did not report its runtime capabilities.</source>
         <translation>The ASR worker did not report its runtime capabilities.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="978"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1172"/>
         <source>Speech recognition is unavailable because this ASR worker does not include whisper.cpp. Reinstall the application or use a build configured with whisper.cpp.</source>
         <translation>Speech recognition is unavailable because this ASR worker does not include whisper.cpp. Reinstall the application or use a build configured with whisper.cpp.</translation>
     </message>
@@ -735,152 +777,157 @@
         <translation type="vanished">The Silero VAD model does not have a trusted checksum.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1022"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1216"/>
         <source>The speech-analysis request could not be sent to the ASR worker.</source>
         <translation>The speech-analysis request could not be sent to the ASR worker.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1136"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1330"/>
         <source>Install the selected ASR model before starting transcription.</source>
         <translation>Install the selected ASR model before starting transcription.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1144"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1338"/>
         <source>The selected ASR model does not have a trusted checksum.</source>
         <translation>The selected ASR model does not have a trusted checksum.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1181"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1375"/>
         <source>The model-load request could not be sent to the ASR worker.</source>
         <translation>The model-load request could not be sent to the ASR worker.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1304"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1498"/>
         <source>The transcription request could not be sent to the ASR worker.</source>
         <translation>The transcription request could not be sent to the ASR worker.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1355"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1549"/>
         <source>The ASR worker rejected the request.</source>
         <translation>The ASR worker rejected the request.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1365"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1559"/>
         <source>The ASR worker returned an invalid capability response.</source>
         <translation>The ASR worker returned an invalid capability response.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1371"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1565"/>
         <source>The ASR worker capability response is missing runtime availability.</source>
         <translation>The ASR worker capability response is missing runtime availability.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1386"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1580"/>
         <source>The ASR worker cancelled the active operation.</source>
         <translation>The ASR worker cancelled the active operation.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1510"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1610"/>
+        <source>Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.</source>
+        <translation>Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1714"/>
         <source>The ASR worker returned a segment outside the active chunk.</source>
         <translation>The ASR worker returned a segment outside the active chunk.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1523"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1727"/>
         <source>The ASR worker returned an empty segment time range.</source>
         <translation>The ASR worker returned an empty segment time range.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1719"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1923"/>
         <source>Transcription was cancelled.</source>
         <translation>Transcription was cancelled.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1821"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2026"/>
         <source>The loaded ASR runtime did not report its backend and version.</source>
         <translation>The loaded ASR runtime did not report its backend and version.</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1870"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2075"/>
         <source>Added to queue</source>
         <translation>Added to queue</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1872"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2077"/>
         <source>Started processing</source>
         <translation>Started processing</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1874"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2079"/>
         <source>Stage changed</source>
         <translation>Stage changed</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1876"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2081"/>
         <source>Transcription unit started</source>
         <translation>Transcription unit started</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1878"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2083"/>
         <source>Transcription unit completed</source>
         <translation>Transcription unit completed</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1880"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2085"/>
         <source>Transcription unit failed</source>
         <translation>Transcription unit failed</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1882"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2087"/>
         <source>Transcription unit cancelled</source>
         <translation>Transcription unit cancelled</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1884"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2089"/>
         <source>Transcription unit interrupted</source>
         <translation>Transcription unit interrupted</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1886"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2091"/>
         <source>Transcription unit reset</source>
         <translation>Transcription unit reset</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1892"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2097"/>
         <source>Transcription completed</source>
         <translation>Transcription completed</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1894"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2099"/>
         <source>Transcription cancelled</source>
         <translation>Transcription cancelled</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1898"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2103"/>
         <source>Transcription failed</source>
         <translation>Transcription failed</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1900"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2105"/>
         <source>Transcription interrupted</source>
         <translation>Transcription interrupted</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1902"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2107"/>
         <source>Retry queued</source>
         <translation>Retry queued</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1904"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2109"/>
         <source>Resume queued</source>
         <translation>Resume queued</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1907"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2112"/>
         <source>Previous transcription worker stopped responding</source>
         <translation>Previous transcription worker stopped responding</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1909"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2114"/>
         <source>Transcript updated</source>
         <translation>Transcript updated</translation>
     </message>
@@ -889,17 +936,17 @@
         <translation type="vanished">Set as latest completed version</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1913"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2118"/>
         <source>Transcription status updated</source>
         <translation>Transcription status updated</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1919"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2124"/>
         <source>Unit %1 of %2</source>
         <translation>Unit %1 of %2</translation>
     </message>
     <message>
-        <location filename="../src/app/TranscriptionCoordinator.cpp" line="1920"/>
+        <location filename="../src/app/TranscriptionCoordinator.cpp" line="2125"/>
         <source>Unit %1</source>
         <translation>Unit %1</translation>
     </message>
@@ -1585,7 +1632,7 @@
         <translation>Microphone recording is unavailable in this build.</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="126"/>
+        <location filename="../src/qml/Main.qml" line="128"/>
         <source>Diagnostics export is unavailable in this build.</source>
         <translation>Diagnostics export is unavailable in this build.</translation>
     </message>
@@ -1594,12 +1641,12 @@
         <translation type="vanished">BreezeDesk logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="210"/>
+        <location filename="../src/qml/Main.qml" line="212"/>
         <source>%1 logo</source>
         <translation>%1 logo</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="241"/>
+        <location filename="../src/qml/Main.qml" line="243"/>
         <source>Library</source>
         <translation>Library</translation>
     </message>
@@ -1620,7 +1667,7 @@
         <translation type="vanished">Glossary</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="247"/>
+        <location filename="../src/qml/Main.qml" line="249"/>
         <source>Name Dictionary</source>
         <translation>Name Dictionary</translation>
     </message>
@@ -1633,77 +1680,77 @@
         <translation type="vanished">Start Recording</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="260"/>
+        <location filename="../src/qml/Main.qml" line="262"/>
         <source>Activity</source>
         <translation>Activity</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="268"/>
+        <location filename="../src/qml/Main.qml" line="270"/>
         <source>Settings</source>
         <translation>Settings</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="320"/>
+        <location filename="../src/qml/Main.qml" line="322"/>
         <source>Import Audio or Video</source>
         <translation>Import Audio or Video</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="323"/>
+        <location filename="../src/qml/Main.qml" line="325"/>
         <source>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</source>
         <translation>Media files (*.wav *.mp3 *.m4a *.aac *.flac *.ogg *.opus *.mp4 *.mov *.mkv *.webm)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="324"/>
+        <location filename="../src/qml/Main.qml" line="326"/>
         <source>All files (*)</source>
         <translation>All files (*)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="332"/>
+        <location filename="../src/qml/Main.qml" line="334"/>
         <source>Import Media Folder</source>
         <translation>Import Media Folder</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="338"/>
+        <location filename="../src/qml/Main.qml" line="340"/>
         <source>Export Transcript</source>
         <translation>Export Transcript</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="341"/>
+        <location filename="../src/qml/Main.qml" line="343"/>
         <source>Plain text (*.txt)</source>
         <translation>Plain text (*.txt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="342"/>
+        <location filename="../src/qml/Main.qml" line="344"/>
         <source>Markdown (*.md)</source>
         <translation>Markdown (*.md)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="343"/>
+        <location filename="../src/qml/Main.qml" line="345"/>
         <source>SubRip subtitles (*.srt)</source>
         <translation>SubRip subtitles (*.srt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="344"/>
+        <location filename="../src/qml/Main.qml" line="346"/>
         <source>WebVTT subtitles (*.vtt)</source>
         <translation>WebVTT subtitles (*.vtt)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="345"/>
+        <location filename="../src/qml/Main.qml" line="347"/>
         <source>JSON (*.json)</source>
         <translation>JSON (*.json)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="346"/>
+        <location filename="../src/qml/Main.qml" line="348"/>
         <source>CSV (*.csv)</source>
         <translation>CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="356"/>
+        <location filename="../src/qml/Main.qml" line="358"/>
         <source>Import a whisper.cpp GGML model</source>
         <translation>Import a whisper.cpp GGML model</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="358"/>
+        <location filename="../src/qml/Main.qml" line="360"/>
         <source>GGML model (*.bin)</source>
         <translation>GGML model (*.bin)</translation>
     </message>
@@ -1990,37 +2037,37 @@
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="467"/>
-        <location filename="../src/app/main.cpp" line="810"/>
+        <location filename="../src/app/main.cpp" line="815"/>
         <source>Show %1</source>
         <translation>Show %1</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="468"/>
-        <location filename="../src/app/main.cpp" line="811"/>
+        <location filename="../src/app/main.cpp" line="816"/>
         <source>Import Files</source>
         <translation>Import Files</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="469"/>
-        <location filename="../src/app/main.cpp" line="812"/>
+        <location filename="../src/app/main.cpp" line="817"/>
         <source>Start Recording</source>
         <translation>Start Recording</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="470"/>
-        <location filename="../src/app/main.cpp" line="802"/>
+        <location filename="../src/app/main.cpp" line="807"/>
         <source>Queue: idle</source>
         <translation>Queue: idle</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="472"/>
-        <location filename="../src/app/main.cpp" line="813"/>
+        <location filename="../src/app/main.cpp" line="818"/>
         <source>Pause after current job</source>
         <translation>Pause after current job</translation>
     </message>
     <message>
         <location filename="../src/app/main.cpp" line="474"/>
-        <location filename="../src/app/main.cpp" line="814"/>
+        <location filename="../src/app/main.cpp" line="819"/>
         <source>Quit</source>
         <translation>Quit</translation>
     </message>
@@ -2055,7 +2102,7 @@
         <translation>The recording was saved but could not be opened.</translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/main.cpp" line="803"/>
+        <location filename="../src/app/main.cpp" line="808"/>
         <source>Queue: %n active job(s)</source>
         <translation>
             <numerusform>Queue: %n active job(s)</numerusform>

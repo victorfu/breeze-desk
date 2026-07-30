@@ -40,6 +40,8 @@ class CliTranscriptionPersistenceTest final : public QObject {
 
   private slots:
     void checkpointsPartialResultsAndResumesOnlyUnfinishedChunks();
+    void bindsSourceAfterPreparingInterruption();
+    void rejectsSourceBindingAfterPreparation();
     void synchronizesDecodedAudioDurationBeforeTranscription();
     void retriesFailedChunkWithoutRepeatingCompletedChunks();
     void cancellingLeaseWaitDoesNotInterruptCurrentOwner();
@@ -65,6 +67,8 @@ void CliTranscriptionPersistenceTest::synchronizesDecodedAudioDurationBeforeTran
     descriptor.recording.title = QStringLiteral("Screen recording");
     descriptor.recording.sourcePath = sourcePath;
     descriptor.recording.durationMs = 40'789;
+    descriptor.recording.sourceHash = QString(64, QLatin1Char('a'));
+    descriptor.recording.waveformPath = directory.filePath(QStringLiteral("stale.waveform"));
     descriptor.job.id = QStringLiteral("job-mp4-duration");
     descriptor.job.recordingId = descriptor.recording.id;
     descriptor.chunks = {chunk(0, 0, 40'789)};
@@ -73,13 +77,16 @@ void CliTranscriptionPersistenceTest::synchronizesDecodedAudioDurationBeforeTran
     QVERIFY(persistence.beginNew(descriptor));
     QVERIFY(persistence.beginNormalization());
     const QString normalizedPath = directory.filePath(QStringLiteral("decoded.wav"));
-    QVERIFY(persistence.updateNormalizedAudio(normalizedPath, 40'745));
+    const QString decodedSourceHash(64, QLatin1Char('b'));
+    QVERIFY(persistence.updateNormalizedAudio(normalizedPath, 40'745, decodedSourceHash, true));
     QVERIFY(persistence.replaceChunkPlan({chunk(0, 0, 40'745)}));
 
     const auto recording = recordings.findById(descriptor.recording.id);
     QVERIFY(recording && recording.value().has_value());
     QCOMPARE(recording.value()->normalizedPcmPath, QFileInfo(normalizedPath).absoluteFilePath());
     QCOMPARE(recording.value()->durationMs, 40'745);
+    QCOMPARE(recording.value()->sourceHash, decodedSourceHash);
+    QVERIFY(recording.value()->waveformPath.isEmpty());
     QCOMPARE(persistence.identity().chunks.size(), 1);
     QCOMPARE(persistence.identity().chunks.constFirst().endMs, 40'745);
     const auto savedChunks = jobs.chunks(descriptor.job.id);
@@ -119,6 +126,7 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
     descriptor.job.preset = QStringLiteral("balanced");
     descriptor.job.vadEnabled = true;
     descriptor.chunks = {chunk(0, 0, 1'000), chunk(1, 900, 2'000, 100)};
+    const QString sourceHash(64, QLatin1Char('a'));
 
     CliTranscriptionPersistence firstRun(recordings, jobs, transcripts);
     const auto started = firstRun.beginNew(descriptor);
@@ -127,6 +135,7 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
     QCOMPARE(started.value().recordingId, QStringLiteral("recording-1"));
     QCOMPARE(started.value().jobId, QStringLiteral("job-1"));
     QVERIFY(!started.value().resumed);
+    QVERIFY(firstRun.bindSourceMedia(sourceHash));
     QVERIFY(firstRun.beginNormalization());
     QVERIFY(firstRun.updateNormalizationProgress(0.75));
     QVERIFY(firstRun.beginModelLoad());
@@ -174,6 +183,10 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
     QCOMPARE(resumed.value().chunks.at(0).state, ChunkState::Completed);
     QCOMPARE(resumed.value().chunks.at(1).state, ChunkState::Pending);
     QCOMPARE(resumed.value().chunks.at(1).attempts, 1);
+    const auto changedSource = resumedRun.bindSourceMedia(QString(64, QLatin1Char('b')));
+    QVERIFY(!changedSource);
+    QCOMPARE(changedSource.error().code, ErrorCode::InvalidStateTransition);
+    QVERIFY(resumedRun.bindSourceMedia(sourceHash));
     QVERIFY(resumedRun.beginModelLoad());
     QVERIFY(resumedRun.beginTranscription());
 
@@ -199,6 +212,83 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
                         [](const TranscriptSegment& value) { return !value.provisional; }));
     QCOMPARE(finalSegments.value().at(1).originalText, QStringLiteral("final result"));
     QCOMPARE(finalSegments.value().at(1).attempt, 2);
+}
+
+void CliTranscriptionPersistenceTest::bindsSourceAfterPreparingInterruption() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("interrupted-hash.mp4"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-interrupted-hash");
+    descriptor.recording.title = QStringLiteral("Interrupted while hashing");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.recording.durationMs = 1'000;
+    descriptor.job.id = QStringLiteral("job-interrupted-hash");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+
+    CliTranscriptionPersistence firstRun(recordings, jobs, transcripts);
+    QVERIFY(firstRun.beginNew(descriptor));
+    QVERIFY(firstRun.interrupt(QStringLiteral("interrupted while hashing source")));
+
+    CliTranscriptionPersistence resumedRun(recordings, jobs, transcripts);
+    QVERIFY(resumedRun.resume(descriptor.job.id, sourcePath, {}));
+    const QString sourceHash(64, QLatin1Char('c'));
+    QVERIFY(resumedRun.bindSourceMedia(sourceHash));
+
+    const auto savedJob = jobs.findById(descriptor.job.id);
+    QVERIFY(savedJob && savedJob.value().has_value());
+    QCOMPARE(savedJob.value()->parameters.value(QStringLiteral("sourceHash")).toString(), sourceHash);
+    QVERIFY(resumedRun.interrupt(QStringLiteral("test complete")));
+}
+
+void CliTranscriptionPersistenceTest::rejectsSourceBindingAfterPreparation() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("legacy-unbound.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-legacy-unbound");
+    descriptor.recording.title = QStringLiteral("Legacy unbound source");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.recording.durationMs = 1'000;
+    descriptor.job.id = QStringLiteral("job-legacy-unbound");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+
+    CliTranscriptionPersistence firstRun(recordings, jobs, transcripts);
+    QVERIFY(firstRun.beginNew(descriptor));
+    QVERIFY(firstRun.beginModelLoad());
+    QVERIFY(firstRun.beginTranscription());
+    QVERIFY(firstRun.interrupt(QStringLiteral("interrupted before first chunk")));
+
+    CliTranscriptionPersistence resumedRun(recordings, jobs, transcripts);
+    QVERIFY(resumedRun.resume(descriptor.job.id, sourcePath, {}));
+    const auto bound = resumedRun.bindSourceMedia(QString(64, QLatin1Char('d')));
+    QVERIFY(!bound);
+    QCOMPARE(bound.error().code, ErrorCode::InvalidStateTransition);
+    QVERIFY(resumedRun.interrupt(QStringLiteral("test complete")));
 }
 
 void CliTranscriptionPersistenceTest::retriesFailedChunkWithoutRepeatingCompletedChunks() {

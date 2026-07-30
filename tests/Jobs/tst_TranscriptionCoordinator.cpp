@@ -1,6 +1,7 @@
 #include "breezedesk/app/TranscriptionCoordinator.h"
 #include "breezedesk/app/WorkerProcessManager.h"
 #include "breezedesk/audio/WaveformGenerator.h"
+#include "breezedesk/core/FileHash.h"
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
@@ -70,6 +71,8 @@ class TranscriptionCoordinatorTest final : public QObject {
   private slots:
     void snapshotsSharedGlossary();
     void analyzesLongAudioAndPersistsGlobalSegments();
+    void rejectsStaleCacheWhenSourceContentsChange();
+    void rejectsResumedChunksBoundToDifferentSource();
     void runtimeUnavailableFailsBeforeMediaPreparation();
 };
 
@@ -170,6 +173,7 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
     recording.title = QStringLiteral("Long architecture meeting");
     recording.sourcePath = sourcePath;
     recording.normalizedPcmPath = normalizedPath;
+    recording.sourceHash = FileHash::sha256(sourcePath);
     recording.durationMs = 1'300'123;
     recording.sampleRate = 16'000;
     recording.channelCount = 1;
@@ -290,6 +294,141 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
 
     QVERIFY(models.removeModel(QStringLiteral("breeze-asr-25-q5")));
     QVERIFY(models.removeModel(QStringLiteral("silero-vad-v6.2.0")));
+}
+
+void TranscriptionCoordinatorTest::rejectsStaleCacheWhenSourceContentsChange() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+    });
+    qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+    qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
+    QVERIFY(StoragePaths::ensureLayout());
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    ModelManager models;
+
+    const QString sourcePath = directory.filePath(QStringLiteral("replaced-source.mp4"));
+    const QString normalizedPath = directory.filePath(QStringLiteral("stale-normalized.wav"));
+    const QString waveformPath = directory.filePath(QStringLiteral("stale.waveform"));
+    QVERIFY(writeFixture(sourcePath));
+    QVERIFY(writePcmWaveFixture(normalizedPath, 1'000));
+    QVERIFY(writeFixture(waveformPath));
+    Recording recording;
+    recording.id = QStringLiteral("recording-stale-cache");
+    recording.title = QStringLiteral("Replaced source");
+    recording.sourcePath = sourcePath;
+    recording.normalizedPcmPath = normalizedPath;
+    recording.waveformPath = waveformPath;
+    recording.sourceHash = QString(64, QLatin1Char('a'));
+    recording.durationMs = 1'000;
+    QVERIFY(recordings.create(recording));
+
+    WorkerProcessManager worker;
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker);
+    coordinator.initialize();
+    coordinator.enqueue(QStringLiteral("job-stale-cache"), recording.id);
+
+    const auto jobFailed = [&jobs] {
+        const auto current = jobs.findById(QStringLiteral("job-stale-cache"));
+        return current && current.value().has_value() && current.value()->state == JobState::Failed;
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(jobFailed(), 20'000);
+    const auto failed = jobs.findById(QStringLiteral("job-stale-cache"));
+    QVERIFY(failed && failed.value().has_value());
+    QCOMPARE(failed.value()->errorCode, QStringLiteral("UnsupportedMedia"));
+    QCOMPARE(failed.value()->parameters.value(QStringLiteral("sourceHash")).toString(),
+             FileHash::sha256(sourcePath));
+
+    const auto invalidated = recordings.findById(recording.id);
+    QVERIFY(invalidated && invalidated.value().has_value());
+    QVERIFY(invalidated.value()->sourceHash.isEmpty());
+    QVERIFY(invalidated.value()->normalizedPcmPath.isEmpty());
+    QVERIFY(invalidated.value()->waveformPath.isEmpty());
+}
+
+void TranscriptionCoordinatorTest::rejectsResumedChunksBoundToDifferentSource() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+    });
+    qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+    qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
+    QVERIFY(StoragePaths::ensureLayout());
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    ModelManager models;
+
+    const QString sourcePath = directory.filePath(QStringLiteral("current-source.mp4"));
+    const QString normalizedPath = directory.filePath(QStringLiteral("current-normalized.wav"));
+    QVERIFY(writeFixture(sourcePath));
+    QVERIFY(writePcmWaveFixture(normalizedPath, 1'000));
+    Recording recording;
+    recording.id = QStringLiteral("recording-resume-source");
+    recording.title = QStringLiteral("Changed resumed source");
+    recording.sourcePath = sourcePath;
+    recording.normalizedPcmPath = normalizedPath;
+    recording.sourceHash = FileHash::sha256(sourcePath);
+    recording.durationMs = 1'000;
+    QVERIFY(recordings.create(recording));
+
+    TranscriptionJob job;
+    job.id = QStringLiteral("job-resume-source");
+    job.recordingId = recording.id;
+    job.parameters = {{QStringLiteral("sourceHash"), QString(64, QLatin1Char('a'))}};
+    QVERIFY(jobs.createQueued(job));
+    JobChunk completedChunk;
+    completedChunk.jobId = job.id;
+    completedChunk.ordinal = 0;
+    completedChunk.startMs = 0;
+    completedChunk.endMs = 1'000;
+    completedChunk.state = ChunkState::Completed;
+    completedChunk.attempts = 1;
+    QVERIFY(jobs.replaceChunks(job.id, {completedChunk}));
+
+    WorkerProcessManager worker;
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker);
+    coordinator.initialize();
+    const auto jobFailed = [&jobs, &job] {
+        const auto current = jobs.findById(job.id);
+        return current && current.value().has_value() && current.value()->state == JobState::Failed;
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(jobFailed(), 10'000);
+    const auto failed = jobs.findById(job.id);
+    QVERIFY(failed && failed.value().has_value());
+    QCOMPARE(failed.value()->errorCode, QStringLiteral("SourceMediaChanged"));
+    QCOMPARE(failed.value()->parameters.value(QStringLiteral("sourceHash")).toString(),
+             QString(64, QLatin1Char('a')));
 }
 
 void TranscriptionCoordinatorTest::runtimeUnavailableFailsBeforeMediaPreparation() {

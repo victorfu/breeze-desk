@@ -36,6 +36,8 @@ class SqliteJobRepository final : public IJobRepository {
     [[nodiscard]] Result<void> updateRuntimeInfo(const QString& id, const QString& actualBackend,
                                                  const QString& engineVersion, const QString& workerVersion,
                                                  const QJsonObject& diagnostics) override;
+    [[nodiscard]] Result<void> updateParameters(const QString& id,
+                                                const QJsonObject& parameters) override;
     [[nodiscard]] Result<void> replaceChunks(const QString& jobId, const QList<JobChunk>& chunks) override;
     [[nodiscard]] Result<QList<JobChunk>> chunks(const QString& jobId) const override;
     [[nodiscard]] Result<void> updateChunk(const JobChunk& chunk) override;

@@ -10,6 +10,7 @@
 #include "breezedesk/cli/CliForwardingPolicy.h"
 #include "breezedesk/cli/CliTranscriptionPersistence.h"
 #include "breezedesk/core/ApplicationLogger.h"
+#include "breezedesk/core/FileHash.h"
 #include "breezedesk/core/LoggingCategories.h"
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/core/TemporaryFileJanitor.h"
@@ -35,6 +36,7 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QFutureWatcher>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -42,6 +44,7 @@
 #include <QTextStream>
 #include <QTimer>
 #include <QUuid>
+#include <QtConcurrent>
 
 #include <algorithm>
 #include <csignal>
@@ -97,6 +100,50 @@ QByteArray sha256File(const QString& path) {
         hash.addData(block);
     }
     return file.error() == QFileDevice::NoError ? hash.result().toHex() : QByteArray{};
+}
+
+struct SourceHashResult {
+    QString sha256;
+    QString error;
+};
+
+SourceHashResult hashSourceWithEvents(const QString& path) {
+    QFutureWatcher<SourceHashResult> watcher;
+    QEventLoop loop;
+    QObject::connect(&watcher, &QFutureWatcher<SourceHashResult>::finished, &loop, &QEventLoop::quit);
+    watcher.setFuture(QtConcurrent::run([path] {
+        SourceHashResult result;
+        result.sha256 = FileHash::sha256(path, &result.error);
+        return result;
+    }));
+    if (!watcher.isFinished()) {
+        loop.exec();
+    }
+    return watcher.result();
+}
+
+struct SourceInspectionResult {
+    MediaMetadata metadata;
+    QString sha256;
+    QString probeError;
+    QString hashError;
+};
+
+SourceInspectionResult inspectSourceWithEvents(const QString& path, const QString& ffprobePath) {
+    QFutureWatcher<SourceInspectionResult> watcher;
+    QEventLoop loop;
+    QObject::connect(&watcher, &QFutureWatcher<SourceInspectionResult>::finished, &loop,
+                     &QEventLoop::quit);
+    watcher.setFuture(QtConcurrent::run([path, ffprobePath] {
+        SourceInspectionResult result;
+        result.metadata = FFprobeService(ffprobePath).inspect(path, &result.probeError);
+        result.sha256 = FileHash::sha256(path, &result.hashError);
+        return result;
+    }));
+    if (!watcher.isFinished()) {
+        loop.exec();
+    }
+    return watcher.result();
 }
 
 struct CliPromptConfiguration {
@@ -630,7 +677,6 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         result.error = error;
         return result;
     }
-
     const QString resumeJobId = optionValue(arguments, QStringLiteral("--resume-job"));
     QString recordingId;
     QString pcmPath;
@@ -796,8 +842,82 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         return makeResult(interruptionExitCode(), {}, reason);
     }
 
+    const SourceInspectionResult sourceSnapshot = inspectSourceWithEvents(source, tools.ffprobePath);
+    if (g_interrupted != 0) {
+        const QString reason = interruptionReason();
+        interruptSession(reason, interruptionCode());
+        return makeResult(interruptionExitCode(), {}, reason);
+    }
+    if (!sourceSnapshot.metadata.hasAudio || sourceSnapshot.metadata.durationMs <= 0) {
+        const QString reason = sourceSnapshot.probeError.isEmpty()
+                                   ? QStringLiteral("The media does not contain supported audio.")
+                                   : sourceSnapshot.probeError;
+        const auto failed = persistence.fail(QStringLiteral("UnsupportedMedia"), reason);
+        Q_UNUSED(failed)
+        return makeResult(CliExitCode::MediaFailure, {}, reason);
+    }
+    if (sourceSnapshot.sha256.isEmpty()) {
+        const QString reason =
+            QStringLiteral("The source media could not be hashed: %1").arg(sourceSnapshot.hashError);
+        const auto failed = persistence.fail(QStringLiteral("SourceFileMissing"), reason);
+        Q_UNUSED(failed)
+        return makeResult(CliExitCode::MediaFailure, {}, reason);
+    }
+    metadata = sourceSnapshot.metadata;
+    const QString currentSourceHash = sourceSnapshot.sha256;
+
+    const auto sourceBound = persistence.bindSourceMedia(currentSourceHash);
+    if (!sourceBound) {
+        const UserFacingError bindingError = sourceBound.error();
+        const QString reason = bindingError.message.isEmpty() ? bindingError.diagnosticString()
+                                                               : bindingError.message;
+        if (bindingError.domain == ErrorDomain::Database) {
+            interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));
+            return makeResult(CliExitCode::DatabaseFailure, {}, reason);
+        }
+        const auto failed = persistence.fail(QStringLiteral("SourceMediaChanged"), reason);
+        Q_UNUSED(failed)
+        return makeResult(CliExitCode::TranscriptionFailure, {}, reason);
+    }
+
+    const auto currentRecording = recordings.findById(persistence.identity().recordingId);
+    if (!currentRecording || !currentRecording.value().has_value()) {
+        const QString reason = currentRecording
+                                   ? QStringLiteral("The source recording no longer exists.")
+                                   : currentRecording.error().diagnosticString();
+        interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));
+        return makeResult(CliExitCode::DatabaseFailure, {}, reason);
+    }
+    Recording preparedRecording = currentRecording.value().value();
+    if (!preparedRecording.normalizedPcmPath.isEmpty()) {
+        pcmPath = preparedRecording.normalizedPcmPath;
+    }
+    const bool cacheSourceMatches =
+        !preparedRecording.sourceHash.isEmpty() &&
+        preparedRecording.sourceHash.compare(currentSourceHash, Qt::CaseInsensitive) == 0;
     NormalizedAudioInfo normalizedAudio;
-    if (!isReusableNormalizedAudio(pcmPath, metadata.durationMs, &normalizedAudio)) {
+    const bool reusableNormalizedAudio =
+        cacheSourceMatches &&
+        isReusableNormalizedAudio(pcmPath, metadata.durationMs, &normalizedAudio);
+    preparedRecording.durationMs = metadata.durationMs;
+    preparedRecording.sampleRate = metadata.sampleRate;
+    preparedRecording.channelCount = metadata.channelCount;
+    preparedRecording.mediaType = metadata.hasVideo ? QStringLiteral("video") : QStringLiteral("audio");
+    if (!reusableNormalizedAudio) {
+        preparedRecording.sourceHash.clear();
+        preparedRecording.normalizedPcmPath.clear();
+        preparedRecording.waveformPath.clear();
+    }
+    const auto preparedSaved = recordings.update(preparedRecording);
+    if (!preparedSaved) {
+        const QString reason = preparedSaved.error().diagnosticString();
+        interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));
+        return makeResult(CliExitCode::DatabaseFailure, {}, reason);
+    }
+
+    bool regeneratedNormalizedAudio = false;
+    if (!reusableNormalizedAudio) {
+        regeneratedNormalizedAudio = true;
         const auto normalizationStarted = persistence.beginNormalization();
         if (!normalizationStarted) {
             interruptSession(normalizationStarted.error().diagnosticString(),
@@ -860,10 +980,28 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             Q_UNUSED(failed)
             return makeResult(CliExitCode::MediaFailure, {}, reason);
         }
+        const SourceHashResult verifiedSource = hashSourceWithEvents(source);
+        if (g_interrupted != 0) {
+            const QString reason = interruptionReason();
+            interruptSession(reason, interruptionCode());
+            return makeResult(interruptionExitCode(), {}, reason);
+        }
+        if (verifiedSource.sha256.isEmpty() ||
+            verifiedSource.sha256.compare(currentSourceHash, Qt::CaseInsensitive) != 0) {
+            const QString reason = verifiedSource.sha256.isEmpty()
+                                       ? QStringLiteral("The source media could not be verified after audio "
+                                                        "decoding: %1")
+                                             .arg(verifiedSource.error)
+                                       : QStringLiteral("The source media changed while its audio was being "
+                                                        "decoded. Start the transcription again.");
+            const auto failed = persistence.fail(QStringLiteral("SourceMediaChanged"), reason);
+            Q_UNUSED(failed)
+            return makeResult(CliExitCode::MediaFailure, {}, reason);
+        }
     }
 
-    const auto normalizedSaved =
-        persistence.updateNormalizedAudio(pcmPath, normalizedAudio.durationMs);
+    const auto normalizedSaved = persistence.updateNormalizedAudio(
+        pcmPath, normalizedAudio.durationMs, currentSourceHash, regeneratedNormalizedAudio);
     if (!normalizedSaved) {
         const QString reason = normalizedSaved.error().diagnosticString();
         interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));

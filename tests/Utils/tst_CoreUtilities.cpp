@@ -1,9 +1,11 @@
+#include "breezedesk/core/FileHash.h"
 #include "breezedesk/core/Result.h"
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/core/TextUtils.h"
 #include "breezedesk/core/TimeUtils.h"
 
 #include <QFileInfo>
+#include <QFile>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -16,6 +18,7 @@ class CoreUtilitiesTest final : public QObject {
     void resultCarriesTypedErrors();
     void textNormalizationHandlesChineseAndEnglish();
     void fileNamesAndCsvAreSafe();
+    void hashesFileContentsAndReportsReadFailures();
     void clockFormattingUsesMilliseconds();
     void storageLayoutSupportsAnExplicitTestRoot();
 };
@@ -41,6 +44,29 @@ void CoreUtilitiesTest::fileNamesAndCsvAreSafe() {
     QCOMPARE(TextUtils::sanitizedFileName(QStringLiteral(" meeting: 01?.txt ")),
              QStringLiteral("meeting_ 01_.txt"));
     QCOMPARE(TextUtils::csvField(QStringLiteral("a,\"b\"")), QStringLiteral("\"a,\"\"b\"\"\""));
+}
+
+void CoreUtilitiesTest::hashesFileContentsAndReportsReadFailures() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString path = directory.filePath(QStringLiteral("source.mp4"));
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write("BreezeDesk"), qint64{10});
+    file.close();
+
+    QString error;
+    const QString originalHash = FileHash::sha256(path, &error);
+    QCOMPARE(originalHash,
+             QStringLiteral("e45ee6d86c20eecac64bcc51b931d18e44bbb739adda47ee72cd6ca783d4ca15"));
+    QVERIFY(error.isEmpty());
+    QVERIFY(file.open(QIODevice::WriteOnly | QIODevice::Truncate));
+    QCOMPARE(file.write("BreezeDisk"), qint64{10});
+    file.close();
+    QVERIFY(FileHash::sha256(path, &error) != originalHash);
+    QVERIFY(error.isEmpty());
+    QVERIFY(FileHash::sha256(directory.filePath(QStringLiteral("missing.mp4")), &error).isEmpty());
+    QVERIFY(!error.isEmpty());
 }
 
 void CoreUtilitiesTest::clockFormattingUsesMilliseconds() {

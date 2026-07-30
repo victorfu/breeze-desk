@@ -39,6 +39,8 @@ class IJobRepository {
                                                          const QString& engineVersion,
                                                          const QString& workerVersion,
                                                          const QJsonObject& diagnostics) = 0;
+    [[nodiscard]] virtual Result<void> updateParameters(const QString& id,
+                                                        const QJsonObject& parameters) = 0;
     [[nodiscard]] virtual Result<void> replaceChunks(const QString& jobId, const QList<JobChunk>& chunks) = 0;
     [[nodiscard]] virtual Result<QList<JobChunk>> chunks(const QString& jobId) const = 0;
     [[nodiscard]] virtual Result<void> updateChunk(const JobChunk& chunk) = 0;
