@@ -85,6 +85,15 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
             ErrorCode::InvalidArgument,
             QStringLiteral("A source recording and at least one transcription chunk are required.")));
     }
+    const bool hasInvalidChunkRange =
+        std::any_of(descriptor.chunks.cbegin(), descriptor.chunks.cend(), [](const JobChunk& chunk) {
+            return chunk.startMs < 0 || chunk.endMs <= chunk.startMs;
+        });
+    if (hasInvalidChunkRange) {
+        return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("Job chunks must be ordered and have valid time ranges.")));
+    }
     const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
     if (!recovered)
         return Result<DurableTranscriptionIdentity>::failure(recovered.error());

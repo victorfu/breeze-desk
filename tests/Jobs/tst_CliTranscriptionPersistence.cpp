@@ -45,6 +45,7 @@ class CliTranscriptionPersistenceTest final : public QObject {
 
   private slots:
     void mapsStartupLeaseLossToDatabaseFailure();
+    void beginNewRejectsInvalidChunkRangesBeforeMutation();
     void checkpointsPartialResultsAndResumesOnlyUnfinishedChunks();
     void bindsSourceAfterPreparingInterruption();
     void rejectsSourceBindingAfterPreparation();
@@ -226,6 +227,72 @@ void CliTranscriptionPersistenceTest::mapsStartupLeaseLossToDatabaseFailure() {
     const UserFacingError error = UserFacingError::validation(
         ErrorCode::ExecutionLeaseLost, QStringLiteral("The transcription lease was reclaimed."));
     QCOMPARE(transcriptionSessionFailureExitCode(error), CliExitCode::DatabaseFailure);
+}
+
+void CliTranscriptionPersistenceTest::beginNewRejectsInvalidChunkRangesBeforeMutation() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("invalid-chunk.wav"));
+    QFile source(sourcePath);
+    QVERIFY2(source.open(QIODevice::WriteOnly), qPrintable(sourcePath));
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    Recording recoverySentinel;
+    recoverySentinel.id = QStringLiteral("invalid-chunk-recovery-sentinel-recording");
+    recoverySentinel.title = QStringLiteral("Recovery sentinel");
+    QVERIFY(recordings.create(recoverySentinel));
+    TranscriptionJob sentinelJob;
+    sentinelJob.id = QStringLiteral("invalid-chunk-recovery-sentinel-job");
+    sentinelJob.recordingId = recoverySentinel.id;
+    QVERIFY(jobs.createQueued(sentinelJob));
+    QVERIFY(jobs.replaceChunks(sentinelJob.id, {chunk(0, 0, 1'000)}));
+    const QString sentinelOwner = QStringLiteral("invalid-chunk-recovery-sentinel-owner");
+    const auto sentinelClaim = jobs.claimQueued(sentinelJob.id, sentinelOwner);
+    QVERIFY(sentinelClaim && sentinelClaim.value().claimed);
+    QVERIFY(jobs.transition(sentinelJob.id, JobState::LoadingModel, {}, {}, sentinelOwner));
+    QVERIFY(jobs.transition(sentinelJob.id, JobState::Transcribing, {}, {}, sentinelOwner));
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery removeSentinelLease(connection.value());
+    removeSentinelLease.prepare(QStringLiteral(
+        "DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
+    removeSentinelLease.addBindValue(sentinelJob.id);
+    QVERIFY(removeSentinelLease.exec());
+    QCOMPARE(removeSentinelLease.numRowsAffected(), 1);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("invalid-chunk-recording");
+    descriptor.recording.title = QStringLiteral("Invalid chunk");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.job.id = QStringLiteral("invalid-chunk-job");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, -1, 1'000)};
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts);
+    const auto started = persistence.beginNew(descriptor);
+    QVERIFY(!started);
+    QCOMPARE(started.error().code, ErrorCode::InvalidArgument);
+    const auto savedRecording = recordings.findById(descriptor.recording.id);
+    QVERIFY(savedRecording);
+    QVERIFY(!savedRecording.value().has_value());
+    const auto savedJob = jobs.findById(descriptor.job.id);
+    QVERIFY(savedJob);
+    QVERIFY(!savedJob.value().has_value());
+    const auto savedChunks = jobs.chunks(descriptor.job.id);
+    QVERIFY(savedChunks);
+    QVERIFY(savedChunks.value().isEmpty());
+    const auto sentinelAfter = jobs.findById(sentinelJob.id);
+    QVERIFY(sentinelAfter && sentinelAfter.value().has_value());
+    QCOMPARE(sentinelAfter.value()->state, JobState::Transcribing);
+    const auto leaseAfter = jobs.activeLease();
+    QVERIFY(leaseAfter);
+    QVERIFY(!leaseAfter.value().has_value());
 }
 
 void CliTranscriptionPersistenceTest::staleOwnerCannotUseNoOpFastPaths() {
