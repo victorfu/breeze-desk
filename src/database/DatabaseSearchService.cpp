@@ -93,6 +93,43 @@ Result<void> DatabaseSearchService::rebuildRecording(QSqlDatabase& database,
     return Result<void>::success();
 }
 
+Result<void> DatabaseSearchService::removeRecording(QSqlDatabase& database,
+                                                    const QString& recordingId) const {
+    QSqlQuery fallbackDelete(database);
+    fallbackDelete.prepare(QStringLiteral("DELETE FROM search_index_fallback WHERE recording_id=?"));
+    fallbackDelete.addBindValue(recordingId);
+    if (!fallbackDelete.exec()) {
+        return Result<void>::failure(searchError(
+            QStringLiteral("The fallback search entry could not be removed."), fallbackDelete));
+    }
+
+    // The persisted feature flag describes which index is used for searches, but a legacy FTS table
+    // can still exist when that flag is disabled. Inspect the schema so permanent deletion also purges
+    // those dormant plaintext entries. A fallback-only database has no such table and needs no FTS SQL.
+    QSqlQuery table(database);
+    table.prepare(QStringLiteral(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=? COLLATE NOCASE LIMIT 1"));
+    table.addBindValue(QStringLiteral("search_index"));
+    if (!table.exec()) {
+        return Result<void>::failure(
+            searchError(QStringLiteral("The full-text index could not be inspected."), table));
+    }
+    const bool hasFullTextTable = table.next();
+    table.finish();
+    if (!hasFullTextTable) {
+        return Result<void>::success();
+    }
+
+    QSqlQuery ftsDelete(database);
+    ftsDelete.prepare(QStringLiteral("DELETE FROM search_index WHERE recording_id=?"));
+    ftsDelete.addBindValue(recordingId);
+    if (!ftsDelete.exec()) {
+        return Result<void>::failure(
+            searchError(QStringLiteral("The full-text entry could not be removed."), ftsDelete));
+    }
+    return Result<void>::success();
+}
+
 Result<void> DatabaseSearchService::rebuildAll() const {
     auto connectionResult = m_databaseManager.connection();
     if (!connectionResult)

@@ -604,7 +604,7 @@ Result<void> SqliteRecordingRepository::permanentlyDelete(const QString& id) {
                 ErrorCode::InvalidStateTransition,
                 QStringLiteral("Only recordings in Trash can be permanently deleted.")));
         }
-        return Result<void>::success();
+        return DatabaseSearchService(m_databaseManager).removeRecording(database, id);
     });
 }
 

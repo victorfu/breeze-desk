@@ -69,6 +69,8 @@ class DatabaseTest final : public QObject {
     void failedTransactionRollsBack();
     void connectionsAreThreadLocal();
     void recordingTrashAndSearchWork();
+    void permanentDeletePurgesRawSearchIndexes();
+    void permanentDeleteRollsBackWhenSearchIndexDeleteFails();
     void chineseSubstringSearchFindsRecordings();
     void multiKeywordSearchRequiresAllTerms();
     void searchEscapesLikeWildcards();
@@ -181,6 +183,157 @@ void DatabaseTest::recordingTrashAndSearchWork() {
     QVERIFY(repository.moveToTrash(recording.id));
     QVERIFY(repository.permanentlyDelete(recording.id));
     QCOMPARE(repository.findById(recording.id).value().has_value(), false);
+}
+
+void DatabaseTest::permanentDeletePurgesRawSearchIndexes() {
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("library.sqlite"));
+    const QString recordingId = QStringLiteral("raw-index-delete-recording");
+    const QString title = QStringLiteral("TitleSecret-6c701a");
+    const QString notes = QStringLiteral("NotesSecret-3f940b");
+    const QString tag = QStringLiteral("TagSecret-9a55d2");
+    const QString transcript = QStringLiteral("TranscriptSecret-187ec4");
+    bool ftsTableExists = false;
+
+    {
+        DatabaseManager setup({path});
+        QVERIFY(setup.initialize());
+        SqliteRecordingRepository repository(setup);
+        Recording recording;
+        recording.id = recordingId;
+        recording.title = title;
+        recording.notes = notes;
+        recording.tags = {tag};
+        QVERIFY(repository.create(recording));
+        QVERIFY(insertTranscript(setup, recordingId, {transcript}));
+
+        const auto connection = setup.connection();
+        QVERIFY(connection);
+        QSqlQuery fallback(connection.value());
+        fallback.prepare(QStringLiteral(
+            "SELECT title,notes,tags,transcript FROM search_index_fallback WHERE recording_id=?"));
+        fallback.addBindValue(recordingId);
+        QVERIFY(fallback.exec());
+        QVERIFY(fallback.next());
+        QCOMPARE(fallback.value(0).toString(), title);
+        QCOMPARE(fallback.value(1).toString(), notes);
+        QCOMPARE(fallback.value(2).toString(), tag);
+        QCOMPARE(fallback.value(3).toString(), transcript);
+
+        ftsTableExists = setup.hasFts5();
+        if (ftsTableExists) {
+            QSqlQuery fts(connection.value());
+            fts.prepare(QStringLiteral(
+                "SELECT title,notes,tags,transcript FROM search_index WHERE recording_id=?"));
+            fts.addBindValue(recordingId);
+            QVERIFY(fts.exec());
+            QVERIFY(fts.next());
+            QCOMPARE(fts.value(0).toString(), title);
+            QCOMPARE(fts.value(1).toString(), notes);
+            QCOMPARE(fts.value(2).toString(), tag);
+            QCOMPARE(fts.value(3).toString(), transcript);
+
+            // Simulate a legacy database whose dormant FTS table is not advertised by the cached
+            // feature flag. Permanent deletion must inspect the schema rather than trusting the flag.
+            QSqlQuery disableFeature(connection.value());
+            QVERIFY(disableFeature.exec(QStringLiteral(
+                "UPDATE database_features SET enabled=0,detail='legacy dormant FTS table' "
+                "WHERE name='fts5'")));
+            QCOMPARE(disableFeature.numRowsAffected(), 1);
+        }
+    }
+
+    DatabaseManager manager({path});
+    QVERIFY(manager.initialize());
+    if (ftsTableExists) {
+        QVERIFY(!manager.hasFts5());
+    }
+    SqliteRecordingRepository repository(manager);
+    QVERIFY(repository.moveToTrash(recordingId));
+    QVERIFY(repository.permanentlyDelete(recordingId));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    QSqlQuery fallbackCount(connection.value());
+    fallbackCount.prepare(
+        QStringLiteral("SELECT COUNT(*) FROM search_index_fallback WHERE recording_id=?"));
+    fallbackCount.addBindValue(recordingId);
+    QVERIFY(fallbackCount.exec());
+    QVERIFY(fallbackCount.next());
+    QCOMPARE(fallbackCount.value(0).toInt(), 0);
+    if (ftsTableExists) {
+        QSqlQuery ftsCount(connection.value());
+        ftsCount.prepare(QStringLiteral("SELECT COUNT(*) FROM search_index WHERE recording_id=?"));
+        ftsCount.addBindValue(recordingId);
+        QVERIFY(ftsCount.exec());
+        QVERIFY(ftsCount.next());
+        QCOMPARE(ftsCount.value(0).toInt(), 0);
+    }
+}
+
+void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
+    QTemporaryDir directory;
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(manager.initialize());
+    SqliteRecordingRepository repository(manager);
+    const QString recordingId = QStringLiteral("atomic-index-delete-recording");
+    Recording recording;
+    recording.id = recordingId;
+    recording.title = QStringLiteral("AtomicTitleSecret-a77bf1");
+    recording.notes = QStringLiteral("AtomicNotesSecret-8cb053");
+    QVERIFY(repository.create(recording));
+    QVERIFY(insertTranscript(manager, recordingId,
+                             {QStringLiteral("AtomicTranscriptSecret-2706ce")}));
+    QVERIFY(repository.moveToTrash(recordingId));
+
+    const auto connection = manager.connection();
+    QVERIFY(connection);
+    QSqlQuery replaceFts(connection.value());
+    QVERIFY(replaceFts.exec(QStringLiteral("DROP TABLE IF EXISTS search_index")));
+    QVERIFY(replaceFts.exec(QStringLiteral(
+        "CREATE TABLE search_index(recording_id TEXT PRIMARY KEY,title TEXT NOT NULL,notes TEXT NOT "
+        "NULL,tags TEXT NOT NULL,transcript TEXT NOT NULL)")));
+    QSqlQuery legacyIndex(connection.value());
+    legacyIndex.prepare(QStringLiteral(
+        "INSERT INTO search_index(recording_id,title,notes,tags,transcript) VALUES(?,?,?,?,?)"));
+    legacyIndex.addBindValue(recordingId);
+    legacyIndex.addBindValue(recording.title);
+    legacyIndex.addBindValue(recording.notes);
+    legacyIndex.addBindValue(QStringLiteral("AtomicTagSecret-66dac1"));
+    legacyIndex.addBindValue(QStringLiteral("AtomicTranscriptSecret-2706ce"));
+    QVERIFY(legacyIndex.exec());
+    QSqlQuery injectFailure(connection.value());
+    QVERIFY(injectFailure.exec(QStringLiteral(
+        "CREATE TRIGGER fail_search_index_delete BEFORE DELETE ON search_index "
+        "WHEN OLD.recording_id='atomic-index-delete-recording' BEGIN "
+        "SELECT RAISE(ABORT,'injected search index delete failure'); END")));
+
+    const auto permanentlyDeleted = repository.permanentlyDelete(recordingId);
+    QVERIFY(!permanentlyDeleted);
+
+    QSqlQuery recordingCount(connection.value());
+    recordingCount.prepare(
+        QStringLiteral("SELECT COUNT(*) FROM recordings WHERE id=? AND deleted_at IS NOT NULL"));
+    recordingCount.addBindValue(recordingId);
+    QVERIFY(recordingCount.exec());
+    QVERIFY(recordingCount.next());
+    QCOMPARE(recordingCount.value(0).toInt(), 1);
+
+    QSqlQuery fallbackCount(connection.value());
+    fallbackCount.prepare(
+        QStringLiteral("SELECT COUNT(*) FROM search_index_fallback WHERE recording_id=?"));
+    fallbackCount.addBindValue(recordingId);
+    QVERIFY(fallbackCount.exec());
+    QVERIFY(fallbackCount.next());
+    QCOMPARE(fallbackCount.value(0).toInt(), 1);
+
+    QSqlQuery searchIndexCount(connection.value());
+    searchIndexCount.prepare(
+        QStringLiteral("SELECT COUNT(*) FROM search_index WHERE recording_id=?"));
+    searchIndexCount.addBindValue(recordingId);
+    QVERIFY(searchIndexCount.exec());
+    QVERIFY(searchIndexCount.next());
+    QCOMPARE(searchIndexCount.value(0).toInt(), 1);
 }
 
 void DatabaseTest::chineseSubstringSearchFindsRecordings() {

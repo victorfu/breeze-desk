@@ -24,6 +24,8 @@ class DatabaseSearchService final {
 
     [[nodiscard]] Result<void> rebuildRecording(const QString& recordingId) const;
     [[nodiscard]] Result<void> rebuildRecording(QSqlDatabase& database, const QString& recordingId) const;
+    [[nodiscard]] Result<void> removeRecording(QSqlDatabase& database,
+                                               const QString& recordingId) const;
     [[nodiscard]] Result<void> rebuildAll() const;
     [[nodiscard]] Result<QList<SearchResult>> search(const QString& query, int limit = 100,
                                                      int offset = 0) const;
