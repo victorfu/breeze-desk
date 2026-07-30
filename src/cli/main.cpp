@@ -2,6 +2,7 @@
 #include "breezedesk/app_config.h"
 #include "breezedesk/asr/LongFormChunkPlanner.h"
 #include "breezedesk/asr/OverlapDeduplicator.h"
+#include "breezedesk/audio/AudioCacheManager.h"
 #include "breezedesk/audio/FFmpegLocator.h"
 #include "breezedesk/audio/FFmpegNormalizationService.h"
 #include "breezedesk/audio/FFprobeService.h"
@@ -41,6 +42,8 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QScopeGuard>
+#include <QSet>
 #include <QTextStream>
 #include <QTimer>
 #include <QUuid>
@@ -349,6 +352,55 @@ CliExitCode initializeDatabase(DatabaseManager* database) {
         return CliExitCode::DatabaseFailure;
     }
     return CliExitCode::Success;
+}
+
+void removeExpiredOrphanedAudioCacheFiles(SqliteRecordingRepository& recordings,
+                                          SqliteJobRepository& jobs) {
+    QSet<QString> referencedPaths;
+    RecordingQuery query;
+    query.includeDeleted = true;
+    query.sortColumn = QStringLiteral("created_at");
+    query.sortOrder = Qt::AscendingOrder;
+    query.limit = 1'000;
+    while (true) {
+        const auto page = recordings.list(query);
+        if (!page) {
+            qCWarning(logCli,
+                      "Orphaned audio cache cleanup skipped because recordings could not be read: %s",
+                      qUtf8Printable(page.error().diagnosticString()));
+            return;
+        }
+        for (const Recording& recording : page.value().items) {
+            if (!recording.normalizedPcmPath.isEmpty()) {
+                referencedPaths.insert(recording.normalizedPcmPath);
+            }
+            if (!recording.waveformPath.isEmpty()) {
+                referencedPaths.insert(recording.waveformPath);
+            }
+        }
+        query.offset += static_cast<int>(page.value().items.size());
+        if (page.value().items.isEmpty() || query.offset >= page.value().totalCount) {
+            break;
+        }
+    }
+
+    const auto activeLease = jobs.activeLease();
+    if (!activeLease) {
+        qCWarning(logCli,
+                  "Orphaned audio cache cleanup skipped because the execution lease could not be read: %s",
+                  qUtf8Printable(activeLease.error().diagnosticString()));
+        return;
+    }
+    QString protectedGenerationId;
+    if (activeLease.value().has_value() &&
+        activeLease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+        protectedGenerationId = activeLease.value()->ownerToken;
+    }
+    const int removed = AudioCacheManager::removeExpiredOrphanedGenerationFiles(
+        referencedPaths, protectedGenerationId);
+    if (removed > 0) {
+        qCInfo(logCli, "Removed %d expired orphaned audio cache file(s)", removed);
+    }
 }
 
 CliExitCode importFiles(const QStringList& paths, SqliteRecordingRepository* repository, bool json) {
@@ -720,14 +772,6 @@ bool validateAnalyzedChunkPlan(const QList<JobChunk>& chunks, const qint64 durat
     return true;
 }
 
-QString normalizedAudioPath(const QString& recordingId) {
-    const QString directory = QDir(StoragePaths::cache()).filePath(QStringLiteral("audio"));
-    if (!QDir().mkpath(directory)) {
-        return {};
-    }
-    return QDir(directory).filePath(recordingId + QStringLiteral(".wav"));
-}
-
 bool isReusableNormalizedAudio(const QString& path, qint64 durationMs, NormalizedAudioInfo* info) {
     return NormalizedAudioValidator::validate(path, durationMs, info, nullptr);
 }
@@ -793,6 +837,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     }
     QString recordingId;
     QString pcmPath;
+    QString generatedPcmCandidate;
+    const QString executionOwnerToken = QUuid::createUuid().toString(QUuid::WithoutBraces);
     bool resumeHadReachedTranscription = false;
     if (!resumeJobId.isEmpty()) {
         const auto savedJob = jobs.findById(resumeJobId);
@@ -824,7 +870,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         recordingId = savedRecording.value()->id;
         pcmPath = savedRecording.value()->normalizedPcmPath;
         if (pcmPath.isEmpty()) {
-            pcmPath = normalizedAudioPath(recordingId);
+            pcmPath = AudioCacheManager::normalizedAudioPath(recordingId, executionOwnerToken);
+            generatedPcmCandidate = pcmPath;
         }
         resumeHadReachedTranscription =
             static_cast<int>(savedJob.value()->stage) >= static_cast<int>(JobStage::Transcribing);
@@ -838,7 +885,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         }
         recordingId =
             existing.value() ? existing.value()->id : QUuid::createUuid().toString(QUuid::WithoutBraces);
-        pcmPath = normalizedAudioPath(recordingId);
+        pcmPath = AudioCacheManager::normalizedAudioPath(recordingId, executionOwnerToken);
+        generatedPcmCandidate = pcmPath;
     }
     if (pcmPath.isEmpty()) {
         TranscribeRunResult result;
@@ -848,7 +896,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     }
 
     CliTranscriptionPersistence persistence(
-        recordings, jobs, transcripts, {}, [] { return g_interrupted != 0; },
+        recordings, jobs, transcripts, executionOwnerToken, [] { return g_interrupted != 0; },
         [](const QString& message) { writeError(message); });
     Result<DurableTranscriptionIdentity> session =
         Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
@@ -858,7 +906,6 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         recording.id = recordingId;
         recording.title = QFileInfo(source).completeBaseName();
         recording.sourcePath = source;
-        recording.normalizedPcmPath = pcmPath;
         recording.mediaType = metadata.hasVideo ? QStringLiteral("video") : QStringLiteral("audio");
         recording.durationMs = metadata.durationMs;
         recording.sampleRate = metadata.sampleRate;
@@ -890,24 +937,63 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         descriptor.chunks = durableChunks(Asr::LongFormChunkPlanner().plan(metadata.durationMs, {}));
         session = persistence.beginNew(std::move(descriptor));
     } else {
-        session = persistence.resume(resumeJobId, source, pcmPath);
+        session = persistence.resume(resumeJobId, source);
     }
     if (!session) {
         TranscribeRunResult result;
-        if (session.error().code == ErrorCode::OperationCancelled ||
-            session.error().code == ErrorCode::JobCancelled) {
-            result.exitCode = CliExitCode::Cancelled;
-        } else {
-            result.exitCode = session.error().domain == ErrorDomain::Database ? CliExitCode::DatabaseFailure
-                                                                              : CliExitCode::InvalidArguments;
-        }
+        result.exitCode = transcriptionSessionFailureExitCode(session.error());
         result.error = session.error().diagnosticString();
         return result;
     }
 
-    const auto makeResult = [&persistence, &metadata](CliExitCode code, QList<TranscriptSegment> segments,
-                                                      QString message) {
+    const auto removeCacheCandidateIfUnreferenced = [&recordings, &recordingId](const QString& path) {
+        if (path.trimmed().isEmpty() || !QFileInfo::exists(path)) {
+            return;
+        }
+        const QString candidate = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+        const QString cacheRoot =
+            QDir::cleanPath(QFileInfo(AudioCacheManager::cacheRoot()).absoluteFilePath());
+#ifdef Q_OS_WIN
+        constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseInsensitive;
+#else
+        constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseSensitive;
+#endif
+        if (!candidate.startsWith(cacheRoot + QDir::separator(), PathCaseSensitivity)) {
+            return;
+        }
+        const auto current = recordings.findById(recordingId);
+        if (!current) {
+            return;
+        }
+        if (current.value().has_value()) {
+            const auto referencesCandidate = [&candidate, PathCaseSensitivity](
+                                                 const QString& referencedPath) {
+                return !referencedPath.isEmpty() &&
+                       QDir::cleanPath(QFileInfo(referencedPath).absoluteFilePath())
+                               .compare(candidate, PathCaseSensitivity) == 0;
+            };
+            if (referencesCandidate(current.value()->normalizedPcmPath) ||
+                referencesCandidate(current.value()->waveformPath)) {
+                return;
+            }
+        }
+        (void)QFile::remove(candidate);
+    };
+    const auto generatedPcmCleanup = qScopeGuard(
+        [&removeCacheCandidateIfUnreferenced, &generatedPcmCandidate] {
+            removeCacheCandidateIfUnreferenced(generatedPcmCandidate);
+        });
+
+    QString terminalCheckpointFailure;
+    const auto makeResult = [&persistence, &metadata,
+                             &terminalCheckpointFailure](CliExitCode code,
+                                                         QList<TranscriptSegment> segments,
+                                                         QString message) {
         TranscribeRunResult result;
+        if (!terminalCheckpointFailure.isEmpty()) {
+            code = CliExitCode::DatabaseFailure;
+            message = terminalCheckpointFailure;
+        }
         result.exitCode = code;
         result.segments = std::move(segments);
         result.error = std::move(message);
@@ -917,9 +1003,25 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         result.resumed = persistence.identity().resumed;
         return result;
     };
-    const auto interruptSession = [&persistence](const QString& reason, const QString& errorCode) {
+    const auto recordTerminalCheckpointFailure =
+        [&jobs, &persistence, &terminalCheckpointFailure](const Result<void>& checkpoint,
+                                                          const QString& reason) {
+            if (checkpoint || !terminalCheckpointFailure.isEmpty()) {
+                return;
+            }
+            const auto durableJob = jobs.findById(persistence.identity().jobId);
+            if (durableJob && durableJob.value().has_value() &&
+                durableJob.value()->state == JobState::Cancelled) {
+                return;
+            }
+            terminalCheckpointFailure =
+                QStringLiteral("%1 The terminal checkpoint failed: %2")
+                    .arg(reason, checkpoint.error().diagnosticString());
+        };
+    const auto interruptSession = [&persistence, &recordTerminalCheckpointFailure](
+                                      const QString& reason, const QString& errorCode) {
         const auto checkpoint = persistence.interrupt(reason, errorCode);
-        Q_UNUSED(checkpoint)
+        recordTerminalCheckpointFailure(checkpoint, reason);
     };
     enum class StopCause { None, Signal, DurableCancellation, LeaseFailure, DatabaseFailure };
     StopCause stopCause = StopCause::None;
@@ -957,13 +1059,14 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                                  &stopMessage](QList<TranscriptSegment> segments = {}) {
         const QString reason =
             stopMessage.isEmpty() ? QStringLiteral("Transcription was cancelled by the user.") : stopMessage;
+        if (stopCause == StopCause::LeaseFailure) {
+            return makeResult(CliExitCode::DatabaseFailure, std::move(segments), reason);
+        }
         Result<void> checkpoint = Result<void>::success();
         if (stopCause == StopCause::DurableCancellation) {
             checkpoint = persistence.cancel(reason);
         } else if (stopCause == StopCause::Signal) {
             checkpoint = persistence.interrupt(reason, QStringLiteral("JobCancelled"));
-        } else if (stopCause == StopCause::LeaseFailure) {
-            checkpoint = persistence.interrupt(reason, QStringLiteral("ExecutionLeaseLost"));
         } else {
             checkpoint = persistence.interrupt(reason, QStringLiteral("DatabaseQueryFailed"));
         }
@@ -1027,7 +1130,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         if (const auto stopped = stopResultIfRequested()) {
             return *stopped;
         }
-        Q_UNUSED(failed)
+        recordTerminalCheckpointFailure(failed, reason);
         return makeResult(CliExitCode::MediaFailure, {}, reason);
     }
     if (sourceSnapshot.sha256.isEmpty()) {
@@ -1037,7 +1140,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         if (const auto stopped = stopResultIfRequested()) {
             return *stopped;
         }
-        Q_UNUSED(failed)
+        recordTerminalCheckpointFailure(failed, reason);
         return makeResult(CliExitCode::MediaFailure, {}, reason);
     }
     metadata = sourceSnapshot.metadata;
@@ -1059,7 +1162,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         if (const auto stopped = stopResultIfRequested()) {
             return *stopped;
         }
-        Q_UNUSED(failed)
+        recordTerminalCheckpointFailure(failed, reason);
         return makeResult(CliExitCode::TranscriptionFailure, {}, reason);
     }
 
@@ -1087,12 +1190,31 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     preparedRecording.sampleRate = metadata.sampleRate;
     preparedRecording.channelCount = metadata.channelCount;
     preparedRecording.mediaType = metadata.hasVideo ? QStringLiteral("video") : QStringLiteral("audio");
+    QString obsoleteNormalizedPath;
+    QString obsoleteWaveformPath;
     if (!reusableNormalizedAudio) {
+        obsoleteNormalizedPath = preparedRecording.normalizedPcmPath;
+        obsoleteWaveformPath = preparedRecording.waveformPath;
         preparedRecording.sourceHash.clear();
         preparedRecording.normalizedPcmPath.clear();
         preparedRecording.waveformPath.clear();
+        pcmPath = AudioCacheManager::normalizedAudioPath(persistence.identity().recordingId,
+                                                         persistence.ownerToken());
+        generatedPcmCandidate = pcmPath;
+        if (pcmPath.isEmpty()) {
+            const QString reason =
+                QStringLiteral("The normalized audio cache directory could not be created.");
+            const auto checkpoint =
+                persistence.interrupt(reason, QStringLiteral("DatabaseQueryFailed"));
+            if (!checkpoint) {
+                return makeResult(CliExitCode::DatabaseFailure, {},
+                                  checkpoint.error().diagnosticString());
+            }
+            return makeResult(CliExitCode::MediaFailure, {}, reason);
+        }
     }
-    const auto preparedSaved = recordings.update(preparedRecording);
+    const auto preparedSaved = recordings.update(preparedRecording, persistence.identity().jobId,
+                                                  persistence.ownerToken());
     if (!preparedSaved) {
         if (const auto stopped = stopResultIfRequested()) {
             return *stopped;
@@ -1101,6 +1223,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));
         return makeResult(CliExitCode::DatabaseFailure, {}, reason);
     }
+    removeCacheCandidateIfUnreferenced(obsoleteNormalizedPath);
+    removeCacheCandidateIfUnreferenced(obsoleteWaveformPath);
     if (const auto stopped = stopResultIfRequested()) {
         return *stopped;
     }
@@ -1164,7 +1288,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             if (const auto stopped = stopResultIfRequested()) {
                 return *stopped;
             }
-            Q_UNUSED(failed)
+            recordTerminalCheckpointFailure(failed, reason);
             return makeResult(CliExitCode::MediaFailure, {}, reason);
         }
         QString validationError;
@@ -1176,7 +1300,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             if (const auto stopped = stopResultIfRequested()) {
                 return *stopped;
             }
-            Q_UNUSED(failed)
+            recordTerminalCheckpointFailure(failed, reason);
             return makeResult(CliExitCode::MediaFailure, {}, reason);
         }
         const SourceHashResult verifiedSource = hashSourceWithEvents(source, detectStop);
@@ -1195,7 +1319,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             if (const auto stopped = stopResultIfRequested()) {
                 return *stopped;
             }
-            Q_UNUSED(failed)
+            recordTerminalCheckpointFailure(failed, reason);
             return makeResult(CliExitCode::MediaFailure, {}, reason);
         }
     }
@@ -1243,6 +1367,42 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     }
 
     WorkerProcessManager worker;
+    bool workerStopped = false;
+    const auto stopWorker = [&worker, &workerStopped] {
+        if (workerStopped) {
+            return;
+        }
+        worker.stop();
+        workerStopped = true;
+    };
+    const auto quiesceWorkerRequest = [&persistence, &leaseFailure, &stopCause, &stopMessage,
+                                       &stopWorker](bool& requestInFlight) {
+        if (!requestInFlight) {
+            return true;
+        }
+
+        Result<void> quiesced = Result<void>::failure(UserFacingError::validation(
+            ErrorCode::ExecutionLeaseLost,
+            leaseFailure.isEmpty() ? QStringLiteral("The ASR execution lease was lost.")
+                                   : leaseFailure));
+        if (leaseFailure.isEmpty()) {
+            quiesced = persistence.quiesceWorkerBeforeTerminalCheckpoint(stopWorker);
+        } else {
+            stopWorker();
+        }
+        requestInFlight = false;
+        if (quiesced) {
+            return true;
+        }
+
+        leaseFailure = QStringLiteral(
+                           "The global transcription lease could not be retained while stopping the ASR "
+                           "worker: %1")
+                           .arg(quiesced.error().diagnosticString());
+        stopCause = StopCause::LeaseFailure;
+        stopMessage = leaseFailure;
+        return false;
+    };
     const QString jobId = persistence.identity().jobId;
     QString workerInterruption;
     QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &worker,
@@ -1259,9 +1419,10 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &readyLoop, &QEventLoop::quit);
     QTimer readyCancellation;
     readyCancellation.setInterval(100);
-    QObject::connect(&readyCancellation, &QTimer::timeout, &readyLoop, [&worker, &readyLoop, &detectStop] {
+    QObject::connect(&readyCancellation, &QTimer::timeout, &readyLoop,
+                     [&stopWorker, &readyLoop, &detectStop] {
         if (detectStop()) {
-            worker.stop();
+            stopWorker();
             readyLoop.quit();
         }
     });
@@ -1278,13 +1439,14 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     readyCancellation.stop();
     readyTimeout.stop();
     if (const auto stopped = stopResultIfRequested()) {
-        worker.stop();
+        stopWorker();
         return *stopped;
     }
     if (!worker.isReady()) {
         const QString reason = worker.lastError().isEmpty()
                                    ? QStringLiteral("Timed out connecting to the ASR worker.")
                                    : worker.lastError();
+        stopWorker();
         interruptSession(reason, workerInterruption.isEmpty() ? QStringLiteral("WorkerTimeout")
                                                               : QStringLiteral("WorkerCrashed"));
         return makeResult(CliExitCode::WorkerFailure, {}, reason);
@@ -1294,7 +1456,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
 
     const auto modelLoadStarted = persistence.beginModelLoad();
     if (!modelLoadStarted) {
-        worker.stop();
+        stopWorker();
         if (const auto stopped = stopResultIfRequested()) {
             return *stopped;
         }
@@ -1308,6 +1470,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     QJsonObject runtimeDiagnostics;
     bool loaded = false;
     bool loadTimedOut = false;
+    bool loadRequestInFlight = true;
     const QString loadRequest = client->sendRequest(
         Ipc::MessageType::LoadModel, {},
         {{QStringLiteral("modelPath"), modelPath},
@@ -1318,11 +1481,12 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     QMetaObject::Connection loadConnection = QObject::connect(
         client, &Ipc::AsrWorkerClient::envelopeReceived, &loadLoop,
         [&loadLoop, &loadError, &actualBackend, &runtimeVersion, &runtimeDiagnostics, &loaded,
-         loadRequest](const Ipc::Envelope& envelope) {
+         &loadRequestInFlight, loadRequest](const Ipc::Envelope& envelope) {
             if (envelope.requestId != loadRequest) {
                 return;
             }
             if (envelope.type == Ipc::MessageType::ModelLoaded) {
+                loadRequestInFlight = false;
                 actualBackend = envelope.payload.value(QStringLiteral("actualBackend")).toString();
                 runtimeVersion = envelope.payload.value(QStringLiteral("runtimeVersion")).toString();
                 runtimeDiagnostics.insert(
@@ -1340,7 +1504,12 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                 loaded = true;
                 loadLoop.quit();
             } else if (envelope.type == Ipc::MessageType::Error) {
+                loadRequestInFlight = false;
                 loadError = envelope.payload.value(QStringLiteral("message")).toString();
+                loadLoop.quit();
+            } else if (envelope.type == Ipc::MessageType::JobCancelled) {
+                loadRequestInFlight = false;
+                loadError = QStringLiteral("Model loading was cancelled.");
                 loadLoop.quit();
             }
         });
@@ -1350,38 +1519,47 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         loadTimedOut = true;
         loadLoop.quit();
     });
-    QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &loadLoop, &QEventLoop::quit);
+    QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &loadLoop,
+                     [&loadLoop, &loadRequestInFlight] {
+                         loadRequestInFlight = false;
+                         loadLoop.quit();
+                     });
     QTimer loadCancellation;
     loadCancellation.setInterval(100);
     bool loadCancellationDispatched = false;
     QObject::connect(&loadCancellation, &QTimer::timeout, &loadLoop,
-                     [&worker, &loadLoop, jobId, &detectStop, &loadCancellationDispatched] {
-                         if (detectStop()) {
-                             if (!loadCancellationDispatched) {
-                                 loadCancellationDispatched = true;
-            worker.forceCancelAfterGrace(jobId);
-                             }
-            loadLoop.quit();
-        }
-    });
+                     [&worker, &loadLoop, loadRequest, &detectStop,
+                      &loadCancellationDispatched] {
+                         if (!detectStop()) {
+                             return;
+                         }
+                         if (!loadCancellationDispatched) {
+                             loadCancellationDispatched = true;
+                             worker.forceCancelAfterGrace({}, loadRequest);
+                         }
+                         loadLoop.quit();
+                     });
     loadCancellation.start();
     loadTimeout.start(120000);
     loadLoop.exec();
     loadCancellation.stop();
     loadTimeout.stop();
     QObject::disconnect(loadConnection);
-    if (const auto stopped = stopResultIfRequested()) {
-            worker.stop();
-        return *stopped;
-        }
+    if (detectStop()) {
+        (void)quiesceWorkerRequest(loadRequestInFlight);
+        return makeStopResult();
+    }
     if (!loaded) {
         QString reason = loadError;
         if (!workerInterruption.isEmpty() || loadTimedOut) {
             reason = workerInterruption.isEmpty() ? QStringLiteral("Model loading timed out.")
                                                   : workerInterruption;
+            if (loadTimedOut && !quiesceWorkerRequest(loadRequestInFlight)) {
+                return makeResult(CliExitCode::DatabaseFailure, {}, leaseFailure);
+            }
             interruptSession(reason, loadTimedOut ? QStringLiteral("WorkerTimeout")
                                                   : QStringLiteral("WorkerCrashed"));
-            worker.stop();
+            stopWorker();
             return makeResult(CliExitCode::WorkerFailure, {}, reason);
         }
         if (reason.isEmpty()) {
@@ -1389,28 +1567,29 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         }
         const auto failed = persistence.fail(QStringLiteral("ModelLoadFailed"), reason);
         if (const auto stopped = stopResultIfRequested()) {
-            worker.stop();
+            stopWorker();
             return *stopped;
         }
-        Q_UNUSED(failed)
-        worker.stop();
+        recordTerminalCheckpointFailure(failed, reason);
+        stopWorker();
         return makeResult(CliExitCode::ModelUnavailable, {}, reason);
     }
     const auto runtimeSaved =
         jobs.updateRuntimeInfo(jobId, actualBackend, runtimeVersion,
-                               QString::fromLatin1(BREEZEDESK_VERSION_STRING), runtimeDiagnostics);
+                               QString::fromLatin1(BREEZEDESK_VERSION_STRING), runtimeDiagnostics,
+                               persistence.ownerToken());
     if (!runtimeSaved) {
         if (const auto stopped = stopResultIfRequested()) {
-            worker.stop();
+            stopWorker();
             return *stopped;
         }
         const QString reason = runtimeSaved.error().diagnosticString();
         interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));
-        worker.stop();
+        stopWorker();
         return makeResult(CliExitCode::DatabaseFailure, {}, reason);
     }
     if (const auto stopped = stopResultIfRequested()) {
-        worker.stop();
+        stopWorker();
         return *stopped;
     }
 
@@ -1420,12 +1599,12 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         const auto analysisStarted = persistence.beginSpeechAnalysis();
         if (!analysisStarted) {
             if (const auto stopped = stopResultIfRequested()) {
-                worker.stop();
+                stopWorker();
                 return *stopped;
             }
             interruptSession(analysisStarted.error().diagnosticString(),
                              QStringLiteral("DatabaseQueryFailed"));
-            worker.stop();
+            stopWorker();
             return makeResult(CliExitCode::DatabaseFailure, {}, analysisStarted.error().diagnosticString());
         }
         QEventLoop analysisLoop;
@@ -1433,6 +1612,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         QString analysisCheckpointError;
         bool analysisCompleted = false;
         bool analysisTimedOut = false;
+        bool analysisRequestInFlight = true;
         QList<JobChunk> analyzedChunks;
         const qint64 expectedAnalysisDuration = metadata.durationMs;
         const QString requestId = client->sendRequest(Ipc::MessageType::AnalyzeSpeech, jobId,
@@ -1441,8 +1621,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                                                        {QStringLiteral("vadModelSha256"), vadModelChecksum}});
         const QMetaObject::Connection analysisConnection = QObject::connect(
             client, &Ipc::AsrWorkerClient::envelopeReceived, &analysisLoop,
-            [&analysisLoop, &analysisError, &analysisCheckpointError, &analysisCompleted, &analyzedChunks,
-             &persistence, requestId, jobId, &worker,
+            [&analysisLoop, &analysisError, &analysisCheckpointError, &analysisCompleted,
+             &analysisRequestInFlight, &analyzedChunks, &persistence, requestId, jobId, &worker,
              expectedAnalysisDuration](const Ipc::Envelope& envelope) {
                 if (envelope.requestId != requestId || envelope.jobId != jobId) {
                     return;
@@ -1454,10 +1634,11 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                         persistence.updateSpeechAnalysisProgress(static_cast<double>(progress) / 100.0);
                     if (!saved) {
                         analysisCheckpointError = saved.error().diagnosticString();
-                        worker.forceCancelAfterGrace(jobId);
+                        worker.forceCancelAfterGrace(jobId, requestId);
                         analysisLoop.quit();
                     }
                 } else if (envelope.type == Ipc::MessageType::SpeechAnalysisCompleted) {
+                    analysisRequestInFlight = false;
                     const QCborValue durationValue = envelope.payload.value(QStringLiteral("durationMs"));
                     if (!durationValue.isInteger() || durationValue.toInteger() != expectedAnalysisDuration) {
                         analysisError =
@@ -1524,9 +1705,11 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                     }
                     analysisLoop.quit();
                 } else if (envelope.type == Ipc::MessageType::Error) {
+                    analysisRequestInFlight = false;
                     analysisError = envelope.payload.value(QStringLiteral("message")).toString();
                     analysisLoop.quit();
                 } else if (envelope.type == Ipc::MessageType::JobCancelled) {
+                    analysisRequestInFlight = false;
                     analysisError = QStringLiteral("Speech analysis was cancelled.");
                     analysisLoop.quit();
                 }
@@ -1538,20 +1721,25 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                              analysisTimedOut = true;
                              analysisLoop.quit();
                          });
-        QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &analysisLoop, &QEventLoop::quit);
+        QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &analysisLoop,
+                         [&analysisLoop, &analysisRequestInFlight] {
+                             analysisRequestInFlight = false;
+                             analysisLoop.quit();
+                         });
         QTimer cancellationPoll;
         cancellationPoll.setInterval(100);
         bool analysisCancellationDispatched = false;
         QObject::connect(&cancellationPoll, &QTimer::timeout, &analysisLoop,
-                         [&worker, &analysisLoop, jobId, &detectStop, &analysisCancellationDispatched] {
-                             if (detectStop()) {
-                                 if (!analysisCancellationDispatched) {
-                                     analysisCancellationDispatched = true;
-                worker.forceCancelAfterGrace(jobId);
-                                 }
-                analysisLoop.quit();
-            }
-        });
+                         [&worker, &analysisLoop, jobId, requestId, &detectStop,
+                          &analysisCancellationDispatched] {
+                              if (detectStop()) {
+                                  if (!analysisCancellationDispatched) {
+                                      analysisCancellationDispatched = true;
+                                      worker.forceCancelAfterGrace(jobId, requestId);
+                                  }
+                                  analysisLoop.quit();
+                              }
+                          });
         cancellationPoll.start();
         analysisTimeout.start(60 * 60 * 1000);
         analysisLoop.exec();
@@ -1559,13 +1747,16 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         analysisTimeout.stop();
         QObject::disconnect(analysisConnection);
         finishProgress();
-        if (const auto stopped = stopResultIfRequested()) {
-            worker.stop();
-            return *stopped;
+        if (detectStop()) {
+            (void)quiesceWorkerRequest(analysisRequestInFlight);
+            return makeStopResult();
         }
         if (!analysisCheckpointError.isEmpty()) {
+            if (!quiesceWorkerRequest(analysisRequestInFlight)) {
+                return makeResult(CliExitCode::DatabaseFailure, {}, leaseFailure);
+            }
             interruptSession(analysisCheckpointError, QStringLiteral("DatabaseQueryFailed"));
-            worker.stop();
+            stopWorker();
             return makeResult(CliExitCode::DatabaseFailure, {}, analysisCheckpointError);
         }
         if (!analysisCompleted) {
@@ -1573,9 +1764,12 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             if (!workerInterruption.isEmpty() || analysisTimedOut) {
                 reason = workerInterruption.isEmpty() ? QStringLiteral("Speech analysis timed out.")
                                                       : workerInterruption;
+                if (analysisTimedOut && !quiesceWorkerRequest(analysisRequestInFlight)) {
+                    return makeResult(CliExitCode::DatabaseFailure, {}, leaseFailure);
+                }
                 interruptSession(reason, analysisTimedOut ? QStringLiteral("WorkerTimeout")
                                                           : QStringLiteral("WorkerCrashed"));
-                worker.stop();
+                stopWorker();
                 return makeResult(CliExitCode::WorkerFailure, {}, reason);
             }
             if (reason.isEmpty()) {
@@ -1583,48 +1777,48 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             }
             const auto failed = persistence.fail(QStringLiteral("AudioDecodeFailed"), reason);
             if (const auto stopped = stopResultIfRequested()) {
-                worker.stop();
+                stopWorker();
                 return *stopped;
             }
-            Q_UNUSED(failed)
-            worker.stop();
+            recordTerminalCheckpointFailure(failed, reason);
+            stopWorker();
             return makeResult(CliExitCode::TranscriptionFailure, {}, reason);
         }
         const auto replaced = persistence.replaceChunkPlan(std::move(analyzedChunks));
         if (!replaced) {
             if (const auto stopped = stopResultIfRequested()) {
-                worker.stop();
+                stopWorker();
                 return *stopped;
             }
             interruptSession(replaced.error().diagnosticString(), QStringLiteral("DatabaseQueryFailed"));
-            worker.stop();
+            stopWorker();
             return makeResult(CliExitCode::DatabaseFailure, {}, replaced.error().diagnosticString());
         }
     }
     if (const auto stopped = stopResultIfRequested()) {
-        worker.stop();
+        stopWorker();
         return *stopped;
     }
 
     const auto transcriptionStarted = persistence.beginTranscription();
     if (!transcriptionStarted) {
         if (const auto stopped = stopResultIfRequested()) {
-            worker.stop();
+            stopWorker();
             return *stopped;
         }
         interruptSession(transcriptionStarted.error().diagnosticString(),
                          QStringLiteral("DatabaseQueryFailed"));
-        worker.stop();
+        stopWorker();
         return makeResult(CliExitCode::DatabaseFailure, {}, transcriptionStarted.error().diagnosticString());
     }
     auto storedSegments = transcripts.segmentsForJob(jobId, false);
     if (!storedSegments) {
         if (const auto stopped = stopResultIfRequested()) {
-            worker.stop();
+            stopWorker();
             return *stopped;
         }
         interruptSession(storedSegments.error().diagnosticString(), QStringLiteral("DatabaseQueryFailed"));
-        worker.stop();
+        stopWorker();
         return makeResult(CliExitCode::DatabaseFailure, {}, storedSegments.error().diagnosticString());
     }
     QList<TranscriptSegment> segments = storedSegments.value();
@@ -1640,19 +1834,18 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             continue;
         }
         if (const auto stopped = stopResultIfRequested(segments)) {
-            worker.forceCancelAfterGrace(jobId);
-            worker.stop();
+            stopWorker();
             return *stopped;
         }
         const JobChunk& chunk = chunks.at(chunkIndex);
         const auto chunkStarted = persistence.beginChunk(chunk.ordinal);
         if (!chunkStarted) {
             if (const auto stopped = stopResultIfRequested(segments)) {
-                worker.stop();
+                stopWorker();
                 return *stopped;
             }
             interruptSession(chunkStarted.error().diagnosticString(), QStringLiteral("DatabaseQueryFailed"));
-            worker.stop();
+            stopWorker();
             return makeResult(CliExitCode::DatabaseFailure, segments,
                               chunkStarted.error().diagnosticString());
         }
@@ -1662,6 +1855,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         QString chunkCheckpointError;
         bool completed = false;
         bool chunkTimedOut = false;
+        bool chunkRequestInFlight = true;
         QList<TranscriptSegment> incoming;
         QCborArray currentPromptParts = promptConfiguration.parts;
         QString previousContext;
@@ -1691,8 +1885,9 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         const QString requestId = client->sendRequest(Ipc::MessageType::StartTranscription, jobId, payload);
         QMetaObject::Connection connection = QObject::connect(
             client, &Ipc::AsrWorkerClient::envelopeReceived, &chunkLoop,
-            [&chunkLoop, &chunkError, &chunkCheckpointError, &completed, &incoming, &persistence, &worker,
-             requestId, jobId, &segments, &completedChunks, chunk, finalChunk,
+            [&chunkLoop, &chunkError, &chunkCheckpointError, &completed, &chunkRequestInFlight,
+             &incoming, &persistence, &worker, requestId, jobId, &segments, &completedChunks, chunk,
+             finalChunk,
              glossaryTerms = promptConfiguration.terms,
              chunkCount = chunks.size()](const Ipc::Envelope& envelope) {
                 if (envelope.requestId != requestId || envelope.jobId != jobId) {
@@ -1709,7 +1904,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                     const auto saved = persistence.updateTranscriptionProgress(overallProgress);
                     if (!saved) {
                         chunkCheckpointError = saved.error().diagnosticString();
-                        worker.forceCancelAfterGrace(jobId);
+                        worker.forceCancelAfterGrace(jobId, requestId);
                         chunkLoop.quit();
                     }
                 } else if (envelope.type == Ipc::MessageType::PartialSegment) {
@@ -1738,17 +1933,20 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                     const auto saved = persistence.saveChunkSegments(chunk.ordinal, incoming, true);
                     if (!saved) {
                         chunkCheckpointError = saved.error().diagnosticString();
-                        worker.forceCancelAfterGrace(jobId);
+                        worker.forceCancelAfterGrace(jobId, requestId);
                         chunkLoop.quit();
                     }
                 } else if ((envelope.type == Ipc::MessageType::ChunkCompleted && !finalChunk) ||
                            (envelope.type == Ipc::MessageType::TranscriptionCompleted && finalChunk)) {
+                    chunkRequestInFlight = false;
                     completed = true;
                     chunkLoop.quit();
                 } else if (envelope.type == Ipc::MessageType::Error) {
+                    chunkRequestInFlight = false;
                     chunkError = envelope.payload.value(QStringLiteral("message")).toString();
                     chunkLoop.quit();
                 } else if (envelope.type == Ipc::MessageType::JobCancelled) {
+                    chunkRequestInFlight = false;
                     chunkError = QStringLiteral("Transcription was cancelled.");
                     chunkLoop.quit();
                 }
@@ -1759,20 +1957,25 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             chunkTimedOut = true;
             chunkLoop.quit();
         });
-        QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &chunkLoop, &QEventLoop::quit);
+        QObject::connect(&worker, &WorkerProcessManager::workerInterrupted, &chunkLoop,
+                         [&chunkLoop, &chunkRequestInFlight] {
+                             chunkRequestInFlight = false;
+                             chunkLoop.quit();
+                         });
         QTimer cancellationPoll;
         cancellationPoll.setInterval(100);
         bool chunkCancellationDispatched = false;
         QObject::connect(&cancellationPoll, &QTimer::timeout, &chunkLoop,
-                         [&worker, &chunkLoop, jobId, &detectStop, &chunkCancellationDispatched] {
-                             if (detectStop()) {
-                                 if (!chunkCancellationDispatched) {
-                                     chunkCancellationDispatched = true;
-                worker.forceCancelAfterGrace(jobId);
-                                 }
-                chunkLoop.quit();
-            }
-        });
+                         [&worker, &chunkLoop, jobId, requestId, &detectStop,
+                          &chunkCancellationDispatched] {
+                              if (detectStop()) {
+                                  if (!chunkCancellationDispatched) {
+                                      chunkCancellationDispatched = true;
+                                      worker.forceCancelAfterGrace(jobId, requestId);
+                                  }
+                                  chunkLoop.quit();
+                              }
+                          });
         cancellationPoll.start();
         chunkTimeout.start(12 * 60 * 60 * 1000);
         chunkLoop.exec();
@@ -1780,14 +1983,17 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         chunkTimeout.stop();
         QObject::disconnect(connection);
         finishProgress();
-        if (const auto stopped = stopResultIfRequested(segments)) {
-            worker.stop();
-            return *stopped;
+        if (detectStop()) {
+            (void)quiesceWorkerRequest(chunkRequestInFlight);
+            return makeStopResult(segments);
         }
         if (!completed) {
             if (!chunkCheckpointError.isEmpty()) {
+                if (!quiesceWorkerRequest(chunkRequestInFlight)) {
+                    return makeResult(CliExitCode::DatabaseFailure, segments, leaseFailure);
+                }
                 interruptSession(chunkCheckpointError, QStringLiteral("DatabaseQueryFailed"));
-                worker.stop();
+                stopWorker();
                 return makeResult(CliExitCode::DatabaseFailure, segments, chunkCheckpointError);
             }
             if (!workerInterruption.isEmpty() || chunkTimedOut) {
@@ -1795,9 +2001,12 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                     workerInterruption.isEmpty()
                         ? QStringLiteral("The ASR worker timed out while transcribing a chunk.")
                         : workerInterruption;
+                if (chunkTimedOut && !quiesceWorkerRequest(chunkRequestInFlight)) {
+                    return makeResult(CliExitCode::DatabaseFailure, segments, leaseFailure);
+                }
                 interruptSession(reason, chunkTimedOut ? QStringLiteral("WorkerTimeout")
                                                        : QStringLiteral("WorkerCrashed"));
-                worker.stop();
+                stopWorker();
                 return makeResult(CliExitCode::WorkerFailure, segments, reason);
             }
             if (chunkError.isEmpty()) {
@@ -1805,11 +2014,11 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             }
             const auto failed = persistence.fail(QStringLiteral("Unknown"), chunkError);
             if (const auto stopped = stopResultIfRequested(segments)) {
-                worker.stop();
+                stopWorker();
                 return *stopped;
             }
-            Q_UNUSED(failed)
-            worker.stop();
+            recordTerminalCheckpointFailure(failed, chunkError);
+            stopWorker();
             return makeResult(CliExitCode::TranscriptionFailure, segments, chunkError);
         }
         if (!segments.isEmpty() && !incoming.isEmpty() && chunk.overlapBeforeMs > 0) {
@@ -1836,18 +2045,18 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             previousEnd = segment.endMs;
         }
         if (const auto stopped = stopResultIfRequested(segments)) {
-            worker.stop();
+            stopWorker();
             return *stopped;
         }
         const auto completedChunk = persistence.completeChunk(chunk.ordinal, incoming);
         if (!completedChunk) {
             if (const auto stopped = stopResultIfRequested(segments)) {
-                worker.stop();
+                stopWorker();
                 return *stopped;
             }
             interruptSession(completedChunk.error().diagnosticString(),
                              QStringLiteral("DatabaseQueryFailed"));
-            worker.stop();
+            stopWorker();
             return makeResult(CliExitCode::DatabaseFailure, segments,
                               completedChunk.error().diagnosticString());
         }
@@ -1855,26 +2064,26 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         ++completedChunks;
     }
     if (const auto stopped = stopResultIfRequested(segments)) {
-        worker.stop();
+        stopWorker();
         return *stopped;
     }
     const auto durableCompletion = persistence.complete();
     if (!durableCompletion) {
         if (const auto stopped = stopResultIfRequested(segments)) {
-            worker.stop();
+            stopWorker();
             return *stopped;
         }
         interruptSession(durableCompletion.error().diagnosticString(), QStringLiteral("DatabaseQueryFailed"));
-        worker.stop();
+        stopWorker();
         return makeResult(CliExitCode::DatabaseFailure, segments,
                           durableCompletion.error().diagnosticString());
     }
     const auto durableSegments = persistence.persistedSegments();
     if (!durableSegments) {
-        worker.stop();
+        stopWorker();
         return makeResult(CliExitCode::DatabaseFailure, segments, durableSegments.error().diagnosticString());
     }
-    worker.stop();
+    stopWorker();
     return makeResult(CliExitCode::Success, durableSegments.value(), {});
 }
 
@@ -2172,6 +2381,7 @@ int main(int argc, char* argv[]) {
     BreezeDesk::SqliteJobRepository jobs(database);
     BreezeDesk::SqliteTranscriptRepository transcripts(database);
     BreezeDesk::SqliteGlossaryRepository glossaries(database);
+    BreezeDesk::removeExpiredOrphanedAudioCacheFiles(recordings, jobs);
     BreezeDesk::ModelManager models;
 
     BreezeDesk::CliExitCode result = BreezeDesk::CliExitCode::InvalidArguments;

@@ -3,8 +3,13 @@
 #include "breezedesk/models/ModelManifest.h"
 
 #include <QObject>
+#include <QPointer>
+
+#include <memory>
 
 class QFile;
+template <typename T> class QFutureWatcher;
+class QLockFile;
 class QNetworkAccessManager;
 class QNetworkReply;
 class QTimer;
@@ -52,10 +57,20 @@ class ModelDownloadOperation final : public QObject {
     void finished(bool success, const QString& path);
 
   private:
+    enum class VerificationPurpose { ExistingFinal, DownloadedPart, FinalBeforeCommit };
+
+    void acquireDownloadLock();
+    void inspectLockedFiles();
     void beginRequest();
     void handleReadyRead();
     void handleNetworkFinished();
-    void beginVerification();
+    void beginVerification(const QString& path, VerificationPurpose purpose);
+    void handleVerificationFinished(const QByteArray& checksum, VerificationPurpose purpose);
+    void commitVerifiedPart();
+    void completeSuccessfully();
+    void finish(bool success, const QString& path = {});
+    void closeActiveRequest();
+    void releaseDownloadLock();
     void setState(State state);
     void fail(const QString& message, bool retryable);
     void scheduleRetry();
@@ -64,10 +79,13 @@ class ModelDownloadOperation final : public QObject {
     QString m_destinationDirectory;
     QString m_partPath;
     QString m_finalPath;
+    std::unique_ptr<QLockFile> m_downloadLock;
     QNetworkAccessManager* m_network = nullptr;
-    QNetworkReply* m_reply = nullptr;
+    QPointer<QNetworkReply> m_reply;
     QFile* m_partFile = nullptr;
     QTimer* m_speedTimer = nullptr;
+    QTimer* m_lockRetryTimer = nullptr;
+    QFutureWatcher<QByteArray>* m_verificationWatcher = nullptr;
     State m_state = State::Pending;
     qint64 m_bytesReceived = 0;
     qint64 m_bytesTotal = 0;
@@ -78,6 +96,8 @@ class ModelDownloadOperation final : public QObject {
     bool m_userPaused = false;
     bool m_cancelled = false;
     bool m_restartWithoutRange = false;
+    bool m_verificationInProgress = false;
+    bool m_finishedEmitted = false;
 };
 
 } // namespace BreezeDesk

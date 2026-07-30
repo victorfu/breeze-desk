@@ -21,7 +21,8 @@ class SqliteTranscriptRepository final : public ITranscriptRepository {
                                                     QList<TranscriptSegment> segments) override;
     [[nodiscard]] Result<void> replaceChunk(const QString& recordingId, const QString& jobId,
                                             const QString& chunkId, QList<TranscriptSegment> segments,
-                                            bool provisional, int attempt) override;
+                                            bool provisional, int attempt,
+                                            const QString& ownerToken) override;
     [[nodiscard]] Result<void> saveEditedSegment(const TranscriptSegment& segment) override;
     [[nodiscard]] Result<void> deleteSegment(const QString& segmentId) override;
 

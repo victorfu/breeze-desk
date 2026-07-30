@@ -801,6 +801,41 @@ DatabaseManager::immediateTransaction(const std::function<Result<void>(QSqlDatab
     return Result<void>::success();
 }
 
+Result<void> DatabaseManager::executionLeaseTransaction(
+    const QString& jobId, const QString& ownerToken,
+    const std::function<Result<void>(QSqlDatabase&)>& operation) const {
+    if (jobId.trimmed().isEmpty() || ownerToken.trimmed().isEmpty()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument, QStringLiteral("A job and lease owner are required.")));
+    }
+    return immediateTransaction([&](QSqlDatabase& database) {
+        QSqlQuery lease(database);
+        lease.prepare(QStringLiteral(
+            "SELECT expires_at FROM asr_execution_lease WHERE resource='asr' AND job_id=? "
+            "AND owner_token=?"));
+        lease.addBindValue(jobId);
+        lease.addBindValue(ownerToken);
+        if (!lease.exec()) {
+            return Result<void>::failure(
+                sqlError(ErrorCode::DatabaseQueryFailed,
+                         QStringLiteral("The ASR execution lease could not be validated."),
+                         lease.lastError(), true));
+        }
+        if (!lease.next()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::ExecutionLeaseLost,
+                QStringLiteral("The ASR execution lease is expired or not owned by this process.")));
+        }
+        const QDateTime expiresAt = TimeUtils::fromStorageString(lease.value(0).toString());
+        if (!expiresAt.isValid() || expiresAt <= QDateTime::currentDateTimeUtc()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::ExecutionLeaseLost,
+                QStringLiteral("The ASR execution lease is expired or not owned by this process.")));
+        }
+        return operation(database);
+    });
+}
+
 Result<void> DatabaseManager::integrityCheck() const {
     auto connectionResult = connection();
     if (!connectionResult)

@@ -4,8 +4,10 @@
 
 #include <QCborArray>
 #include <QCoreApplication>
+#include <QFile>
 #include <QFileInfo>
 #include <QHash>
+#include <QThread>
 #include <QTimer>
 
 using namespace BreezeDesk;
@@ -47,15 +49,92 @@ int main(int argc, char* argv[]) {
     const QString serverName = optionValue(arguments, QStringLiteral("--server"));
     const QByteArray sessionToken = QByteArray::fromBase64(
         optionValue(arguments, QStringLiteral("--session-token")).toLatin1(), QByteArray::Base64UrlEncoding);
+    const QString restartStatePath = qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE");
+    if (!restartStatePath.isEmpty()) {
+        int previousLaunches = 0;
+        QFile state(restartStatePath);
+        if (state.open(QIODevice::ReadOnly)) {
+            previousLaunches = state.readAll().trimmed().toInt();
+            state.close();
+        }
+        if (state.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            state.write(QByteArray::number(previousLaunches + 1));
+            state.close();
+        }
+        if (previousLaunches > 0) {
+            QThread::msleep(2'000);
+        }
+    }
+    int staleGraceLaunch = 0;
+    const QString staleGraceStatePath =
+        qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE");
+    if (!staleGraceStatePath.isEmpty()) {
+        QFile state(staleGraceStatePath);
+        if (state.open(QIODevice::ReadOnly)) {
+            staleGraceLaunch = state.readAll().trimmed().toInt();
+            state.close();
+        }
+        ++staleGraceLaunch;
+        if (state.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            state.write(QByteArray::number(staleGraceLaunch));
+            state.close();
+        }
+    }
+    int forcedRecoveryLaunch = 0;
+    const QString forcedRecoveryStatePath =
+        qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_FORCED_RECOVERY_STATE");
+    if (!forcedRecoveryStatePath.isEmpty()) {
+        QFile state(forcedRecoveryStatePath);
+        if (state.open(QIODevice::ReadOnly)) {
+            forcedRecoveryLaunch = state.readAll().trimmed().toInt();
+            state.close();
+        }
+        ++forcedRecoveryLaunch;
+        if (state.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            state.write(QByteArray::number(forcedRecoveryLaunch));
+            state.close();
+        }
+        if (forcedRecoveryLaunch >= 2 && forcedRecoveryLaunch <= 4) {
+            return 23;
+        }
+    }
+    int connectRetryLaunch = 0;
+    const QString connectRetryStatePath =
+        qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_CONNECT_RETRY_STATE");
+    if (!connectRetryStatePath.isEmpty()) {
+        QFile state(connectRetryStatePath);
+        if (state.open(QIODevice::ReadOnly)) {
+            connectRetryLaunch = state.readAll().trimmed().toInt();
+            state.close();
+        }
+        ++connectRetryLaunch;
+        if (state.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            state.write(QByteArray::number(connectRetryLaunch));
+            state.close();
+        }
+        if (connectRetryLaunch == 1) {
+            QThread::msleep(10'000);
+        } else if (connectRetryLaunch == 2) {
+            // Longer than the first generation's remaining retry budget in the
+            // regression test, but shorter than a fresh generation's budget.
+            QThread::msleep(3'500);
+        }
+    }
     Ipc::WorkerServer server;
     if (!server.listen(serverName, sessionToken)) {
         return 2;
     }
     QHash<QString, QString> deferredAnalysisRequests;
+    Ipc::Envelope deferredModelLoaded;
+    quint64 deferredModelClientId = 0;
+    const QString deferredModelStatePath =
+        qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE");
 
     QObject::connect(
         &server, &Ipc::WorkerServer::envelopeReceived, &application,
-        [&server, &deferredAnalysisRequests](const quint64 clientId, const Ipc::Envelope& request) {
+        [&server, &deferredAnalysisRequests, &deferredModelLoaded, &deferredModelClientId,
+         deferredModelStatePath, staleGraceLaunch,
+         forcedRecoveryLaunch](const quint64 clientId, const Ipc::Envelope& request) {
             if (request.type == Ipc::MessageType::GetCapabilities) {
                 Ipc::Envelope capabilities;
                 capabilities.type = Ipc::MessageType::Capabilities;
@@ -127,19 +206,65 @@ int main(int argc, char* argv[]) {
                 loaded.payload.insert(QStringLiteral("runtimeVersion"), QStringLiteral("fake-whisper-1.2.3"));
                 loaded.payload.insert(QStringLiteral("systemInfo"), QStringLiteral("fake-worker-system"));
                 loaded.payload.insert(QStringLiteral("loadTimeMs"), 42);
+                if (!deferredModelStatePath.isEmpty()) {
+                    QFile state(deferredModelStatePath);
+                    if (state.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                        state.write(request.requestId.toUtf8());
+                    }
+                    deferredModelLoaded = loaded;
+                    deferredModelClientId = clientId;
+                    return;
+                }
                 server.send(clientId, loaded);
                 return;
             }
             if (request.type == Ipc::MessageType::StartTranscription) {
+                const QString transcriptionSentinel =
+                    qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_TRANSCRIPTION_SENTINEL");
+                if (!transcriptionSentinel.isEmpty()) {
+                    QFile sentinel(transcriptionSentinel);
+                    if (sentinel.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+                        sentinel.write(request.jobId.toUtf8());
+                    }
+                }
                 const qint64 startMs = request.payload.value(QStringLiteral("startMs")).toInteger(-1);
                 const qint64 endMs = request.payload.value(QStringLiteral("endMs")).toInteger(-1);
+                const bool leaseHandoffRequest =
+                    request.jobId == QStringLiteral("job-lease-handoff");
+                const bool postHandoffRequest =
+                    request.jobId == QStringLiteral("job-after-lease-handoff");
+                const bool staleGraceHandoffRequest =
+                    request.jobId == QStringLiteral("job-stale-grace-handoff");
+                const bool staleGraceNextRequest =
+                    request.jobId == QStringLiteral("job-stale-grace-next");
+                const bool checkpointFailureRequest =
+                    request.jobId == QStringLiteral("job-progress-checkpoint-failure");
+                const bool postCheckpointFailureRequest =
+                    request.jobId == QStringLiteral("job-after-progress-checkpoint-failure");
+                const bool completedCheckpointFailureRequest =
+                    request.jobId == QStringLiteral("job-completed-chunk-checkpoint-failure");
+                const bool workerCrashRequest =
+                    request.jobId == QStringLiteral("job-worker-crash");
+                const bool postWorkerCrashRequest =
+                    request.jobId == QStringLiteral("job-after-worker-crash");
+                const bool validVadPayload =
+                    (leaseHandoffRequest || postHandoffRequest || staleGraceHandoffRequest ||
+                     staleGraceNextRequest || checkpointFailureRequest ||
+                     postCheckpointFailureRequest || completedCheckpointFailureRequest ||
+                     workerCrashRequest || postWorkerCrashRequest)
+                        ? !request.payload.value(QStringLiteral("vadEnabled")).toBool()
+                        : request.payload.value(QStringLiteral("vadEnabled")).toBool() &&
+                              QFileInfo(request.payload.value(QStringLiteral("vadModelPath")).toString())
+                                  .isFile() &&
+                              request.payload.value(QStringLiteral("vadModelSha256")).toString().size() == 64;
                 const bool valid =
-                    request.jobId == QStringLiteral("job-coordinator") &&
+                    (request.jobId == QStringLiteral("job-coordinator") || leaseHandoffRequest ||
+                     postHandoffRequest || staleGraceHandoffRequest || staleGraceNextRequest ||
+                     checkpointFailureRequest || postCheckpointFailureRequest || workerCrashRequest ||
+                     postWorkerCrashRequest || completedCheckpointFailureRequest) &&
                     QFileInfo(request.payload.value(QStringLiteral("pcmPath")).toString()).isFile() &&
-                    startMs >= 0 && endMs > startMs &&
-                    request.payload.value(QStringLiteral("vadEnabled")).toBool() &&
-                    QFileInfo(request.payload.value(QStringLiteral("vadModelPath")).toString()).isFile() &&
-                    request.payload.value(QStringLiteral("vadModelSha256")).toString().size() == 64;
+                    startMs >= 0 && endMs > startMs && validVadPayload &&
+                    (!staleGraceNextRequest || staleGraceLaunch >= 2);
                 if (!valid) {
                     server.send(clientId,
                                 errorEnvelope(request, QStringLiteral("Invalid transcription payload")));
@@ -152,6 +277,14 @@ int main(int argc, char* argv[]) {
                 progress.jobId = request.jobId;
                 progress.payload.insert(QStringLiteral("progress"), 50);
                 server.send(clientId, progress);
+
+                if (checkpointFailureRequest) {
+                    return;
+                }
+                if (workerCrashRequest) {
+                    QTimer::singleShot(50, QCoreApplication::instance(), &QCoreApplication::quit);
+                    return;
+                }
 
                 Ipc::Envelope segment;
                 segment.type = Ipc::MessageType::PartialSegment;
@@ -168,21 +301,61 @@ int main(int argc, char* argv[]) {
                 segment.payload.insert(QStringLiteral("lowConfidence"), false);
                 server.send(clientId, segment);
 
-                Ipc::Envelope completed;
-                completed.type = Ipc::MessageType::ChunkCompleted;
-                completed.requestId = request.requestId;
-                completed.jobId = request.jobId;
-                completed.payload.insert(QStringLiteral("segmentCount"), 1);
-                completed.payload.insert(QStringLiteral("timingsMs"),
-                                         QCborMap{{QStringLiteral("encode"), startMs == 0 ? 12.5 : 13.5}});
-                server.send(clientId, completed);
-                if (request.payload.value(QStringLiteral("finalChunk")).toBool()) {
-                    completed.type = Ipc::MessageType::TranscriptionCompleted;
+                if (leaseHandoffRequest || staleGraceHandoffRequest) {
+                    return;
+                }
+
+                const auto sendCompletion = [&server, clientId, request, startMs] {
+                    Ipc::Envelope completed;
+                    completed.type = Ipc::MessageType::ChunkCompleted;
+                    completed.requestId = request.requestId;
+                    completed.jobId = request.jobId;
+                    completed.payload.insert(QStringLiteral("segmentCount"), 1);
+                    completed.payload.insert(
+                        QStringLiteral("timingsMs"),
+                        QCborMap{{QStringLiteral("encode"), startMs == 0 ? 12.5 : 13.5}});
                     server.send(clientId, completed);
+                    if (request.payload.value(QStringLiteral("finalChunk")).toBool()) {
+                        completed.type = Ipc::MessageType::TranscriptionCompleted;
+                        server.send(clientId, completed);
+                    }
+                };
+                if (staleGraceNextRequest) {
+                    // Keep the replacement request running beyond the first process's
+                    // five-second forced-cancellation deadline.
+                    QTimer::singleShot(7'000, &server, sendCompletion);
+                } else {
+                    sendCompletion();
                 }
                 return;
             }
             if (request.type == Ipc::MessageType::CancelJob) {
+                if (request.jobId.isEmpty() && !deferredModelLoaded.requestId.isEmpty()) {
+                    const Ipc::Envelope loaded = deferredModelLoaded;
+                    const quint64 modelClientId = deferredModelClientId;
+                    deferredModelLoaded = {};
+                    deferredModelClientId = 0;
+                    QTimer::singleShot(750, &server, [&server, modelClientId, loaded] {
+                        server.send(modelClientId, loaded);
+                    });
+                    return;
+                }
+                if (request.jobId == QStringLiteral("job-lease-handoff")) {
+                    return;
+                }
+                if (request.jobId == QStringLiteral("job-progress-checkpoint-failure")) {
+                    return;
+                }
+                if (request.jobId == QStringLiteral("job-stale-grace-handoff") &&
+                    staleGraceLaunch == 1) {
+                    QTimer::singleShot(100, QCoreApplication::instance(), &QCoreApplication::quit);
+                    return;
+                }
+                if (request.jobId == QStringLiteral("job-restart-exhaustion") &&
+                    forcedRecoveryLaunch == 1) {
+                    QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit);
+                    return;
+                }
                 Ipc::Envelope cancelled;
                 cancelled.type = Ipc::MessageType::JobCancelled;
                 cancelled.requestId = deferredAnalysisRequests.take(request.jobId);

@@ -1,3 +1,4 @@
+#include "breezedesk/audio/AudioCacheManager.h"
 #include "breezedesk/audio/FFmpegNormalizationService.h"
 #include "breezedesk/audio/FFprobeService.h"
 #include "breezedesk/audio/MediaMetadata.h"
@@ -9,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QJsonDocument>
+#include <QScopeGuard>
 #include <QScopedPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -93,6 +95,8 @@ class AudioTest final : public QObject {
     Q_OBJECT
 
   private slots:
+    void executionScopedCachePathsDoNotCollide();
+    void removesOnlyExpiredUnreferencedGenerationFiles();
     void parsesFfprobeMetadata();
     void generatesMultiresolutionWaveformFromUnicodePath();
     void cancellationLeavesNoWaveform();
@@ -102,8 +106,91 @@ class AudioTest final : public QObject {
     void normalizationReportsMissingExecutableAfterReturn();
     void normalizationCanCancelBeforeDeferredStart();
     void normalizationCommitsOnlyValidatedOutput();
+    void normalizationRejectsExistingGenerationTarget();
     void normalizationPreservesExistingOutputWhenValidationFails();
 };
+
+void AudioTest::executionScopedCachePathsDoNotCollide() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+
+    const QString normalizedA =
+        AudioCacheManager::normalizedAudioPath(QStringLiteral("recording"), QStringLiteral("owner-a"));
+    const QString normalizedB =
+        AudioCacheManager::normalizedAudioPath(QStringLiteral("recording"), QStringLiteral("owner-b"));
+    const QString waveformA =
+        AudioCacheManager::waveformPath(QStringLiteral("recording"), QStringLiteral("owner-a"));
+    const QString waveformB =
+        AudioCacheManager::waveformPath(QStringLiteral("recording"), QStringLiteral("owner-b"));
+
+    if (previousDataRoot.isNull()) {
+        qunsetenv("BREEZEDESK_DATA_ROOT");
+    } else {
+        qputenv("BREEZEDESK_DATA_ROOT", previousDataRoot);
+    }
+    QVERIFY(!normalizedA.isEmpty());
+    QVERIFY(!normalizedB.isEmpty());
+    QVERIFY(normalizedA != normalizedB);
+    QVERIFY(waveformA != waveformB);
+    QVERIFY(QFileInfo(normalizedA).fileName().contains(QStringLiteral("owner-a")));
+    QVERIFY(QFileInfo(waveformB).fileName().contains(QStringLiteral("owner-b")));
+}
+
+void AudioTest::removesOnlyExpiredUnreferencedGenerationFiles() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
+    const auto restoreDataRoot = qScopeGuard([previousDataRoot] {
+        if (previousDataRoot.isNull()) {
+            qunsetenv("BREEZEDESK_DATA_ROOT");
+        } else {
+            qputenv("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        }
+    });
+    Q_UNUSED(restoreDataRoot)
+    qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
+
+    const QString referenced = AudioCacheManager::normalizedAudioPath(
+        QStringLiteral("referenced"), QStringLiteral("finished-owner"));
+    const QString activeOwner = AudioCacheManager::waveformPath(
+        QStringLiteral("in-progress"), QStringLiteral("active-owner"));
+    const QString orphanedAudio = AudioCacheManager::normalizedAudioPath(
+        QStringLiteral("orphaned-audio"), QStringLiteral("stale-owner"));
+    const QString orphanedWaveform = AudioCacheManager::waveformPath(
+        QStringLiteral("orphaned-waveform"), QStringLiteral("stale-owner"));
+    const QString recentOrphan = AudioCacheManager::normalizedAudioPath(
+        QStringLiteral("recent-orphan"), QStringLiteral("stale-owner"));
+
+    const auto createFile = [](const QString& path) {
+        QFile file(path);
+        return file.open(QIODevice::WriteOnly) && file.write("cache") == 5;
+    };
+    for (const QString& path :
+         {referenced, activeOwner, orphanedAudio, orphanedWaveform, recentOrphan}) {
+        QVERIFY(createFile(path));
+    }
+    const QDateTime oldTimestamp = QDateTime::currentDateTimeUtc().addDays(-2);
+    for (const QString& path : {referenced, activeOwner, orphanedAudio, orphanedWaveform}) {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadWrite));
+        QVERIFY(file.setFileTime(oldTimestamp, QFileDevice::FileModificationTime));
+    }
+
+    QString referencedKey = QDir::cleanPath(QFileInfo(referenced).absoluteFilePath());
+#ifdef Q_OS_WIN
+    referencedKey = referencedKey.toUpper();
+#endif
+    QCOMPARE(AudioCacheManager::removeExpiredOrphanedGenerationFiles(
+                 QSet<QString>{referencedKey}, QStringLiteral("active-owner"), 24),
+             2);
+    QVERIFY(QFileInfo(referenced).isFile());
+    QVERIFY(QFileInfo(activeOwner).isFile());
+    QVERIFY(!QFileInfo::exists(orphanedAudio));
+    QVERIFY(!QFileInfo::exists(orphanedWaveform));
+    QVERIFY(QFileInfo(recentOrphan).isFile());
+}
 
 void AudioTest::parsesFfprobeMetadata() {
     const QByteArray json = R"({
@@ -279,10 +366,6 @@ void AudioTest::normalizationCommitsOnlyValidatedOutput() {
     const QString sourcePath = temporary.filePath(QStringLiteral("good-source.media"));
     const QString outputPath = temporary.filePath(QStringLiteral("normalized.wav"));
     QVERIFY(writeSourceFixture(sourcePath));
-    QFile existing(outputPath);
-    QVERIFY(existing.open(QIODevice::WriteOnly));
-    QCOMPARE(existing.write("previous"), 8);
-    existing.close();
 
     FFmpegNormalizationService service(QString::fromUtf8(BREEZEDESK_NORMALIZATION_HELPER_PATH));
     QScopedPointer<NormalizationOperation> operation(service.normalize(sourcePath, outputPath, 1'000));
@@ -298,6 +381,33 @@ void AudioTest::normalizationCommitsOnlyValidatedOutput() {
     QVERIFY2(NormalizedAudioValidator::validate(outputPath, 1'000, nullptr, &error), qPrintable(error));
     QVERIFY(
         QDir(temporary.path()).entryList({QStringLiteral("normalized.wav.tmp.*")}, QDir::Files).isEmpty());
+}
+
+void AudioTest::normalizationRejectsExistingGenerationTarget() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString sourcePath = temporary.filePath(QStringLiteral("good-source.media"));
+    const QString outputPath = temporary.filePath(QStringLiteral("normalized.owner.wav"));
+    QVERIFY(writeSourceFixture(sourcePath));
+    QFile existing(outputPath);
+    QVERIFY(existing.open(QIODevice::WriteOnly));
+    QCOMPARE(existing.write("current-owner-output"), qint64{20});
+    existing.close();
+
+    FFmpegNormalizationService service(QString::fromUtf8(BREEZEDESK_NORMALIZATION_HELPER_PATH));
+    QScopedPointer<NormalizationOperation> operation(service.normalize(sourcePath, outputPath, 1'000));
+    QSignalSpy finished(operation.data(), &NormalizationOperation::finished);
+    if (finished.isEmpty()) {
+        QVERIFY(finished.wait(5'000));
+    }
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(finished.constFirst().at(0).toBool(), false);
+    QVERIFY(operation->error().contains(QStringLiteral("already exists")));
+    QVERIFY(existing.open(QIODevice::ReadOnly));
+    QCOMPARE(existing.readAll(), QByteArrayLiteral("current-owner-output"));
+    QVERIFY(QDir(temporary.path())
+                .entryList({QStringLiteral("normalized.owner.wav.tmp.*")}, QDir::Files)
+                .isEmpty());
 }
 
 void AudioTest::normalizationPreservesExistingOutputWhenValidationFails() {

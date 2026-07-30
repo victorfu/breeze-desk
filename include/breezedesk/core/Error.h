@@ -27,6 +27,7 @@ enum class ErrorCode {
     Unknown,
     InvalidArgument,
     InvalidStateTransition,
+    ExecutionLeaseLost,
     NotFound,
     AlreadyExists,
     OperationCancelled,

@@ -6,8 +6,41 @@
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
+#include <QFileInfo>
 
 namespace BreezeDesk {
+namespace {
+
+QString pathComparisonKey(const QString& path) {
+    if (path.isEmpty()) {
+        return {};
+    }
+    QString key = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+#ifdef Q_OS_WIN
+    key = key.toCaseFolded();
+#endif
+    return key;
+}
+
+Qt::CaseSensitivity fileNameCaseSensitivity() {
+#ifdef Q_OS_WIN
+    return Qt::CaseInsensitive;
+#else
+    return Qt::CaseSensitive;
+#endif
+}
+
+bool belongsToGeneration(const QFileInfo& file, const QString& extension,
+                         const QString& generationId) {
+    if (generationId.isEmpty()) {
+        return false;
+    }
+    const QString suffix =
+        QStringLiteral(".%1.%2").arg(generationId, extension);
+    return file.fileName().endsWith(suffix, fileNameCaseSensitivity());
+}
+
+} // namespace
 
 QString AudioCacheManager::cacheRoot() {
     const QString root = StoragePaths::cache();
@@ -15,16 +48,21 @@ QString AudioCacheManager::cacheRoot() {
     return root;
 }
 
-QString AudioCacheManager::normalizedAudioPath(const QString& recordingId) {
+QString AudioCacheManager::normalizedAudioPath(const QString& recordingId,
+                                               const QString& generationId) {
     const QString directory = QDir(cacheRoot()).filePath(QStringLiteral("audio"));
     QDir().mkpath(directory);
-    return QDir(directory).filePath(recordingId + QStringLiteral(".wav"));
+    const QString generationSuffix =
+        generationId.isEmpty() ? QString{} : QStringLiteral(".") + generationId;
+    return QDir(directory).filePath(recordingId + generationSuffix + QStringLiteral(".wav"));
 }
 
-QString AudioCacheManager::waveformPath(const QString& recordingId) {
+QString AudioCacheManager::waveformPath(const QString& recordingId, const QString& generationId) {
     const QString directory = QDir(cacheRoot()).filePath(QStringLiteral("waveforms"));
     QDir().mkpath(directory);
-    return QDir(directory).filePath(recordingId + QStringLiteral(".bwpk"));
+    const QString generationSuffix =
+        generationId.isEmpty() ? QString{} : QStringLiteral(".") + generationId;
+    return QDir(directory).filePath(recordingId + generationSuffix + QStringLiteral(".bwpk"));
 }
 
 qint64 AudioCacheManager::cacheSizeBytes() {
@@ -58,6 +96,46 @@ void AudioCacheManager::removeExpiredTemporaryFiles(int maximumAgeHours) {
             QFile::remove(path);
         }
     }
+}
+
+int AudioCacheManager::removeExpiredOrphanedGenerationFiles(
+    const QSet<QString>& referencedPaths, const QString& protectedGenerationId,
+    int maximumAgeHours) {
+    QSet<QString> referencedKeys;
+    for (const QString& path : referencedPaths) {
+        const QString key = pathComparisonKey(path);
+        if (!key.isEmpty()) {
+            referencedKeys.insert(key);
+        }
+    }
+
+    const QDateTime cutoff =
+        QDateTime::currentDateTimeUtc().addSecs(-static_cast<qint64>(qMax(0, maximumAgeHours)) * 3600);
+    int removed = 0;
+    const auto removeOrphans = [&](const QString& directoryName, const QString& extension) {
+        const QString directory = QDir(cacheRoot()).filePath(directoryName);
+        QDirIterator iterator(directory, {QStringLiteral("*.%1").arg(extension)},
+                              QDir::Files | QDir::NoSymLinks);
+        while (iterator.hasNext()) {
+            const QString path = iterator.next();
+            const QFileInfo file = iterator.fileInfo();
+            if (referencedKeys.contains(pathComparisonKey(path)) ||
+                belongsToGeneration(file, extension, protectedGenerationId)) {
+                continue;
+            }
+            const QDateTime lastModified = file.lastModified();
+            if (!lastModified.isValid() || lastModified.toUTC() >= cutoff) {
+                continue;
+            }
+            if (QFile::remove(path)) {
+                ++removed;
+            }
+        }
+    };
+
+    removeOrphans(QStringLiteral("audio"), QStringLiteral("wav"));
+    removeOrphans(QStringLiteral("waveforms"), QStringLiteral("bwpk"));
+    return removed;
 }
 
 } // namespace BreezeDesk

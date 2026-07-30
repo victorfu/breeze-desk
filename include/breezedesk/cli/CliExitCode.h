@@ -1,5 +1,7 @@
 #pragma once
 
+#include "breezedesk/core/Error.h"
+
 namespace BreezeDesk {
 
 enum class CliExitCode {
@@ -16,5 +18,16 @@ enum class CliExitCode {
     Cancelled = 11,
     InternalFailure = 12,
 };
+
+[[nodiscard]] inline CliExitCode transcriptionSessionFailureExitCode(
+    const UserFacingError& error) noexcept {
+    if (error.code == ErrorCode::OperationCancelled || error.code == ErrorCode::JobCancelled) {
+        return CliExitCode::Cancelled;
+    }
+    if (error.domain == ErrorDomain::Database || error.code == ErrorCode::ExecutionLeaseLost) {
+        return CliExitCode::DatabaseFailure;
+    }
+    return CliExitCode::InvalidArguments;
+}
 
 } // namespace BreezeDesk

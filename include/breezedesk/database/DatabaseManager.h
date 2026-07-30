@@ -31,6 +31,9 @@ class DatabaseManager final {
     [[nodiscard]] Result<void> transaction(const std::function<Result<void>(QSqlDatabase&)>& operation) const;
     [[nodiscard]] Result<void>
     immediateTransaction(const std::function<Result<void>(QSqlDatabase&)>& operation) const;
+    [[nodiscard]] Result<void> executionLeaseTransaction(
+        const QString& jobId, const QString& ownerToken,
+        const std::function<Result<void>(QSqlDatabase&)>& operation) const;
     [[nodiscard]] Result<void> integrityCheck() const;
     [[nodiscard]] Result<QString> createBackup(const QString& destinationPath = {}) const;
 

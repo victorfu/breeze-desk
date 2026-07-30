@@ -130,8 +130,46 @@ AsrExecutionLease readLease(QSqlQuery& query) {
     lease.expiresAt = TimeUtils::fromStorageString(query.value(QStringLiteral("expires_at")).toString());
     return lease;
 }
+UserFacingError corruptLeaseError(const QString& technicalDetails) {
+    return UserFacingError::database(ErrorCode::DatabaseCorrupt,
+                                     QStringLiteral("The ASR execution lease is damaged."),
+                                     technicalDetails);
+}
+Result<void> validateLeaseIdentity(QSqlDatabase& database, const AsrExecutionLease& lease) {
+    if (lease.ownerToken.trimmed().isEmpty() || lease.jobId.trimmed().isEmpty()) {
+        return Result<void>::failure(corruptLeaseError(
+            QStringLiteral("The execution lease has an empty owner or job identifier.")));
+    }
+
+    QSqlQuery job(database);
+    job.prepare(QStringLiteral("SELECT 1 FROM transcription_jobs WHERE id=?"));
+    job.addBindValue(lease.jobId);
+    if (!job.exec()) {
+        return Result<void>::failure(
+            queryError(QStringLiteral("The execution lease job could not be checked."), job));
+    }
+    if (!job.next()) {
+        return Result<void>::failure(corruptLeaseError(
+            QStringLiteral("The execution lease references a missing transcription job.")));
+    }
+    return Result<void>::success();
+}
+Result<void> validateLeaseTimestamps(const AsrExecutionLease& lease) {
+    if (!lease.acquiredAt.isValid() || !lease.heartbeatAt.isValid() ||
+        !lease.expiresAt.isValid()) {
+        return Result<void>::failure(corruptLeaseError(
+            QStringLiteral("The execution lease contains an invalid timestamp.")));
+    }
+    return Result<void>::success();
+}
 QString nonNull(const QString& value) {
     return value.isNull() ? QStringLiteral("") : value;
+}
+Result<void> executionWrite(DatabaseManager& databaseManager, const QString& jobId,
+                            const QString& ownerToken,
+                            const std::function<Result<void>(QSqlDatabase&)>& operation) {
+    return ownerToken.isEmpty() ? databaseManager.immediateTransaction(operation)
+                                : databaseManager.executionLeaseTransaction(jobId, ownerToken, operation);
 }
 Result<void> insertEvent(QSqlDatabase& database, JobEvent* event) {
     if (event == nullptr || event->jobId.isEmpty() || event->eventType.trimmed().isEmpty()) {
@@ -176,7 +214,7 @@ Result<std::optional<TranscriptionJob>> findJob(QSqlDatabase& database, const QS
     }
     return Result<std::optional<TranscriptionJob>>::success(readJob(query));
 }
-Result<std::optional<AsrExecutionLease>> findLease(QSqlDatabase& database) {
+Result<std::optional<AsrExecutionLease>> findRawLease(QSqlDatabase& database) {
     QSqlQuery query(database);
     if (!query.exec(QStringLiteral("SELECT * FROM asr_execution_lease WHERE resource='asr'"))) {
         return Result<std::optional<AsrExecutionLease>>::failure(
@@ -186,6 +224,21 @@ Result<std::optional<AsrExecutionLease>> findLease(QSqlDatabase& database) {
         return Result<std::optional<AsrExecutionLease>>::success(std::nullopt);
     }
     return Result<std::optional<AsrExecutionLease>>::success(readLease(query));
+}
+Result<std::optional<AsrExecutionLease>> findLease(QSqlDatabase& database) {
+    auto lease = findRawLease(database);
+    if (!lease || !lease.value().has_value()) {
+        return lease;
+    }
+    const auto identity = validateLeaseIdentity(database, *lease.value());
+    if (!identity) {
+        return Result<std::optional<AsrExecutionLease>>::failure(identity.error());
+    }
+    const auto timestamps = validateLeaseTimestamps(*lease.value());
+    if (!timestamps) {
+        return Result<std::optional<AsrExecutionLease>>::failure(timestamps.error());
+    }
+    return lease;
 }
 Result<std::optional<TranscriptSegment>> latestSegment(QSqlDatabase& database, const QString& jobId,
                                                        const bool includeProvisional) {
@@ -538,9 +591,10 @@ SqliteJobRepository::latestSegmentForJob(const QString& jobId, const bool includ
     return latestSegment(connectionResult.value(), jobId, includeProvisional);
 }
 
-Result<JobEvent> SqliteJobRepository::appendEvent(JobEvent event) {
-    const auto result =
-        m_databaseManager.transaction([&](QSqlDatabase& database) { return insertEvent(database, &event); });
+Result<JobEvent> SqliteJobRepository::appendEvent(JobEvent event, const QString& ownerToken) {
+    const auto result = m_databaseManager.executionLeaseTransaction(
+        event.jobId, ownerToken,
+        [&](QSqlDatabase& database) { return insertEvent(database, &event); });
     return result ? Result<JobEvent>::success(event) : Result<JobEvent>::failure(result.error());
 }
 
@@ -624,24 +678,37 @@ Result<AsrExecutionLease> SqliteJobRepository::renewLease(const QString& jobId, 
     }
     AsrExecutionLease renewed;
     const auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
-        const auto current = findLease(database);
+        const auto current = findRawLease(database);
         if (!current) {
             return Result<void>::failure(current.error());
         }
         const QDateTime now = QDateTime::currentDateTimeUtc();
         if (!current.value().has_value() || current.value()->jobId != jobId ||
-            current.value()->ownerToken != ownerToken || current.value()->expiresAt <= now) {
+            current.value()->ownerToken != ownerToken) {
             return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::InvalidStateTransition,
+                ErrorCode::ExecutionLeaseLost,
+                QStringLiteral("The ASR execution lease is no longer owned by this process.")));
+        }
+        const auto identity = validateLeaseIdentity(database, *current.value());
+        if (!identity) {
+            return Result<void>::failure(identity.error());
+        }
+        if (current.value()->expiresAt.isValid() && current.value()->expiresAt <= now) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::ExecutionLeaseLost,
                 QStringLiteral("The ASR execution lease is no longer owned by this process.")));
         }
         renewed = *current.value();
+        if (!renewed.acquiredAt.isValid()) {
+            renewed.acquiredAt = now;
+        }
         renewed.heartbeatAt = now;
         renewed.expiresAt = now.addMSecs(leaseDurationMs);
         QSqlQuery update(database);
         update.prepare(QStringLiteral(
-            "UPDATE asr_execution_lease SET heartbeat_at=?,expires_at=? WHERE resource='asr' AND job_id=? "
-            "AND owner_token=?"));
+            "UPDATE asr_execution_lease SET acquired_at=?,heartbeat_at=?,expires_at=? WHERE "
+            "resource='asr' AND job_id=? AND owner_token=?"));
+        update.addBindValue(TimeUtils::toStorageString(renewed.acquiredAt));
         update.addBindValue(TimeUtils::toStorageString(renewed.heartbeatAt));
         update.addBindValue(TimeUtils::toStorageString(renewed.expiresAt));
         update.addBindValue(jobId);
@@ -652,7 +719,7 @@ Result<AsrExecutionLease> SqliteJobRepository::renewLease(const QString& jobId, 
         }
         if (update.numRowsAffected() == 0) {
             return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::InvalidStateTransition, QStringLiteral("The ASR execution lease was lost.")));
+                ErrorCode::ExecutionLeaseLost, QStringLiteral("The ASR execution lease was lost.")));
         }
         return Result<void>::success();
     });
@@ -700,7 +767,7 @@ Result<void> SqliteJobRepository::completeAndActivate(const QString& recordingId
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A recording and transcription job are required.")));
     }
-    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return m_databaseManager.executionLeaseTransaction(jobId, ownerToken, [&](QSqlDatabase& database) {
         const auto current = findJob(database, jobId);
         if (!current) {
             return Result<void>::failure(current.error());
@@ -713,19 +780,6 @@ Result<void> SqliteJobRepository::completeAndActivate(const QString& recordingId
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::InvalidStateTransition,
                 QStringLiteral("Only a finalizing transcription job can be completed.")));
-        }
-        if (!ownerToken.isEmpty()) {
-            const auto lease = findLease(database);
-            if (!lease) {
-                return Result<void>::failure(lease.error());
-            }
-            if (!lease.value().has_value() || lease.value()->jobId != jobId ||
-                lease.value()->ownerToken != ownerToken ||
-                lease.value()->expiresAt <= QDateTime::currentDateTimeUtc()) {
-                return Result<void>::failure(UserFacingError::validation(
-                    ErrorCode::InvalidStateTransition,
-                    QStringLiteral("The ASR execution lease is expired or not owned by this process.")));
-            }
         }
         const QString now = TimeUtils::nowStorageString();
         QSqlQuery complete(database);
@@ -808,12 +862,13 @@ Result<void> SqliteJobRepository::completeAndActivate(const QString& recordingId
 }
 
 Result<void> SqliteJobRepository::transition(const QString& id, const JobState state,
-                                             const QString& errorCode, const QString& errorMessage) {
+                                             const QString& errorCode, const QString& errorMessage,
+                                             const QString& ownerToken) {
     if (id.isEmpty()) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A transcription job is required.")));
     }
-    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return executionWrite(m_databaseManager, id, ownerToken, [&](QSqlDatabase& database) {
         const auto currentResult = findJob(database, id);
         if (!currentResult) {
             return Result<void>::failure(currentResult.error());
@@ -823,6 +878,22 @@ Result<void> SqliteJobRepository::transition(const QString& id, const JobState s
                 ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists."), id));
         }
         const TranscriptionJob current = *currentResult.value();
+        if (ownerToken.isEmpty()) {
+            const bool cancellationRequest =
+                state == JobState::Cancelling && JobStateMachine::isRunning(current.state);
+            const bool cancelWithoutExecutor =
+                state == JobState::Cancelled &&
+                (current.state == JobState::Queued || current.state == JobState::Interrupted);
+            const bool queueRequest =
+                state == JobState::Queued &&
+                (current.state == JobState::Interrupted || current.state == JobState::Failed ||
+                 current.state == JobState::Cancelled);
+            if (!cancellationRequest && !cancelWithoutExecutor && !queueRequest) {
+                return Result<void>::failure(UserFacingError::validation(
+                    ErrorCode::InvalidStateTransition,
+                    QStringLiteral("An active execution lease is required for this job transition.")));
+            }
+        }
         const auto validation = JobStateMachine::validateTransition(current.state, state);
         if (!validation) {
             return validation;
@@ -924,8 +995,14 @@ Result<void> SqliteJobRepository::transition(const QString& id, const JobState s
         }
         if (JobStateMachine::isTerminal(state) || state == JobState::Interrupted) {
             QSqlQuery release(database);
-            release.prepare(QStringLiteral("DELETE FROM asr_execution_lease WHERE job_id=?"));
+            release.prepare(ownerToken.isEmpty()
+                                ? QStringLiteral("DELETE FROM asr_execution_lease WHERE job_id=?")
+                                : QStringLiteral("DELETE FROM asr_execution_lease WHERE job_id=? "
+                                                 "AND owner_token=?"));
             release.addBindValue(id);
+            if (!ownerToken.isEmpty()) {
+                release.addBindValue(ownerToken);
+            }
             if (!release.exec()) {
                 return Result<void>::failure(queryError(
                     QStringLiteral("The completed ASR execution lease could not be released."), release));
@@ -936,8 +1013,9 @@ Result<void> SqliteJobRepository::transition(const QString& id, const JobState s
 }
 
 Result<void> SqliteJobRepository::updateProgress(const QString& id, const JobStage stage,
-                                                 const double progress, const int lastCompletedChunk) {
-    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+                                                 const double progress, const int lastCompletedChunk,
+                                                 const QString& ownerToken) {
+    return m_databaseManager.executionLeaseTransaction(id, ownerToken, [&](QSqlDatabase& database) {
         const auto current = findJob(database, id);
         if (!current) {
             return Result<void>::failure(current.error());
@@ -979,51 +1057,55 @@ Result<void> SqliteJobRepository::updateProgress(const QString& id, const JobSta
 Result<void> SqliteJobRepository::updateRuntimeInfo(const QString& id, const QString& actualBackend,
                                                     const QString& engineVersion,
                                                     const QString& workerVersion,
-                                                    const QJsonObject& diagnostics) {
-    const auto current = findById(id);
-    if (!current)
-        return Result<void>::failure(current.error());
-    if (!current.value())
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
-    QJsonObject mergedDiagnostics = current.value()->diagnostics;
-    for (auto iterator = diagnostics.constBegin(); iterator != diagnostics.constEnd(); ++iterator)
-        mergedDiagnostics.insert(iterator.key(), iterator.value());
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral("UPDATE transcription_jobs SET backend=?,engine_version=?,"
-                                 "worker_version=?,diagnostics_json=? WHERE id=?"));
-    query.addBindValue(nonNull(actualBackend));
-    query.addBindValue(nonNull(engineVersion));
-    query.addBindValue(nonNull(workerVersion));
-    query.addBindValue(textFromObject(mergedDiagnostics));
-    query.addBindValue(id);
-    if (!query.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The ASR runtime diagnostics could not be saved."), query));
-    return Result<void>::success();
+                                                    const QJsonObject& diagnostics,
+                                                    const QString& ownerToken) {
+    return m_databaseManager.executionLeaseTransaction(id, ownerToken, [&](QSqlDatabase& database) {
+        const auto current = findJob(database, id);
+        if (!current)
+            return Result<void>::failure(current.error());
+        if (!current.value())
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+        QJsonObject mergedDiagnostics = current.value()->diagnostics;
+        for (auto iterator = diagnostics.constBegin(); iterator != diagnostics.constEnd(); ++iterator)
+            mergedDiagnostics.insert(iterator.key(), iterator.value());
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral("UPDATE transcription_jobs SET backend=?,engine_version=?,"
+                                     "worker_version=?,diagnostics_json=? WHERE id=?"));
+        query.addBindValue(nonNull(actualBackend));
+        query.addBindValue(nonNull(engineVersion));
+        query.addBindValue(nonNull(workerVersion));
+        query.addBindValue(textFromObject(mergedDiagnostics));
+        query.addBindValue(id);
+        if (!query.exec())
+            return Result<void>::failure(
+                queryError(QStringLiteral("The ASR runtime diagnostics could not be saved."), query));
+        if (query.numRowsAffected() == 0)
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+        return Result<void>::success();
+    });
 }
 
-Result<void> SqliteJobRepository::updateParameters(const QString& id, const QJsonObject& parameters) {
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral("UPDATE transcription_jobs SET parameters_json=? WHERE id=?"));
-    query.addBindValue(textFromObject(parameters));
-    query.addBindValue(id);
-    if (!query.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The transcription job parameters could not be saved."), query));
-    if (query.numRowsAffected() == 0)
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
-    return Result<void>::success();
+Result<void> SqliteJobRepository::updateParameters(const QString& id, const QJsonObject& parameters,
+                                                   const QString& ownerToken) {
+    return m_databaseManager.executionLeaseTransaction(id, ownerToken, [&](QSqlDatabase& database) {
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral("UPDATE transcription_jobs SET parameters_json=? WHERE id=?"));
+        query.addBindValue(textFromObject(parameters));
+        query.addBindValue(id);
+        if (!query.exec())
+            return Result<void>::failure(
+                queryError(QStringLiteral("The transcription job parameters could not be saved."), query));
+        if (query.numRowsAffected() == 0)
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+        return Result<void>::success();
+    });
 }
 
-Result<void> SqliteJobRepository::replaceChunks(const QString& jobId, const QList<JobChunk>& chunks) {
+Result<void> SqliteJobRepository::replaceChunks(const QString& jobId, const QList<JobChunk>& chunks,
+                                                const QString& ownerToken) {
     for (int i = 0; i < chunks.size(); ++i) {
         if (chunks.at(i).ordinal != i || chunks.at(i).startMs < 0 ||
             chunks.at(i).endMs <= chunks.at(i).startMs) {
@@ -1032,7 +1114,29 @@ Result<void> SqliteJobRepository::replaceChunks(const QString& jobId, const QLis
                 QStringLiteral("Job chunks must be ordered and have valid time ranges.")));
         }
     }
-    return m_databaseManager.transaction([&](QSqlDatabase& database) {
+    return executionWrite(m_databaseManager, jobId, ownerToken, [&](QSqlDatabase& database) {
+        if (ownerToken.isEmpty()) {
+            const auto current = findJob(database, jobId);
+            if (!current) {
+                return Result<void>::failure(current.error());
+            }
+            if (!current.value().has_value()) {
+                return Result<void>::failure(UserFacingError::validation(
+                    ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+            }
+            QSqlQuery existing(database);
+            existing.prepare(QStringLiteral("SELECT 1 FROM job_chunks WHERE job_id=? LIMIT 1"));
+            existing.addBindValue(jobId);
+            if (!existing.exec()) {
+                return Result<void>::failure(
+                    queryError(QStringLiteral("Existing job chunks could not be checked."), existing));
+            }
+            if (current.value()->state != JobState::Queued || existing.next()) {
+                return Result<void>::failure(UserFacingError::validation(
+                    ErrorCode::InvalidStateTransition,
+                    QStringLiteral("An initial chunk plan can only be created once while queued.")));
+            }
+        }
         QSqlQuery remove(database);
         remove.prepare(QStringLiteral("DELETE FROM job_chunks WHERE job_id=?"));
         remove.addBindValue(jobId);
@@ -1089,12 +1193,13 @@ Result<QList<JobChunk>> SqliteJobRepository::chunks(const QString& jobId) const 
     return Result<QList<JobChunk>>::success(result);
 }
 
-Result<void> SqliteJobRepository::updateChunk(const JobChunk& chunk) {
+Result<void> SqliteJobRepository::updateChunk(const JobChunk& chunk, const QString& ownerToken) {
     if (chunk.id.isEmpty() || chunk.jobId.isEmpty()) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A transcription job chunk is required.")));
     }
-    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+    return m_databaseManager.executionLeaseTransaction(
+        chunk.jobId, ownerToken, [&](QSqlDatabase& database) {
         QSqlQuery current(database);
         current.prepare(QStringLiteral(
             "SELECT c.state,c.ordinal,j.state,j.stage,j.progress,(SELECT COUNT(*) FROM job_chunks total "

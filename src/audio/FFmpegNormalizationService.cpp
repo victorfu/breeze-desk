@@ -144,8 +144,9 @@ class FFmpegNormalizationOperation final : public NormalizationOperation {
             emit finished(false, {});
             return;
         }
-        if (QFile::exists(m_outputPath) && !QFile::remove(m_outputPath)) {
-            setError(QStringLiteral("The existing normalized audio could not be replaced."));
+        if (QFile::exists(m_outputPath)) {
+            setError(QStringLiteral("The normalized audio generation target already exists."));
+            QFile::remove(m_temporaryPath);
             emit finished(false, {});
             return;
         }

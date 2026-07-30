@@ -321,19 +321,13 @@ void LibraryViewModel::rename(const QString& id, const QString& title) {
         emit recordingMetadataChanged(id);
         return;
     }
-    const auto existing = m_repository->findById(id);
-    if (!existing || !existing.value().has_value()) {
-        emit operationFailed(existing ? tr("The recording no longer exists.") : existing.error().message);
-        return;
-    }
-    Recording recording = existing.value().value();
-    recording.title = m_source.availableTitle(trimmedTitle, id);
-    const auto result = m_repository->update(recording);
+    const QString availableTitle = m_source.availableTitle(trimmedTitle, id);
+    const auto result = m_repository->updateTitle(id, availableTitle);
     if (!result) {
         emit operationFailed(result.error().message);
         return;
     }
-    if (!m_source.rename(id, recording.title)) {
+    if (!m_source.rename(id, availableTitle)) {
         refresh();
     }
     emit recordingMetadataChanged(id);
@@ -362,19 +356,12 @@ void LibraryViewModel::relinkSource(const QString& id, const QUrl& source) {
         emit operationFailed(existing ? tr("The recording no longer exists.") : existing.error().message);
         return;
     }
-    Recording recording = existing.value().value();
-    recording.sourcePath = sourceInfo.absoluteFilePath();
-    if (!QFileInfo(recording.managedMediaPath).isFile()) {
-        // A relink can point at a different file. Never reuse derived artifacts whose provenance
-        // cannot be verified against the newly selected source.
-        recording.sourceHash.clear();
-        recording.normalizedPcmPath.clear();
-        recording.waveformPath.clear();
-        recording.durationMs = 0;
-        recording.sampleRate = 0;
-        recording.channelCount = 0;
-    }
-    const auto result = m_repository->update(recording);
+    // A relink can point at a different file. Never reuse derived artifacts whose provenance
+    // cannot be verified against the newly selected source. The repository performs both the
+    // lease check and the relink atomically.
+    const bool clearDerivedArtifacts = !QFileInfo(existing.value()->managedMediaPath).isFile();
+    const auto result = m_repository->relinkSource(
+        id, sourceInfo.absoluteFilePath(), clearDerivedArtifacts);
     if (!result) {
         emit operationFailed(result.error().message);
         return;
@@ -413,17 +400,7 @@ void LibraryViewModel::setTagsText(const QString& id, const QString& tags) {
 void LibraryViewModel::setReviewState(const QString& id, const bool reviewed) {
     const QString state = reviewed ? QStringLiteral("reviewed") : QStringLiteral("unreviewed");
     if (m_repository != nullptr) {
-        const auto existing = m_repository->findById(id);
-        if (!existing || !existing.value().has_value()) {
-            emit operationFailed(existing ? tr("The recording no longer exists.") : existing.error().message);
-            return;
-        }
-        Recording recording = existing.value().value();
-        if (recording.reviewState.compare(state, Qt::CaseInsensitive) == 0) {
-            return;
-        }
-        recording.reviewState = state;
-        const auto result = m_repository->update(recording);
+        const auto result = m_repository->updateReviewState(id, state);
         if (!result) {
             emit operationFailed(result.error().message);
             return;
@@ -435,17 +412,7 @@ void LibraryViewModel::setReviewState(const QString& id, const bool reviewed) {
 
 bool LibraryViewModel::setNotes(const QString& id, const QString& notes) {
     if (m_repository != nullptr) {
-        const auto existing = m_repository->findById(id);
-        if (!existing || !existing.value().has_value()) {
-            emit operationFailed(existing ? tr("The recording no longer exists.") : existing.error().message);
-            return false;
-        }
-        Recording recording = existing.value().value();
-        if (recording.notes == notes) {
-            return true;
-        }
-        recording.notes = notes;
-        const auto result = m_repository->update(recording);
+        const auto result = m_repository->updateNotes(id, notes);
         if (!result) {
             emit operationFailed(result.error().message);
             return false;

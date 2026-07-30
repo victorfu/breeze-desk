@@ -107,6 +107,70 @@ QString nonNull(const QString& value) {
     return value.isNull() ? QStringLiteral("") : value;
 }
 
+Result<void> ensureNoActiveExecutionLease(QSqlDatabase& database, const QString& recordingId) {
+    QSqlQuery lease(database);
+    lease.prepare(QStringLiteral(
+        "SELECT l.expires_at FROM asr_execution_lease l "
+        "JOIN transcription_jobs j ON j.id=l.job_id "
+        "WHERE l.resource='asr' AND j.recording_id=? LIMIT 1"));
+    lease.addBindValue(recordingId);
+    if (!lease.exec()) {
+        return Result<void>::failure(
+            queryError(QStringLiteral("The recording execution lease could not be checked."), lease));
+    }
+    if (lease.next()) {
+        const QDateTime expiresAt = TimeUtils::fromStorageString(lease.value(0).toString());
+        if (!expiresAt.isValid() || expiresAt > QDateTime::currentDateTimeUtc()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidStateTransition,
+                QStringLiteral("The recording cannot be replaced while it is being transcribed.")));
+        }
+    }
+    return Result<void>::success();
+}
+
+Result<void> ensureJobBelongsToRecording(QSqlDatabase& database, const QString& jobId,
+                                         const QString& recordingId) {
+    QSqlQuery job(database);
+    job.prepare(QStringLiteral("SELECT 1 FROM transcription_jobs WHERE id=? AND recording_id=?"));
+    job.addBindValue(jobId);
+    job.addBindValue(recordingId);
+    if (!job.exec()) {
+        return Result<void>::failure(
+            queryError(QStringLiteral("The transcription job could not be validated."), job));
+    }
+    if (!job.next()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("The transcription job does not belong to this recording.")));
+    }
+    return Result<void>::success();
+}
+
+Result<void> updateMetadataColumn(DatabaseManager& databaseManager, const QString& recordingId,
+                                  const QString& column, const QVariant& value) {
+    if (recordingId.trimmed().isEmpty()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument, QStringLiteral("A recording ID is required.")));
+    }
+    return databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral("UPDATE recordings SET %1=?,updated_at=? WHERE id=?").arg(column));
+        query.addBindValue(value);
+        query.addBindValue(TimeUtils::nowStorageString());
+        query.addBindValue(recordingId);
+        if (!query.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The recording metadata could not be updated."), query));
+        }
+        if (query.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::database(
+                ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recordingId));
+        }
+        return Result<void>::success();
+    });
+}
+
 } // namespace
 
 SqliteRecordingRepository::SqliteRecordingRepository(DatabaseManager& databaseManager)
@@ -162,39 +226,88 @@ Result<void> SqliteRecordingRepository::create(Recording recording) {
     return DatabaseSearchService(m_databaseManager).rebuildRecording(recording.id);
 }
 
-Result<void> SqliteRecordingRepository::update(const Recording& recording) {
-    if (recording.id.isEmpty() || recording.title.trimmed().isEmpty()) {
+Result<void> SqliteRecordingRepository::update(const Recording& recording, const QString& jobId,
+                                               const QString& ownerToken) {
+    if (recording.id.trimmed().isEmpty() ||
+        (ownerToken.isEmpty() && recording.title.trimmed().isEmpty())) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("Recording ID and title are required.")));
     }
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral(
-        "UPDATE recordings SET title=?,source_path=?,managed_media_path=?,normalized_pcm_path=?,"
-        "source_hash=?,media_type=?,duration_ms=?,sample_rate=?,channel_count=?,waveform_path=?,"
-        "updated_at=?,notes=?,review_state=? WHERE id=?"));
-    query.addBindValue(recording.title.trimmed());
-    query.addBindValue(nonNull(recording.sourcePath));
-    query.addBindValue(nonNull(recording.managedMediaPath));
-    query.addBindValue(nonNull(recording.normalizedPcmPath));
-    query.addBindValue(nonNull(recording.sourceHash));
-    query.addBindValue(nonNull(recording.mediaType));
-    query.addBindValue(qMax<qint64>(0, recording.durationMs));
-    query.addBindValue(qMax(0, recording.sampleRate));
-    query.addBindValue(qMax(0, recording.channelCount));
-    query.addBindValue(nonNull(recording.waveformPath));
-    query.addBindValue(TimeUtils::nowStorageString());
-    query.addBindValue(nonNull(recording.notes));
-    query.addBindValue(nonNull(recording.reviewState));
-    query.addBindValue(recording.id);
-    if (!query.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The recording could not be updated."), query));
-    if (query.numRowsAffected() == 0) {
-        return Result<void>::failure(UserFacingError::database(
-            ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recording.id));
+    if (jobId.isEmpty() != ownerToken.isEmpty()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("A transcription job and lease owner must be supplied together.")));
+    }
+    const auto updateAllFields = [&](QSqlDatabase& database) {
+        const auto leaseCheck = ensureNoActiveExecutionLease(database, recording.id);
+        if (!leaseCheck) {
+            return leaseCheck;
+        }
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral(
+            "UPDATE recordings SET title=?,source_path=?,managed_media_path=?,normalized_pcm_path=?,"
+            "source_hash=?,media_type=?,duration_ms=?,sample_rate=?,channel_count=?,waveform_path=?,"
+            "updated_at=?,notes=?,review_state=? WHERE id=?"));
+        query.addBindValue(recording.title.trimmed());
+        query.addBindValue(nonNull(recording.sourcePath));
+        query.addBindValue(nonNull(recording.managedMediaPath));
+        query.addBindValue(nonNull(recording.normalizedPcmPath));
+        query.addBindValue(nonNull(recording.sourceHash));
+        query.addBindValue(nonNull(recording.mediaType));
+        query.addBindValue(qMax<qint64>(0, recording.durationMs));
+        query.addBindValue(qMax(0, recording.sampleRate));
+        query.addBindValue(qMax(0, recording.channelCount));
+        query.addBindValue(nonNull(recording.waveformPath));
+        query.addBindValue(TimeUtils::nowStorageString());
+        query.addBindValue(nonNull(recording.notes));
+        query.addBindValue(nonNull(recording.reviewState));
+        query.addBindValue(recording.id);
+        if (!query.exec())
+            return Result<void>::failure(
+                queryError(QStringLiteral("The recording could not be updated."), query));
+        if (query.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::database(
+                ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recording.id));
+        }
+        return Result<void>::success();
+    };
+    const auto updateDerivedFields = [&](QSqlDatabase& database) {
+        const auto jobCheck = ensureJobBelongsToRecording(database, jobId, recording.id);
+        if (!jobCheck) {
+            return jobCheck;
+        }
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral(
+            "UPDATE recordings SET normalized_pcm_path=?,source_hash=?,media_type=?,duration_ms=?,"
+            "sample_rate=?,channel_count=?,waveform_path=?,updated_at=? WHERE id=?"));
+        query.addBindValue(nonNull(recording.normalizedPcmPath));
+        query.addBindValue(nonNull(recording.sourceHash));
+        query.addBindValue(nonNull(recording.mediaType));
+        query.addBindValue(qMax<qint64>(0, recording.durationMs));
+        query.addBindValue(qMax(0, recording.sampleRate));
+        query.addBindValue(qMax(0, recording.channelCount));
+        query.addBindValue(nonNull(recording.waveformPath));
+        query.addBindValue(TimeUtils::nowStorageString());
+        query.addBindValue(recording.id);
+        if (!query.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The recording artifacts could not be updated."), query));
+        }
+        if (query.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::database(
+                ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recording.id));
+        }
+        return Result<void>::success();
+    };
+    const auto result = ownerToken.isEmpty()
+                            ? m_databaseManager.immediateTransaction(updateAllFields)
+                            : m_databaseManager.executionLeaseTransaction(jobId, ownerToken,
+                                                                          updateDerivedFields);
+    if (!result) {
+        return result;
+    }
+    if (!ownerToken.isEmpty()) {
+        return Result<void>::success();
     }
     if (!recording.tags.isEmpty()) {
         auto tagResult = setTags(recording.id, recording.tags);
@@ -202,6 +315,74 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording) {
             return tagResult;
     }
     return DatabaseSearchService(m_databaseManager).rebuildRecording(recording.id);
+}
+
+Result<void> SqliteRecordingRepository::updateTitle(const QString& recordingId, const QString& title) {
+    const QString trimmedTitle = title.trimmed();
+    if (trimmedTitle.isEmpty()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument, QStringLiteral("A recording title is required.")));
+    }
+    const auto result =
+        updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("title"), trimmedTitle);
+    if (!result) {
+        return result;
+    }
+    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
+}
+
+Result<void> SqliteRecordingRepository::updateNotes(const QString& recordingId, const QString& notes) {
+    const auto result = updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("notes"),
+                                             nonNull(notes));
+    if (!result) {
+        return result;
+    }
+    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
+}
+
+Result<void> SqliteRecordingRepository::updateReviewState(const QString& recordingId,
+                                                          const QString& reviewState) {
+    if (reviewState.trimmed().isEmpty()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument, QStringLiteral("A review state is required.")));
+    }
+    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("review_state"),
+                                reviewState);
+}
+
+Result<void> SqliteRecordingRepository::relinkSource(const QString& recordingId,
+                                                     const QString& sourcePath,
+                                                     const bool clearDerivedArtifacts) {
+    if (recordingId.trimmed().isEmpty() || sourcePath.isEmpty()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument, QStringLiteral("A recording and source path are required.")));
+    }
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        const auto leaseCheck = ensureNoActiveExecutionLease(database, recordingId);
+        if (!leaseCheck) {
+            return leaseCheck;
+        }
+        QSqlQuery query(database);
+        if (clearDerivedArtifacts) {
+            query.prepare(QStringLiteral(
+                "UPDATE recordings SET source_path=?,normalized_pcm_path='',source_hash='',media_type='',"
+                "duration_ms=0,sample_rate=0,channel_count=0,waveform_path='',updated_at=? WHERE id=?"));
+        } else {
+            query.prepare(QStringLiteral("UPDATE recordings SET source_path=?,updated_at=? WHERE id=?"));
+        }
+        query.addBindValue(sourcePath);
+        query.addBindValue(TimeUtils::nowStorageString());
+        query.addBindValue(recordingId);
+        if (!query.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The recording source could not be relinked."), query));
+        }
+        if (query.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::database(
+                ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recordingId));
+        }
+        return Result<void>::success();
+    });
 }
 
 Result<std::optional<Recording>> SqliteRecordingRepository::findById(const QString& id) const {
@@ -406,44 +587,72 @@ Result<void> SqliteRecordingRepository::restore(const QString& id) {
 }
 
 Result<void> SqliteRecordingRepository::permanentlyDelete(const QString& id) {
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral("DELETE FROM recordings WHERE id=? AND deleted_at IS NOT NULL"));
-    query.addBindValue(id);
-    if (!query.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The recording could not be permanently deleted."), query));
-    if (query.numRowsAffected() == 0) {
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::InvalidStateTransition,
-            QStringLiteral("Only recordings in Trash can be permanently deleted.")));
-    }
-    return Result<void>::success();
+    return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        const auto leaseCheck = ensureNoActiveExecutionLease(database, id);
+        if (!leaseCheck) {
+            return leaseCheck;
+        }
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral("DELETE FROM recordings WHERE id=? AND deleted_at IS NOT NULL"));
+        query.addBindValue(id);
+        if (!query.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The recording could not be permanently deleted."), query));
+        }
+        if (query.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidStateTransition,
+                QStringLiteral("Only recordings in Trash can be permanently deleted.")));
+        }
+        return Result<void>::success();
+    });
 }
 
 Result<void> SqliteRecordingRepository::setActiveTranscriptJob(const QString& recordingId,
                                                                const QString& jobId) {
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral(
-        "UPDATE recordings SET active_job_id=?,updated_at=? WHERE id=? AND "
-        "EXISTS(SELECT 1 FROM transcription_jobs j WHERE j.id=? AND j.recording_id=recordings.id)"));
-    query.addBindValue(jobId);
-    query.addBindValue(TimeUtils::nowStorageString());
-    query.addBindValue(recordingId);
-    query.addBindValue(jobId);
-    if (!query.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The active transcript could not be changed."), query));
-    if (query.numRowsAffected() == 0) {
+    if (recordingId.trimmed().isEmpty() || jobId.trimmed().isEmpty()) {
         return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The requested transcript job does not exist.")));
+            ErrorCode::InvalidArgument, QStringLiteral("A recording and transcript job are required.")));
     }
-    return Result<void>::success();
+    const auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        QSqlQuery job(database);
+        job.prepare(
+            QStringLiteral("SELECT state FROM transcription_jobs WHERE id=? AND recording_id=?"));
+        job.addBindValue(jobId);
+        job.addBindValue(recordingId);
+        if (!job.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The transcript job could not be checked."), job));
+        }
+        if (!job.next()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The requested transcript job does not exist.")));
+        }
+        if (job.value(0).toString() != QLatin1String("Completed")) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidStateTransition,
+                QStringLiteral("Only a completed transcript can be activated.")));
+        }
+        QSqlQuery update(database);
+        update.prepare(
+            QStringLiteral("UPDATE recordings SET active_job_id=?,updated_at=? WHERE id=?"));
+        update.addBindValue(jobId);
+        update.addBindValue(TimeUtils::nowStorageString());
+        update.addBindValue(recordingId);
+        if (!update.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The active transcript could not be changed."), update));
+        }
+        if (update.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The recording no longer exists.")));
+        }
+        return Result<void>::success();
+    });
+    if (!result) {
+        return result;
+    }
+    return DatabaseSearchService(m_databaseManager).rebuildRecording(recordingId);
 }
 
 } // namespace BreezeDesk

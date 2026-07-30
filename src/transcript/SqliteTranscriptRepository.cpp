@@ -6,6 +6,7 @@
 #include "breezedesk/glossary/GlossaryPostProcessor.h"
 
 #include <QJsonDocument>
+#include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QUuid>
@@ -71,17 +72,9 @@ bool hasManualTextEdit(const TranscriptSegment& segment) {
     const auto rendered = GlossaryPostProcessor().renderAudit(segment.originalText, replacements);
     return !rendered.has_value() || rendered.value() != segment.editedText;
 }
-} // namespace
-
-SqliteTranscriptRepository::SqliteTranscriptRepository(DatabaseManager& databaseManager)
-    : m_databaseManager(databaseManager) {}
-
-Result<QList<TranscriptSegment>>
-SqliteTranscriptRepository::segmentsForJob(const QString& jobId, const bool includeProvisional) const {
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<QList<TranscriptSegment>>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
+Result<QList<TranscriptSegment>> loadSegments(QSqlDatabase& database, const QString& jobId,
+                                              const bool includeProvisional) {
+    QSqlQuery query(database);
     query.prepare(
         includeProvisional
             ? QStringLiteral("SELECT * FROM transcript_segments WHERE job_id=? ORDER BY ordinal")
@@ -96,20 +89,114 @@ SqliteTranscriptRepository::segmentsForJob(const QString& jobId, const bool incl
         segments.append(readSegment(query));
     return Result<QList<TranscriptSegment>>::success(segments);
 }
+Result<QString> validateJobRecording(QSqlDatabase& database, const QString& recordingId,
+                                     const QString& jobId) {
+    QSqlQuery job(database);
+    job.prepare(QStringLiteral("SELECT recording_id,state FROM transcription_jobs WHERE id=?"));
+    job.addBindValue(jobId);
+    if (!job.exec()) {
+        return Result<QString>::failure(
+            queryError(QStringLiteral("The transcript job could not be validated."), job));
+    }
+    if (!job.next()) {
+        return Result<QString>::failure(UserFacingError::validation(
+            ErrorCode::NotFound, QStringLiteral("The transcription job no longer exists.")));
+    }
+    if (job.value(0).toString() != recordingId) {
+        return Result<QString>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("The transcription job does not belong to the requested recording.")));
+    }
+    return Result<QString>::success(job.value(1).toString());
+}
+Result<void> validateChunkJob(QSqlDatabase& database, const QString& chunkId, const QString& jobId) {
+    QSqlQuery chunk(database);
+    chunk.prepare(QStringLiteral("SELECT job_id FROM job_chunks WHERE id=?"));
+    chunk.addBindValue(chunkId);
+    if (!chunk.exec()) {
+        return Result<void>::failure(
+            queryError(QStringLiteral("The transcript chunk could not be validated."), chunk));
+    }
+    if (!chunk.next()) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::NotFound, QStringLiteral("The transcript chunk no longer exists.")));
+    }
+    if (chunk.value(0).toString() != jobId) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("The transcript chunk does not belong to the requested job.")));
+    }
+    return Result<void>::success();
+}
+Result<void> validateOwnerlessEdit(QSqlDatabase& database, const QString& recordingId,
+                                   const QString& jobId) {
+    const auto job = validateJobRecording(database, recordingId, jobId);
+    if (!job) {
+        return Result<void>::failure(job.error());
+    }
+    const QString state = job.value();
+    const bool editableState = state == QStringLiteral("Queued") ||
+                               state == QStringLiteral("Completed") ||
+                               state == QStringLiteral("Cancelled") ||
+                               state == QStringLiteral("Failed") ||
+                               state == QStringLiteral("Interrupted");
+    if (!editableState) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidStateTransition,
+            QStringLiteral("A transcript cannot be edited while its transcription job is running.")));
+    }
+
+    QSqlQuery lease(database);
+    lease.prepare(QStringLiteral(
+        "SELECT expires_at FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
+    lease.addBindValue(jobId);
+    if (!lease.exec()) {
+        return Result<void>::failure(
+            queryError(QStringLiteral("The transcript execution lease could not be checked."), lease));
+    }
+    if (lease.next()) {
+        const QDateTime expiresAt = TimeUtils::fromStorageString(lease.value(0).toString());
+        if (!expiresAt.isValid() || expiresAt > QDateTime::currentDateTimeUtc()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidStateTransition,
+                QStringLiteral("A transcript cannot be edited while another process owns its job.")));
+        }
+    }
+    return Result<void>::success();
+}
+Result<std::optional<TranscriptSegment>> loadSegment(QSqlDatabase& database, const QString& segmentId) {
+    QSqlQuery query(database);
+    query.prepare(QStringLiteral("SELECT * FROM transcript_segments WHERE id=?"));
+    query.addBindValue(segmentId);
+    if (!query.exec()) {
+        return Result<std::optional<TranscriptSegment>>::failure(
+            queryError(QStringLiteral("The transcript segment could not be loaded."), query));
+    }
+    if (!query.next()) {
+        return Result<std::optional<TranscriptSegment>>::success(std::nullopt);
+    }
+    return Result<std::optional<TranscriptSegment>>::success(readSegment(query));
+}
+} // namespace
+
+SqliteTranscriptRepository::SqliteTranscriptRepository(DatabaseManager& databaseManager)
+    : m_databaseManager(databaseManager) {}
+
+Result<QList<TranscriptSegment>>
+SqliteTranscriptRepository::segmentsForJob(const QString& jobId, const bool includeProvisional) const {
+    auto connectionResult = m_databaseManager.connection();
+    if (!connectionResult)
+        return Result<QList<TranscriptSegment>>::failure(connectionResult.error());
+    QSqlDatabase database = connectionResult.value();
+    return loadSegments(database, jobId, includeProvisional);
+}
 
 Result<std::optional<TranscriptSegment>> SqliteTranscriptRepository::segment(const QString& segmentId) const {
     auto connectionResult = m_databaseManager.connection();
     if (!connectionResult)
         return Result<std::optional<TranscriptSegment>>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral("SELECT * FROM transcript_segments WHERE id=?"));
-    query.addBindValue(segmentId);
-    if (!query.exec())
-        return Result<std::optional<TranscriptSegment>>::failure(
-            queryError(QStringLiteral("The transcript segment could not be loaded."), query));
-    if (!query.next())
-        return Result<std::optional<TranscriptSegment>>::success(std::nullopt);
-    return Result<std::optional<TranscriptSegment>>::success(readSegment(query));
+    QSqlDatabase database = connectionResult.value();
+    return loadSegment(database, segmentId);
 }
 
 Result<void> SqliteTranscriptRepository::insertSegments(QSqlDatabase& database, const QString& recordingId,
@@ -120,8 +207,22 @@ Result<void> SqliteTranscriptRepository::insertSegments(QSqlDatabase& database, 
     if (!validation)
         return validation;
     const QString now = TimeUtils::nowStorageString();
+    QSet<QString> validatedChunkIds;
     for (int index = 0; index < segments.size(); ++index) {
         TranscriptSegment& segment = segments[index];
+        if ((!segment.recordingId.isEmpty() && segment.recordingId != recordingId) ||
+            (!segment.jobId.isEmpty() && segment.jobId != jobId)) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidArgument,
+                QStringLiteral("A transcript segment does not belong to the requested job and recording.")));
+        }
+        if (!segment.chunkId.isEmpty() && !validatedChunkIds.contains(segment.chunkId)) {
+            const auto chunk = validateChunkJob(database, segment.chunkId, jobId);
+            if (!chunk) {
+                return chunk;
+            }
+            validatedChunkIds.insert(segment.chunkId);
+        }
         if (segment.id.isEmpty())
             segment.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
         QSqlQuery query(database);
@@ -159,7 +260,15 @@ Result<void> SqliteTranscriptRepository::insertSegments(QSqlDatabase& database, 
 
 Result<void> SqliteTranscriptRepository::replaceTranscript(const QString& recordingId, const QString& jobId,
                                                            QList<TranscriptSegment> segments) {
-    auto result = m_databaseManager.transaction([&](QSqlDatabase& database) {
+    const auto validation = validateSegments(segments);
+    if (!validation) {
+        return validation;
+    }
+    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        const auto editable = validateOwnerlessEdit(database, recordingId, jobId);
+        if (!editable) {
+            return editable;
+        }
         QSqlQuery edited(database);
         edited.prepare(QStringLiteral("SELECT 1 FROM transcript_segments WHERE job_id=? AND edited_text<>'' "
                                       "AND edited_text<>original_text LIMIT 1"));
@@ -191,7 +300,11 @@ Result<void> SqliteTranscriptRepository::saveEditedTranscript(const QString& rec
     if (!validation) {
         return validation;
     }
-    auto result = m_databaseManager.transaction([&](QSqlDatabase& database) {
+    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        const auto editable = validateOwnerlessEdit(database, recordingId, jobId);
+        if (!editable) {
+            return editable;
+        }
         QSqlQuery remove(database);
         remove.prepare(QStringLiteral("DELETE FROM transcript_segments WHERE job_id=?"));
         remove.addBindValue(jobId);
@@ -210,41 +323,51 @@ Result<void> SqliteTranscriptRepository::saveEditedTranscript(const QString& rec
 Result<void> SqliteTranscriptRepository::replaceChunk(const QString& recordingId, const QString& jobId,
                                                       const QString& chunkId,
                                                       QList<TranscriptSegment> segments,
-                                                      const bool provisional, const int attempt) {
-    auto existingResult = segmentsForJob(jobId, true);
-    if (!existingResult)
-        return Result<void>::failure(existingResult.error());
-    QList<TranscriptSegment> combined;
-    for (const TranscriptSegment& existing : existingResult.value()) {
-        if (existing.chunkId == chunkId && hasManualTextEdit(existing)) {
-            return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::InvalidStateTransition,
-                QStringLiteral("A chunk containing manual edits cannot be overwritten.")));
+                                                      const bool provisional, const int attempt,
+                                                      const QString& ownerToken) {
+    const auto operation = [&](QSqlDatabase& database) {
+        const auto job = validateJobRecording(database, recordingId, jobId);
+        if (!job) {
+            return Result<void>::failure(job.error());
         }
-        if (existing.chunkId != chunkId)
-            combined.append(existing);
-    }
-    for (TranscriptSegment& segment : segments) {
-        segment.chunkId = chunkId;
-        segment.provisional = provisional;
-        segment.attempt = attempt;
-        combined.append(segment);
-    }
-    std::stable_sort(combined.begin(), combined.end(),
-                     [](const TranscriptSegment& left, const TranscriptSegment& right) {
-                         if (left.startMs != right.startMs)
-                             return left.startMs < right.startMs;
-                         return left.ordinal < right.ordinal;
-                     });
-    auto result = m_databaseManager.transaction([&](QSqlDatabase& database) {
+        const auto chunk = validateChunkJob(database, chunkId, jobId);
+        if (!chunk) {
+            return chunk;
+        }
+        const auto existingResult = loadSegments(database, jobId, true);
+        if (!existingResult)
+            return Result<void>::failure(existingResult.error());
+        QList<TranscriptSegment> combined;
+        for (const TranscriptSegment& existing : existingResult.value()) {
+            if (existing.chunkId == chunkId && hasManualTextEdit(existing)) {
+                return Result<void>::failure(UserFacingError::validation(
+                    ErrorCode::InvalidStateTransition,
+                    QStringLiteral("A chunk containing manual edits cannot be overwritten.")));
+            }
+            if (existing.chunkId != chunkId)
+                combined.append(existing);
+        }
+        for (TranscriptSegment& segment : segments) {
+            segment.chunkId = chunkId;
+            segment.provisional = provisional;
+            segment.attempt = attempt;
+            combined.append(segment);
+        }
+        std::stable_sort(combined.begin(), combined.end(),
+                         [](const TranscriptSegment& left, const TranscriptSegment& right) {
+                             if (left.startMs != right.startMs)
+                                 return left.startMs < right.startMs;
+                             return left.ordinal < right.ordinal;
+                         });
         QSqlQuery remove(database);
         remove.prepare(QStringLiteral("DELETE FROM transcript_segments WHERE job_id=?"));
         remove.addBindValue(jobId);
         if (!remove.exec())
             return Result<void>::failure(
                 queryError(QStringLiteral("The chunk transcript could not be replaced."), remove));
-        return insertSegments(database, recordingId, jobId, combined, provisional);
-    });
+        return insertSegments(database, recordingId, jobId, std::move(combined), provisional);
+    };
+    auto result = m_databaseManager.executionLeaseTransaction(jobId, ownerToken, operation);
     if (!result)
         return result;
     if (provisional)
@@ -256,60 +379,111 @@ Result<void> SqliteTranscriptRepository::saveEditedSegment(const TranscriptSegme
     if (segment.startMs < 0 || segment.endMs <= segment.startMs)
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("The segment time range is invalid.")));
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery overlap(connectionResult.value());
-    overlap.prepare(QStringLiteral(
-        "SELECT 1 FROM transcript_segments WHERE job_id=? AND id<>? AND start_ms<? AND end_ms>? LIMIT 1"));
-    overlap.addBindValue(segment.jobId);
-    overlap.addBindValue(segment.id);
-    overlap.addBindValue(segment.endMs);
-    overlap.addBindValue(segment.startMs);
-    if (!overlap.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The segment time range could not be checked."), overlap));
-    if (overlap.next())
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::InvalidArgument, QStringLiteral("Transcript segments cannot overlap.")));
-    QSqlQuery query(connectionResult.value());
-    query.prepare(
-        QStringLiteral("UPDATE transcript_segments SET "
-                       "start_ms=?,end_ms=?,edited_text=?,replacement_audit_json=?,reviewed=?,updated_at=? "
-                       "WHERE id=?"));
-    query.addBindValue(segment.startMs);
-    query.addBindValue(segment.endMs);
-    query.addBindValue(nonNull(segment.editedText));
-    query.addBindValue(
-        QString::fromUtf8(QJsonDocument(segment.replacementAudit).toJson(QJsonDocument::Compact)));
-    query.addBindValue(segment.reviewed);
-    query.addBindValue(TimeUtils::nowStorageString());
-    query.addBindValue(segment.id);
-    if (!query.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The transcript edit could not be saved."), query));
-    if (query.numRowsAffected() == 0)
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The transcript segment no longer exists.")));
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(segment.recordingId);
+    QString durableRecordingId;
+    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        const auto current = loadSegment(database, segment.id);
+        if (!current) {
+            return Result<void>::failure(current.error());
+        }
+        if (!current.value()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The transcript segment no longer exists.")));
+        }
+        const TranscriptSegment& durable = *current.value();
+        if (durable.recordingId != segment.recordingId || durable.jobId != segment.jobId) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidArgument,
+                QStringLiteral("The transcript segment does not belong to the requested job and recording.")));
+        }
+        const auto editable = validateOwnerlessEdit(database, durable.recordingId, durable.jobId);
+        if (!editable) {
+            return editable;
+        }
+
+        QSqlQuery overlap(database);
+        overlap.prepare(QStringLiteral(
+            "SELECT 1 FROM transcript_segments WHERE job_id=? AND id<>? AND start_ms<? AND end_ms>? "
+            "LIMIT 1"));
+        overlap.addBindValue(durable.jobId);
+        overlap.addBindValue(durable.id);
+        overlap.addBindValue(segment.endMs);
+        overlap.addBindValue(segment.startMs);
+        if (!overlap.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The segment time range could not be checked."), overlap));
+        }
+        if (overlap.next()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::InvalidArgument, QStringLiteral("Transcript segments cannot overlap.")));
+        }
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral(
+            "UPDATE transcript_segments SET "
+            "start_ms=?,end_ms=?,edited_text=?,replacement_audit_json=?,reviewed=?,updated_at=? "
+            "WHERE id=? AND job_id=? AND recording_id=?"));
+        query.addBindValue(segment.startMs);
+        query.addBindValue(segment.endMs);
+        query.addBindValue(nonNull(segment.editedText));
+        query.addBindValue(
+            QString::fromUtf8(QJsonDocument(segment.replacementAudit).toJson(QJsonDocument::Compact)));
+        query.addBindValue(segment.reviewed);
+        query.addBindValue(TimeUtils::nowStorageString());
+        query.addBindValue(durable.id);
+        query.addBindValue(durable.jobId);
+        query.addBindValue(durable.recordingId);
+        if (!query.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The transcript edit could not be saved."), query));
+        }
+        if (query.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The transcript segment no longer exists.")));
+        }
+        durableRecordingId = durable.recordingId;
+        return Result<void>::success();
+    });
+    if (!result) {
+        return result;
+    }
+    return DatabaseSearchService(m_databaseManager).rebuildRecording(durableRecordingId);
 }
 
 Result<void> SqliteTranscriptRepository::deleteSegment(const QString& segmentId) {
-    auto current = segment(segmentId);
-    if (!current)
-        return Result<void>::failure(current.error());
-    if (!current.value())
+    QString durableRecordingId;
+    auto result = m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
+        const auto current = loadSegment(database, segmentId);
+        if (!current) {
+            return Result<void>::failure(current.error());
+        }
+        if (!current.value()) {
+            return Result<void>::success();
+        }
+        const TranscriptSegment& durable = *current.value();
+        const auto editable = validateOwnerlessEdit(database, durable.recordingId, durable.jobId);
+        if (!editable) {
+            return editable;
+        }
+        QSqlQuery query(database);
+        query.prepare(QStringLiteral(
+            "DELETE FROM transcript_segments WHERE id=? AND job_id=? AND recording_id=?"));
+        query.addBindValue(durable.id);
+        query.addBindValue(durable.jobId);
+        query.addBindValue(durable.recordingId);
+        if (!query.exec()) {
+            return Result<void>::failure(
+                queryError(QStringLiteral("The transcript segment could not be deleted."), query));
+        }
+        if (query.numRowsAffected() == 0) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The transcript segment no longer exists.")));
+        }
+        durableRecordingId = durable.recordingId;
         return Result<void>::success();
-    auto connectionResult = m_databaseManager.connection();
-    if (!connectionResult)
-        return Result<void>::failure(connectionResult.error());
-    QSqlQuery query(connectionResult.value());
-    query.prepare(QStringLiteral("DELETE FROM transcript_segments WHERE id=?"));
-    query.addBindValue(segmentId);
-    if (!query.exec())
-        return Result<void>::failure(
-            queryError(QStringLiteral("The transcript segment could not be deleted."), query));
-    return DatabaseSearchService(m_databaseManager).rebuildRecording(current.value()->recordingId);
+    });
+    if (!result || durableRecordingId.isEmpty()) {
+        return result;
+    }
+    return DatabaseSearchService(m_databaseManager).rebuildRecording(durableRecordingId);
 }
 
 } // namespace BreezeDesk

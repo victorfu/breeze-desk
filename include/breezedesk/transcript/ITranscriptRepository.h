@@ -21,7 +21,8 @@ class ITranscriptRepository {
                                                             QList<TranscriptSegment> segments) = 0;
     [[nodiscard]] virtual Result<void> replaceChunk(const QString& recordingId, const QString& jobId,
                                                     const QString& chunkId, QList<TranscriptSegment> segments,
-                                                    bool provisional, int attempt) = 0;
+                                                    bool provisional, int attempt,
+                                                    const QString& ownerToken) = 0;
     [[nodiscard]] virtual Result<void> saveEditedSegment(const TranscriptSegment& segment) = 0;
     [[nodiscard]] virtual Result<void> deleteSegment(const QString& segmentId) = 0;
 };

@@ -17,7 +17,8 @@ class IJobRepository {
     [[nodiscard]] virtual Result<QList<TranscriptionJob>> list(bool includeCompleted = true) const = 0;
     [[nodiscard]] virtual Result<std::optional<TranscriptSegment>>
     latestSegmentForJob(const QString& jobId, bool includeProvisional = true) const = 0;
-    [[nodiscard]] virtual Result<JobEvent> appendEvent(JobEvent event) = 0;
+    [[nodiscard]] virtual Result<JobEvent> appendEvent(JobEvent event,
+                                                       const QString& ownerToken) = 0;
     [[nodiscard]] virtual Result<QList<JobEvent>> eventsForJob(const QString& jobId, qint64 afterId = 0,
                                                                int limit = 200) const = 0;
     [[nodiscard]] virtual Result<JobClaimResult> claimNextQueued(const QString& ownerToken,
@@ -29,21 +30,27 @@ class IJobRepository {
     [[nodiscard]] virtual Result<void> releaseLease(const QString& jobId, const QString& ownerToken) = 0;
     [[nodiscard]] virtual Result<std::optional<AsrExecutionLease>> activeLease() const = 0;
     [[nodiscard]] virtual Result<void> completeAndActivate(const QString& recordingId, const QString& jobId,
-                                                           const QString& ownerToken = {}) = 0;
+                                                           const QString& ownerToken) = 0;
     [[nodiscard]] virtual Result<void> transition(const QString& id, JobState state,
                                                   const QString& errorCode = {},
-                                                  const QString& errorMessage = {}) = 0;
+                                                  const QString& errorMessage = {},
+                                                  const QString& ownerToken = {}) = 0;
     [[nodiscard]] virtual Result<void> updateProgress(const QString& id, JobStage stage, double progress,
-                                                      int lastCompletedChunk) = 0;
+                                                      int lastCompletedChunk,
+                                                      const QString& ownerToken) = 0;
     [[nodiscard]] virtual Result<void> updateRuntimeInfo(const QString& id, const QString& actualBackend,
                                                          const QString& engineVersion,
                                                          const QString& workerVersion,
-                                                         const QJsonObject& diagnostics) = 0;
+                                                         const QJsonObject& diagnostics,
+                                                         const QString& ownerToken) = 0;
     [[nodiscard]] virtual Result<void> updateParameters(const QString& id,
-                                                        const QJsonObject& parameters) = 0;
-    [[nodiscard]] virtual Result<void> replaceChunks(const QString& jobId, const QList<JobChunk>& chunks) = 0;
+                                                        const QJsonObject& parameters,
+                                                        const QString& ownerToken) = 0;
+    [[nodiscard]] virtual Result<void> replaceChunks(const QString& jobId, const QList<JobChunk>& chunks,
+                                                     const QString& ownerToken = {}) = 0;
     [[nodiscard]] virtual Result<QList<JobChunk>> chunks(const QString& jobId) const = 0;
-    [[nodiscard]] virtual Result<void> updateChunk(const JobChunk& chunk) = 0;
+    [[nodiscard]] virtual Result<void> updateChunk(const JobChunk& chunk,
+                                                   const QString& ownerToken) = 0;
     [[nodiscard]] virtual Result<void> reorder(const QStringList& orderedJobIds) = 0;
     [[nodiscard]] virtual Result<int> markRunningJobsInterrupted(const QString& reason) = 0;
     [[nodiscard]] virtual Result<void> deleteTerminalJob(const QString& id) = 0;

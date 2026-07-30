@@ -2,6 +2,7 @@
 #include "breezedesk/database/DatabaseSearchService.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
 #include "breezedesk/glossary/GlossaryPostProcessor.h"
+#include "breezedesk/jobs/JobQueue.h"
 #include "breezedesk/jobs/SqliteJobRepository.h"
 #include "breezedesk/transcript/SqliteTranscriptRepository.h"
 #include "breezedesk/transcript/TranscriptAutosave.h"
@@ -10,6 +11,7 @@
 #include "breezedesk/ui/TranscriptViewModel.h"
 
 #include <QJsonDocument>
+#include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -23,7 +25,11 @@ class TranscriptTest final : public QObject {
     void invalidTimeOverlapIsRejected();
     void allExportFormatsAreValid();
     void repositoryPersistsTranscriptAndAutosaves();
+    void activeTranscriptRequiresCompletedJobAndRefreshesSearch();
     void repositoryDistinguishesGlossaryReplacementsFromManualEdits();
+    void replaceChunkRejectsCrossLinkedTargetsWithoutMutation();
+    void ownerlessEditsRejectActiveExecutionWithoutMutation();
+    void staleOwnerCannotReplaceReclaimedChunkTranscript();
     void viewModelPreservesMetadataAndControlsGlossaryAudit();
 };
 
@@ -107,6 +113,13 @@ void TranscriptTest::repositoryPersistsTranscriptAndAutosaves() {
     firstJob.id = QStringLiteral("job-1");
     firstJob.recordingId = recording.id;
     QVERIFY(jobRepository.create(firstJob));
+    const auto databaseConnection = database.connection();
+    QVERIFY(databaseConnection);
+    QSqlQuery completeFirstJob(databaseConnection.value());
+    completeFirstJob.prepare(QStringLiteral(
+        "UPDATE transcription_jobs SET state='Completed',stage='Completed',progress=1 WHERE id=?"));
+    completeFirstJob.addBindValue(firstJob.id);
+    QVERIFY(completeFirstJob.exec());
     QVERIFY(recordingRepository.setActiveTranscriptJob(recording.id, firstJob.id));
     SqliteTranscriptRepository repository(database);
     auto first = fixtureSegments();
@@ -150,6 +163,82 @@ void TranscriptTest::repositoryPersistsTranscriptAndAutosaves() {
     QCOMPARE(recordingRepository.findById(recording.id).value()->activeJobId, firstJob.id);
 }
 
+void TranscriptTest::activeTranscriptRequiresCompletedJobAndRefreshesSearch() {
+    QTemporaryDir directory;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    Recording recording;
+    recording.id = QStringLiteral("active-transcript-recording");
+    recording.title = QStringLiteral("Active transcript invariant");
+    QVERIFY(recordings.create(recording));
+    TranscriptionJob job;
+    job.id = QStringLiteral("active-transcript-job");
+    job.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(job));
+
+    QList<TranscriptSegment> segments = fixtureSegments();
+    segments[0].originalText = QStringLiteral("ActivationIndexNeedle");
+    segments[0].editedText = segments[0].originalText;
+    QVERIFY(transcripts.replaceTranscript(recording.id, job.id, segments));
+    const auto beforeActivation =
+        DatabaseSearchService(database).search(QStringLiteral("ActivationIndexNeedle"));
+    QVERIFY(beforeActivation);
+    QVERIFY(beforeActivation.value().isEmpty());
+
+    const auto queuedActivation = recordings.setActiveTranscriptJob(recording.id, job.id);
+    QVERIFY(!queuedActivation);
+    QCOMPARE(queuedActivation.error().code, ErrorCode::InvalidStateTransition);
+
+    const QString owner = QStringLiteral("active-transcript-owner");
+    QVERIFY(jobs.claimQueued(job.id, owner, 10'000).value().claimed);
+    const auto runningActivation = recordings.setActiveTranscriptJob(recording.id, job.id);
+    QVERIFY(!runningActivation);
+    QCOMPARE(runningActivation.error().code, ErrorCode::InvalidStateTransition);
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery complete(connection.value());
+    complete.prepare(QStringLiteral(
+        "UPDATE transcription_jobs SET state='Completed',stage='Completed',progress=1 WHERE id=?"));
+    complete.addBindValue(job.id);
+    QVERIFY(complete.exec());
+    QSqlQuery release(connection.value());
+    release.prepare(QStringLiteral("DELETE FROM asr_execution_lease WHERE job_id=?"));
+    release.addBindValue(job.id);
+    QVERIFY(release.exec());
+
+    QVERIFY(recordings.setActiveTranscriptJob(recording.id, job.id));
+    QCOMPARE(recordings.findById(recording.id).value()->activeJobId, job.id);
+    const auto afterActivation =
+        DatabaseSearchService(database).search(QStringLiteral("ActivationIndexNeedle"));
+    QVERIFY(afterActivation);
+    QCOMPARE(afterActivation.value().size(), 1);
+    QCOMPARE(afterActivation.value().constFirst().recordingId, recording.id);
+
+    Recording otherRecording;
+    otherRecording.id = QStringLiteral("other-active-transcript-recording");
+    otherRecording.title = QStringLiteral("Other recording");
+    QVERIFY(recordings.create(otherRecording));
+    TranscriptionJob otherJob;
+    otherJob.id = QStringLiteral("other-active-transcript-job");
+    otherJob.recordingId = otherRecording.id;
+    QVERIFY(jobs.createQueued(otherJob));
+    QSqlQuery completeOther(connection.value());
+    completeOther.prepare(QStringLiteral(
+        "UPDATE transcription_jobs SET state='Completed',stage='Completed',progress=1 WHERE id=?"));
+    completeOther.addBindValue(otherJob.id);
+    QVERIFY(completeOther.exec());
+    const auto mismatchedActivation =
+        recordings.setActiveTranscriptJob(recording.id, otherJob.id);
+    QVERIFY(!mismatchedActivation);
+    QCOMPARE(mismatchedActivation.error().code, ErrorCode::NotFound);
+    QCOMPARE(recordings.findById(recording.id).value()->activeJobId, job.id);
+}
+
 void TranscriptTest::repositoryDistinguishesGlossaryReplacementsFromManualEdits() {
     QTemporaryDir directory;
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
@@ -172,6 +261,8 @@ void TranscriptTest::repositoryDistinguishesGlossaryReplacementsFromManualEdits(
     chunk.startMs = 0;
     chunk.endMs = 1'000;
     QVERIFY(jobRepository.replaceChunks(job.id, {chunk}));
+    const QString owner = QStringLiteral("glossary-transcript-owner");
+    QVERIFY(jobRepository.claimQueued(job.id, owner).value().claimed);
 
     GlossaryTerm term;
     term.id = QStringLiteral("term-breezedesk");
@@ -195,22 +286,319 @@ void TranscriptTest::repositoryDistinguishesGlossaryReplacementsFromManualEdits(
     automatic.replacementAudit = GlossaryPostProcessor::auditToJson(processed.replacements);
 
     SqliteTranscriptRepository repository(database);
-    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1));
-    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1));
-    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, false, 1));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1,
+                                    owner));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1,
+                                    owner));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, false, 1,
+                                    owner));
     const TranscriptSegment finalized = repository.segmentsForJob(job.id).value().first();
     QCOMPARE(finalized.editedText, processed.text);
     QVERIFY(!finalized.provisional);
+    QVERIFY(jobRepository.transition(job.id, JobState::Interrupted, {}, {}, owner));
 
     TranscriptSegment manual = finalized;
     manual.editedText = QStringLiteral("Manually corrected meeting");
     QVERIFY(repository.saveEditedSegment(manual));
+    QVERIFY(JobQueue(jobRepository).resume(job.id));
+    QVERIFY(jobRepository.claimQueued(job.id, owner).value().claimed);
     const auto rejected =
-        repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 2);
+        repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 2, owner);
     QVERIFY(!rejected);
     QCOMPARE(rejected.error().code, ErrorCode::InvalidStateTransition);
     QCOMPARE(repository.segment(manual.id).value()->editedText,
              QStringLiteral("Manually corrected meeting"));
+}
+
+void TranscriptTest::replaceChunkRejectsCrossLinkedTargetsWithoutMutation() {
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("library.sqlite"));
+    DatabaseManager databaseA({path});
+    DatabaseManager databaseB({path});
+    QVERIFY(databaseA.initialize());
+    QVERIFY(databaseB.initialize());
+    SqliteRecordingRepository recordings(databaseA);
+    SqliteJobRepository jobs(databaseA);
+    SqliteTranscriptRepository transcriptsA(databaseA);
+    SqliteTranscriptRepository transcriptsB(databaseB);
+
+    Recording recordingA;
+    recordingA.id = QStringLiteral("linked-recording-a");
+    recordingA.title = QStringLiteral("Recording A");
+    QVERIFY(recordings.create(recordingA));
+    Recording recordingB;
+    recordingB.id = QStringLiteral("linked-recording-b");
+    recordingB.title = QStringLiteral("Recording B");
+    QVERIFY(recordings.create(recordingB));
+
+    TranscriptionJob jobA;
+    jobA.id = QStringLiteral("linked-job-a");
+    jobA.recordingId = recordingA.id;
+    QVERIFY(jobs.createQueued(jobA));
+    TranscriptionJob jobB;
+    jobB.id = QStringLiteral("linked-job-b");
+    jobB.recordingId = recordingB.id;
+    QVERIFY(jobs.createQueued(jobB));
+    JobChunk chunkA;
+    chunkA.id = QStringLiteral("linked-chunk-a");
+    chunkA.jobId = jobA.id;
+    chunkA.startMs = 0;
+    chunkA.endMs = 1'000;
+    QVERIFY(jobs.replaceChunks(jobA.id, {chunkA}));
+    JobChunk chunkB = chunkA;
+    chunkB.id = QStringLiteral("linked-chunk-b");
+    chunkB.jobId = jobB.id;
+    QVERIFY(jobs.replaceChunks(jobB.id, {chunkB}));
+
+    const QString owner = QStringLiteral("linked-owner-a");
+    QVERIFY(jobs.claimQueued(jobA.id, owner, 10'000).value().claimed);
+    TranscriptSegment original;
+    original.id = QStringLiteral("linked-segment-original");
+    original.recordingId = recordingA.id;
+    original.jobId = jobA.id;
+    original.chunkId = chunkA.id;
+    original.startMs = 0;
+    original.endMs = 1'000;
+    original.originalText = QStringLiteral("durable original");
+    original.editedText = original.originalText;
+    QVERIFY(transcriptsA.replaceChunk(recordingA.id, jobA.id, chunkA.id, {original}, false, 1,
+                                      owner));
+    const auto beforeResult = transcriptsB.segmentsForJob(jobA.id, true);
+    QVERIFY(beforeResult);
+    QCOMPARE(beforeResult.value().size(), 1);
+    const TranscriptSegment before = beforeResult.value().constFirst();
+
+    TranscriptSegment spoof = original;
+    spoof.id = QStringLiteral("linked-segment-spoof");
+    spoof.originalText = QStringLiteral("spoofed replacement");
+    spoof.editedText = spoof.originalText;
+    const auto wrongRecording = transcriptsB.replaceChunk(
+        recordingB.id, jobA.id, chunkA.id, {spoof}, false, 2, owner);
+    QVERIFY(!wrongRecording);
+    QCOMPARE(wrongRecording.error().code, ErrorCode::InvalidArgument);
+    const auto wrongChunk = transcriptsB.replaceChunk(recordingA.id, jobA.id, chunkB.id, {spoof},
+                                                       false, 2, owner);
+    QVERIFY(!wrongChunk);
+    QCOMPARE(wrongChunk.error().code, ErrorCode::InvalidArgument);
+
+    const auto durable = transcriptsB.segmentsForJob(jobA.id, true);
+    QVERIFY(durable);
+    QCOMPARE(durable.value().size(), 1);
+    const TranscriptSegment after = durable.value().constFirst();
+    QCOMPARE(after.id, before.id);
+    QCOMPARE(after.recordingId, before.recordingId);
+    QCOMPARE(after.jobId, before.jobId);
+    QCOMPARE(after.chunkId, before.chunkId);
+    QCOMPARE(after.ordinal, before.ordinal);
+    QCOMPARE(after.startMs, before.startMs);
+    QCOMPARE(after.endMs, before.endMs);
+    QCOMPARE(after.originalText, before.originalText);
+    QCOMPARE(after.editedText, before.editedText);
+    QCOMPARE(after.averageProbability, before.averageProbability);
+    QCOMPARE(after.minimumProbability, before.minimumProbability);
+    QCOMPARE(after.noSpeechProbability, before.noSpeechProbability);
+    QCOMPARE(after.lowConfidence, before.lowConfidence);
+    QCOMPARE(after.reviewed, before.reviewed);
+    QCOMPARE(after.replacementAudit, before.replacementAudit);
+    QCOMPARE(after.provisional, before.provisional);
+    QCOMPARE(after.attempt, before.attempt);
+    QCOMPARE(after.createdAt, before.createdAt);
+    QCOMPARE(after.updatedAt, before.updatedAt);
+}
+
+void TranscriptTest::ownerlessEditsRejectActiveExecutionWithoutMutation() {
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("library.sqlite"));
+    DatabaseManager databaseA({path});
+    DatabaseManager databaseB({path});
+    QVERIFY(databaseA.initialize());
+    QVERIFY(databaseB.initialize());
+    SqliteRecordingRepository recordings(databaseA);
+    SqliteJobRepository jobs(databaseA);
+    SqliteTranscriptRepository transcriptsA(databaseA);
+    SqliteTranscriptRepository transcriptsB(databaseB);
+
+    Recording recording;
+    recording.id = QStringLiteral("ownerless-edit-recording");
+    recording.title = QStringLiteral("Ownerless edit fencing");
+    QVERIFY(recordings.create(recording));
+    TranscriptionJob job;
+    job.id = QStringLiteral("ownerless-edit-job");
+    job.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(job));
+    TranscriptSegment original;
+    original.id = QStringLiteral("ownerless-edit-segment");
+    original.recordingId = recording.id;
+    original.jobId = job.id;
+    original.startMs = 0;
+    original.endMs = 1'000;
+    original.originalText = QStringLiteral("durable before execution");
+    original.editedText = original.originalText;
+    QVERIFY(transcriptsA.replaceTranscript(recording.id, job.id, {original}));
+
+    const QString owner = QStringLiteral("ownerless-edit-owner");
+    QVERIFY(jobs.claimQueued(job.id, owner, 10'000).value().claimed);
+    TranscriptSegment replacement = original;
+    replacement.id = QStringLiteral("ownerless-edit-replacement");
+    replacement.originalText = QStringLiteral("ownerless replacement");
+    replacement.editedText = replacement.originalText;
+    const auto replace = transcriptsB.replaceTranscript(recording.id, job.id, {replacement});
+    QVERIFY(!replace);
+    QCOMPARE(replace.error().code, ErrorCode::InvalidStateTransition);
+    const auto saveAll = transcriptsB.saveEditedTranscript(recording.id, job.id, {replacement});
+    QVERIFY(!saveAll);
+    QCOMPARE(saveAll.error().code, ErrorCode::InvalidStateTransition);
+    const auto existing = transcriptsB.segment(original.id);
+    QVERIFY(existing);
+    QVERIFY(existing.value());
+    const TranscriptSegment beforeExecution = *existing.value();
+    TranscriptSegment edited = beforeExecution;
+    edited.editedText = QStringLiteral("ownerless segment edit");
+    const auto saveOne = transcriptsB.saveEditedSegment(edited);
+    QVERIFY(!saveOne);
+    QCOMPARE(saveOne.error().code, ErrorCode::InvalidStateTransition);
+    const auto remove = transcriptsB.deleteSegment(original.id);
+    QVERIFY(!remove);
+    QCOMPARE(remove.error().code, ErrorCode::InvalidStateTransition);
+
+    auto durable = transcriptsB.segmentsForJob(job.id, true);
+    QVERIFY(durable);
+    QCOMPARE(durable.value().size(), 1);
+    const TranscriptSegment afterRejectedWrites = durable.value().constFirst();
+    QCOMPARE(afterRejectedWrites.id, beforeExecution.id);
+    QCOMPARE(afterRejectedWrites.recordingId, beforeExecution.recordingId);
+    QCOMPARE(afterRejectedWrites.jobId, beforeExecution.jobId);
+    QCOMPARE(afterRejectedWrites.originalText, beforeExecution.originalText);
+    QCOMPARE(afterRejectedWrites.editedText, beforeExecution.editedText);
+    QCOMPARE(afterRejectedWrites.startMs, beforeExecution.startMs);
+    QCOMPARE(afterRejectedWrites.endMs, beforeExecution.endMs);
+    QCOMPARE(afterRejectedWrites.createdAt, beforeExecution.createdAt);
+    QCOMPARE(afterRejectedWrites.updatedAt, beforeExecution.updatedAt);
+
+    const auto connection = databaseA.connection();
+    QVERIFY(connection);
+    QSqlQuery state(connection.value());
+    state.prepare(QStringLiteral("UPDATE transcription_jobs SET state=? WHERE id=?"));
+    state.addBindValue(jobStateName(JobState::Interrupted));
+    state.addBindValue(job.id);
+    QVERIFY(state.exec());
+    const auto leasedInterruptedEdit = transcriptsB.saveEditedSegment(edited);
+    QVERIFY(!leasedInterruptedEdit);
+    QCOMPARE(leasedInterruptedEdit.error().code, ErrorCode::InvalidStateTransition);
+
+    QSqlQuery expire(connection.value());
+    expire.prepare(QStringLiteral(
+        "UPDATE asr_execution_lease SET expires_at='2000-01-01T00:00:00.000Z' "
+        "WHERE resource='asr' AND job_id=?"));
+    expire.addBindValue(job.id);
+    QVERIFY(expire.exec());
+    QVERIFY(transcriptsB.saveEditedSegment(edited));
+    QCOMPARE(transcriptsB.segment(original.id).value()->editedText,
+             QStringLiteral("ownerless segment edit"));
+
+    QSqlQuery release(connection.value());
+    release.prepare(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
+    release.addBindValue(job.id);
+    QVERIFY(release.exec());
+
+    state.bindValue(0, jobStateName(JobState::Completed));
+    state.bindValue(1, job.id);
+    QVERIFY(state.exec());
+    edited.editedText = QStringLiteral("completed job edit");
+    QVERIFY(transcriptsB.saveEditedSegment(edited));
+    QCOMPARE(transcriptsB.segment(original.id).value()->editedText,
+             QStringLiteral("completed job edit"));
+
+    state.bindValue(0, jobStateName(JobState::Preparing));
+    state.bindValue(1, job.id);
+    QVERIFY(state.exec());
+    const auto runningWithoutLeaseDelete = transcriptsB.deleteSegment(original.id);
+    QVERIFY(!runningWithoutLeaseDelete);
+    QCOMPARE(runningWithoutLeaseDelete.error().code, ErrorCode::InvalidStateTransition);
+    durable = transcriptsB.segmentsForJob(job.id, true);
+    QVERIFY(durable);
+    QCOMPARE(durable.value().size(), 1);
+    QCOMPARE(durable.value().constFirst().editedText, QStringLiteral("completed job edit"));
+}
+
+void TranscriptTest::staleOwnerCannotReplaceReclaimedChunkTranscript() {
+    QTemporaryDir directory;
+    const QString path = directory.filePath(QStringLiteral("library.sqlite"));
+    DatabaseManager databaseA({path});
+    DatabaseManager databaseB({path});
+    QVERIFY(databaseA.initialize());
+    QVERIFY(databaseB.initialize());
+    SqliteRecordingRepository recordings(databaseA);
+    Recording recording;
+    recording.id = QStringLiteral("fenced-transcript-recording");
+    recording.title = QStringLiteral("Fenced transcript");
+    QVERIFY(recordings.create(recording));
+    SqliteJobRepository jobsA(databaseA);
+    SqliteJobRepository jobsB(databaseB);
+    SqliteTranscriptRepository transcriptsA(databaseA);
+    SqliteTranscriptRepository transcriptsB(databaseB);
+
+    TranscriptionJob job;
+    job.id = QStringLiteral("fenced-transcript-job");
+    job.recordingId = recording.id;
+    QVERIFY(jobsA.createQueued(job));
+    JobChunk chunk;
+    chunk.id = QStringLiteral("fenced-transcript-chunk");
+    chunk.jobId = job.id;
+    chunk.ordinal = 0;
+    chunk.startMs = 0;
+    chunk.endMs = 1'000;
+    QVERIFY(jobsA.replaceChunks(job.id, {chunk}));
+
+    const QString ownerA = QStringLiteral("transcript-owner-a");
+    QVERIFY(jobsA.claimQueued(job.id, ownerA, 10'000).value().claimed);
+    QVERIFY(jobsA.transition(job.id, JobState::LoadingModel, {}, {}, ownerA));
+    QVERIFY(jobsA.transition(job.id, JobState::Transcribing, {}, {}, ownerA));
+    TranscriptSegment segmentA;
+    segmentA.id = QStringLiteral("segment-a");
+    segmentA.recordingId = recording.id;
+    segmentA.jobId = job.id;
+    segmentA.chunkId = chunk.id;
+    segmentA.startMs = 0;
+    segmentA.endMs = 1'000;
+    segmentA.originalText = QStringLiteral("owner A output");
+    QVERIFY(transcriptsA.replaceChunk(recording.id, job.id, chunk.id, {segmentA}, true, 1, ownerA));
+
+    const auto connection = databaseA.connection();
+    QVERIFY(connection);
+    QSqlQuery expire(connection.value());
+    QVERIFY(expire.exec(QStringLiteral(
+        "UPDATE asr_execution_lease SET expires_at='2000-01-01T00:00:00.000Z' WHERE resource='asr'")));
+    QVERIFY(jobsA.markRunningJobsInterrupted(QStringLiteral("transcript handoff")));
+    QVERIFY(JobQueue(jobsA).resume(job.id));
+
+    const QString ownerB = QStringLiteral("transcript-owner-b");
+    QVERIFY(jobsB.claimQueued(job.id, ownerB, 10'000).value().claimed);
+    QVERIFY(jobsB.transition(job.id, JobState::LoadingModel, {}, {}, ownerB));
+    QVERIFY(jobsB.transition(job.id, JobState::Transcribing, {}, {}, ownerB));
+    TranscriptSegment segmentB = segmentA;
+    segmentB.id = QStringLiteral("segment-b");
+    segmentB.originalText = QStringLiteral("owner B output");
+    QVERIFY(transcriptsB.replaceChunk(recording.id, job.id, chunk.id, {segmentB}, false, 2, ownerB));
+
+    segmentA.originalText = QStringLiteral("stale overwrite");
+    const auto staleProvisional =
+        transcriptsA.replaceChunk(recording.id, job.id, chunk.id, {segmentA}, true, 3, ownerA);
+    QVERIFY(!staleProvisional);
+    QCOMPARE(staleProvisional.error().code, ErrorCode::ExecutionLeaseLost);
+    const auto staleFinal =
+        transcriptsA.replaceChunk(recording.id, job.id, chunk.id, {segmentA}, false, 3, ownerA);
+    QVERIFY(!staleFinal);
+    QCOMPARE(staleFinal.error().code, ErrorCode::ExecutionLeaseLost);
+
+    const auto durable = transcriptsB.segmentsForJob(job.id, true);
+    QVERIFY(durable);
+    QCOMPARE(durable.value().size(), 1);
+    QCOMPARE(durable.value().constFirst().id, QStringLiteral("segment-b"));
+    QCOMPARE(durable.value().constFirst().originalText, QStringLiteral("owner B output"));
+    QVERIFY(!durable.value().constFirst().provisional);
+    QCOMPARE(durable.value().constFirst().attempt, 2);
+    QVERIFY(jobsB.renewLease(job.id, ownerB, 10'000));
 }
 
 void TranscriptTest::viewModelPreservesMetadataAndControlsGlossaryAudit() {

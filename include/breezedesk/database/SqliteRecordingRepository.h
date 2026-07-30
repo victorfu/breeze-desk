@@ -11,7 +11,16 @@ class SqliteRecordingRepository final : public IRecordingRepository {
     explicit SqliteRecordingRepository(DatabaseManager& databaseManager);
 
     [[nodiscard]] Result<void> create(Recording recording) override;
-    [[nodiscard]] Result<void> update(const Recording& recording) override;
+    [[nodiscard]] Result<void> update(const Recording& recording, const QString& jobId = {},
+                                      const QString& ownerToken = {}) override;
+    [[nodiscard]] Result<void> updateTitle(const QString& recordingId,
+                                           const QString& title) override;
+    [[nodiscard]] Result<void> updateNotes(const QString& recordingId,
+                                           const QString& notes) override;
+    [[nodiscard]] Result<void> updateReviewState(const QString& recordingId,
+                                                 const QString& reviewState) override;
+    [[nodiscard]] Result<void> relinkSource(const QString& recordingId, const QString& sourcePath,
+                                            bool clearDerivedArtifacts) override;
     [[nodiscard]] Result<std::optional<Recording>> findById(const QString& id) const override;
     [[nodiscard]] Result<std::optional<Recording>> findBySourcePath(const QString& sourcePath) const override;
     [[nodiscard]] Result<RecordingPage> list(const RecordingQuery& query) const override;

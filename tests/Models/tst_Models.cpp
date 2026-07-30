@@ -6,8 +6,10 @@
 #include <QDir>
 #include <QFile>
 #include <QNetworkAccessManager>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QStringList>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
@@ -51,6 +53,86 @@ class HttpFixture final : public QTcpServer {
     bool m_honorRanges{true};
 };
 
+class ControlledHttpFixture final : public QTcpServer {
+    Q_OBJECT
+  public:
+    explicit ControlledHttpFixture(QByteArray payload, QObject* parent = nullptr)
+        : QTcpServer(parent), m_payload(std::move(payload)) {
+        connect(this, &QTcpServer::newConnection, this, [this] {
+            while (hasPendingConnections()) {
+                QTcpSocket* socket = nextPendingConnection();
+                connect(socket, &QTcpSocket::readyRead, socket, [this, socket] {
+                    if (socket->property("requestParsed").toBool()) {
+                        return;
+                    }
+                    QByteArray request = socket->property("requestBuffer").toByteArray();
+                    request += socket->readAll();
+                    if (!request.contains("\r\n\r\n")) {
+                        socket->setProperty("requestBuffer", request);
+                        return;
+                    }
+                    socket->setProperty("requestParsed", true);
+                    qint64 offset = 0;
+                    const qsizetype rangePosition = request.indexOf("Range: bytes=");
+                    if (rangePosition >= 0) {
+                        const qsizetype numberStart = rangePosition + 13;
+                        offset = request.mid(numberStart).split('-').first().toLongLong();
+                    }
+                    ++m_requestCount;
+                    if (m_activeSocket == nullptr) {
+                        m_activeSocket = socket;
+                        m_activeOffset = offset;
+                    }
+                    emit requestReceived();
+                });
+            }
+        });
+    }
+
+    [[nodiscard]] int requestCount() const noexcept { return m_requestCount; }
+
+    void sendPrefix(const qsizetype byteCount) {
+        QVERIFY(m_activeSocket != nullptr);
+        QVERIFY(!m_responseStarted);
+        const QByteArray body = m_payload.mid(m_activeOffset);
+        const QByteArray prefix = body.first(byteCount);
+        QByteArray response = m_activeOffset > 0
+                                  ? QByteArrayLiteral("HTTP/1.1 206 Partial Content\r\n")
+                                  : QByteArrayLiteral("HTTP/1.1 200 OK\r\n");
+        response += QByteArrayLiteral("Content-Length: ") + QByteArray::number(body.size()) +
+                    QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + prefix;
+        QCOMPARE(m_activeSocket->write(response), static_cast<qint64>(response.size()));
+        m_activeSocket->flush();
+        m_responseStarted = true;
+        m_responseBytesSent = prefix.size();
+    }
+
+    void finishResponse() {
+        QVERIFY(m_activeSocket != nullptr);
+        const QByteArray body = m_payload.mid(m_activeOffset);
+        if (!m_responseStarted) {
+            sendPrefix(body.size());
+        } else {
+            const QByteArray remainder = body.mid(m_responseBytesSent);
+            QCOMPARE(m_activeSocket->write(remainder), static_cast<qint64>(remainder.size()));
+            m_activeSocket->flush();
+            m_responseBytesSent = body.size();
+        }
+        m_activeSocket->disconnectFromHost();
+    }
+
+  signals:
+    void requestReceived();
+
+  private:
+    QByteArray m_payload;
+    QPointer<QTcpSocket> m_activeSocket;
+    qint64 m_activeOffset{0};
+    qsizetype m_responseBytesSent{0};
+    int m_requestCount{0};
+    bool m_responseStarted{false};
+};
+
 class ModelsTest final : public QObject {
     Q_OBJECT
   private slots:
@@ -58,6 +140,10 @@ class ModelsTest final : public QObject {
     void resumesAndCommitsVerifiedDownload();
     void removesChecksumFailure();
     void restartsWhenServerIgnoresRange();
+    void serializesConcurrentOperationsAcrossNetworkManagers();
+    void cancellingLockWaiterPreservesOwnerPartial();
+    void cancellingPausedOwnerRemovesPartial();
+    void destroysActiveOperationAfterNetworkSiblingSafely();
     void managerDeduplicatesConcurrentDownloads();
     void customModelSurvivesManagerRestart();
 };
@@ -155,6 +241,202 @@ void ModelsTest::restartsWhenServerIgnoresRange() {
     QFile result(temporary.filePath(QStringLiteral("no-range.bin")));
     QVERIFY(result.open(QIODevice::ReadOnly));
     QCOMPARE(result.readAll(), payload);
+}
+
+void ModelsTest::serializesConcurrentOperationsAcrossNetworkManagers() {
+    const QByteArray payload("one-writer-model-download");
+    ControlledHttpFixture server(payload);
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("shared-model");
+    entry.fileName = QStringLiteral("shared-model.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    QNetworkAccessManager firstNetwork;
+    QNetworkAccessManager secondNetwork;
+    ModelDownloadOperation first(entry, temporary.path(), &firstNetwork);
+    ModelDownloadOperation second(entry, temporary.path(), &secondNetwork);
+    QSignalSpy firstFinished(&first, &ModelDownloadOperation::finished);
+    QSignalSpy secondFinished(&second, &ModelDownloadOperation::finished);
+
+    first.start();
+    QTRY_COMPARE_WITH_TIMEOUT(server.requestCount(), 1, 2'000);
+    QVERIFY(QFileInfo::exists(temporary.filePath(QStringLiteral("shared-model.bin.lock"))));
+    second.start();
+
+    // The controlled first response stays open for several lock-poll cycles.
+    // A second HTTP request here would prove that the shared .part has two writers.
+    QTest::qWait(350);
+    QCOMPARE(server.requestCount(), 1);
+    QCOMPARE(second.state(), ModelDownloadOperation::State::Pending);
+
+    server.finishResponse();
+    QTRY_COMPARE_WITH_TIMEOUT(firstFinished.count(), 1, 5'000);
+    QTRY_COMPARE_WITH_TIMEOUT(secondFinished.count(), 1, 5'000);
+    QCOMPARE(firstFinished.constFirst().constFirst().toBool(), true);
+    QCOMPARE(secondFinished.constFirst().constFirst().toBool(), true);
+    QCOMPARE(server.requestCount(), 1);
+
+    QFile finalFile(temporary.filePath(QStringLiteral("shared-model.bin")));
+    QVERIFY(finalFile.open(QIODevice::ReadOnly));
+    const QByteArray finalBytes = finalFile.readAll();
+    QCOMPARE(finalBytes, payload);
+    QCOMPARE(QCryptographicHash::hash(finalBytes, QCryptographicHash::Sha256).toHex(), entry.sha256);
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("shared-model.bin.part"))));
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("shared-model.bin.lock"))));
+}
+
+void ModelsTest::cancellingLockWaiterPreservesOwnerPartial() {
+    const QByteArray payload("owner-part-must-survive-waiter-cancellation");
+    constexpr qsizetype PrefixSize = 13;
+    ControlledHttpFixture server(payload);
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("cancelled-waiter");
+    entry.fileName = QStringLiteral("cancelled-waiter.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    QNetworkAccessManager ownerNetwork;
+    QNetworkAccessManager waiterNetwork;
+    ModelDownloadOperation owner(entry, temporary.path(), &ownerNetwork);
+    ModelDownloadOperation waiter(entry, temporary.path(), &waiterNetwork);
+    QSignalSpy ownerFinished(&owner, &ModelDownloadOperation::finished);
+    QSignalSpy waiterFinished(&waiter, &ModelDownloadOperation::finished);
+
+    const QString partPath = temporary.filePath(QStringLiteral("cancelled-waiter.bin.part"));
+    QFile existingPart(partPath);
+    QVERIFY(existingPart.open(QIODevice::WriteOnly));
+    QCOMPARE(existingPart.write(payload.first(PrefixSize)), static_cast<qint64>(PrefixSize));
+    existingPart.close();
+
+    owner.start();
+    QTRY_COMPARE_WITH_TIMEOUT(server.requestCount(), 1, 2'000);
+    QVERIFY(QFileInfo::exists(temporary.filePath(QStringLiteral("cancelled-waiter.bin.lock"))));
+
+    waiter.start();
+    QTest::qWait(250);
+    QCOMPARE(server.requestCount(), 1);
+    QCOMPARE(waiter.state(), ModelDownloadOperation::State::Pending);
+    waiter.cancel();
+    QCOMPARE(waiterFinished.count(), 1);
+    QCOMPARE(waiterFinished.constFirst().constFirst().toBool(), false);
+
+    QFile ownerPart(partPath);
+    QVERIFY(ownerPart.open(QIODevice::ReadOnly));
+    QCOMPARE(ownerPart.readAll(), payload.first(PrefixSize));
+    ownerPart.close();
+    QVERIFY(QFileInfo::exists(temporary.filePath(QStringLiteral("cancelled-waiter.bin.lock"))));
+
+    server.finishResponse();
+    QTRY_COMPARE_WITH_TIMEOUT(ownerFinished.count(), 1, 5'000);
+    QCOMPARE(ownerFinished.constFirst().constFirst().toBool(), true);
+    QFile finalFile(temporary.filePath(QStringLiteral("cancelled-waiter.bin")));
+    QVERIFY(finalFile.open(QIODevice::ReadOnly));
+    QCOMPARE(finalFile.readAll(), payload);
+}
+
+void ModelsTest::cancellingPausedOwnerRemovesPartial() {
+    const QByteArray payload("paused-owner-part-must-be-removed");
+    constexpr qsizetype PrefixSize = 12;
+    ControlledHttpFixture server(payload);
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("cancelled-paused-owner");
+    entry.fileName = QStringLiteral("cancelled-paused-owner.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(entry, temporary.path(), &network);
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+
+    const QString partPath = temporary.filePath(QStringLiteral("cancelled-paused-owner.bin.part"));
+    QFile existingPart(partPath);
+    QVERIFY(existingPart.open(QIODevice::WriteOnly));
+    QCOMPARE(existingPart.write(payload.first(PrefixSize)), static_cast<qint64>(PrefixSize));
+    existingPart.close();
+
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(server.requestCount(), 1, 2'000);
+
+    operation.pause();
+    QCOMPARE(operation.state(), ModelDownloadOperation::State::Paused);
+    QCOMPARE(QFileInfo(partPath).size(), static_cast<qint64>(PrefixSize));
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("cancelled-paused-owner.bin.lock"))));
+
+    operation.cancel();
+    QCOMPARE(operation.state(), ModelDownloadOperation::State::Cancelled);
+    QCOMPARE(finished.count(), 1);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), false);
+    QVERIFY(!QFileInfo::exists(partPath));
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("cancelled-paused-owner.bin.lock"))));
+}
+
+void ModelsTest::destroysActiveOperationAfterNetworkSiblingSafely() {
+    const QByteArray payload("active-operation-parent-destruction");
+    constexpr qsizetype PrefixSize = 11;
+    ControlledHttpFixture server(payload);
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("parent-destruction");
+    entry.fileName = QStringLiteral("parent-destruction.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    auto* owner = new QObject;
+    auto* network = new QNetworkAccessManager(owner);
+    auto* operation = new ModelDownloadOperation(entry, temporary.path(), network, owner);
+    QPointer<QNetworkAccessManager> guardedNetwork(network);
+    QPointer<ModelDownloadOperation> guardedOperation(operation);
+    QStringList destructionOrder;
+    connect(network, &QObject::destroyed, [&destructionOrder] {
+        destructionOrder.append(QStringLiteral("network"));
+    });
+    connect(operation, &QObject::destroyed, [&destructionOrder] {
+        destructionOrder.append(QStringLiteral("operation"));
+    });
+
+    const QString partPath = temporary.filePath(QStringLiteral("parent-destruction.bin.part"));
+    QFile existingPart(partPath);
+    QVERIFY(existingPart.open(QIODevice::WriteOnly));
+    QCOMPARE(existingPart.write(payload.first(PrefixSize)), static_cast<qint64>(PrefixSize));
+    existingPart.close();
+
+    const QObjectList siblings = owner->children();
+    QCOMPARE(siblings.size(), 2);
+    QCOMPARE(siblings.at(0), static_cast<QObject*>(network));
+    QCOMPARE(siblings.at(1), static_cast<QObject*>(operation));
+
+    operation->start();
+    QTRY_COMPARE_WITH_TIMEOUT(server.requestCount(), 1, 2'000);
+    QVERIFY(QFileInfo::exists(temporary.filePath(QStringLiteral("parent-destruction.bin.lock"))));
+
+    delete owner;
+
+    QVERIFY(guardedNetwork.isNull());
+    QVERIFY(guardedOperation.isNull());
+    QCOMPARE(destructionOrder,
+             QStringList({QStringLiteral("network"), QStringLiteral("operation")}));
+    QCOMPARE(QFileInfo(partPath).size(), static_cast<qint64>(PrefixSize));
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("parent-destruction.bin.lock"))));
 }
 
 void ModelsTest::managerDeduplicatesConcurrentDownloads() {

@@ -28,6 +28,8 @@
 
 #include <QCborArray>
 #include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QFutureWatcher>
 #include <QJsonDocument>
@@ -306,7 +308,7 @@ TranscriptionCoordinator::TranscriptionCoordinator(IRecordingRepository& recordi
                                                    TranscriptionSettingsManager* settings, QObject* parent)
     : QObject(parent), m_recordings(recordings), m_jobs(jobs), m_transcripts(transcripts), m_models(models),
       m_worker(worker), m_settings(settings),
-      m_ownerToken(QUuid::createUuid().toString(QUuid::WithoutBraces)) {
+      m_ownerToken() {
     const auto tools = FFmpegLocator::locate();
     if (tools.isValid()) {
         m_normalizer = std::make_unique<FFmpegNormalizationService>(tools.ffmpegPath, this);
@@ -320,6 +322,8 @@ TranscriptionCoordinator::TranscriptionCoordinator(IRecordingRepository& recordi
     });
     connect(&m_worker, &WorkerProcessManager::workerInterrupted, this,
             &TranscriptionCoordinator::interruptActiveJob);
+    connect(&m_worker, &WorkerProcessManager::forcedCancellationSettled, this,
+            &TranscriptionCoordinator::finishPendingTerminalCheckpoint);
     m_leaseHeartbeatTimer.setInterval(2'000);
     connect(&m_leaseHeartbeatTimer, &QTimer::timeout, this, &TranscriptionCoordinator::renewActiveLease);
     m_leaseRetryTimer.setSingleShot(true);
@@ -369,15 +373,31 @@ void TranscriptionCoordinator::shutdown() {
         clearLoadedVadModel();
         return;
     }
+    const QString reason =
+        tr("%1 closed while this job was running.").arg(QString::fromLatin1(AppConfig::ProductName));
     if (m_normalization != nullptr && m_normalization->isRunning()) {
         m_normalization->cancel();
     } else if (m_waveformCancellation != nullptr) {
         m_waveformCancellation->store(true, std::memory_order_relaxed);
-    } else if (m_requestKind == RequestKind::AnalyzeSpeech || m_requestKind == RequestKind::TranscribeChunk) {
-        m_worker.client()->sendRequest(Ipc::MessageType::CancelJob, m_activeJob.id, {});
+    } else if (activeWorkerRequestMayStillRun()) {
+        // application.exec() has already returned when the normal GUI shutdown
+        // path calls this method, so the heartbeat timer cannot extend the
+        // lease while WorkerProcessManager::stop() waits. Refresh it once here
+        // to cover that bounded shutdown interval.
+        const auto renewed = m_jobs.renewLease(m_activeJob.id, m_ownerToken);
+        if (!renewed) {
+            abandonActiveJobAfterLeaseLoss(
+                tr("This transcription lost the global execution lease and was stopped."));
+            return;
+        }
+        if (awaitWorkerQuiescence(PendingTerminalAction::Interrupt,
+                                  QStringLiteral("WorkerCrashed"), reason)) {
+            return;
+        }
+        finishPendingTerminalCheckpoint();
+        return;
     }
-    interruptActiveJob(
-        tr("%1 closed while this job was running.").arg(QString::fromLatin1(AppConfig::ProductName)));
+    checkpointInterruption(reason);
 }
 
 void TranscriptionCoordinator::enqueue(const QString& jobId, const QString& recordingId) {
@@ -463,12 +483,12 @@ void TranscriptionCoordinator::cancel(const QString& jobId) {
         return;
     }
     const auto result = JobQueue(m_jobs).cancel(jobId);
-        if (!result) {
-            emit errorOccurred(result.error().message);
+    if (!result) {
+        emit errorOccurred(result.error().message);
         return;
-        }
-        publish(jobId);
-        publishEvents(jobId);
+    }
+    publish(jobId);
+    publishEvents(jobId);
     if (!activeJobMatches(jobId)) {
         return;
     }
@@ -484,11 +504,6 @@ void TranscriptionCoordinator::abortActiveOperationForCancellation() {
         m_normalization->cancel();
     } else if (m_waveformCancellation != nullptr) {
         m_waveformCancellation->store(true, std::memory_order_relaxed);
-    } else if (m_requestKind == RequestKind::AnalyzeSpeech || m_requestKind == RequestKind::TranscribeChunk) {
-        m_worker.forceCancelAfterGrace(m_activeJob.id);
-    } else if (m_requestKind == RequestKind::LoadModel) {
-        // Model loading is not safely interruptible inside whisper.cpp. Finish the load,
-        // then honour cancellation without starting inference.
     } else {
         finishCancellation();
     }
@@ -579,18 +594,11 @@ void TranscriptionCoordinator::invalidateLoadedModel() {
 }
 
 void TranscriptionCoordinator::scheduleNext() {
-    if (!m_initialized || m_shuttingDown || !m_activeJob.id.isEmpty() || m_pauseAfterCurrent ||
-        m_externalWorkerReserved) {
+    if (!m_initialized || m_shuttingDown || !m_activeJob.id.isEmpty()) {
         return;
     }
-    const auto claim = m_jobs.claimNextQueued(m_ownerToken);
-    if (!claim) {
-        emit errorOccurred(claim.error().message);
-        scheduleLeaseRetry();
-        return;
-    }
-    if (!claim.value().claimed || !claim.value().job.has_value()) {
-        const QString activeJobId = claim.value().activeJobId;
+    const auto synchronizeObservedJob = [this](const QString& activeJobId) {
+        refreshHandedOffJob(activeJobId);
         if (m_runningJobId != activeJobId) {
             const QString previousRunningJobId = m_runningJobId;
             if (!previousRunningJobId.isEmpty()) {
@@ -603,11 +611,65 @@ void TranscriptionCoordinator::scheduleNext() {
         if (!activeJobId.isEmpty()) {
             publish(activeJobId);
             publishEvents(activeJobId);
-            scheduleLeaseRetry();
         }
+    };
+
+    const auto lease = m_jobs.activeLease();
+    if (!lease) {
+        emit errorOccurred(lease.error().message);
+        scheduleLeaseRetry();
+        return;
+    }
+    QString activeJobId;
+    if (lease.value().has_value() &&
+        lease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+        activeJobId = lease.value()->jobId;
+    } else {
+        const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
+        if (!recovered) {
+            emit errorOccurred(recovered.error().message);
+            scheduleLeaseRetry();
+            return;
+        }
+        // Recovery releases an expired lease. Re-read it before updating the UI
+        // because another BreezeDesk process may already have claimed the slot.
+        const auto refreshedLease = m_jobs.activeLease();
+        if (!refreshedLease) {
+            emit errorOccurred(refreshedLease.error().message);
+            scheduleLeaseRetry();
+            return;
+        }
+        if (refreshedLease.value().has_value() &&
+            refreshedLease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+            activeJobId = refreshedLease.value()->jobId;
+        }
+    }
+    synchronizeObservedJob(activeJobId);
+    if (!activeJobId.isEmpty() || m_pauseAfterCurrent || m_externalWorkerReserved ||
+        m_worker.forcedCancellationPending()) {
+        scheduleLeaseRetry();
+        return;
+    }
+
+    const QString candidateOwnerToken = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const auto claim = m_jobs.claimNextQueued(candidateOwnerToken);
+    if (!claim) {
+        emit errorOccurred(claim.error().message);
+        scheduleLeaseRetry();
+        return;
+    }
+    if (!claim.value().claimed || !claim.value().job.has_value()) {
+        synchronizeObservedJob(claim.value().activeJobId);
+        scheduleLeaseRetry();
         return;
     }
     const QString claimedJobId = claim.value().job->id;
+    refreshHandedOffJob(claimedJobId);
+    if (m_handedOffJobId == claimedJobId) {
+        m_handedOffJobId.clear();
+        m_handedOffRecordingId.clear();
+    }
+    m_ownerToken = candidateOwnerToken;
     if (!m_runningJobId.isEmpty() && m_runningJobId != claimedJobId) {
         publish(m_runningJobId);
         publishEvents(m_runningJobId);
@@ -648,14 +710,7 @@ void TranscriptionCoordinator::renewActiveLease() {
         return;
     }
     const QString message = tr("This transcription lost the global execution lease and was stopped.");
-    if (m_requestKind == RequestKind::AnalyzeSpeech || m_requestKind == RequestKind::TranscribeChunk) {
-        m_worker.forceCancelAfterGrace(m_activeJob.id);
-    } else if (m_normalization != nullptr && m_normalization->isRunning()) {
-        m_normalization->cancel();
-    } else if (m_waveformCancellation != nullptr) {
-        m_waveformCancellation->store(true, std::memory_order_relaxed);
-    }
-    interruptActiveJob(message);
+    abandonActiveJobAfterLeaseLoss(message);
 }
 
 void TranscriptionCoordinator::beginJob(const TranscriptionJob& job) {
@@ -665,7 +720,9 @@ void TranscriptionCoordinator::beginJob(const TranscriptionJob& job) {
     m_vadModelVerified = false;
     m_vadRecoveryAttempted = false;
     publishEvents(job.id);
-    advanceProgress(JobStage::Preparing, 0.0);
+    if (!advanceProgress(JobStage::Preparing, 0.0)) {
+        return;
+    }
     ensureWorkerReady(m_activeJob.id);
 }
 
@@ -673,7 +730,9 @@ void TranscriptionCoordinator::continuePreparingJob() {
     if (m_activeJob.state != JobState::Preparing) {
         return;
     }
-    advanceProgress(JobStage::Preparing, 1.0);
+    if (!advanceProgress(JobStage::Preparing, 1.0)) {
+        return;
+    }
     const auto recording = m_recordings.findById(m_activeJob.recordingId);
     if (!recording || !recording.value().has_value()) {
         failActiveJob(QStringLiteral("SourceFileMissing"),
@@ -684,7 +743,7 @@ void TranscriptionCoordinator::continuePreparingJob() {
     m_activeSourcePath =
         QFileInfo::exists(value.managedMediaPath) ? value.managedMediaPath : value.sourcePath;
     m_activeNormalizedPath = value.normalizedPcmPath.isEmpty()
-                                 ? AudioCacheManager::normalizedAudioPath(value.id)
+                                 ? AudioCacheManager::normalizedAudioPath(value.id, m_ownerToken)
                                  : value.normalizedPcmPath;
     if (!QFileInfo(m_activeSourcePath).isFile()) {
         failActiveJob(QStringLiteral("SourceFileMissing"), tr("The source media file is missing."));
@@ -695,12 +754,14 @@ void TranscriptionCoordinator::continuePreparingJob() {
 
 void TranscriptionCoordinator::verifySourceMedia() {
     const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
     const QString sourcePath = m_activeSourcePath;
     auto* watcher = new QFutureWatcher<SourceHashResult>(this);
-    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this, [this, watcher, jobId] {
+    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this,
+            [this, watcher, jobId, ownerToken] {
                 const SourceHashResult result = watcher->result();
                 watcher->deleteLater();
-                if (!activeJobMatches(jobId)) {
+                if (!activeJobMatches(jobId, ownerToken)) {
                     return;
                 }
         if (m_activeJob.state == JobState::Cancelling) {
@@ -744,7 +805,7 @@ void TranscriptionCoordinator::verifySourceMedia() {
                 if (jobSourceHash.isEmpty()) {
                     QJsonObject parameters = m_activeJob.parameters;
                     parameters.insert(QStringLiteral("sourceHash"), m_activeSourceHash);
-                    const auto bound = m_jobs.updateParameters(m_activeJob.id, parameters);
+                    const auto bound = m_jobs.updateParameters(m_activeJob.id, parameters, m_ownerToken);
                     if (!bound) {
                         failActiveJob(QStringLiteral("DatabaseQueryFailed"), bound.error().message);
                         return;
@@ -771,17 +832,24 @@ void TranscriptionCoordinator::verifySourceMedia() {
                 }
 
                 Recording invalidated = value;
+                const QString obsoleteNormalizedPath = invalidated.normalizedPcmPath;
+                const QString obsoleteWaveformPath = invalidated.waveformPath;
                 invalidated.sourceHash.clear();
                 invalidated.normalizedPcmPath.clear();
                 invalidated.waveformPath.clear();
                 invalidated.durationMs = 0;
                 invalidated.sampleRate = 0;
                 invalidated.channelCount = 0;
-                const auto saved = m_recordings.update(invalidated);
+                const auto saved =
+                    m_recordings.update(invalidated, m_activeJob.id, m_ownerToken);
                 if (!saved) {
                     failActiveJob(QStringLiteral("DatabaseQueryFailed"), saved.error().message);
                     return;
                 }
+                removeCacheCandidateIfUnreferenced(value.id, obsoleteNormalizedPath);
+                removeCacheCandidateIfUnreferenced(value.id, obsoleteWaveformPath);
+                m_activeNormalizedPath =
+                    AudioCacheManager::normalizedAudioPath(value.id, m_ownerToken);
                 inspectMedia();
             });
     watcher->setFuture(QtConcurrent::run([sourcePath] {
@@ -807,7 +875,7 @@ bool TranscriptionCoordinator::persistNormalizedDuration(const qint64 durationMs
     }
     Recording updated = recording.value().value();
     updated.durationMs = durationMs;
-    const auto saved = m_recordings.update(updated);
+    const auto saved = m_recordings.update(updated, m_activeJob.id, m_ownerToken);
     if (!saved) {
         if (error != nullptr) {
             *error = saved.error().message;
@@ -824,15 +892,19 @@ void TranscriptionCoordinator::inspectMedia() {
         failActiveJob(QStringLiteral("AudioDecodeFailed"), tools.error);
         return;
     }
-    advanceProgress(JobStage::InspectingMedia, 0.0);
+    if (!advanceProgress(JobStage::InspectingMedia, 0.0)) {
+        return;
+    }
     const QString source = m_activeSourcePath;
     const QString ffprobe = tools.ffprobePath;
     const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
     auto* watcher = new QFutureWatcher<InspectionResult>(this);
-    connect(watcher, &QFutureWatcher<InspectionResult>::finished, this, [this, watcher, jobId] {
+    connect(watcher, &QFutureWatcher<InspectionResult>::finished, this,
+            [this, watcher, jobId, ownerToken] {
         const InspectionResult result = watcher->result();
         watcher->deleteLater();
-        if (!activeJobMatches(jobId) || m_activeJob.state == JobState::Cancelling) {
+        if (!activeJobMatches(jobId, ownerToken) || m_activeJob.state == JobState::Cancelling) {
             return;
         }
         if (!result.metadata.hasAudio || result.metadata.durationMs <= 0) {
@@ -851,13 +923,15 @@ void TranscriptionCoordinator::inspectMedia() {
         updated.sampleRate = result.metadata.sampleRate;
         updated.channelCount = result.metadata.channelCount;
         updated.mediaType = result.metadata.hasVideo ? QStringLiteral("video") : QStringLiteral("audio");
-        const auto saved = m_recordings.update(updated);
+        const auto saved = m_recordings.update(updated, m_activeJob.id, m_ownerToken);
         if (!saved) {
             failActiveJob(QStringLiteral("DatabaseQueryFailed"), saved.error().message);
             return;
         }
         m_activeJob.parameters.insert(QStringLiteral("durationMs"), result.metadata.durationMs);
-        advanceProgress(JobStage::InspectingMedia, 1.0);
+        if (!advanceProgress(JobStage::InspectingMedia, 1.0)) {
+            return;
+        }
         beginNormalization();
     });
     watcher->setFuture(QtConcurrent::run([source, ffprobe] {
@@ -872,7 +946,8 @@ void TranscriptionCoordinator::beginNormalization() {
         failActiveJob(QStringLiteral("AudioDecodeFailed"), tr("ffmpeg is not available."));
         return;
     }
-    const auto transition = m_jobs.transition(m_activeJob.id, JobState::Normalizing);
+    const auto transition =
+        m_jobs.transition(m_activeJob.id, JobState::Normalizing, {}, {}, m_ownerToken);
     if (!transition) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), transition.error().message);
         return;
@@ -882,19 +957,30 @@ void TranscriptionCoordinator::beginNormalization() {
     const qint64 duration =
         m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
     m_normalization = m_normalizer->normalize(m_activeSourcePath, m_activeNormalizedPath, duration, this);
-    connect(m_normalization, &NormalizationOperation::progressChanged, this, [this] {
-        if (m_normalization == nullptr) {
+    NormalizationOperation* operation = m_normalization;
+    const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
+    const QString recordingId = m_activeJob.recordingId;
+    connect(operation, &NormalizationOperation::progressChanged, this,
+            [this, operation, jobId, ownerToken] {
+        if (m_normalization != operation || !activeJobMatches(jobId, ownerToken)) {
             return;
         }
-        const int percent = qRound(m_normalization->progress() * 100.0);
+        const int percent = qRound(operation->progress() * 100.0);
         if (percent != m_lastNormalizationPercent) {
             m_lastNormalizationPercent = percent;
-            advanceProgress(JobStage::NormalizingAudio, m_normalization->progress());
+            if (!advanceProgress(JobStage::NormalizingAudio, operation->progress())) {
+                return;
+            }
         }
     });
-    connect(m_normalization, &NormalizationOperation::finished, this,
-            [this](bool success, const QString& outputPath) {
-                if (m_activeJob.id.isEmpty()) {
+    connect(operation, &NormalizationOperation::finished, this,
+            [this, operation, jobId, ownerToken, recordingId](bool success,
+                                                              const QString& outputPath) {
+                if (m_normalization != operation || !activeJobMatches(jobId, ownerToken)) {
+                    if (success) {
+                        removeCacheCandidateIfUnreferenced(recordingId, outputPath);
+                    }
                     return;
                 }
                 if (m_activeJob.state == JobState::Cancelling) {
@@ -902,8 +988,9 @@ void TranscriptionCoordinator::beginNormalization() {
                     return;
                 }
                 if (!success) {
-                    const QString message = m_normalization == nullptr ? tr("Audio normalization failed.")
-                                                                       : m_normalization->error();
+                    const QString message = operation->error().isEmpty()
+                                                ? tr("Audio normalization failed.")
+                                                : operation->error();
                     failActiveJob(QStringLiteral("AudioDecodeFailed"), message);
                     return;
                 }
@@ -914,6 +1001,7 @@ void TranscriptionCoordinator::beginNormalization() {
                 QString validationError;
                 if (!NormalizedAudioValidator::validate(outputPath, expectedDuration, &normalizedAudio,
                                                         &validationError)) {
+                    removeCacheCandidateIfUnreferenced(recordingId, outputPath);
                     failActiveJob(QStringLiteral("AudioDecodeFailed"),
                                   tr("The decoded audio could not be validated: %1").arg(validationError));
                     return;
@@ -924,15 +1012,21 @@ void TranscriptionCoordinator::beginNormalization() {
 
 void TranscriptionCoordinator::verifyNormalizedSource(const qint64 durationMs) {
     const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
+    const QString recordingId = m_activeJob.recordingId;
+    const QString normalizedPath = m_activeNormalizedPath;
     const QString sourcePath = m_activeSourcePath;
     auto* watcher = new QFutureWatcher<SourceHashResult>(this);
-    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this, [this, watcher, jobId, durationMs] {
+    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this,
+            [this, watcher, jobId, ownerToken, recordingId, normalizedPath, durationMs] {
                 const SourceHashResult result = watcher->result();
                 watcher->deleteLater();
-                if (!activeJobMatches(jobId)) {
+                if (!activeJobMatches(jobId, ownerToken)) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
                     return;
                 }
         if (result.sha256.isEmpty() || result.sha256.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
                     failActiveJob(
                         QStringLiteral("SourceMediaChanged"),
                         result.sha256.isEmpty()
@@ -943,6 +1037,7 @@ void TranscriptionCoordinator::verifyNormalizedSource(const qint64 durationMs) {
                 }
                 QString error;
                 if (!persistNormalizedDuration(durationMs, &error)) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
                     failActiveJob(QStringLiteral("DatabaseQueryFailed"), error);
                     return;
                 }
@@ -956,36 +1051,50 @@ void TranscriptionCoordinator::verifyNormalizedSource(const qint64 durationMs) {
 }
 
 void TranscriptionCoordinator::beginWaveformGeneration() {
+    const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
+    const QString recordingId = m_activeJob.recordingId;
+    const QString normalizedPath = m_activeNormalizedPath;
     if (m_activeJob.state != JobState::Normalizing) {
-        const auto transition = m_jobs.transition(m_activeJob.id, JobState::Normalizing);
+        const auto transition =
+            m_jobs.transition(m_activeJob.id, JobState::Normalizing, {}, {}, m_ownerToken);
         if (!transition) {
             failActiveJob(QStringLiteral("InvalidStateTransition"), transition.error().message);
             return;
         }
         m_activeJob.state = JobState::Normalizing;
     }
-    advanceProgress(JobStage::NormalizingAudio, 0.98);
-    const QString jobId = m_activeJob.id;
-    const QString recordingId = m_activeJob.recordingId;
-    const QString normalizedPath = m_activeNormalizedPath;
-    const QString waveformPath = AudioCacheManager::waveformPath(recordingId);
+    if (!advanceProgress(JobStage::NormalizingAudio, 0.98)) {
+        removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
+        return;
+    }
+    const QString waveformPath = AudioCacheManager::waveformPath(recordingId, ownerToken);
     m_waveformCancellation = std::make_shared<std::atomic_bool>(false);
     const auto cancellation = m_waveformCancellation;
     auto* watcher = new QFutureWatcher<WaveformGenerationResult>(this);
     connect(watcher, &QFutureWatcher<WaveformGenerationResult>::finished, this,
-            [this, watcher, jobId, recordingId, normalizedPath, cancellation] {
+            [this, watcher, jobId, ownerToken, recordingId, normalizedPath, cancellation] {
                 const WaveformGenerationResult result = watcher->result();
                 watcher->deleteLater();
-                if (!activeJobMatches(jobId)) {
+                if (!activeJobMatches(jobId, ownerToken)) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
+                    if (result.success) {
+                        removeCacheCandidateIfUnreferenced(recordingId, result.path);
+                    }
                     return;
                 }
                 m_waveformCancellation.reset();
                 if (m_activeJob.state == JobState::Cancelling ||
                     cancellation->load(std::memory_order_relaxed)) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
+                    if (result.success) {
+                        removeCacheCandidateIfUnreferenced(recordingId, result.path);
+                    }
                     finishCancellation();
                     return;
                 }
                 if (!result.success) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
                     failActiveJob(QStringLiteral("AudioDecodeFailed"),
                                   result.error.isEmpty() ? tr("The audio waveform could not be generated.")
                                                          : result.error);
@@ -993,6 +1102,8 @@ void TranscriptionCoordinator::beginWaveformGeneration() {
                 }
                 const auto recording = m_recordings.findById(recordingId);
                 if (!recording || !recording.value().has_value()) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
+                    removeCacheCandidateIfUnreferenced(recordingId, result.path);
                     failActiveJob(QStringLiteral("DatabaseQueryFailed"),
                                   tr("The normalized recording could not be saved."));
                     return;
@@ -1001,12 +1112,16 @@ void TranscriptionCoordinator::beginWaveformGeneration() {
                 updated.normalizedPcmPath = normalizedPath;
                 updated.waveformPath = result.path;
                 updated.sourceHash = m_activeSourceHash;
-                const auto saved = m_recordings.update(updated);
+                const auto saved = m_recordings.update(updated, m_activeJob.id, m_ownerToken);
                 if (!saved) {
+                    removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
+                    removeCacheCandidateIfUnreferenced(recordingId, result.path);
                     failActiveJob(QStringLiteral("DatabaseQueryFailed"), saved.error().message);
                     return;
                 }
-                advanceProgress(JobStage::NormalizingAudio, 1.0);
+                if (!advanceProgress(JobStage::NormalizingAudio, 1.0)) {
+                    return;
+                }
                 prepareChunks();
             });
     watcher->setFuture(QtConcurrent::run([normalizedPath, waveformPath, cancellation] {
@@ -1070,13 +1185,16 @@ void TranscriptionCoordinator::prepareChunks() {
     if (!ensureVadModelAvailable(VadModelContinuation::PrepareChunks)) {
         return;
     }
-    const auto analyzing = m_jobs.transition(m_activeJob.id, JobState::AnalyzingSpeech);
+    const auto analyzing =
+        m_jobs.transition(m_activeJob.id, JobState::AnalyzingSpeech, {}, {}, m_ownerToken);
     if (!analyzing) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), analyzing.error().message);
         return;
     }
     m_activeJob.state = JobState::AnalyzingSpeech;
-    advanceProgress(JobStage::AnalyzingSpeech, 0.0);
+    if (!advanceProgress(JobStage::AnalyzingSpeech, 0.0)) {
+        return;
+    }
     ensureWorkerReady(m_activeJob.id);
 }
 
@@ -1087,7 +1205,7 @@ bool TranscriptionCoordinator::saveChunkPlan(QList<JobChunk> chunks, QString* er
         }
         return false;
     }
-    const auto saved = m_jobs.replaceChunks(m_activeJob.id, chunks);
+    const auto saved = m_jobs.replaceChunks(m_activeJob.id, chunks, m_ownerToken);
     if (!saved) {
         if (error != nullptr) {
             *error = saved.error().message;
@@ -1100,18 +1218,23 @@ bool TranscriptionCoordinator::saveChunkPlan(QList<JobChunk> chunks, QString* er
 }
 
 void TranscriptionCoordinator::beginWaitingForModel() {
-    const auto waiting = m_jobs.transition(m_activeJob.id, JobState::WaitingForModel);
+    const auto waiting =
+        m_jobs.transition(m_activeJob.id, JobState::WaitingForModel, {}, {}, m_ownerToken);
     if (!waiting) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), waiting.error().message);
         return;
     }
     m_activeJob.state = JobState::WaitingForModel;
-    advanceProgress(JobStage::AnalyzingSpeech, 1.0);
+    if (!advanceProgress(JobStage::AnalyzingSpeech, 1.0)) {
+        return;
+    }
     ensureWorkerReady(m_activeJob.id);
 }
 
-void TranscriptionCoordinator::ensureWorkerReady(const QString& jobId, int attempt) {
-    if (!activeJobMatches(jobId)) {
+void TranscriptionCoordinator::ensureWorkerReady(const QString& jobId, int attempt,
+                                                 const QString& ownerToken) {
+    const QString executionOwner = ownerToken.isEmpty() ? m_ownerToken : ownerToken;
+    if (!activeJobMatches(jobId, executionOwner)) {
         return;
     }
     if (m_activeJob.state == JobState::Cancelling) {
@@ -1135,7 +1258,9 @@ void TranscriptionCoordinator::ensureWorkerReady(const QString& jobId, int attem
         return;
     }
     QTimer::singleShot(WorkerReadyIntervalMs, this,
-                       [this, jobId, attempt] { ensureWorkerReady(jobId, attempt + 1); });
+                       [this, jobId, attempt, executionOwner] {
+                           ensureWorkerReady(jobId, attempt + 1, executionOwner);
+                       });
 }
 
 void TranscriptionCoordinator::requestWorkerCapabilities() {
@@ -1150,9 +1275,10 @@ void TranscriptionCoordinator::requestWorkerCapabilities() {
         return;
     }
     const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
     const QString requestId = m_requestId;
-    QTimer::singleShot(WorkerCapabilitiesTimeoutMs, this, [this, jobId, requestId] {
-        if (activeJobMatches(jobId) && m_requestKind == RequestKind::GetCapabilities &&
+    QTimer::singleShot(WorkerCapabilitiesTimeoutMs, this, [this, jobId, ownerToken, requestId] {
+        if (activeJobMatches(jobId, ownerToken) && m_requestKind == RequestKind::GetCapabilities &&
             m_requestId == requestId) {
             failActiveJob(QStringLiteral("WorkerTimeout"),
                           tr("The ASR worker did not report its runtime capabilities."));
@@ -1248,14 +1374,17 @@ bool TranscriptionCoordinator::ensureVadModelAvailable(const VadModelContinuatio
 
     m_vadDownload = operation;
     const QString jobId = m_activeJob.id;
-    appendVadModelEvent(
-        QStringLiteral("vad_model_download_started"),
-        tr("The required Silero VAD model is missing or invalid. Downloading and verifying it now."));
+    const QString ownerToken = m_ownerToken;
+    if (!appendVadModelEvent(
+            QStringLiteral("vad_model_download_started"),
+            tr("The required Silero VAD model is missing or invalid. Downloading and verifying it now."))) {
+        return false;
+    }
     QObject::disconnect(m_vadDownloadFinishedConnection);
     m_vadDownloadFinishedConnection = connect(
         operation, &ModelDownloadOperation::finished, this,
-        [this, operation, jobId, continuation](const bool success, const QString&) {
-            if (m_vadDownload != operation || !activeJobMatches(jobId)) {
+        [this, operation, jobId, ownerToken, continuation](const bool success, const QString&) {
+            if (m_vadDownload != operation || !activeJobMatches(jobId, ownerToken)) {
                 return;
             }
             m_vadDownloadFinishedConnection = {};
@@ -1280,8 +1409,10 @@ bool TranscriptionCoordinator::ensureVadModelAvailable(const VadModelContinuatio
                 return;
             }
             m_vadModelVerified = true;
-            appendVadModelEvent(QStringLiteral("vad_model_download_completed"),
-                                tr("The Silero VAD model was downloaded and verified."));
+            if (!appendVadModelEvent(QStringLiteral("vad_model_download_completed"),
+                                     tr("The Silero VAD model was downloaded and verified."))) {
+                return;
+            }
             switch (continuation) {
             case VadModelContinuation::PrepareChunks:
                 prepareChunks();
@@ -1303,10 +1434,10 @@ bool TranscriptionCoordinator::ensureVadModelAvailable(const VadModelContinuatio
     return false;
 }
 
-void TranscriptionCoordinator::appendVadModelEvent(const QString& eventType, const QString& message,
+bool TranscriptionCoordinator::appendVadModelEvent(const QString& eventType, const QString& message,
                                                    const QString& severity) {
     if (m_activeJob.id.isEmpty()) {
-        return;
+        return false;
     }
     JobEvent event;
     event.jobId = m_activeJob.id;
@@ -1317,12 +1448,18 @@ void TranscriptionCoordinator::appendVadModelEvent(const QString& eventType, con
     event.progress = m_activeJob.progress;
     event.message = message;
     event.payload = {{QStringLiteral("modelId"), QString::fromLatin1(VadModelId)}};
-    const auto appended = m_jobs.appendEvent(std::move(event));
+    const auto appended = m_jobs.appendEvent(std::move(event), m_ownerToken);
     if (!appended) {
-        emit errorOccurred(appended.error().message);
-        return;
+        if (appended.error().code == ErrorCode::ExecutionLeaseLost) {
+            abandonActiveJobAfterLeaseLoss(
+                tr("This transcription lost the global execution lease and was stopped."));
+        } else {
+            failActiveJob(QStringLiteral("DatabaseQueryFailed"), appended.error().message);
+        }
+        return false;
     }
     publishEvents(m_activeJob.id);
+    return true;
 }
 
 void TranscriptionCoordinator::loadModel() {
@@ -1340,13 +1477,16 @@ void TranscriptionCoordinator::loadModel() {
                       tr("The selected ASR model does not have a trusted checksum."));
         return;
     }
-    const auto loading = m_jobs.transition(m_activeJob.id, JobState::LoadingModel);
+    const auto loading =
+        m_jobs.transition(m_activeJob.id, JobState::LoadingModel, {}, {}, m_ownerToken);
     if (!loading) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), loading.error().message);
         return;
     }
     m_activeJob.state = JobState::LoadingModel;
-    advanceProgress(JobStage::LoadingModel, 0.0);
+    if (!advanceProgress(JobStage::LoadingModel, 0.0)) {
+        return;
+    }
     const bool requestedFlashAttention =
         m_activeJob.parameters.value(QStringLiteral("flashAttention")).toBool(true);
     if (m_loadedModelPath == modelPath && m_loadedModelSha256 == modelSha256.toLower() &&
@@ -1356,7 +1496,8 @@ void TranscriptionCoordinator::loadModel() {
             failActiveJob(QStringLiteral("DatabaseQueryFailed"), error);
             return;
         }
-        const auto transcribing = m_jobs.transition(m_activeJob.id, JobState::Transcribing);
+        const auto transcribing =
+            m_jobs.transition(m_activeJob.id, JobState::Transcribing, {}, {}, m_ownerToken);
         if (!transcribing) {
             failActiveJob(QStringLiteral("InvalidStateTransition"), transcribing.error().message);
             return;
@@ -1400,7 +1541,7 @@ void TranscriptionCoordinator::startNextChunk() {
     ++chunk.attempts;
     chunk.startedAt = QDateTime::currentDateTimeUtc();
     chunk.error.clear();
-    const auto updated = m_jobs.updateChunk(chunk);
+    const auto updated = m_jobs.updateChunk(chunk, m_ownerToken);
     if (!updated) {
         failActiveJob(QStringLiteral("DatabaseQueryFailed"), updated.error().message);
         return;
@@ -1502,7 +1643,9 @@ void TranscriptionCoordinator::transcribeCurrentChunk() {
     }
     const double completed = static_cast<double>(m_currentChunkIndex) /
                              static_cast<double>(std::max(1, static_cast<int>(m_chunks.size())));
-    advanceProgress(JobStage::Transcribing, completed, m_activeJob.lastCompletedChunk);
+    if (!advanceProgress(JobStage::Transcribing, completed, m_activeJob.lastCompletedChunk)) {
+        return;
+    }
 }
 
 void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelope) {
@@ -1512,6 +1655,13 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
     const bool jobScopedRequest =
         m_requestKind == RequestKind::AnalyzeSpeech || m_requestKind == RequestKind::TranscribeChunk;
     if (jobScopedRequest && envelope.jobId != m_activeJob.id) {
+        return;
+    }
+    if (m_pendingTerminalAction != PendingTerminalAction::None) {
+        // WorkerProcessManager observes terminal envelopes before this slot and
+        // resolves the matching barrier. Any envelope that reaches this point
+        // while the barrier is still pending is non-terminal/late and must not
+        // mutate progress, transcript segments, or the chosen terminal cause.
         return;
     }
     if (envelope.type == Ipc::MessageType::Error) {
@@ -1587,7 +1737,7 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         if (envelope.type == Ipc::MessageType::Progress) {
             const qint64 progress = std::clamp(envelope.payload.value(QStringLiteral("progress")).toInteger(),
                                                qint64{0}, qint64{100});
-            advanceProgress(JobStage::AnalyzingSpeech, static_cast<double>(progress) / 100.0);
+            (void)advanceProgress(JobStage::AnalyzingSpeech, static_cast<double>(progress) / 100.0);
             return;
         }
         if (envelope.type != Ipc::MessageType::SpeechAnalysisCompleted) {
@@ -1621,7 +1771,8 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         }
         Recording updatedRecording = recording.value().value();
         updatedRecording.durationMs = durationMs;
-        const auto updated = m_recordings.update(updatedRecording);
+        const auto updated =
+            m_recordings.update(updatedRecording, m_activeJob.id, m_ownerToken);
         if (!updated) {
             failActiveJob(QStringLiteral("DatabaseQueryFailed"), updated.error().message);
             return;
@@ -1679,12 +1830,15 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         }
         m_requestId.clear();
         m_requestKind = RequestKind::None;
-        advanceProgress(JobStage::LoadingModel, 1.0);
+        if (!advanceProgress(JobStage::LoadingModel, 1.0)) {
+            return;
+        }
         if (m_activeJob.state == JobState::Cancelling) {
             finishCancellation();
             return;
         }
-        const auto transcribing = m_jobs.transition(m_activeJob.id, JobState::Transcribing);
+        const auto transcribing =
+            m_jobs.transition(m_activeJob.id, JobState::Transcribing, {}, {}, m_ownerToken);
         if (!transcribing) {
             failActiveJob(QStringLiteral("InvalidStateTransition"), transcribing.error().message);
             return;
@@ -1703,14 +1857,15 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         const double chunkFraction = static_cast<double>(progress) / 100.0;
         const double overall = (static_cast<double>(m_currentChunkIndex) + chunkFraction) /
                                static_cast<double>(std::max(1, static_cast<int>(m_chunks.size())));
-        advanceProgress(JobStage::Transcribing, overall, m_activeJob.lastCompletedChunk);
+        if (!advanceProgress(JobStage::Transcribing, overall, m_activeJob.lastCompletedChunk)) {
+            return;
+        }
     } else if (envelope.type == Ipc::MessageType::PartialSegment) {
         const JobChunk& chunk = m_chunks.at(m_currentChunkIndex);
         const qint64 rawStartMs = envelope.payload.value(QStringLiteral("startMs")).toInteger(-1);
         const qint64 rawEndMs = envelope.payload.value(QStringLiteral("endMs")).toInteger(-1);
         if (rawStartMs < chunk.startMs - SegmentTimestampToleranceMs ||
             rawEndMs > chunk.endMs + SegmentTimestampToleranceMs || rawEndMs <= rawStartMs) {
-            m_worker.forceCancelAfterGrace(m_activeJob.id);
             failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
                           tr("The ASR worker returned a segment outside the active chunk."));
             return;
@@ -1771,7 +1926,13 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         }
         m_requestId.clear();
         m_requestKind = RequestKind::None;
-        QTimer::singleShot(0, this, &TranscriptionCoordinator::startNextChunk);
+        const QString jobId = m_activeJob.id;
+        const QString ownerToken = m_ownerToken;
+        QTimer::singleShot(0, this, [this, jobId, ownerToken] {
+            if (activeJobMatches(jobId, ownerToken)) {
+                startNextChunk();
+            }
+        });
     }
 }
 
@@ -1781,9 +1942,8 @@ void TranscriptionCoordinator::persistPartialSegments() {
     }
     const JobChunk& chunk = m_chunks.at(m_currentChunkIndex);
     const auto result = m_transcripts.replaceChunk(m_activeJob.recordingId, m_activeJob.id, chunk.id,
-                                                   m_currentSegments, true, chunk.attempts);
+                                                   m_currentSegments, true, chunk.attempts, m_ownerToken);
     if (!result) {
-        m_worker.forceCancelAfterGrace(m_activeJob.id);
         failActiveJob(QStringLiteral("DatabaseQueryFailed"), result.error().message);
         return;
     }
@@ -1823,28 +1983,35 @@ bool TranscriptionCoordinator::finalizeCurrentChunk(QString* error) {
         segment.provisional = false;
     }
     const auto saved = m_transcripts.replaceChunk(m_activeJob.recordingId, m_activeJob.id, chunk.id,
-                                                  m_currentSegments, false, chunk.attempts);
+                                                  m_currentSegments, false, chunk.attempts, m_ownerToken);
     if (!saved) {
         if (error != nullptr) {
             *error = saved.error().message;
         }
         return false;
     }
-    chunk.state = ChunkState::Completed;
-    chunk.completedAt = QDateTime::currentDateTimeUtc();
-    chunk.resultHash = segmentDigest(m_currentSegments);
-    const auto updated = m_jobs.updateChunk(chunk);
+    JobChunk completedChunk = chunk;
+    completedChunk.state = ChunkState::Completed;
+    completedChunk.completedAt = QDateTime::currentDateTimeUtc();
+    completedChunk.resultHash = segmentDigest(m_currentSegments);
+    const auto updated = m_jobs.updateChunk(completedChunk, m_ownerToken);
     if (!updated) {
         if (error != nullptr) {
             *error = updated.error().message;
         }
         return false;
     }
+    chunk = std::move(completedChunk);
     publishEvents(m_activeJob.id);
     m_activeJob.lastCompletedChunk = std::max(m_activeJob.lastCompletedChunk, chunk.ordinal);
     const double completed = static_cast<double>(m_currentChunkIndex + 1) /
                              static_cast<double>(std::max(1, static_cast<int>(m_chunks.size())));
-    advanceProgress(JobStage::Transcribing, completed, m_activeJob.lastCompletedChunk);
+    if (!advanceProgress(JobStage::Transcribing, completed, m_activeJob.lastCompletedChunk)) {
+        if (error != nullptr) {
+            *error = tr("The transcription progress could not be saved.");
+        }
+        return false;
+    }
     emit jobTelemetryChanged(m_activeJob.id, m_currentChunkIndex + 1, static_cast<int>(m_chunks.size()),
                              m_latestPartialText);
     emit transcriptChanged(m_activeJob.recordingId, m_activeJob.id, true);
@@ -1858,7 +2025,7 @@ void TranscriptionCoordinator::completeActiveJob() {
     }
     const QString jobId = m_activeJob.id;
     const QString recordingId = m_activeJob.recordingId;
-    const auto finalizing = m_jobs.transition(jobId, JobState::Finalizing);
+    const auto finalizing = m_jobs.transition(jobId, JobState::Finalizing, {}, {}, m_ownerToken);
     if (!finalizing) {
         if (durableCancellationWins()) {
             finishCancellation();
@@ -1869,7 +2036,9 @@ void TranscriptionCoordinator::completeActiveJob() {
     }
     m_activeJob.state = JobState::Finalizing;
     publishEvents(jobId);
-    advanceProgress(JobStage::Finalizing, 1.0, m_activeJob.lastCompletedChunk);
+    if (!advanceProgress(JobStage::Finalizing, 1.0, m_activeJob.lastCompletedChunk)) {
+        return;
+    }
     const auto completed = m_jobs.completeAndActivate(recordingId, jobId, m_ownerToken);
     if (!completed) {
         if (durableCancellationWins()) {
@@ -1892,34 +2061,176 @@ void TranscriptionCoordinator::completeActiveJob() {
     QTimer::singleShot(0, this, &TranscriptionCoordinator::scheduleNext);
 }
 
+bool TranscriptionCoordinator::activeWorkerRequestMayStillRun() const noexcept {
+    return !m_requestId.isEmpty() &&
+           (m_requestKind == RequestKind::AnalyzeSpeech ||
+            m_requestKind == RequestKind::LoadModel ||
+            m_requestKind == RequestKind::TranscribeChunk);
+}
+
+bool TranscriptionCoordinator::awaitWorkerQuiescence(const PendingTerminalAction action,
+                                                     const QString& code,
+                                                     const QString& message) {
+    if (!activeWorkerRequestMayStillRun()) {
+        return false;
+    }
+
+    if (m_pendingTerminalAction == PendingTerminalAction::None) {
+        m_pendingTerminalAction = action;
+        m_pendingTerminalCode = code;
+        m_pendingTerminalMessage = message;
+        m_workerQuiescenceConfirmed = false;
+    } else if (action == PendingTerminalAction::AbandonAfterLeaseLoss) {
+        // Lease loss has the highest priority because this process no longer
+        // has authority to write any terminal checkpoint.
+        m_pendingTerminalAction = action;
+        m_pendingTerminalCode.clear();
+        m_pendingTerminalMessage = message;
+    } else if (action == PendingTerminalAction::Cancel &&
+               m_pendingTerminalAction != PendingTerminalAction::AbandonAfterLeaseLoss) {
+        // A durable user cancellation wins over a local failure that was
+        // already waiting for the worker to stop.
+        m_pendingTerminalAction = action;
+        m_pendingTerminalCode = code;
+        m_pendingTerminalMessage = message;
+    }
+
+    if (m_workerQuiescenceConfirmed) {
+        return false;
+    }
+
+    const QString workerJobId =
+        m_requestKind == RequestKind::LoadModel ? QString{} : m_activeJob.id;
+    m_worker.forceCancelAfterGrace(workerJobId, m_requestId);
+    if (!m_worker.forcedCancellationPending()) {
+        // WorkerProcessManager has already observed the exact terminal
+        // envelope and retained it in its terminal-request cache.
+        m_workerQuiescenceConfirmed = true;
+        return false;
+    }
+    return true;
+}
+
+void TranscriptionCoordinator::finishPendingTerminalCheckpoint() {
+    if (m_pendingTerminalAction == PendingTerminalAction::None) {
+        scheduleLeaseRetry();
+        return;
+    }
+    if (m_activeJob.id.isEmpty()) {
+        m_pendingTerminalAction = PendingTerminalAction::None;
+        m_pendingTerminalCode.clear();
+        m_pendingTerminalMessage.clear();
+        m_workerQuiescenceConfirmed = false;
+        scheduleLeaseRetry();
+        return;
+    }
+
+    m_workerQuiescenceConfirmed = true;
+    if (m_pendingTerminalAction != PendingTerminalAction::AbandonAfterLeaseLoss &&
+        activeExecutionLeaseLost()) {
+        abandonActiveJobAfterLeaseLoss(
+            tr("This transcription lost the global execution lease and was stopped."));
+        return;
+    }
+    if ((m_pendingTerminalAction == PendingTerminalAction::Fail ||
+         m_pendingTerminalAction == PendingTerminalAction::Interrupt) &&
+        durableCancellationWins()) {
+        m_pendingTerminalAction = PendingTerminalAction::Cancel;
+        m_pendingTerminalCode = QStringLiteral("JobCancelled");
+        m_pendingTerminalMessage = tr("Transcription was cancelled.");
+    }
+
+    const PendingTerminalAction action = m_pendingTerminalAction;
+    const QString code = m_pendingTerminalCode;
+    const QString message = m_pendingTerminalMessage;
+    switch (action) {
+    case PendingTerminalAction::Fail:
+        checkpointFailedJob(code, message);
+        break;
+    case PendingTerminalAction::Cancel:
+        checkpointCancellation();
+        break;
+    case PendingTerminalAction::Interrupt:
+        checkpointInterruption(message);
+        break;
+    case PendingTerminalAction::AbandonAfterLeaseLoss:
+        finishLeaseLossHandoff(message);
+        break;
+    case PendingTerminalAction::None:
+        break;
+    }
+}
+
 void TranscriptionCoordinator::failActiveJob(const QString& code, const QString& message) {
     if (m_activeJob.id.isEmpty()) {
         emit errorOccurred(message);
+        return;
+    }
+    if (activeExecutionLeaseLost()) {
+        abandonActiveJobAfterLeaseLoss(
+            tr("This transcription lost the global execution lease and was stopped."));
         return;
     }
     if (durableCancellationWins()) {
         finishCancellation();
         return;
     }
+    if (activeWorkerRequestMayStillRun()) {
+        // A local checkpoint or protocol failure does not mean the worker has
+        // stopped using the single ASR runtime. Keep the global queue fenced
+        // until this exact request reaches a terminal envelope or a restarted
+        // worker is ready.
+        if (awaitWorkerQuiescence(PendingTerminalAction::Fail, code, message)) {
+            return;
+        }
+        finishPendingTerminalCheckpoint();
+        return;
+    }
+    checkpointFailedJob(code, message);
+}
+
+void TranscriptionCoordinator::checkpointFailedJob(const QString& code, const QString& message) {
     const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
     if (m_currentChunkIndex >= 0 && m_currentChunkIndex < m_chunks.size()) {
         JobChunk& chunk = m_chunks[m_currentChunkIndex];
         if (chunk.state == ChunkState::Running) {
-            chunk.state = ChunkState::Failed;
-            chunk.error = message;
-            (void)m_jobs.updateChunk(chunk);
+            JobChunk failedChunk = chunk;
+            failedChunk.state = ChunkState::Failed;
+            failedChunk.error = message;
+            const auto updated = m_jobs.updateChunk(failedChunk, m_ownerToken);
+            if (!updated) {
+                if (updated.error().code == ErrorCode::ExecutionLeaseLost) {
+                    abandonActiveJobAfterLeaseLoss(
+                        tr("This transcription lost the global execution lease and was stopped."));
+                    return;
+                }
+                emit errorOccurred(updated.error().message);
+                QTimer::singleShot(1'000, this, [this, jobId, ownerToken, code, message] {
+                    if (activeJobMatches(jobId, ownerToken)) {
+                        failActiveJob(code, message);
+                    }
+                });
+                return;
+            }
+            chunk = std::move(failedChunk);
         }
     }
-    const auto failed = m_jobs.transition(jobId, JobState::Failed, code, message);
+    const auto failed = m_jobs.transition(jobId, JobState::Failed, code, message, m_ownerToken);
     if (!failed) {
+        if (failed.error().code == ErrorCode::ExecutionLeaseLost) {
+            abandonActiveJobAfterLeaseLoss(
+                tr("This transcription lost the global execution lease and was stopped."));
+            return;
+        }
         if (durableCancellationWins()) {
             finishCancellation();
             return;
         }
         emit errorOccurred(failed.error().message);
         if (terminalTransitionNeedsRetry(jobId)) {
-            QTimer::singleShot(1'000, this, [this, jobId, code, message] {
-                if (activeJobMatches(jobId)) {
+            QTimer::singleShot(1'000, this, [this, jobId, ownerToken, code, message] {
+                if (activeJobMatches(jobId, ownerToken)) {
                     failActiveJob(code, message);
                 }
             });
@@ -1962,7 +2273,25 @@ void TranscriptionCoordinator::finishCancellation() {
     if (m_activeJob.id.isEmpty()) {
         return;
     }
+    if (activeExecutionLeaseLost()) {
+        abandonActiveJobAfterLeaseLoss(
+            tr("This transcription lost the global execution lease and was stopped."));
+        return;
+    }
+    if (activeWorkerRequestMayStillRun()) {
+        if (awaitWorkerQuiescence(PendingTerminalAction::Cancel, QStringLiteral("JobCancelled"),
+                                  tr("Transcription was cancelled."))) {
+            return;
+        }
+        finishPendingTerminalCheckpoint();
+        return;
+    }
+    checkpointCancellation();
+}
+
+void TranscriptionCoordinator::checkpointCancellation() {
     const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
     if (m_currentChunkIndex >= 0 && m_currentChunkIndex < m_chunks.size()) {
         JobChunk& chunk = m_chunks[m_currentChunkIndex];
         if (chunk.state == ChunkState::Running || chunk.state == ChunkState::Failed ||
@@ -1970,11 +2299,16 @@ void TranscriptionCoordinator::finishCancellation() {
             JobChunk cancelledChunk = chunk;
             cancelledChunk.state = ChunkState::Cancelled;
             cancelledChunk.error = tr("Transcription was cancelled.");
-            const auto updated = m_jobs.updateChunk(cancelledChunk);
+            const auto updated = m_jobs.updateChunk(cancelledChunk, m_ownerToken);
             if (!updated) {
+                if (updated.error().code == ErrorCode::ExecutionLeaseLost) {
+                    abandonActiveJobAfterLeaseLoss(
+                        tr("This transcription lost the global execution lease and was stopped."));
+                    return;
+                }
                 emit errorOccurred(updated.error().message);
-                QTimer::singleShot(1'000, this, [this, jobId] {
-                    if (activeJobMatches(jobId)) {
+                QTimer::singleShot(1'000, this, [this, jobId, ownerToken] {
+                    if (activeJobMatches(jobId, ownerToken)) {
                         finishCancellation();
                     }
                 });
@@ -1984,12 +2318,17 @@ void TranscriptionCoordinator::finishCancellation() {
         }
     }
     const auto cancelled = m_jobs.transition(jobId, JobState::Cancelled, QStringLiteral("JobCancelled"),
-                                             tr("Transcription was cancelled."));
+                                             tr("Transcription was cancelled."), m_ownerToken);
     if (!cancelled) {
+        if (cancelled.error().code == ErrorCode::ExecutionLeaseLost) {
+            abandonActiveJobAfterLeaseLoss(
+                tr("This transcription lost the global execution lease and was stopped."));
+            return;
+        }
         emit errorOccurred(cancelled.error().message);
         if (terminalTransitionNeedsRetry(jobId)) {
-            QTimer::singleShot(1'000, this, [this, jobId] {
-                if (activeJobMatches(jobId)) {
+            QTimer::singleShot(1'000, this, [this, jobId, ownerToken] {
+                if (activeJobMatches(jobId, ownerToken)) {
                     finishCancellation();
                 }
             });
@@ -2015,30 +2354,70 @@ void TranscriptionCoordinator::interruptActiveJob(const QString& reason) {
     if (m_activeJob.id.isEmpty()) {
         return;
     }
-    if (durableCancellationWins()) {
-        finishCancellation();
+    // This signal is emitted only after the worker process has exited, so an
+    // already-pending terminal action can be durably checkpointed now without
+    // waiting for the replacement worker to become ready.
+    if (m_pendingTerminalAction != PendingTerminalAction::None) {
+        m_workerQuiescenceConfirmed = true;
+        finishPendingTerminalCheckpoint();
         return;
     }
+    if (activeExecutionLeaseLost()) {
+        abandonActiveJobAfterLeaseLoss(
+            tr("This transcription lost the global execution lease and was stopped."));
+        return;
+    }
+    if (durableCancellationWins()) {
+        checkpointCancellation();
+        return;
+    }
+    checkpointInterruption(reason);
+}
+
+void TranscriptionCoordinator::checkpointInterruption(const QString& reason) {
     const QString jobId = m_activeJob.id;
+    const QString ownerToken = m_ownerToken;
     if (m_currentChunkIndex >= 0 && m_currentChunkIndex < m_chunks.size()) {
         JobChunk& chunk = m_chunks[m_currentChunkIndex];
         if (chunk.state == ChunkState::Running) {
-            chunk.state = ChunkState::Interrupted;
-            chunk.error = reason;
-            (void)m_jobs.updateChunk(chunk);
+            JobChunk interruptedChunk = chunk;
+            interruptedChunk.state = ChunkState::Interrupted;
+            interruptedChunk.error = reason;
+            const auto updated = m_jobs.updateChunk(interruptedChunk, m_ownerToken);
+            if (!updated) {
+                if (updated.error().code == ErrorCode::ExecutionLeaseLost) {
+                    abandonActiveJobAfterLeaseLoss(
+                        tr("This transcription lost the global execution lease and was stopped."));
+                    return;
+                }
+                emit errorOccurred(updated.error().message);
+                QTimer::singleShot(1'000, this, [this, jobId, ownerToken, reason] {
+                    if (activeJobMatches(jobId, ownerToken)) {
+                        interruptActiveJob(reason);
+                    }
+                });
+                return;
+            }
+            chunk = std::move(interruptedChunk);
         }
     }
     const auto interrupted =
-        m_jobs.transition(jobId, JobState::Interrupted, QStringLiteral("WorkerCrashed"), reason);
+        m_jobs.transition(jobId, JobState::Interrupted, QStringLiteral("WorkerCrashed"), reason,
+                          m_ownerToken);
     if (!interrupted) {
+        if (interrupted.error().code == ErrorCode::ExecutionLeaseLost) {
+            abandonActiveJobAfterLeaseLoss(
+                tr("This transcription lost the global execution lease and was stopped."));
+            return;
+        }
         if (durableCancellationWins()) {
             finishCancellation();
             return;
         }
         emit errorOccurred(interrupted.error().message);
         if (terminalTransitionNeedsRetry(jobId)) {
-            QTimer::singleShot(1'000, this, [this, jobId, reason] {
-                if (activeJobMatches(jobId)) {
+            QTimer::singleShot(1'000, this, [this, jobId, ownerToken, reason] {
+                if (activeJobMatches(jobId, ownerToken)) {
                     interruptActiveJob(reason);
                 }
             });
@@ -2055,6 +2434,146 @@ void TranscriptionCoordinator::interruptActiveJob(const QString& reason) {
     m_runningJobId.clear();
     emit runningJobChanged({});
     clearActive();
+    scheduleLeaseRetry();
+}
+
+void TranscriptionCoordinator::abandonActiveJobAfterLeaseLoss(const QString& reason) {
+    if (m_activeJob.id.isEmpty()) {
+        return;
+    }
+    const bool firstLeaseLoss =
+        m_pendingTerminalAction != PendingTerminalAction::AbandonAfterLeaseLoss;
+    m_leaseHeartbeatTimer.stop();
+    if (m_normalization != nullptr && m_normalization->isRunning()) {
+        m_normalization->cancel();
+    } else if (m_waveformCancellation != nullptr) {
+        m_waveformCancellation->store(true, std::memory_order_relaxed);
+    }
+    if (firstLeaseLoss) {
+        emit errorOccurred(reason);
+    }
+    if (activeWorkerRequestMayStillRun()) {
+        if (awaitWorkerQuiescence(PendingTerminalAction::AbandonAfterLeaseLoss, {}, reason)) {
+            // A stale owner cannot renew or preserve the lease while waiting out
+            // a grace period. Stop its worker immediately to minimise overlap
+            // with the process that now owns the global execution slot.
+            m_worker.abortImmediately();
+            return;
+        }
+        finishPendingTerminalCheckpoint();
+        return;
+    }
+    finishLeaseLossHandoff(reason);
+}
+
+void TranscriptionCoordinator::finishLeaseLossHandoff(const QString&) {
+    const QString jobId = m_activeJob.id;
+    const QString recordingId = m_activeJob.recordingId;
+    clearLoadedAsrModel();
+    clearLoadedVadModel();
+    clearActive();
+    m_handedOffJobId = jobId;
+    m_handedOffRecordingId = recordingId;
+
+    bool editingLocked = true;
+    const auto durableJob = m_jobs.findById(jobId);
+    if (durableJob && durableJob.value().has_value()) {
+        editingLocked = JobStateMachine::isRunning(durableJob.value()->state);
+    }
+    publish(jobId);
+    publishEvents(jobId);
+    emit transcriptChanged(recordingId, jobId, editingLocked);
+
+    QString durableRunningJobId;
+    const auto lease = m_jobs.activeLease();
+    if (lease && lease.value().has_value() &&
+        lease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+        durableRunningJobId = lease.value()->jobId;
+    }
+    if (m_runningJobId != durableRunningJobId) {
+        m_runningJobId = durableRunningJobId;
+        emit runningJobChanged(m_runningJobId);
+    }
+    scheduleLeaseRetry();
+}
+
+void TranscriptionCoordinator::refreshHandedOffJob(const QString& activeJobId) {
+    if (m_handedOffJobId.isEmpty() || activeJobId == m_handedOffJobId) {
+        return;
+    }
+    const auto durableJob = m_jobs.findById(m_handedOffJobId);
+    if (!durableJob) {
+        emit errorOccurred(durableJob.error().message);
+        return;
+    }
+    if (!durableJob.value().has_value()) {
+        emit transcriptChanged(m_handedOffRecordingId, m_handedOffJobId, false);
+        emit transcriptionFinished(m_handedOffRecordingId, m_handedOffJobId, false);
+        m_handedOffJobId.clear();
+        m_handedOffRecordingId.clear();
+        return;
+    }
+    const TranscriptionJob& job = *durableJob.value();
+    publish(job);
+    publishEvents(job.id);
+    if (JobStateMachine::isRunning(job.state) || job.state == JobState::Queued) {
+        return;
+    }
+    const bool succeeded = job.state == JobState::Completed;
+    emit transcriptChanged(job.recordingId, job.id, false);
+    emit transcriptionFinished(job.recordingId, job.id, succeeded);
+    if (succeeded) {
+        emit libraryChanged();
+    }
+    m_handedOffJobId.clear();
+    m_handedOffRecordingId.clear();
+}
+
+void TranscriptionCoordinator::removeCacheCandidateIfUnreferenced(
+    const QString& recordingId, const QString& path) const {
+    if (path.trimmed().isEmpty()) {
+        return;
+    }
+    const QString candidate = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    const QString cacheRoot = QDir::cleanPath(QFileInfo(AudioCacheManager::cacheRoot()).absoluteFilePath());
+#ifdef Q_OS_WIN
+    constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseInsensitive;
+#else
+    constexpr Qt::CaseSensitivity PathCaseSensitivity = Qt::CaseSensitive;
+#endif
+    if (!candidate.startsWith(cacheRoot + QDir::separator(), PathCaseSensitivity)) {
+        return;
+    }
+    const auto recording = m_recordings.findById(recordingId);
+    if (!recording) {
+        return;
+    }
+    if (recording.value().has_value()) {
+        const auto referencesCandidate = [&candidate, PathCaseSensitivity](
+                                             const QString& referencedPath) {
+            return !referencedPath.isEmpty() &&
+                   QDir::cleanPath(QFileInfo(referencedPath).absoluteFilePath())
+                           .compare(candidate, PathCaseSensitivity) == 0;
+        };
+        if (referencesCandidate(recording.value()->normalizedPcmPath) ||
+            referencesCandidate(recording.value()->waveformPath)) {
+            return;
+        }
+    }
+    (void)QFile::remove(candidate);
+}
+
+bool TranscriptionCoordinator::activeExecutionLeaseLost() const {
+    if (m_activeJob.id.isEmpty()) {
+        return false;
+    }
+    const auto lease = m_jobs.activeLease();
+    if (!lease) {
+        return false;
+    }
+    return !lease.value().has_value() || lease.value()->jobId != m_activeJob.id ||
+           lease.value()->ownerToken != m_ownerToken ||
+           lease.value()->expiresAt <= QDateTime::currentDateTimeUtc();
 }
 
 bool TranscriptionCoordinator::terminalTransitionNeedsRetry(const QString& jobId) const {
@@ -2074,9 +2593,14 @@ void TranscriptionCoordinator::clearActive() {
     m_nextOrdinal = 0;
     m_requestId.clear();
     m_requestKind = RequestKind::None;
+    m_pendingTerminalAction = PendingTerminalAction::None;
+    m_pendingTerminalCode.clear();
+    m_pendingTerminalMessage.clear();
+    m_workerQuiescenceConfirmed = false;
     m_activeSourcePath.clear();
     m_activeNormalizedPath.clear();
     m_activeSourceHash.clear();
+    m_ownerToken.clear();
     m_latestPartialText.clear();
     m_normalization = nullptr;
     m_activeTranscriptPublished = false;
@@ -2117,7 +2641,8 @@ bool TranscriptionCoordinator::persistLoadedRuntimeInfo(QString* error) {
         return false;
     }
     const auto saved = m_jobs.updateRuntimeInfo(m_activeJob.id, m_loadedActualBackend, m_loadedRuntimeVersion,
-                                                m_activeJob.workerVersion, m_loadedRuntimeDiagnostics);
+                                                m_activeJob.workerVersion, m_loadedRuntimeDiagnostics,
+                                                m_ownerToken);
     if (!saved) {
         if (error != nullptr) {
             *error = saved.error().message;
@@ -2223,16 +2748,22 @@ void TranscriptionCoordinator::publishEvents(const QString& jobId) {
     }
 }
 
-void TranscriptionCoordinator::advanceProgress(JobStage stage, double fraction, int lastCompletedChunk) {
+bool TranscriptionCoordinator::advanceProgress(JobStage stage, double fraction, int lastCompletedChunk) {
     if (m_activeJob.id.isEmpty()) {
-        return;
+        return false;
     }
     const bool stageChanged = stage != m_activeJob.stage;
     const double progress = std::max(m_activeJob.progress, MonotonicJobProgress::map(stage, fraction));
-    const auto result = m_jobs.updateProgress(m_activeJob.id, stage, progress, lastCompletedChunk);
+    const auto result =
+        m_jobs.updateProgress(m_activeJob.id, stage, progress, lastCompletedChunk, m_ownerToken);
     if (!result) {
-        emit errorOccurred(result.error().message);
-        return;
+        if (result.error().code == ErrorCode::ExecutionLeaseLost) {
+            abandonActiveJobAfterLeaseLoss(
+                tr("This transcription lost the global execution lease and was stopped."));
+        } else {
+            failActiveJob(QStringLiteral("DatabaseQueryFailed"), result.error().message);
+        }
+        return false;
     }
     m_activeJob.stage = stage;
     m_activeJob.progress = progress;
@@ -2241,6 +2772,7 @@ void TranscriptionCoordinator::advanceProgress(JobStage stage, double fraction, 
     if (stageChanged) {
         publishEvents(m_activeJob.id);
     }
+    return true;
 }
 
 QString TranscriptionCoordinator::recordingTitle(const QString& recordingId) const {
@@ -2248,8 +2780,9 @@ QString TranscriptionCoordinator::recordingTitle(const QString& recordingId) con
     return recording && recording.value().has_value() ? recording.value()->title : QString{};
 }
 
-bool TranscriptionCoordinator::activeJobMatches(const QString& jobId) const {
-    return !jobId.isEmpty() && m_activeJob.id == jobId;
+bool TranscriptionCoordinator::activeJobMatches(const QString& jobId, const QString& ownerToken) const {
+    return !jobId.isEmpty() && m_activeJob.id == jobId &&
+           (ownerToken.isEmpty() || m_ownerToken == ownerToken);
 }
 
 } // namespace BreezeDesk

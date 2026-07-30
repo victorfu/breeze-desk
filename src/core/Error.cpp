@@ -46,6 +46,8 @@ QString errorCodeName(const ErrorCode code) {
         return QStringLiteral("InvalidArgument");
     case ErrorCode::InvalidStateTransition:
         return QStringLiteral("InvalidStateTransition");
+    case ErrorCode::ExecutionLeaseLost:
+        return QStringLiteral("ExecutionLeaseLost");
     case ErrorCode::NotFound:
         return QStringLiteral("NotFound");
     case ErrorCode::AlreadyExists:

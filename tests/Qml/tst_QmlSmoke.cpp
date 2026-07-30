@@ -188,7 +188,7 @@ class FakeTranscriptRepository final : public BreezeDesk::ITranscriptRepository 
 
     [[nodiscard]] BreezeDesk::Result<void> replaceChunk(const QString&, const QString&, const QString&,
                                                         QList<BreezeDesk::TranscriptSegment> segments, bool,
-                                                        int) override {
+                                                        int, const QString&) override {
         m_segments = std::move(segments);
         return BreezeDesk::Result<void>::success();
     }
@@ -2730,11 +2730,6 @@ class tst_QmlSmoke final : public QObject {
         completedJob.backend = QStringLiteral("cpu");
         const auto createdCompleted = jobRepository.createQueued(completedJob);
         QVERIFY(createdCompleted);
-        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Preparing));
-        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::LoadingModel));
-        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Transcribing));
-        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Finalizing));
-
         BreezeDesk::TranscriptSegment completedSegment;
         completedSegment.id = QStringLiteral("completed-segment");
         completedSegment.recordingId = recording.id;
@@ -2743,7 +2738,15 @@ class tst_QmlSmoke final : public QObject {
         completedSegment.endMs = 1'000;
         completedSegment.originalText = QStringLiteral("Current transcript");
         QVERIFY(transcriptRepository.replaceTranscript(recording.id, completedJob.id, {completedSegment}));
-        QVERIFY(jobRepository.completeAndActivate(recording.id, completedJob.id));
+        const QString completedOwner = QStringLiteral("completed-fixture-owner");
+        QVERIFY(jobRepository.claimQueued(completedJob.id, completedOwner).value().claimed);
+        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::LoadingModel, {}, {},
+                                         completedOwner));
+        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Transcribing, {}, {},
+                                         completedOwner));
+        QVERIFY(jobRepository.transition(completedJob.id, BreezeDesk::JobState::Finalizing, {}, {},
+                                         completedOwner));
+        QVERIFY(jobRepository.completeAndActivate(recording.id, completedJob.id, completedOwner));
 
         BreezeDesk::TranscriptionJob liveJob;
         liveJob.id = QStringLiteral("failed-retranscription");
@@ -2752,16 +2755,16 @@ class tst_QmlSmoke final : public QObject {
         liveJob.backend = QStringLiteral("cpu");
         const auto createdLive = jobRepository.createQueued(liveJob);
         QVERIFY(createdLive);
-        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Preparing));
-        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::LoadingModel));
-        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Transcribing));
-
         BreezeDesk::TranscriptSegment liveSegment = completedSegment;
         liveSegment.id = QStringLiteral("live-segment");
         liveSegment.jobId = liveJob.id;
         liveSegment.originalText = QStringLiteral("Failed partial transcript");
         liveSegment.provisional = true;
         QVERIFY(transcriptRepository.replaceTranscript(recording.id, liveJob.id, {liveSegment}));
+        const QString liveOwner = QStringLiteral("live-fixture-owner");
+        QVERIFY(jobRepository.claimQueued(liveJob.id, liveOwner).value().claimed);
+        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::LoadingModel, {}, {}, liveOwner));
+        QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Transcribing, {}, {}, liveOwner));
 
         BreezeDesk::ApplicationViewModel vm(&recordingRepository, &transcriptRepository);
         vm.openRecording(recording.id);
@@ -2829,7 +2832,7 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Current transcript"));
         QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Failed,
                                          QStringLiteral("FixtureFailure"),
-                                         QStringLiteral("Fixture failure")));
+                                         QStringLiteral("Fixture failure"), liveOwner));
         vm.finishLiveTranscript(recording.id, liveJob.id, false);
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Current transcript"));
         QVERIFY(!vm.transcript()->editingLocked());
@@ -2839,22 +2842,25 @@ class tst_QmlSmoke final : public QObject {
         replacementJob.id = QStringLiteral("successful-retranscription");
         replacementJob.recordingId = recording.id;
         QVERIFY(jobRepository.createQueued(replacementJob));
-        QVERIFY(jobRepository.transition(replacementJob.id, BreezeDesk::JobState::Preparing));
-        QVERIFY(jobRepository.transition(replacementJob.id, BreezeDesk::JobState::LoadingModel));
-        QVERIFY(jobRepository.transition(replacementJob.id, BreezeDesk::JobState::Transcribing));
-
         BreezeDesk::TranscriptSegment replacementSegment = completedSegment;
         replacementSegment.id = QStringLiteral("replacement-segment");
         replacementSegment.jobId = replacementJob.id;
         replacementSegment.originalText = QStringLiteral("Replacement transcript");
         QVERIFY(
             transcriptRepository.replaceTranscript(recording.id, replacementJob.id, {replacementSegment}));
+        const QString replacementOwner = QStringLiteral("replacement-fixture-owner");
+        QVERIFY(jobRepository.claimQueued(replacementJob.id, replacementOwner).value().claimed);
+        QVERIFY(jobRepository.transition(replacementJob.id, BreezeDesk::JobState::LoadingModel, {}, {},
+                                         replacementOwner));
+        QVERIFY(jobRepository.transition(replacementJob.id, BreezeDesk::JobState::Transcribing, {}, {},
+                                         replacementOwner));
         vm.reloadTranscriptForJob(recording.id, replacementJob.id, true);
         QVERIFY(vm.transcript()->editingLocked());
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Current transcript"));
 
-        QVERIFY(jobRepository.transition(replacementJob.id, BreezeDesk::JobState::Finalizing));
-        QVERIFY(jobRepository.completeAndActivate(recording.id, replacementJob.id));
+        QVERIFY(jobRepository.transition(replacementJob.id, BreezeDesk::JobState::Finalizing, {}, {},
+                                         replacementOwner));
+        QVERIFY(jobRepository.completeAndActivate(recording.id, replacementJob.id, replacementOwner));
         vm.finishLiveTranscript(recording.id, replacementJob.id, true);
         QVERIFY(!vm.transcript()->editingLocked());
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Replacement transcript"));

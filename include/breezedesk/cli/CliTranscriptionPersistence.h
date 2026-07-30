@@ -34,8 +34,8 @@ class CliTranscriptionPersistence final {
                                 std::function<void(const QString&)> waitNotification = {});
 
     [[nodiscard]] Result<DurableTranscriptionIdentity> beginNew(DurableTranscriptionDescriptor descriptor);
-    [[nodiscard]] Result<DurableTranscriptionIdentity> resume(const QString& jobId, const QString& sourcePath,
-                                                              const QString& normalizedPcmPath);
+    [[nodiscard]] Result<DurableTranscriptionIdentity> resume(const QString& jobId,
+                                                              const QString& sourcePath);
 
     [[nodiscard]] Result<void> bindSourceMedia(const QString& sourceHash);
     [[nodiscard]] Result<void> beginNormalization();
@@ -59,6 +59,8 @@ class CliTranscriptionPersistence final {
     [[nodiscard]] Result<void> fail(const QString& errorCode, const QString& message);
     [[nodiscard]] Result<void> complete();
     [[nodiscard]] Result<void> renewExecutionLease();
+    [[nodiscard]] Result<void>
+    quiesceWorkerBeforeTerminalCheckpoint(const std::function<void()>& quiesceWorker);
     [[nodiscard]] Result<QList<TranscriptSegment>> persistedSegments() const;
 
     [[nodiscard]] bool isActive() const noexcept { return m_active; }
@@ -72,7 +74,6 @@ class CliTranscriptionPersistence final {
                                             const QString& message = {});
     [[nodiscard]] Result<void> updateProgressMonotonically(JobStage stage, double progress,
                                                            int lastCompletedChunk = -1);
-    [[nodiscard]] Result<void> updateRecordingNormalizedPath(const QString& path);
     [[nodiscard]] Result<void> requireActive() const;
     [[nodiscard]] Result<void> waitForExecutionClaim(const QString& jobId);
     [[nodiscard]] Result<bool> finishCancellationIfRequested(const QString& reason);

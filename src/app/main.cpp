@@ -59,6 +59,56 @@ constexpr int CliMediaFailureExitCode = 5;
 constexpr int CliDatabaseFailureExitCode = 8;
 constexpr int ForwardedImportTimeoutMs = 10 * 60 * 1'000;
 
+void removeExpiredOrphanedAudioCacheFiles(
+    BreezeDesk::SqliteRecordingRepository& recordings,
+    BreezeDesk::SqliteJobRepository& jobs) {
+    QSet<QString> referencedPaths;
+    BreezeDesk::RecordingQuery query;
+    query.includeDeleted = true;
+    query.sortColumn = QStringLiteral("created_at");
+    query.sortOrder = Qt::AscendingOrder;
+    query.limit = 1'000;
+    while (true) {
+        const auto page = recordings.list(query);
+        if (!page) {
+            qCWarning(BreezeDesk::logApplication,
+                      "Orphaned audio cache cleanup skipped because recordings could not be read: %s",
+                      qUtf8Printable(page.error().diagnosticString()));
+            return;
+        }
+        for (const BreezeDesk::Recording& recording : page.value().items) {
+            if (!recording.normalizedPcmPath.isEmpty()) {
+                referencedPaths.insert(recording.normalizedPcmPath);
+            }
+            if (!recording.waveformPath.isEmpty()) {
+                referencedPaths.insert(recording.waveformPath);
+            }
+        }
+        query.offset += static_cast<int>(page.value().items.size());
+        if (page.value().items.isEmpty() || query.offset >= page.value().totalCount) {
+            break;
+        }
+    }
+
+    const auto activeLease = jobs.activeLease();
+    if (!activeLease) {
+        qCWarning(BreezeDesk::logApplication,
+                  "Orphaned audio cache cleanup skipped because the execution lease could not be read: %s",
+                  qUtf8Printable(activeLease.error().diagnosticString()));
+        return;
+    }
+    QString protectedGenerationId;
+    if (activeLease.value().has_value() &&
+        activeLease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+        protectedGenerationId = activeLease.value()->ownerToken;
+    }
+    const int removed = BreezeDesk::AudioCacheManager::removeExpiredOrphanedGenerationFiles(
+        referencedPaths, protectedGenerationId);
+    if (removed > 0) {
+        qCInfo(BreezeDesk::logApplication, "Removed %d expired orphaned audio cache file(s)", removed);
+    }
+}
+
 } // namespace
 
 int main(int argc, char* argv[]) {
@@ -172,6 +222,7 @@ int main(int argc, char* argv[]) {
     BreezeDesk::SqliteTranscriptRepository transcriptRepository(database);
     BreezeDesk::SqliteJobRepository jobRepository(database);
     BreezeDesk::SqliteGlossaryRepository glossaryRepository(database);
+    removeExpiredOrphanedAudioCacheFiles(recordingRepository, jobRepository);
     BreezeDesk::ModelManager modelManager;
     const QString configuredModel = transcriptionSettings.defaultModelId();
     if (!configuredModel.isEmpty()) {

@@ -94,25 +94,7 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
 
     Recording recording = descriptor.recording;
     if (existingResult.value()) {
-        const Recording existing = *existingResult.value();
-        recording.id = existing.id;
-        recording.createdAt = existing.createdAt;
-        recording.tags = existing.tags;
-        recording.deletedAt = existing.deletedAt;
-        recording.activeJobId = existing.activeJobId;
-        if (recording.managedMediaPath.isEmpty())
-            recording.managedMediaPath = existing.managedMediaPath;
-        if (recording.sourceHash.isEmpty())
-            recording.sourceHash = existing.sourceHash;
-        if (recording.waveformPath.isEmpty())
-            recording.waveformPath = existing.waveformPath;
-        if (recording.notes.isEmpty())
-            recording.notes = existing.notes;
-        if (recording.reviewState.isEmpty())
-            recording.reviewState = existing.reviewState;
-        auto updateResult = m_recordings.update(recording);
-        if (!updateResult)
-            return Result<DurableTranscriptionIdentity>::failure(updateResult.error());
+        recording = *existingResult.value();
     } else {
         if (recording.id.isEmpty())
             recording.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -159,8 +141,9 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
         m_active = false;
         return Result<DurableTranscriptionIdentity>::failure(claimResult.error());
     }
-    auto progressResult = m_jobs.updateProgress(job.id, JobStage::Preparing,
-                                                MonotonicJobProgress::map(JobStage::Preparing, 1.0), -1);
+    auto progressResult =
+        m_jobs.updateProgress(job.id, JobStage::Preparing,
+                              MonotonicJobProgress::map(JobStage::Preparing, 1.0), -1, m_ownerToken);
     if (!progressResult) {
         const auto checkpoint = transitionTo(JobState::Interrupted, QStringLiteral("DatabaseQueryFailed"),
                                              progressResult.error().diagnosticString());
@@ -173,8 +156,7 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
 }
 
 Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const QString& jobId,
-                                                                         const QString& sourcePath,
-                                                                         const QString& normalizedPcmPath) {
+                                                                         const QString& sourcePath) {
     if (m_active)
         return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::InvalidStateTransition,
@@ -217,13 +199,6 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
     m_identity = {jobResult.value()->recordingId, jobId, savedChunks.value(), true};
     m_sourceBindingStage = jobResult.value()->stage;
     m_active = true;
-    if (!normalizedPcmPath.isEmpty()) {
-        auto pathResult = updateRecordingNormalizedPath(normalizedPcmPath);
-        if (!pathResult) {
-            m_active = false;
-            return Result<DurableTranscriptionIdentity>::failure(pathResult.error());
-        }
-    }
     const bool retryingFailedJob = jobResult.value()->state == JobState::Failed;
     auto resumeResult =
         retryingFailedJob ? m_jobs.transition(jobId, JobState::Queued) : JobQueue(m_jobs).resume(jobId);
@@ -243,7 +218,7 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         saved.startedAt = {};
         saved.completedAt = {};
         saved.error.clear();
-        auto updateResult = m_jobs.updateChunk(saved);
+        auto updateResult = m_jobs.updateChunk(saved, m_ownerToken);
         if (!updateResult) {
             const auto checkpoint = transitionTo(JobState::Interrupted, QStringLiteral("DatabaseQueryFailed"),
                                                  updateResult.error().diagnosticString());
@@ -275,7 +250,7 @@ Result<void> CliTranscriptionPersistence::bindSourceMedia(const QString& sourceH
                 ErrorCode::InvalidStateTransition,
                 QStringLiteral("The source media changed after this transcription started. Start a new "
                                "transcription so existing chunks are not mixed with different audio.")));
-        return Result<void>::success();
+        return renewExecutionLease();
     }
 
     const bool chunkHasStarted =
@@ -290,7 +265,7 @@ Result<void> CliTranscriptionPersistence::bindSourceMedia(const QString& sourceH
 
     QJsonObject parameters = jobResult.value().parameters;
     parameters.insert(QStringLiteral("sourceHash"), normalizedSourceHash);
-    return m_jobs.updateParameters(m_identity.jobId, parameters);
+    return m_jobs.updateParameters(m_identity.jobId, parameters, m_ownerToken);
 }
 
 Result<void> CliTranscriptionPersistence::beginNormalization() {
@@ -335,7 +310,7 @@ Result<void> CliTranscriptionPersistence::updateNormalizedAudio(const QString& p
     changed.normalizedPcmPath = normalizedPath(path);
     changed.durationMs = durationMs;
     changed.sourceHash = normalizedSourceHash;
-    return m_recordings.update(changed);
+    return m_recordings.update(changed, m_identity.jobId, m_ownerToken);
 }
 
 Result<void> CliTranscriptionPersistence::beginModelLoad() {
@@ -395,7 +370,7 @@ Result<void> CliTranscriptionPersistence::replaceChunkPlan(QList<JobChunk> chunk
         chunk.error.clear();
         chunk.resultHash.clear();
     }
-    auto replaceResult = m_jobs.replaceChunks(m_identity.jobId, chunks);
+    auto replaceResult = m_jobs.replaceChunks(m_identity.jobId, chunks, m_ownerToken);
     if (!replaceResult)
         return replaceResult;
     auto savedResult = m_jobs.chunks(m_identity.jobId);
@@ -440,7 +415,7 @@ Result<JobChunk> CliTranscriptionPersistence::beginChunk(const int ordinal) {
     value.startedAt = QDateTime::currentDateTimeUtc();
     value.completedAt = {};
     value.error.clear();
-    auto updateResult = m_jobs.updateChunk(value);
+    auto updateResult = m_jobs.updateChunk(value, m_ownerToken);
     if (!updateResult)
         return Result<JobChunk>::failure(updateResult.error());
     refreshChunk(value);
@@ -464,7 +439,8 @@ Result<void> CliTranscriptionPersistence::saveChunkSegments(const int ordinal,
         segment.attempt = chunkResult.value().attempts;
     }
     return m_transcripts.replaceChunk(m_identity.recordingId, m_identity.jobId, chunkResult.value().id,
-                                      std::move(segments), provisional, chunkResult.value().attempts);
+                                      std::move(segments), provisional, chunkResult.value().attempts,
+                                      m_ownerToken);
 }
 
 Result<void> CliTranscriptionPersistence::completeChunk(const int ordinal,
@@ -480,7 +456,7 @@ Result<void> CliTranscriptionPersistence::completeChunk(const int ordinal,
     value.completedAt = QDateTime::currentDateTimeUtc();
     value.error.clear();
     value.resultHash = segmentHash(segments);
-    auto updateResult = m_jobs.updateChunk(value);
+    auto updateResult = m_jobs.updateChunk(value, m_ownerToken);
     if (!updateResult)
         return updateResult;
     refreshChunk(value);
@@ -500,7 +476,8 @@ Result<void> CliTranscriptionPersistence::completeChunk(const int ordinal,
     const double fraction =
         static_cast<double>(completedCount) / static_cast<double>(qMax(1, ordered.size()));
     return m_jobs.updateProgress(m_identity.jobId, JobStage::Transcribing,
-                                 MonotonicJobProgress::map(JobStage::Transcribing, fraction), lastContiguous);
+                                 MonotonicJobProgress::map(JobStage::Transcribing, fraction), lastContiguous,
+                                 m_ownerToken);
 }
 
 Result<bool> CliTranscriptionPersistence::cancellationRequested() const {
@@ -563,7 +540,7 @@ Result<void> CliTranscriptionPersistence::cancel(const QString& reason) {
         JobChunk cancelledChunk = saved;
         cancelledChunk.state = ChunkState::Cancelled;
         cancelledChunk.error = reason;
-        const auto updated = m_jobs.updateChunk(cancelledChunk);
+        const auto updated = m_jobs.updateChunk(cancelledChunk, m_ownerToken);
         if (!updated) {
             return updated;
         }
@@ -592,7 +569,7 @@ Result<void> CliTranscriptionPersistence::interrupt(const QString& reason, const
             continue;
         saved.state = ChunkState::Interrupted;
         saved.error = reason;
-        auto updateResult = m_jobs.updateChunk(saved);
+        auto updateResult = m_jobs.updateChunk(saved, m_ownerToken);
         if (!updateResult)
             return updateResult;
     }
@@ -629,7 +606,7 @@ Result<void> CliTranscriptionPersistence::fail(const QString& errorCode, const Q
             continue;
         saved.state = ChunkState::Failed;
         saved.error = message;
-        auto updateResult = m_jobs.updateChunk(saved);
+        auto updateResult = m_jobs.updateChunk(saved, m_ownerToken);
         if (!updateResult)
             return updateResult;
     }
@@ -676,7 +653,7 @@ Result<void> CliTranscriptionPersistence::complete() {
         return finalizing;
     auto progress = m_jobs.updateProgress(m_identity.jobId, JobStage::Finalizing,
                                           MonotonicJobProgress::map(JobStage::Finalizing, 1.0),
-                                          chunksResult.value().constLast().ordinal);
+                                          chunksResult.value().constLast().ordinal, m_ownerToken);
     if (!progress)
         return progress;
     auto completed = m_jobs.completeAndActivate(m_identity.recordingId, m_identity.jobId, m_ownerToken);
@@ -705,6 +682,22 @@ Result<void> CliTranscriptionPersistence::renewExecutionLease() {
     if (!renewed)
         return Result<void>::failure(renewed.error());
     return Result<void>::success();
+}
+
+Result<void> CliTranscriptionPersistence::quiesceWorkerBeforeTerminalCheckpoint(
+    const std::function<void()>& quiesceWorker) {
+    if (!quiesceWorker) {
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument, QStringLiteral("A worker quiescence callback is required.")));
+    }
+
+    // WorkerProcessManager::stop() can synchronously wait for graceful shutdown before killing a
+    // non-responsive worker. Refresh the lease first so another process cannot reclaim the job while
+    // that bounded wait is in progress. Even when renewal fails, stop the local worker before returning:
+    // the caller must not leave an unfenced operation running or checkpoint it with a stale token.
+    const auto renewed = renewExecutionLease();
+    quiesceWorker();
+    return renewed;
 }
 
 Result<QList<TranscriptSegment>> CliTranscriptionPersistence::persistedSegments() const {
@@ -743,8 +736,8 @@ Result<void> CliTranscriptionPersistence::transitionTo(const JobState state, con
         return Result<void>::failure(jobCancelledError());
     }
     if (current.value().state == state)
-        return Result<void>::success();
-    return m_jobs.transition(m_identity.jobId, state, errorCode, message);
+        return renewExecutionLease();
+    return m_jobs.transition(m_identity.jobId, state, errorCode, message, m_ownerToken);
 }
 
 Result<void> CliTranscriptionPersistence::updateProgressMonotonically(const JobStage stage,
@@ -757,20 +750,8 @@ Result<void> CliTranscriptionPersistence::updateProgressMonotonically(const JobS
         return Result<void>::failure(jobCancelledError());
     }
     if (static_cast<int>(stage) < static_cast<int>(current.value().stage))
-        return Result<void>::success();
-    return m_jobs.updateProgress(m_identity.jobId, stage, progress, lastCompletedChunk);
-}
-
-Result<void> CliTranscriptionPersistence::updateRecordingNormalizedPath(const QString& path) {
-    auto recording = m_recordings.findById(m_identity.recordingId);
-    if (!recording)
-        return Result<void>::failure(recording.error());
-    if (!recording.value())
-        return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound, QStringLiteral("The durable source recording no longer exists.")));
-    Recording changed = *recording.value();
-    changed.normalizedPcmPath = normalizedPath(path);
-    return m_recordings.update(changed);
+        return renewExecutionLease();
+    return m_jobs.updateProgress(m_identity.jobId, stage, progress, lastCompletedChunk, m_ownerToken);
 }
 
 Result<void> CliTranscriptionPersistence::requireActive() const {

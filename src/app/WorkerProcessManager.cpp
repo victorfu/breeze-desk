@@ -27,6 +27,18 @@ constexpr int ConnectionRetryMs = 50;
 constexpr int CancellationGraceMs = 5000;
 constexpr int RestartWindowSeconds = 60;
 constexpr int MaximumRestartsInWindow = 3;
+constexpr qsizetype MaximumRememberedTerminalRequests = 128;
+
+QString operationKey(const QString& jobId, const QString& requestId) {
+    return jobId + QChar::Null + requestId;
+}
+
+int forcedCancellationRecoveryDelayMs() {
+    bool validOverride = false;
+    const int overrideDelay =
+        qEnvironmentVariableIntValue("BREEZEDESK_TEST_FORCED_CANCELLATION_RETRY_MS", &validOverride);
+    return validOverride && overrideDelay >= 0 ? overrideDelay : RestartWindowSeconds * 1'000;
+}
 } // namespace
 
 WorkerProcessManager::WorkerProcessManager(QObject* parent)
@@ -36,7 +48,12 @@ WorkerProcessManager::WorkerProcessManager(QObject* parent)
     // of allowing Windows to block the application with a system error dialog.
     SetErrorMode(GetErrorMode() | SEM_FAILCRITICALERRORS);
 #endif
-    connect(&m_client, &Ipc::AsrWorkerClient::ready, this, &WorkerProcessManager::readyChanged);
+    connect(&m_client, &Ipc::AsrWorkerClient::ready, this, [this] {
+        emit readyChanged();
+        if (m_forcedCancellationPending && m_forcedCancellationAwaitingRestart) {
+            settleForcedCancellation();
+        }
+    });
     connect(&m_client, &Ipc::AsrWorkerClient::disconnected, this, &WorkerProcessManager::readyChanged);
     connect(&m_client, &Ipc::AsrWorkerClient::protocolError, this,
             [this](const Ipc::ProtocolError& error) { setLastError(error.detail); });
@@ -44,8 +61,34 @@ WorkerProcessManager::WorkerProcessManager(QObject* parent)
         if (envelope.type == Ipc::MessageType::ChunkCompleted ||
             envelope.type == Ipc::MessageType::TranscriptionCompleted ||
             envelope.type == Ipc::MessageType::SpeechAnalysisCompleted ||
+            envelope.type == Ipc::MessageType::ModelLoaded ||
             envelope.type == Ipc::MessageType::JobCancelled || envelope.type == Ipc::MessageType::Error) {
-            ++m_cancellationGeneration;
+            if (!envelope.requestId.isEmpty()) {
+                const QString key = operationKey(envelope.jobId, envelope.requestId);
+                if (!m_terminalRequests.contains(key)) {
+                    m_terminalRequests.insert(key);
+                    m_terminalRequestOrder.enqueue(key);
+                    while (m_terminalRequestOrder.size() > MaximumRememberedTerminalRequests) {
+                        m_terminalRequests.remove(m_terminalRequestOrder.dequeue());
+                    }
+                }
+            }
+            if (m_forcedCancellationPending && envelope.jobId == m_forcedCancellationJobId &&
+                envelope.requestId == m_forcedCancellationRequestId) {
+                settleForcedCancellation();
+            }
+        }
+    });
+    m_forcedCancellationRecoveryTimer.setSingleShot(true);
+    connect(&m_forcedCancellationRecoveryTimer, &QTimer::timeout, this, [this] {
+        if (!m_forcedCancellationPending || m_stopping ||
+            m_process.state() != QProcess::NotRunning) {
+            return;
+        }
+        m_failedExecutables.clear();
+        m_restartTimes.clear();
+        if (!start()) {
+            scheduleForcedCancellationRecovery();
         }
     });
     connect(&m_process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
@@ -58,6 +101,9 @@ WorkerProcessManager::~WorkerProcessManager() {
 
 bool WorkerProcessManager::isReady() const {
     return m_client.isReady();
+}
+bool WorkerProcessManager::forcedCancellationPending() const noexcept {
+    return m_forcedCancellationPending;
 }
 QString WorkerProcessManager::lastError() const {
     return m_lastError;
@@ -83,8 +129,12 @@ QStringList WorkerProcessManager::workerExecutables() const {
 #else
     const QString developmentPath;
 #endif
-    const QStringList candidates = WorkerRegistry::executableCandidates(
-        applicationDirectory, m_preferredBackend, overridePath, developmentPath);
+    const QStringList candidates =
+        qEnvironmentVariableIntValue("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY") == 1 &&
+                !overridePath.trimmed().isEmpty()
+            ? QStringList{overridePath}
+            : WorkerRegistry::executableCandidates(applicationDirectory, m_preferredBackend,
+                                                   overridePath, developmentPath);
     QStringList available;
     QSet<QString> inspected;
     for (const QString& candidate : std::as_const(candidates)) {
@@ -112,6 +162,7 @@ bool WorkerProcessManager::start() {
         setLastError(QStringLiteral("The native ASR worker is missing. Reinstall %1 or set "
                                     "BREEZEDESK_ASR_WORKER_PATH for a development build.")
                          .arg(QString::fromLatin1(AppConfig::ProductName)));
+        scheduleForcedCancellationRecovery();
         return false;
     }
     QString executable;
@@ -124,6 +175,7 @@ bool WorkerProcessManager::start() {
     if (executable.isEmpty()) {
         setLastError(QStringLiteral("All available ASR worker variants failed to start."));
         emit automaticRestartStopped();
+        scheduleForcedCancellationRecovery();
         return false;
     }
     m_stopping = false;
@@ -153,6 +205,9 @@ bool WorkerProcessManager::start() {
                                            : applicationDirectory + QDir::listSeparator() + inheritedPath);
     m_process.setProcessEnvironment(processEnvironment);
     m_process.setProcessChannelMode(QProcess::SeparateChannels);
+    ++m_processGeneration;
+    m_terminalRequests.clear();
+    m_terminalRequestOrder.clear();
     m_process.start(executable, arguments, QIODevice::ReadOnly);
     if (!m_process.waitForStarted(3000)) {
         m_failedExecutables.insert(executable);
@@ -161,24 +216,28 @@ bool WorkerProcessManager::start() {
         return start();
     }
     m_currentExecutable = executable;
-    connectClientWithRetry();
+    connectClientWithRetry(m_processGeneration);
     return true;
 }
 
-void WorkerProcessManager::connectClientWithRetry(int attempt) {
-    if (m_process.state() == QProcess::NotRunning || m_stopping) {
+void WorkerProcessManager::connectClientWithRetry(const quint64 processGeneration, const int attempt) {
+    if (processGeneration != m_processGeneration ||
+        m_process.state() == QProcess::NotRunning || m_stopping) {
         return;
     }
     if (attempt >= MaximumConnectionAttempts) {
         setLastError(QStringLiteral("The ASR worker did not open its local endpoint in time."));
-        m_process.kill();
+        if (processGeneration == m_processGeneration &&
+            m_process.state() != QProcess::NotRunning) {
+            m_process.kill();
+        }
         return;
     }
     if (!m_client.isReady()) {
         m_client.connectToWorker(m_serverName, m_sessionToken);
-        QTimer::singleShot(ConnectionRetryMs, this, [this, attempt] {
-            if (!m_client.isReady()) {
-                connectClientWithRetry(attempt + 1);
+        QTimer::singleShot(ConnectionRetryMs, this, [this, processGeneration, attempt] {
+            if (processGeneration == m_processGeneration && !m_client.isReady()) {
+                connectClientWithRetry(processGeneration, attempt + 1);
             }
         });
     }
@@ -186,6 +245,9 @@ void WorkerProcessManager::connectClientWithRetry(int attempt) {
 
 void WorkerProcessManager::stop() {
     m_stopping = true;
+    m_forcedCancellationRecoveryTimer.stop();
+    ++m_processGeneration;
+    ++m_forcedCancellationTicket;
     if (m_client.isReady()) {
         m_client.sendRequest(Ipc::MessageType::Shutdown, {}, {});
     }
@@ -194,36 +256,76 @@ void WorkerProcessManager::stop() {
         m_process.waitForFinished(2000);
     }
     m_client.disconnectFromWorker();
+    // A pending terminal checkpoint may release the cross-process execution
+    // lease as soon as this signal is emitted. Do not settle it until the old
+    // worker has actually exited (or has been killed) and disconnected.
+    if (m_process.state() == QProcess::NotRunning) {
+        settleForcedCancellation();
+    }
 }
 
 void WorkerProcessManager::abortImmediately() {
     // This is used only after a bounded operation timeout. Treat the exit as
     // recoverable so the normal crash-isolation path can start a fresh worker.
     m_stopping = false;
+    ++m_processGeneration;
     m_client.disconnectFromWorker();
     if (m_process.state() != QProcess::NotRunning) {
         m_process.kill();
+    } else {
+        // There is no old process that can still touch the shared runtime. A
+        // pending coordinator checkpoint is therefore safe to release now.
+        settleForcedCancellation();
     }
 }
 
-void WorkerProcessManager::forceCancelAfterGrace(const QString& jobId) {
-    if (!m_client.isReady()) {
+void WorkerProcessManager::forceCancelAfterGrace(const QString& jobId, const QString& requestId) {
+    if (requestId.isEmpty()) {
         return;
     }
-    const quint64 cancellationGeneration = ++m_cancellationGeneration;
+    if (m_terminalRequests.contains(operationKey(jobId, requestId)) ||
+        (m_forcedCancellationPending && jobId == m_forcedCancellationJobId &&
+         requestId == m_forcedCancellationRequestId)) {
+        return;
+    }
+    const quint64 cancellationTicket = ++m_forcedCancellationTicket;
+    const quint64 processGeneration = m_processGeneration;
+    m_forcedCancellationPending = true;
+    m_forcedCancellationAwaitingRestart = !m_client.isReady();
+    m_forcedCancellationJobId = jobId;
+    m_forcedCancellationRequestId = requestId;
+    if (!m_client.isReady()) {
+        if (m_process.state() != QProcess::NotRunning) {
+            m_process.kill();
+        } else if (!m_stopping) {
+            QTimer::singleShot(0, this, [this] {
+                if (m_forcedCancellationPending && m_process.state() == QProcess::NotRunning) {
+                    (void)start();
+                }
+            });
+        }
+        return;
+    }
     m_client.sendRequest(Ipc::MessageType::CancelJob, jobId, {});
-    QTimer::singleShot(CancellationGraceMs, this, [this, jobId, cancellationGeneration] {
-        Q_UNUSED(jobId)
-        if (cancellationGeneration == m_cancellationGeneration && m_process.state() != QProcess::NotRunning) {
+    QTimer::singleShot(CancellationGraceMs, this,
+                       [this, cancellationTicket, processGeneration] {
+        if (cancellationTicket == m_forcedCancellationTicket &&
+            processGeneration == m_processGeneration &&
+            m_process.state() != QProcess::NotRunning) {
             m_process.kill();
         }
     });
 }
 
 void WorkerProcessManager::handleUnexpectedExit(int exitCode, QProcess::ExitStatus status) {
+    ++m_processGeneration;
+    if (m_forcedCancellationPending) {
+        m_forcedCancellationAwaitingRestart = true;
+    }
     m_client.disconnectFromWorker();
     emit readyChanged();
     if (m_stopping) {
+        settleForcedCancellation();
         return;
     }
     const QString reason =
@@ -241,13 +343,37 @@ void WorkerProcessManager::handleUnexpectedExit(int exitCode, QProcess::ExitStat
     }
     if (m_restartTimes.size() >= MaximumRestartsInWindow) {
         emit automaticRestartStopped();
+        scheduleForcedCancellationRecovery();
         return;
     }
     m_restartTimes.enqueue(now);
     QTimer::singleShot(250, this, [this] {
-        const bool restarted = start();
-        Q_UNUSED(restarted)
+        if (!m_stopping && m_process.state() == QProcess::NotRunning) {
+            const bool restarted = start();
+            Q_UNUSED(restarted)
+        }
     });
+}
+
+void WorkerProcessManager::scheduleForcedCancellationRecovery() {
+    if (!m_forcedCancellationPending || m_stopping ||
+        m_process.state() != QProcess::NotRunning || m_forcedCancellationRecoveryTimer.isActive()) {
+        return;
+    }
+    m_forcedCancellationRecoveryTimer.start(forcedCancellationRecoveryDelayMs());
+}
+
+void WorkerProcessManager::settleForcedCancellation() {
+    if (!m_forcedCancellationPending) {
+        return;
+    }
+    m_forcedCancellationPending = false;
+    m_forcedCancellationAwaitingRestart = false;
+    m_forcedCancellationJobId.clear();
+    m_forcedCancellationRequestId.clear();
+    m_forcedCancellationRecoveryTimer.stop();
+    ++m_forcedCancellationTicket;
+    emit forcedCancellationSettled();
 }
 
 void WorkerProcessManager::setLastError(const QString& error) {

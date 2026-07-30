@@ -69,6 +69,7 @@ class TranscriptionCoordinator final : public QObject {
 
   private:
     enum class RequestKind { None, GetCapabilities, AnalyzeSpeech, LoadModel, TranscribeChunk };
+    enum class PendingTerminalAction { None, Fail, Cancel, Interrupt, AbandonAfterLeaseLoss };
     enum class RuntimeAvailability { Unknown, Available, Unavailable };
     enum class VadModelContinuation { PrepareChunks, AnalyzeSpeech, StartNextChunk, TranscribeCurrentChunk };
 
@@ -86,7 +87,8 @@ class TranscriptionCoordinator final : public QObject {
     void prepareChunks();
     bool saveChunkPlan(QList<JobChunk> chunks, QString* error = nullptr);
     void beginWaitingForModel();
-    void ensureWorkerReady(const QString& jobId, int attempt = 0);
+    void ensureWorkerReady(const QString& jobId, int attempt = 0,
+                           const QString& ownerToken = {});
     void requestWorkerCapabilities();
     void continueAfterWorkerPreflight();
     void analyzeSpeech();
@@ -94,8 +96,8 @@ class TranscriptionCoordinator final : public QObject {
     void startNextChunk();
     void transcribeCurrentChunk();
     bool ensureVadModelAvailable(VadModelContinuation continuation, bool forceDownload = false);
-    void appendVadModelEvent(const QString& eventType, const QString& message,
-                             const QString& severity = QStringLiteral("info"));
+    [[nodiscard]] bool appendVadModelEvent(const QString& eventType, const QString& message,
+                                           const QString& severity = QStringLiteral("info"));
     void handleWorkerEnvelope(const Ipc::Envelope& envelope);
     void persistPartialSegments();
     bool finalizeCurrentChunk(QString* error);
@@ -105,6 +107,20 @@ class TranscriptionCoordinator final : public QObject {
     [[nodiscard]] bool durableCancellationWins();
     void finishCancellation();
     void interruptActiveJob(const QString& reason);
+    void abandonActiveJobAfterLeaseLoss(const QString& reason);
+    [[nodiscard]] bool awaitWorkerQuiescence(PendingTerminalAction action,
+                                             const QString& code = {},
+                                             const QString& message = {});
+    void finishPendingTerminalCheckpoint();
+    void checkpointFailedJob(const QString& code, const QString& message);
+    void checkpointCancellation();
+    void checkpointInterruption(const QString& reason);
+    void finishLeaseLossHandoff(const QString& reason);
+    [[nodiscard]] bool activeWorkerRequestMayStillRun() const noexcept;
+    void refreshHandedOffJob(const QString& activeJobId);
+    void removeCacheCandidateIfUnreferenced(const QString& recordingId,
+                                            const QString& path) const;
+    [[nodiscard]] bool activeExecutionLeaseLost() const;
     [[nodiscard]] bool terminalTransitionNeedsRetry(const QString& jobId) const;
     void clearActive();
     void clearLoadedAsrModel();
@@ -113,9 +129,11 @@ class TranscriptionCoordinator final : public QObject {
     void publish(const QString& jobId);
     void publish(const TranscriptionJob& job);
     void publishEvents(const QString& jobId);
-    void advanceProgress(JobStage stage, double fraction, int lastCompletedChunk = -1);
+    [[nodiscard]] bool advanceProgress(JobStage stage, double fraction,
+                                       int lastCompletedChunk = -1);
     [[nodiscard]] QString recordingTitle(const QString& recordingId) const;
-    [[nodiscard]] bool activeJobMatches(const QString& jobId) const;
+    [[nodiscard]] bool activeJobMatches(const QString& jobId,
+                                        const QString& ownerToken = {}) const;
 
     IRecordingRepository& m_recordings;
     IJobRepository& m_jobs;
@@ -138,6 +156,8 @@ class TranscriptionCoordinator final : public QObject {
     QString m_activeSourceHash;
     QString m_ownerToken;
     QString m_runningJobId;
+    QString m_handedOffJobId;
+    QString m_handedOffRecordingId;
     QString m_latestPartialText;
     QHash<QString, qint64> m_lastPublishedEventId;
     QTimer m_leaseHeartbeatTimer;
@@ -155,7 +175,11 @@ class TranscriptionCoordinator final : public QObject {
     QMetaObject::Connection m_vadDownloadFinishedConnection;
     QString m_requestId;
     RequestKind m_requestKind{RequestKind::None};
+    PendingTerminalAction m_pendingTerminalAction{PendingTerminalAction::None};
+    QString m_pendingTerminalCode;
+    QString m_pendingTerminalMessage;
     RuntimeAvailability m_runtimeAvailability{RuntimeAvailability::Unknown};
+    bool m_workerQuiescenceConfirmed{false};
     bool m_loadedFlashAttention{false};
     bool m_initialized{false};
     bool m_shuttingDown{false};
