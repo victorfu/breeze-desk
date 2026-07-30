@@ -72,7 +72,14 @@ class FFmpegNormalizationOperation final : public NormalizationOperation {
                                     QStringLiteral("-loglevel"),
                                     QStringLiteral("warning"),
                                     m_temporaryPath};
-        m_process->start(std::move(executable), arguments, QIODevice::ReadOnly);
+        QTimer::singleShot(0, this,
+                           [this, executable = std::move(executable), arguments = std::move(arguments)] {
+                               if (m_cancelled) {
+                                   complete(-1, QProcess::CrashExit);
+                                   return;
+                               }
+                               m_process->start(executable, arguments, QIODevice::ReadOnly);
+                           });
     }
 
     ~FFmpegNormalizationOperation() override {

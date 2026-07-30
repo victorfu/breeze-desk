@@ -99,6 +99,8 @@ class AudioTest final : public QObject {
     void missingFfprobeIsActionable();
     void validatesNormalizedPcmWithAncillaryChunks();
     void rejectsWrongFormatTruncationAndDurationMismatch();
+    void normalizationReportsMissingExecutableAfterReturn();
+    void normalizationCanCancelBeforeDeferredStart();
     void normalizationCommitsOnlyValidatedOutput();
     void normalizationPreservesExistingOutputWhenValidationFails();
 };
@@ -224,6 +226,51 @@ void AudioTest::rejectsWrongFormatTruncationAndDurationMismatch() {
     QVERIFY(writePcmWaveFixture(durationMismatch, 9'600, 16'000, 1, 16, false));
     QVERIFY(!NormalizedAudioValidator::validate(durationMismatch, 10'000, nullptr, &error));
     QVERIFY(error.contains(QStringLiteral("duration")));
+}
+
+void AudioTest::normalizationReportsMissingExecutableAfterReturn() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString sourcePath = temporary.filePath(QStringLiteral("source.media"));
+    const QString outputPath = temporary.filePath(QStringLiteral("normalized.wav"));
+    QVERIFY(writeSourceFixture(sourcePath));
+
+    FFmpegNormalizationService service(temporary.filePath(QStringLiteral("missing-ffmpeg")));
+    QScopedPointer<NormalizationOperation> operation(service.normalize(sourcePath, outputPath, 1'000));
+    QSignalSpy finished(operation.data(), &NormalizationOperation::finished);
+
+    QVERIFY(operation->isRunning());
+    QVERIFY(finished.wait(5'000));
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(finished.constFirst().at(0).toBool(), false);
+    QVERIFY(!operation->isRunning());
+    QVERIFY(operation->error().contains(QStringLiteral("ffmpeg"), Qt::CaseInsensitive));
+    QVERIFY(!QFileInfo::exists(outputPath));
+    QVERIFY(
+        QDir(temporary.path()).entryList({QStringLiteral("normalized.wav.tmp.*")}, QDir::Files).isEmpty());
+}
+
+void AudioTest::normalizationCanCancelBeforeDeferredStart() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString sourcePath = temporary.filePath(QStringLiteral("source.media"));
+    const QString outputPath = temporary.filePath(QStringLiteral("normalized.wav"));
+    QVERIFY(writeSourceFixture(sourcePath));
+
+    FFmpegNormalizationService service(QString::fromUtf8(BREEZEDESK_NORMALIZATION_HELPER_PATH));
+    QScopedPointer<NormalizationOperation> operation(service.normalize(sourcePath, outputPath, 1'000));
+    QSignalSpy finished(operation.data(), &NormalizationOperation::finished);
+
+    QVERIFY(operation->isRunning());
+    operation->cancel();
+    QVERIFY(finished.wait(5'000));
+    QCOMPARE(finished.size(), 1);
+    QCOMPARE(finished.constFirst().at(0).toBool(), false);
+    QVERIFY(!operation->isRunning());
+    QVERIFY(operation->error().contains(QStringLiteral("cancel"), Qt::CaseInsensitive));
+    QVERIFY(!QFileInfo::exists(outputPath));
+    QVERIFY(
+        QDir(temporary.path()).entryList({QStringLiteral("normalized.wav.tmp.*")}, QDir::Files).isEmpty());
 }
 
 void AudioTest::normalizationCommitsOnlyValidatedOutput() {
