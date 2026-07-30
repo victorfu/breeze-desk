@@ -18,6 +18,7 @@
 #include "breezedesk/glossary/IGlossaryRepository.h"
 #include "breezedesk/ipc/AsrWorkerClient.h"
 #include "breezedesk/jobs/IJobRepository.h"
+#include "breezedesk/jobs/JobRecoveryService.h"
 #include "breezedesk/jobs/JobStateMachine.h"
 #include "breezedesk/models/ModelManager.h"
 #include "breezedesk/settings/SettingsManagers.h"
@@ -334,12 +335,17 @@ void TranscriptionCoordinator::initialize() {
     if (m_initialized) {
         return;
     }
-    m_initialized = true;
+    const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
+    if (!recovered) {
+        emit errorOccurred(recovered.error().message);
+        return;
+    }
     const auto jobs = m_jobs.list(true);
     if (!jobs) {
         emit errorOccurred(jobs.error().message);
         return;
     }
+    m_initialized = true;
     for (const TranscriptionJob& job : jobs.value()) {
         publish(job);
         publishEvents(job.id);

@@ -15,6 +15,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QScopeGuard>
+#include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -70,6 +71,7 @@ class TranscriptionCoordinatorTest final : public QObject {
 
   private slots:
     void snapshotsSharedGlossary();
+    void initializationRecoversUnleasedRunningJob();
     void analyzesLongAudioAndPersistsGlobalSegments();
     void rejectsStaleCacheWhenSourceContentsChange();
     void rejectsResumedChunksBoundToDifferentSource();
@@ -124,6 +126,74 @@ void TranscriptionCoordinatorTest::snapshotsSharedGlossary() {
     }
     QVERIFY(enabledById.value(enabledId.value()));
     QVERIFY(!enabledById.value(disabledId.value()));
+}
+
+void TranscriptionCoordinatorTest::initializationRecoversUnleasedRunningJob() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    ModelManager models;
+    WorkerProcessManager worker;
+
+    Recording recording;
+    recording.id = QStringLiteral("recording-orphan-recovery");
+    recording.title = QStringLiteral("Orphan recovery");
+    QVERIFY(recordings.create(recording));
+
+    TranscriptionJob orphan;
+    orphan.id = QStringLiteral("job-orphan-running");
+    orphan.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(orphan));
+    const auto claimed = jobs.claimNextQueued(QStringLiteral("abandoned-owner"));
+    QVERIFY(claimed && claimed.value().claimed);
+    QCOMPARE(claimed.value().job->id, orphan.id);
+    QVERIFY(jobs.transition(orphan.id, JobState::LoadingModel));
+    QVERIFY(jobs.transition(orphan.id, JobState::Transcribing));
+
+    JobChunk completed;
+    completed.jobId = orphan.id;
+    completed.ordinal = 0;
+    completed.startMs = 0;
+    completed.endMs = 1'000;
+    completed.state = ChunkState::Completed;
+    JobChunk running;
+    running.jobId = orphan.id;
+    running.ordinal = 1;
+    running.startMs = 1'000;
+    running.endMs = 2'000;
+    running.state = ChunkState::Running;
+    QVERIFY(jobs.replaceChunks(orphan.id, {completed, running}));
+
+    TranscriptionJob queued;
+    queued.id = QStringLiteral("job-waiting-after-orphan");
+    queued.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(queued));
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery removeLease(connection.value());
+    QVERIFY(removeLease.exec(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr'")));
+
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker);
+    coordinator.setExternalWorkerReserved(true);
+    QSignalSpy errors(&coordinator, &TranscriptionCoordinator::errorOccurred);
+    coordinator.initialize();
+
+    const auto recovered = jobs.findById(orphan.id);
+    QVERIFY(recovered && recovered.value().has_value());
+    QCOMPARE(recovered.value()->state, JobState::Interrupted);
+    const auto recoveredChunks = jobs.chunks(orphan.id);
+    QVERIFY(recoveredChunks);
+    QCOMPARE(recoveredChunks.value().size(), 2);
+    QCOMPARE(recoveredChunks.value().at(0).state, ChunkState::Completed);
+    QCOMPARE(recoveredChunks.value().at(1).state, ChunkState::Interrupted);
+    QCOMPARE(jobs.findById(queued.id).value()->state, JobState::Queued);
+    QVERIFY(!jobs.activeLease().value().has_value());
+    QVERIFY(errors.isEmpty());
 }
 
 void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() {

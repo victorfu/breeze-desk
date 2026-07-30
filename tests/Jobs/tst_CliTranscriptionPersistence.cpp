@@ -6,6 +6,7 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QSqlQuery>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -44,8 +45,112 @@ class CliTranscriptionPersistenceTest final : public QObject {
     void rejectsSourceBindingAfterPreparation();
     void synchronizesDecodedAudioDurationBeforeTranscription();
     void retriesFailedChunkWithoutRepeatingCompletedChunks();
+    void beginsAfterRecoveringUnleasedRunningJob();
+    void resumesAnUnleasedRunningJobAfterRecovery();
     void cancellingLeaseWaitDoesNotInterruptCurrentOwner();
 };
+
+void CliTranscriptionPersistenceTest::beginsAfterRecoveringUnleasedRunningJob() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    Recording abandonedRecording;
+    abandonedRecording.id = QStringLiteral("recording-abandoned-cli");
+    abandonedRecording.title = QStringLiteral("Abandoned CLI job");
+    abandonedRecording.sourcePath = directory.filePath(QStringLiteral("abandoned.wav"));
+    QVERIFY(recordings.create(abandonedRecording));
+    TranscriptionJob abandonedJob;
+    abandonedJob.id = QStringLiteral("job-abandoned-cli");
+    abandonedJob.recordingId = abandonedRecording.id;
+    QVERIFY(jobs.createQueued(abandonedJob));
+    const auto abandonedClaim = jobs.claimNextQueued(QStringLiteral("dead-cli-owner"));
+    QVERIFY(abandonedClaim && abandonedClaim.value().claimed);
+    QVERIFY(jobs.transition(abandonedJob.id, JobState::LoadingModel));
+    QVERIFY(jobs.transition(abandonedJob.id, JobState::Transcribing));
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery removeLease(connection.value());
+    QVERIFY(removeLease.exec(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr'")));
+
+    const QString sourcePath = directory.filePath(QStringLiteral("new.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-new-cli");
+    descriptor.recording.title = QStringLiteral("New CLI job");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.job.id = QStringLiteral("job-new-cli");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts, QStringLiteral("new-cli-owner"));
+    const auto started = persistence.beginNew(descriptor);
+    if (!started)
+        QFAIL(qPrintable(started.error().diagnosticString()));
+    QCOMPARE(jobs.findById(abandonedJob.id).value()->state, JobState::Interrupted);
+    QCOMPARE(started.value().jobId, descriptor.job.id);
+    const auto lease = jobs.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->jobId, descriptor.job.id);
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("new-cli-owner"));
+    QVERIFY(persistence.interrupt(QStringLiteral("test complete")));
+}
+
+void CliTranscriptionPersistenceTest::resumesAnUnleasedRunningJobAfterRecovery() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("resume.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    Recording recording;
+    recording.id = QStringLiteral("recording-resume-orphan");
+    recording.title = QStringLiteral("Resume orphan");
+    recording.sourcePath = sourcePath;
+    QVERIFY(recordings.create(recording));
+    TranscriptionJob job;
+    job.id = QStringLiteral("job-resume-orphan");
+    job.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(job));
+    JobChunk planned = chunk(0, 0, 1'000);
+    planned.jobId = job.id;
+    QVERIFY(jobs.replaceChunks(job.id, {planned}));
+    const auto claimed = jobs.claimNextQueued(QStringLiteral("dead-resume-owner"));
+    QVERIFY(claimed && claimed.value().claimed);
+    QVERIFY(jobs.transition(job.id, JobState::LoadingModel));
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery removeLease(connection.value());
+    QVERIFY(removeLease.exec(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr'")));
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts,
+                                             QStringLiteral("resuming-cli-owner"));
+    const auto resumed = persistence.resume(job.id, sourcePath, {});
+    if (!resumed)
+        QFAIL(qPrintable(resumed.error().diagnosticString()));
+    QCOMPARE(resumed.value().jobId, job.id);
+    QCOMPARE(jobs.findById(job.id).value()->state, JobState::Preparing);
+    const auto lease = jobs.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("resuming-cli-owner"));
+    QVERIFY(persistence.interrupt(QStringLiteral("test complete")));
+}
 
 void CliTranscriptionPersistenceTest::synchronizesDecodedAudioDurationBeforeTranscription() {
     QTemporaryDir directory;

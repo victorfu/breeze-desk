@@ -2,6 +2,7 @@
 
 #include "breezedesk/database/IRecordingRepository.h"
 #include "breezedesk/jobs/IJobRepository.h"
+#include "breezedesk/jobs/JobRecoveryService.h"
 #include "breezedesk/jobs/JobQueue.h"
 #include "breezedesk/jobs/JobStateMachine.h"
 #include "breezedesk/transcript/ITranscriptRepository.h"
@@ -78,6 +79,9 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
             ErrorCode::InvalidArgument,
             QStringLiteral("A source recording and at least one transcription chunk are required.")));
     }
+    const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
+    if (!recovered)
+        return Result<DurableTranscriptionIdentity>::failure(recovered.error());
     descriptor.recording.sourcePath = QFileInfo(descriptor.recording.sourcePath).absoluteFilePath();
     auto existingResult = m_recordings.findBySourcePath(descriptor.recording.sourcePath);
     if (!existingResult)
@@ -170,6 +174,9 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::InvalidStateTransition,
             QStringLiteral("A durable transcription session is already active.")));
+    const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
+    if (!recovered)
+        return Result<DurableTranscriptionIdentity>::failure(recovered.error());
     auto jobResult = m_jobs.findById(jobId);
     if (!jobResult)
         return Result<DurableTranscriptionIdentity>::failure(jobResult.error());
