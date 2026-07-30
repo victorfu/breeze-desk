@@ -231,9 +231,9 @@ void MicrophoneRecorder::resume() {
     emit pausedChanged();
 }
 
-void MicrophoneRecorder::stop() {
+bool MicrophoneRecorder::stop() {
     if (!m_recording) {
-        return;
+        return false;
     }
     m_recording = false;
     m_durationTimer->stop();
@@ -251,6 +251,7 @@ void MicrophoneRecorder::stop() {
     } else {
         emit recordingError(QStringLiteral("The recording could not be saved atomically."));
     }
+    return saved;
 }
 
 } // namespace BreezeDesk

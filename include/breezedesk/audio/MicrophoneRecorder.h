@@ -38,7 +38,7 @@ class MicrophoneRecorder final : public QObject {
     Q_INVOKABLE bool start(const QString& outputPath);
     Q_INVOKABLE void pause();
     Q_INVOKABLE void resume();
-    Q_INVOKABLE void stop();
+    Q_INVOKABLE bool stop();
 
   signals:
     void recordingChanged();

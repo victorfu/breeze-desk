@@ -55,7 +55,9 @@ ApplicationWindow {
     }
 
     function requestQuit() {
-        if (vm.jobQueue.activeCount > 0)
+        if (injectedRecorder && injectedRecorder.recording)
+            recordingQuitDialog.open()
+        else if (vm.jobQueue.activeCount > 0)
             quitDialog.open()
         else
             Qt.quit()
@@ -386,7 +388,47 @@ ApplicationWindow {
     }
 
     AppDialog {
+        id: recordingQuitDialog
+        objectName: "recordingQuitDialog"
+        title: qsTr("Recording is still in progress")
+        iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/mic.svg"
+        standardButtons: Dialog.NoButton
+        ColumnLayout {
+            width: parent.width
+            spacing: SemanticTokens.spacingLg
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("Stop and save the recording before quitting so it remains available in your library.")
+                color: SemanticTokens.text
+                wrapMode: Text.Wrap
+                font.pixelSize: SemanticTokens.bodySize
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                Item { Layout.fillWidth: true }
+                AppButton {
+                    objectName: "continueRecordingButton"
+                    text: qsTr("Continue Recording")
+                    onClicked: recordingQuitDialog.close()
+                }
+                AppButton {
+                    objectName: "stopRecordingAndQuitButton"
+                    text: qsTr("Stop, Save, and Quit")
+                    primary: true
+                    onClicked: {
+                        if (window.injectedRecorder && window.injectedRecorder.stop()) {
+                            recordingQuitDialog.close()
+                            Qt.callLater(window.requestQuit)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    AppDialog {
         id: quitDialog
+        objectName: "transcriptionQuitDialog"
         title: qsTr("Transcription is still running")
         iconSource: "qrc:/qt/qml/BreezeDesk/icons/lucide/pause.svg"
         standardButtons: Dialog.NoButton

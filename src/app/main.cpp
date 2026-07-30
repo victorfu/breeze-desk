@@ -552,7 +552,7 @@ int main(int argc, char* argv[]) {
                          }
                      });
     QObject::connect(
-        &microphoneRecorder, &BreezeDesk::MicrophoneRecorder::recordingFinished, &application,
+        &microphoneRecorder, &BreezeDesk::MicrophoneRecorder::recordingFinished, &engine,
         [viewModel = viewModel.get(), &recordingRepository, showWindow](const QString& path) {
             showWindow();
             const int imported = viewModel->importUrls({QUrl::fromLocalFile(path)});
@@ -567,6 +567,11 @@ int main(int argc, char* argv[]) {
             const QString recordingId = recording.value()->id;
             viewModel->openRecording(recordingId);
         });
+    QObject::connect(&application, &QCoreApplication::aboutToQuit, viewModel.get(), [&microphoneRecorder] {
+        if (microphoneRecorder.isRecording()) {
+            (void)microphoneRecorder.stop();
+        }
+    });
     QObject::connect(&instanceGuard, &BreezeDesk::Ipc::SingleInstanceGuard::activationRequested, &application,
                      [showWindow, importPaths](const QStringList& paths) {
                          showWindow();
@@ -817,10 +822,10 @@ int main(int argc, char* argv[]) {
     QObject::connect(viewModel->settings(), &BreezeDesk::SettingsViewModel::languageChanged, &trayMenu,
                      retranslateTrayMenu);
     QObject::connect(&quitAction, &QAction::triggered, &application,
-                     [&engine, showWindow, viewModel = viewModel.get()] {
+                     [&engine, &microphoneRecorder, showWindow, viewModel = viewModel.get()] {
                          // The quit confirmation dialog lives inside the main window, so the
-                         // window is only brought forward when active jobs need confirming.
-                         if (viewModel->jobQueue()->activeCount() > 0) {
+                         // window is only brought forward when active work needs confirming.
+                         if (viewModel->jobQueue()->activeCount() > 0 || microphoneRecorder.isRecording()) {
                              showWindow();
                          }
                          if (!engine.rootObjects().isEmpty()) {

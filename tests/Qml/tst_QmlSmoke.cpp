@@ -106,7 +106,7 @@ class FakeRecorder final : public QObject {
                    selectedDeviceIdChanged)
 
   public:
-    [[nodiscard]] bool recording() const noexcept { return false; }
+    [[nodiscard]] bool recording() const noexcept { return m_recording; }
     [[nodiscard]] bool paused() const noexcept { return false; }
     [[nodiscard]] qint64 durationMs() const noexcept { return 0; }
     [[nodiscard]] double level() const noexcept { return 0.0; }
@@ -124,7 +124,22 @@ class FakeRecorder final : public QObject {
 
     Q_INVOKABLE void pause() {}
     Q_INVOKABLE void resume() {}
-    Q_INVOKABLE void stop() {}
+    void setRecording(const bool value) {
+        if (m_recording == value) {
+            return;
+        }
+        m_recording = value;
+        emit recordingChanged();
+    }
+
+    Q_INVOKABLE bool stop() {
+        if (!m_recording) {
+            return false;
+        }
+        setRecording(false);
+        emit recordingFinished(QStringLiteral("fixture-recording.wav"));
+        return true;
+    }
 
   signals:
     void recordingChanged();
@@ -137,6 +152,7 @@ class FakeRecorder final : public QObject {
 
   private:
     QString m_selectedDeviceId;
+    bool m_recording{false};
 };
 
 class FakeTranscriptRepository final : public BreezeDesk::ITranscriptRepository {
@@ -373,6 +389,52 @@ class tst_QmlSmoke final : public QObject {
             QCOMPARE(root->property("injectedMaintenance").value<QObject*>(), &injectedMaintenance);
             QCoreApplication::processEvents();
         }
+
+        const auto failures =
+            qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));
+        QVERIFY2(failures.isEmpty(), qPrintable(failures.join(QLatin1Char('\n'))));
+    }
+
+    void quitWhileRecordingOpensRecordingGuard() {
+        QScopedPointer<BreezeDesk::ApplicationViewModel> injectedViewModel(
+            BreezeDesk::createApplicationViewModel());
+        injectedViewModel->jobQueue()->updateJob(
+            QStringLiteral("active-job"), QStringLiteral("recording-id"), QStringLiteral("Active job"),
+            QStringLiteral("Transcribing"), QStringLiteral("Transcribing"), 0.1);
+        FakeRecorder injectedRecorder;
+        injectedRecorder.setRecording(true);
+        QObject injectedMaintenance;
+
+        QQmlApplicationEngine engine;
+        engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
+        engine.setInitialProperties(
+            {{QStringLiteral("injectedApplicationViewModel"),
+              QVariant::fromValue(static_cast<QObject*>(injectedViewModel.data()))},
+             {QStringLiteral("injectedRecorder"),
+              QVariant::fromValue(static_cast<QObject*>(&injectedRecorder))},
+             {QStringLiteral("injectedMaintenance"), QVariant::fromValue(&injectedMaintenance)}});
+        engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
+        QVERIFY2(!engine.rootObjects().isEmpty(), "Main.qml did not create a root object.");
+        QObject* root = engine.rootObjects().constFirst();
+        QObject* recordingQuitDialog =
+            root->findChild<QObject*>(QStringLiteral("recordingQuitDialog"));
+        QObject* transcriptionQuitDialog =
+            root->findChild<QObject*>(QStringLiteral("transcriptionQuitDialog"));
+        QObject* stopRecordingAndQuitButton =
+            root->findChild<QObject*>(QStringLiteral("stopRecordingAndQuitButton"));
+        QVERIFY(recordingQuitDialog);
+        QVERIFY(transcriptionQuitDialog);
+        QVERIFY(stopRecordingAndQuitButton);
+
+        QVERIFY(QMetaObject::invokeMethod(root, "requestQuit"));
+        QTRY_VERIFY(recordingQuitDialog->property("opened").toBool());
+        QVERIFY(!transcriptionQuitDialog->property("opened").toBool());
+        QVERIFY(injectedRecorder.recording());
+
+        QVERIFY(QMetaObject::invokeMethod(stopRecordingAndQuitButton, "clicked"));
+        QTRY_VERIFY(!injectedRecorder.recording());
+        QTRY_VERIFY(!recordingQuitDialog->property("opened").toBool());
+        QTRY_VERIFY(transcriptionQuitDialog->property("opened").toBool());
 
         const auto failures =
             qmlMessages.filter(QRegularExpression(QStringLiteral("ReferenceError|TypeError|Binding loop")));

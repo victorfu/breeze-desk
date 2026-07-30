@@ -1708,22 +1708,42 @@
         <translation>GGML model (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="390"/>
+        <location filename="../src/qml/Main.qml" line="393"/>
+        <source>Recording is still in progress</source>
+        <translation>Recording is still in progress</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="401"/>
+        <source>Stop and save the recording before quitting so it remains available in your library.</source>
+        <translation>Stop and save the recording before quitting so it remains available in your library.</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="411"/>
+        <source>Continue Recording</source>
+        <translation>Continue Recording</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="416"/>
+        <source>Stop, Save, and Quit</source>
+        <translation>Stop, Save, and Quit</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="432"/>
         <source>Transcription is still running</source>
         <translation>Transcription is still running</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="398"/>
+        <location filename="../src/qml/Main.qml" line="440"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="406"/>
+        <location filename="../src/qml/Main.qml" line="448"/>
         <source>Continue in Background</source>
         <translation>Continue in Background</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="407"/>
+        <location filename="../src/qml/Main.qml" line="449"/>
         <source>Quit and Resume Later</source>
         <translation>Quit and Resume Later</translation>
     </message>

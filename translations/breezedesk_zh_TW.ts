@@ -1703,22 +1703,42 @@
         <translation>GGML 模型 (*.bin)</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="390"/>
+        <location filename="../src/qml/Main.qml" line="393"/>
+        <source>Recording is still in progress</source>
+        <translation>錄音仍在進行中</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="401"/>
+        <source>Stop and save the recording before quitting so it remains available in your library.</source>
+        <translation>請先停止並儲存錄音再結束，讓錄音能保留在錄音庫中。</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="411"/>
+        <source>Continue Recording</source>
+        <translation>繼續錄音</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="416"/>
+        <source>Stop, Save, and Quit</source>
+        <translation>停止、儲存並結束</translation>
+    </message>
+    <message>
+        <location filename="../src/qml/Main.qml" line="432"/>
         <source>Transcription is still running</source>
         <translation>轉錄仍在進行中</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="398"/>
+        <location filename="../src/qml/Main.qml" line="440"/>
         <source>Completed chunks are safe. Quitting now will mark the active job as interrupted so it can be resumed later.</source>
         <translation>已完成的分段都已安全儲存。現在結束會將目前工作標記為中斷，之後可繼續執行。</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="406"/>
+        <location filename="../src/qml/Main.qml" line="448"/>
         <source>Continue in Background</source>
         <translation>在背景繼續</translation>
     </message>
     <message>
-        <location filename="../src/qml/Main.qml" line="407"/>
+        <location filename="../src/qml/Main.qml" line="449"/>
         <source>Quit and Resume Later</source>
         <translation>結束並於稍後繼續</translation>
     </message>
