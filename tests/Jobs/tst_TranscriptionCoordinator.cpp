@@ -6,6 +6,7 @@
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
 #include "breezedesk/glossary/SqliteGlossaryRepository.h"
+#include "breezedesk/jobs/JobQueue.h"
 #include "breezedesk/jobs/SqliteJobRepository.h"
 #include "breezedesk/models/ModelManager.h"
 #include "breezedesk/transcript/SqliteTranscriptRepository.h"
@@ -73,11 +74,47 @@ class TranscriptionCoordinatorTest final : public QObject {
     void snapshotsSharedGlossary();
     void initializationRecoversUnleasedRunningJob();
     void terminalCheckpointFailureRetainsLeaseUntilRecovery();
+    void externalOwnedRunningJobReceivesCancellationRequest();
     void analyzesLongAudioAndPersistsGlobalSegments();
     void rejectsStaleCacheWhenSourceContentsChange();
     void rejectsResumedChunksBoundToDifferentSource();
     void runtimeUnavailableFailsBeforeMediaPreparation();
 };
+
+void TranscriptionCoordinatorTest::externalOwnedRunningJobReceivesCancellationRequest() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    ModelManager models;
+    WorkerProcessManager worker;
+
+    Recording recording;
+    recording.id = QStringLiteral("recording-external-owner");
+    recording.title = QStringLiteral("Externally owned job");
+    QVERIFY(recordings.create(recording));
+    TranscriptionJob job;
+    job.id = QStringLiteral("job-external-owner");
+    job.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(job));
+    const auto claimed = jobs.claimQueued(job.id, QStringLiteral("headless-owner"));
+    QVERIFY(claimed && claimed.value().claimed);
+
+    TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker);
+    QSignalSpy errors(&coordinator, &TranscriptionCoordinator::errorOccurred);
+    coordinator.cancel(job.id);
+    const auto requested = jobs.findById(job.id);
+    QVERIFY(requested && requested.value().has_value());
+    QCOMPARE(requested.value()->state, JobState::Cancelling);
+    const auto lease = jobs.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->jobId, job.id);
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("headless-owner"));
+    QVERIFY(errors.isEmpty());
+}
 
 void TranscriptionCoordinatorTest::snapshotsSharedGlossary() {
     QTemporaryDir directory;
@@ -243,8 +280,8 @@ void TranscriptionCoordinatorTest::terminalCheckpointFailureRetainsLeaseUntilRec
     const auto connection = database.connection();
     QVERIFY(connection);
     QSqlQuery rejectCheckpoint(connection.value());
-    QVERIFY(rejectCheckpoint.exec(QStringLiteral(
-        "CREATE TRIGGER reject_cancel_checkpoint BEFORE UPDATE OF state ON transcription_jobs "
+    QVERIFY(rejectCheckpoint.exec(
+        QStringLiteral("CREATE TRIGGER reject_cancel_checkpoint BEFORE UPDATE OF state ON transcription_jobs "
         "WHEN OLD.id='job-terminal-checkpoint' AND NEW.state='Cancelled' BEGIN "
         "SELECT RAISE(ABORT,'forced terminal checkpoint failure'); END")));
 
@@ -414,7 +451,11 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
             QTest::qWait(25);
         }
         QCOMPARE(cancellationState, JobState::AnalyzingSpeech);
-        coordinator.cancel(QStringLiteral("job-cancel"));
+        DatabaseManager externalDatabase({directory.filePath(QStringLiteral("library.sqlite"))});
+        QVERIFY(externalDatabase.initialize());
+        SqliteJobRepository externalJobs(externalDatabase);
+        QVERIFY(JobQueue(externalJobs).cancel(QStringLiteral("job-cancel")));
+        QCOMPARE(externalJobs.findById(QStringLiteral("job-cancel")).value()->state, JobState::Cancelling);
         timeout.restart();
         while (timeout.elapsed() < 10'000) {
             const auto current = jobs.findById(QStringLiteral("job-cancel"));

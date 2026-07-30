@@ -101,6 +101,8 @@ class TranscriptionCoordinator final : public QObject {
     bool finalizeCurrentChunk(QString* error);
     void completeActiveJob();
     void failActiveJob(const QString& code, const QString& message);
+    void abortActiveOperationForCancellation();
+    [[nodiscard]] bool durableCancellationWins();
     void finishCancellation();
     void interruptActiveJob(const QString& reason);
     [[nodiscard]] bool terminalTransitionNeedsRetry(const QString& jobId) const;

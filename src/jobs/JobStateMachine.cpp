@@ -26,7 +26,7 @@ const QHash<JobState, QSet<JobState>>& transitions() {
          {JobState::Finalizing, JobState::Cancelling, JobState::Failed, JobState::Interrupted}},
         {JobState::Finalizing,
          {JobState::Completed, JobState::Cancelling, JobState::Failed, JobState::Interrupted}},
-        {JobState::Cancelling, {JobState::Cancelled, JobState::Interrupted, JobState::Failed}},
+        {JobState::Cancelling, {JobState::Cancelled}},
         {JobState::Interrupted, {JobState::Queued, JobState::Cancelled}},
         {JobState::Failed, {JobState::Queued}},
         {JobState::Completed, {}},

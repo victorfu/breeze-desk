@@ -41,8 +41,7 @@ class CliTranscriptionPersistence final {
     [[nodiscard]] Result<void> beginNormalization();
     [[nodiscard]] Result<void> updateNormalizationProgress(double fraction);
     [[nodiscard]] Result<void> updateNormalizedAudio(const QString& path, qint64 durationMs,
-                                                     const QString& sourceHash,
-                                                     bool regenerated = false);
+                                                     const QString& sourceHash, bool regenerated = false);
     [[nodiscard]] Result<void> beginModelLoad();
     [[nodiscard]] Result<void> beginSpeechAnalysis();
     [[nodiscard]] Result<void> updateSpeechAnalysisProgress(double fraction);
@@ -53,6 +52,8 @@ class CliTranscriptionPersistence final {
     [[nodiscard]] Result<void> saveChunkSegments(int ordinal, QList<TranscriptSegment> segments,
                                                  bool provisional);
     [[nodiscard]] Result<void> completeChunk(int ordinal, QList<TranscriptSegment> segments);
+    [[nodiscard]] Result<bool> cancellationRequested() const;
+    [[nodiscard]] Result<void> cancel(const QString& reason = QStringLiteral("Cancelled by the user."));
     [[nodiscard]] Result<void> interrupt(const QString& reason,
                                          const QString& errorCode = QStringLiteral("WorkerCrashed"));
     [[nodiscard]] Result<void> fail(const QString& errorCode, const QString& message);
@@ -74,6 +75,7 @@ class CliTranscriptionPersistence final {
     [[nodiscard]] Result<void> updateRecordingNormalizedPath(const QString& path);
     [[nodiscard]] Result<void> requireActive() const;
     [[nodiscard]] Result<void> waitForExecutionClaim(const QString& jobId);
+    [[nodiscard]] Result<bool> finishCancellationIfRequested(const QString& reason);
     void refreshChunk(const JobChunk& chunk);
 
     IRecordingRepository& m_recordings;

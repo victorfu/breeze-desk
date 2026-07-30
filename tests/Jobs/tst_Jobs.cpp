@@ -29,15 +29,96 @@ class JobsTest final : public QObject {
     void jobParametersCanBeUpdated();
     void completedTranscriptionReplacesPreviousTranscript();
     void executionLeaseSerializesWorkersAndCompletesAtomically();
+    void cancellationSurvivesLeaseRecovery();
     void concurrentRepositoriesClaimOnlyOneJob();
     void retryAndResumeResetExecutionStateOnTheSameJob();
     void chunkStateChangesAppendStructuredEvents();
 };
 
+void JobsTest::cancellationSurvivesLeaseRecovery() {
+    QTemporaryDir directory;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    Recording recording;
+    recording.id = QStringLiteral("recording-cancellation-recovery");
+    recording.title = QStringLiteral("Cancellation recovery");
+    QVERIFY(recordings.create(recording));
+    SqliteJobRepository repository(database);
+
+    TranscriptionJob startupJob;
+    startupJob.id = QStringLiteral("cancelled-during-startup-recovery");
+    startupJob.recordingId = recording.id;
+    QVERIFY(repository.createQueued(startupJob));
+    QVERIFY(repository.claimQueued(startupJob.id, QStringLiteral("dead-startup-owner")).value().claimed);
+    QVERIFY(repository.transition(startupJob.id, JobState::LoadingModel));
+    QVERIFY(repository.transition(startupJob.id, JobState::Transcribing));
+    JobChunk startupChunk;
+    startupChunk.jobId = startupJob.id;
+    startupChunk.ordinal = 0;
+    startupChunk.startMs = 0;
+    startupChunk.endMs = 1'000;
+    startupChunk.state = ChunkState::Running;
+    QVERIFY(repository.replaceChunks(startupJob.id, {startupChunk}));
+    QVERIFY(JobQueue(repository).cancel(startupJob.id));
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery removeLease(connection.value());
+    QVERIFY(removeLease.exec(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr'")));
+
+    const auto startupRecovery = repository.markRunningJobsInterrupted(QStringLiteral("startup recovery"));
+    QVERIFY(startupRecovery);
+    QCOMPARE(startupRecovery.value(), 1);
+    const auto startupRecovered = repository.findById(startupJob.id);
+    QVERIFY(startupRecovered && startupRecovered.value().has_value());
+    QCOMPARE(startupRecovered.value()->state, JobState::Cancelled);
+    QCOMPARE(startupRecovered.value()->errorCode, QStringLiteral("JobCancelled"));
+    QCOMPARE(repository.chunks(startupJob.id).value().constFirst().state, ChunkState::Cancelled);
+    QVERIFY(!repository.activeLease().value().has_value());
+
+    TranscriptionJob expiredJob;
+    expiredJob.id = QStringLiteral("cancelled-after-expired-lease");
+    expiredJob.recordingId = recording.id;
+    QVERIFY(repository.createQueued(expiredJob));
+    TranscriptionJob nextJob;
+    nextJob.id = QStringLiteral("queued-after-cancelled-lease");
+    nextJob.recordingId = recording.id;
+    QVERIFY(repository.createQueued(nextJob));
+    QVERIFY(
+        repository.claimQueued(expiredJob.id, QStringLiteral("dead-expired-owner"), 10'000).value().claimed);
+    JobChunk expiredChunk;
+    expiredChunk.jobId = expiredJob.id;
+    expiredChunk.ordinal = 0;
+    expiredChunk.startMs = 0;
+    expiredChunk.endMs = 1'000;
+    expiredChunk.state = ChunkState::Running;
+    QVERIFY(repository.replaceChunks(expiredJob.id, {expiredChunk}));
+    QVERIFY(JobQueue(repository).cancel(expiredJob.id));
+    QSqlQuery expireLease(connection.value());
+    QVERIFY(expireLease.exec(QStringLiteral(
+        "UPDATE asr_execution_lease SET expires_at='2000-01-01T00:00:00.000Z' WHERE resource='asr'")));
+
+    const auto nextClaim = repository.claimQueued(nextJob.id, QStringLiteral("next-owner"), 10'000);
+    QVERIFY(nextClaim && nextClaim.value().claimed);
+    QCOMPARE(nextClaim.value().job->id, nextJob.id);
+    const auto expiredRecovered = repository.findById(expiredJob.id);
+    QVERIFY(expiredRecovered && expiredRecovered.value().has_value());
+    QCOMPARE(expiredRecovered.value()->state, JobState::Cancelled);
+    QCOMPARE(expiredRecovered.value()->errorCode, QStringLiteral("JobCancelled"));
+    QCOMPARE(repository.chunks(expiredJob.id).value().constFirst().state, ChunkState::Cancelled);
+    const auto lease = repository.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->jobId, nextJob.id);
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("next-owner"));
+}
+
 void JobsTest::stateMachineRejectsInvalidTransitions() {
     QVERIFY(JobStateMachine::canTransition(JobState::Queued, JobState::Preparing));
     QVERIFY(!JobStateMachine::canTransition(JobState::Queued, JobState::Completed));
     QVERIFY(!JobStateMachine::validateTransition(JobState::Completed, JobState::Queued));
+    QVERIFY(JobStateMachine::canTransition(JobState::Cancelling, JobState::Cancelled));
+    QVERIFY(!JobStateMachine::canTransition(JobState::Cancelling, JobState::Failed));
+    QVERIFY(!JobStateMachine::canTransition(JobState::Cancelling, JobState::Interrupted));
     QVERIFY(JobStateMachine::isRunning(JobState::Transcribing));
     QVERIFY(JobStateMachine::isTerminal(JobState::Failed));
 }

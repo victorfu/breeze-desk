@@ -1,5 +1,6 @@
 #include "breezedesk/audio/FFprobeService.h"
 
+#include <QElapsedTimer>
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QProcess>
@@ -9,6 +10,11 @@ namespace BreezeDesk {
 FFprobeService::FFprobeService(QString ffprobePath) : m_ffprobePath(std::move(ffprobePath)) {}
 
 MediaMetadata FFprobeService::inspect(const QString& path, QString* error) const {
+    return inspect(path, nullptr, error);
+}
+
+MediaMetadata FFprobeService::inspect(const QString& path, const std::atomic_bool* cancellation,
+                                      QString* error) const {
     if (!QFileInfo(path).isFile()) {
         if (error != nullptr) {
             *error = QStringLiteral("Source media does not exist: %1").arg(path);
@@ -21,10 +27,31 @@ MediaMetadata FFprobeService::inspect(const QString& path, QString* error) const
         QStringLiteral("file,pipe"), QStringLiteral("-show_format"), QStringLiteral("-show_streams"),
         QStringLiteral("-of"),       QStringLiteral("json"),         path};
     process.start(m_ffprobePath, arguments, QIODevice::ReadOnly);
-    if (!process.waitForStarted(5000) || !process.waitForFinished(30000)) {
+    if (!process.waitForStarted(5000)) {
         process.kill();
         if (error != nullptr) {
             *error = QStringLiteral("ffprobe failed: %1").arg(process.errorString());
+        }
+        return {};
+    }
+    QElapsedTimer timeout;
+    timeout.start();
+    while (process.state() != QProcess::NotRunning && timeout.elapsed() < 30'000) {
+        if (cancellation != nullptr && cancellation->load(std::memory_order_relaxed)) {
+            process.kill();
+            process.waitForFinished(1'000);
+            if (error != nullptr) {
+                *error = QStringLiteral("Media inspection was cancelled.");
+            }
+            return {};
+        }
+        process.waitForFinished(100);
+    }
+    if (process.state() != QProcess::NotRunning) {
+        process.kill();
+        process.waitForFinished(1'000);
+        if (error != nullptr) {
+            *error = QStringLiteral("ffprobe timed out: %1").arg(process.errorString());
         }
         return {};
     }

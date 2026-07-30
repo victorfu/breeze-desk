@@ -233,23 +233,47 @@ Result<JobClaimResult> claimInDatabase(QSqlDatabase& database, const std::option
     if (leaseResult.value().has_value()) {
         const QString expiredJobId = leaseResult.value()->jobId;
         const QString nowText = TimeUtils::toStorageString(now);
-        QSqlQuery interrupt(database);
-        interrupt.prepare(QStringLiteral(
-            "UPDATE transcription_jobs SET state='Interrupted',interrupted_at=?,error_code='WorkerCrashed',"
-            "error_message='The ASR execution lease expired.' WHERE id=? AND state IN ('Preparing',"
-            "'Normalizing','WaitingForModel','LoadingModel','AnalyzingSpeech','Transcribing','Finalizing',"
-            "'Cancelling')"));
-        interrupt.addBindValue(nowText);
-        interrupt.addBindValue(expiredJobId);
-        if (!interrupt.exec()) {
-            return Result<JobClaimResult>::failure(queryError(
-                QStringLiteral("The expired transcription lease could not be recovered."), interrupt));
+        const auto expiredJob = findJob(database, expiredJobId);
+        if (!expiredJob) {
+            return Result<JobClaimResult>::failure(expiredJob.error());
         }
-        if (interrupt.numRowsAffected() > 0) {
+        const bool cancellationPending =
+            expiredJob.value().has_value() && expiredJob.value()->state == JobState::Cancelling;
+        const QString recoveryMessage =
+            cancellationPending
+                ? QStringLiteral("Cancellation completed after the ASR execution lease expired.")
+                : QStringLiteral("The ASR execution lease expired.");
+        QSqlQuery recover(database);
+        if (cancellationPending) {
+            recover.prepare(
+                QStringLiteral("UPDATE transcription_jobs SET state='Cancelled',error_code='JobCancelled',"
+                               "error_message=? WHERE id=? AND state='Cancelling'"));
+            recover.addBindValue(recoveryMessage);
+        } else {
+            recover.prepare(QStringLiteral(
+                "UPDATE transcription_jobs SET state='Interrupted',interrupted_at=?,"
+                "error_code='WorkerCrashed',error_message=? WHERE id=? AND state IN ('Preparing',"
+                "'Normalizing','WaitingForModel','LoadingModel','AnalyzingSpeech','Transcribing',"
+                "'Finalizing')"));
+            recover.addBindValue(nowText);
+            recover.addBindValue(recoveryMessage);
+        }
+        recover.addBindValue(expiredJobId);
+        if (!recover.exec()) {
+            return Result<JobClaimResult>::failure(queryError(
+                QStringLiteral("The expired transcription lease could not be recovered."), recover));
+        }
+        if (recover.numRowsAffected() > 0) {
             QSqlQuery chunks(database);
+            if (cancellationPending) {
+                chunks.prepare(QStringLiteral(
+                    "UPDATE job_chunks SET state='Cancelled',error=? WHERE job_id=? AND state IN "
+                    "('Running','Interrupted','Failed')"));
+            } else {
             chunks.prepare(QStringLiteral(
-                "UPDATE job_chunks SET state='Interrupted',error='The ASR execution lease expired.' WHERE "
-                "job_id=? AND state='Running'"));
+                    "UPDATE job_chunks SET state='Interrupted',error=? WHERE job_id=? AND state='Running'"));
+            }
+            chunks.addBindValue(recoveryMessage);
             chunks.addBindValue(expiredJobId);
             if (!chunks.exec()) {
                 return Result<JobClaimResult>::failure(queryError(
@@ -257,11 +281,13 @@ Result<JobClaimResult> claimInDatabase(QSqlDatabase& database, const std::option
             }
             JobEvent event;
             event.jobId = expiredJobId;
-            event.eventType = QStringLiteral("lease_expired");
+            event.eventType =
+                cancellationPending ? QStringLiteral("cancelled") : QStringLiteral("lease_expired");
             event.severity = QStringLiteral("warning");
-            event.state = JobState::Interrupted;
-            event.code = QStringLiteral("WorkerCrashed");
-            event.message = QStringLiteral("The ASR execution lease expired.");
+            event.state = cancellationPending ? JobState::Cancelled : JobState::Interrupted;
+            event.code =
+                cancellationPending ? QStringLiteral("JobCancelled") : QStringLiteral("WorkerCrashed");
+            event.message = recoveryMessage;
             const auto eventResult = insertEvent(database, &event);
             if (!eventResult) {
                 return Result<JobClaimResult>::failure(eventResult.error());
@@ -980,8 +1006,7 @@ Result<void> SqliteJobRepository::updateRuntimeInfo(const QString& id, const QSt
     return Result<void>::success();
 }
 
-Result<void> SqliteJobRepository::updateParameters(const QString& id,
-                                                   const QJsonObject& parameters) {
+Result<void> SqliteJobRepository::updateParameters(const QString& id, const QJsonObject& parameters) {
     auto connectionResult = m_databaseManager.connection();
     if (!connectionResult)
         return Result<void>::failure(connectionResult.error());
@@ -1191,7 +1216,8 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
 
         QSqlQuery running(database);
         running.prepare(QStringLiteral(
-            "SELECT id FROM transcription_jobs WHERE state IN ('Preparing','Normalizing','WaitingForModel',"
+            "SELECT id,state FROM transcription_jobs WHERE state IN "
+            "('Preparing','Normalizing','WaitingForModel',"
             "'LoadingModel','AnalyzingSpeech','Transcribing','Finalizing','Cancelling') AND (?='' OR id<>?) "
             "ORDER BY id"));
         running.addBindValue(nonNull(protectedJobId));
@@ -1200,9 +1226,10 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
             return Result<void>::failure(
                 queryError(QStringLiteral("Running jobs could not be inspected for recovery."), running));
         }
-        QStringList interruptedJobIds;
+        QList<QPair<QString, JobState>> recoverableJobs;
         while (running.next()) {
-            interruptedJobIds.append(running.value(0).toString());
+            recoverableJobs.append(
+                {running.value(0).toString(), jobStateFromName(running.value(1).toString())});
         }
 
         const QString recoveryReason =
@@ -1210,16 +1237,31 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
                 ? QStringLiteral("The previous transcription worker stopped unexpectedly.")
                 : reason;
         const QString nowText = TimeUtils::toStorageString(now);
-        for (const QString& jobId : interruptedJobIds) {
+        for (const auto& [jobId, previousState] : recoverableJobs) {
+            const bool cancellationPending = previousState == JobState::Cancelling;
+            const QString message =
+                cancellationPending
+                    ? QStringLiteral("Cancellation completed after the previous worker stopped.")
+                    : recoveryReason;
             QSqlQuery job(database);
+            if (cancellationPending) {
             job.prepare(QStringLiteral(
-                "UPDATE transcription_jobs SET state='Interrupted',interrupted_at=?,"
-                "error_code='WorkerCrashed',error_message=? WHERE id=? AND state IN "
-                "('Preparing','Normalizing','WaitingForModel','LoadingModel','AnalyzingSpeech',"
-                "'Transcribing','Finalizing','Cancelling')"));
+                    "UPDATE transcription_jobs SET state='Cancelled',error_code='JobCancelled',"
+                    "error_message=? WHERE id=? AND state='Cancelling'"));
+            } else {
+                job.prepare(
+                    QStringLiteral("UPDATE transcription_jobs SET state='Interrupted',interrupted_at=?,"
+                                   "error_code='WorkerCrashed',error_message=? WHERE id=? AND state=?"));
             job.addBindValue(nowText);
-            job.addBindValue(recoveryReason);
+                job.addBindValue(message);
+            }
+            if (cancellationPending) {
+                job.addBindValue(message);
+            }
             job.addBindValue(jobId);
+            if (!cancellationPending) {
+                job.addBindValue(jobStateName(previousState));
+            }
             if (!job.exec()) {
                 return Result<void>::failure(
                     queryError(QStringLiteral("A running job could not be recovered."), job));
@@ -1230,9 +1272,15 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
             ++affected;
 
             QSqlQuery chunks(database);
+            if (cancellationPending) {
+                chunks.prepare(QStringLiteral(
+                    "UPDATE job_chunks SET state='Cancelled',error=? WHERE job_id=? AND state IN "
+                    "('Running','Interrupted','Failed')"));
+            } else {
             chunks.prepare(QStringLiteral(
                 "UPDATE job_chunks SET state='Interrupted',error=? WHERE job_id=? AND state='Running'"));
-            chunks.addBindValue(recoveryReason);
+            }
+            chunks.addBindValue(message);
             chunks.addBindValue(jobId);
             if (!chunks.exec()) {
                 return Result<void>::failure(
@@ -1241,11 +1289,13 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
 
             JobEvent event;
             event.jobId = jobId;
-            event.eventType = QStringLiteral("recovered_as_interrupted");
+            event.eventType = cancellationPending ? QStringLiteral("cancelled")
+                                                  : QStringLiteral("recovered_as_interrupted");
             event.severity = QStringLiteral("warning");
-            event.state = JobState::Interrupted;
-            event.code = QStringLiteral("WorkerCrashed");
-            event.message = recoveryReason;
+            event.state = cancellationPending ? JobState::Cancelled : JobState::Interrupted;
+            event.code =
+                cancellationPending ? QStringLiteral("JobCancelled") : QStringLiteral("WorkerCrashed");
+            event.message = message;
             const auto eventResult = insertEvent(database, &event);
             if (!eventResult) {
                 return eventResult;

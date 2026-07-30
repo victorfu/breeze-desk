@@ -4,11 +4,13 @@
 #include "breezedesk/core/TextUtils.h"
 #include "breezedesk/core/TimeUtils.h"
 
-#include <QFileInfo>
 #include <QFile>
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QtTest>
+
+#include <atomic>
 
 using namespace BreezeDesk;
 
@@ -101,6 +103,9 @@ void CoreUtilitiesTest::hashesFileContentsAndReportsReadFailures() {
     file.close();
     QVERIFY(FileHash::sha256(path, &error) != originalHash);
     QVERIFY(error.isEmpty());
+    const std::atomic_bool cancelled{true};
+    QVERIFY(FileHash::sha256(path, &error, &cancelled).isEmpty());
+    QVERIFY(error.contains(QStringLiteral("cancelled"), Qt::CaseInsensitive));
     QVERIFY(FileHash::sha256(directory.filePath(QStringLiteral("missing.mp4")), &error).isEmpty());
     QVERIFY(!error.isEmpty());
 }
@@ -173,8 +178,7 @@ void CoreUtilitiesTest::storageInitializationRecoversFromAnInvalidConfiguredRoot
     QVERIFY2(result.succeeded, qPrintable(result.error));
     QVERIFY(result.recoveredFromLegacyOverride);
     QVERIFY(!qEnvironmentVariableIsSet("BREEZEDESK_DATA_ROOT"));
-    QCOMPARE(StoragePaths::root(),
-             QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
+    QCOMPARE(StoragePaths::root(), QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation));
     QVERIFY(QFileInfo(StoragePaths::database()).isDir());
 }
 

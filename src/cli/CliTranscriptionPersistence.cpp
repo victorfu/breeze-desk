@@ -2,8 +2,8 @@
 
 #include "breezedesk/database/IRecordingRepository.h"
 #include "breezedesk/jobs/IJobRepository.h"
-#include "breezedesk/jobs/JobRecoveryService.h"
 #include "breezedesk/jobs/JobQueue.h"
+#include "breezedesk/jobs/JobRecoveryService.h"
 #include "breezedesk/jobs/JobStateMachine.h"
 #include "breezedesk/transcript/ITranscriptRepository.h"
 
@@ -51,6 +51,11 @@ bool normalizeSha256(const QString& sourceHash, QString* normalized) {
                return (character >= QLatin1Char('0') && character <= QLatin1Char('9')) ||
                       (character >= QLatin1Char('a') && character <= QLatin1Char('f'));
            });
+}
+
+UserFacingError jobCancelledError() {
+    return UserFacingError::validation(ErrorCode::JobCancelled,
+                                       QStringLiteral("The transcription was cancelled."));
 }
 
 } // namespace
@@ -183,6 +188,9 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
     if (!jobResult.value())
         return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::NotFound, QStringLiteral("The interrupted transcription job does not exist.")));
+    if (jobResult.value()->state == JobState::Cancelling || jobResult.value()->state == JobState::Cancelled) {
+        return Result<DurableTranscriptionIdentity>::failure(jobCancelledError());
+    }
     if (jobResult.value()->state != JobState::Interrupted && jobResult.value()->state != JobState::Failed)
         return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::InvalidStateTransition,
@@ -303,16 +311,14 @@ Result<void> CliTranscriptionPersistence::updateNormalizationProgress(const doub
                                        MonotonicJobProgress::map(JobStage::NormalizingAudio, fraction));
 }
 
-Result<void> CliTranscriptionPersistence::updateNormalizedAudio(const QString& path,
-                                                                const qint64 durationMs,
+Result<void> CliTranscriptionPersistence::updateNormalizedAudio(const QString& path, const qint64 durationMs,
                                                                 const QString& sourceHash,
                                                                 const bool regenerated) {
     auto activeResult = requireActive();
     if (!activeResult)
         return activeResult;
     QString normalizedSourceHash;
-    if (path.trimmed().isEmpty() || durationMs <= 0 ||
-        !normalizeSha256(sourceHash, &normalizedSourceHash))
+    if (path.trimmed().isEmpty() || durationMs <= 0 || !normalizeSha256(sourceHash, &normalizedSourceHash))
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument,
             QStringLiteral("Normalized audio requires a path, positive duration, and source SHA-256.")));
@@ -497,7 +503,87 @@ Result<void> CliTranscriptionPersistence::completeChunk(const int ordinal,
                                  MonotonicJobProgress::map(JobStage::Transcribing, fraction), lastContiguous);
 }
 
+Result<bool> CliTranscriptionPersistence::cancellationRequested() const {
+    if (m_identity.jobId.isEmpty()) {
+        return Result<bool>::failure(UserFacingError::validation(
+            ErrorCode::InvalidStateTransition,
+            QStringLiteral("The durable transcription session has not been initialized.")));
+    }
+    const auto current = currentJob();
+    if (!current) {
+        return Result<bool>::failure(current.error());
+    }
+    return Result<bool>::success(current.value().state == JobState::Cancelling ||
+                                 current.value().state == JobState::Cancelled);
+}
+
+Result<void> CliTranscriptionPersistence::cancel(const QString& reason) {
+    if (!m_active) {
+        const auto current = currentJob();
+        if (current && current.value().state == JobState::Cancelled) {
+            return Result<void>::success();
+        }
+        return Result<void>::failure(
+            UserFacingError::validation(ErrorCode::InvalidStateTransition,
+                                        QStringLiteral("No durable transcription session is active.")));
+    }
+
+    auto current = currentJob();
+    if (!current) {
+        return Result<void>::failure(current.error());
+    }
+    if (current.value().state == JobState::Cancelled) {
+        m_active = false;
+        return Result<void>::success();
+    }
+    if (current.value().state != JobState::Cancelling) {
+        const auto requested = JobQueue(m_jobs).cancel(m_identity.jobId);
+        if (!requested) {
+            return requested;
+        }
+        current = currentJob();
+        if (!current) {
+            return Result<void>::failure(current.error());
+        }
+        if (current.value().state == JobState::Cancelled) {
+            m_active = false;
+            return Result<void>::success();
+        }
+    }
+
+    const auto chunksResult = m_jobs.chunks(m_identity.jobId);
+    if (!chunksResult) {
+        return Result<void>::failure(chunksResult.error());
+    }
+    for (const JobChunk& saved : chunksResult.value()) {
+        if (saved.state != ChunkState::Running && saved.state != ChunkState::Interrupted &&
+            saved.state != ChunkState::Failed) {
+            continue;
+        }
+        JobChunk cancelledChunk = saved;
+        cancelledChunk.state = ChunkState::Cancelled;
+        cancelledChunk.error = reason;
+        const auto updated = m_jobs.updateChunk(cancelledChunk);
+        if (!updated) {
+            return updated;
+        }
+        refreshChunk(cancelledChunk);
+    }
+    const auto cancelled = transitionTo(JobState::Cancelled, QStringLiteral("JobCancelled"), reason);
+    if (cancelled) {
+        m_active = false;
+    }
+    return cancelled;
+}
+
 Result<void> CliTranscriptionPersistence::interrupt(const QString& reason, const QString& errorCode) {
+    const auto cancellation = finishCancellationIfRequested(QStringLiteral("Cancelled by the user."));
+    if (!cancellation) {
+        return Result<void>::failure(cancellation.error());
+    }
+    if (cancellation.value()) {
+        return Result<void>::failure(jobCancelledError());
+    }
     auto activeResult = requireActive();
     if (!activeResult)
         return activeResult;
@@ -511,6 +597,16 @@ Result<void> CliTranscriptionPersistence::interrupt(const QString& reason, const
             return updateResult;
     }
     auto result = transitionTo(JobState::Interrupted, errorCode, reason);
+    if (!result) {
+        const auto racedCancellation =
+            finishCancellationIfRequested(QStringLiteral("Cancelled by the user."));
+        if (!racedCancellation) {
+            return Result<void>::failure(racedCancellation.error());
+        }
+        if (racedCancellation.value()) {
+            return Result<void>::failure(jobCancelledError());
+        }
+    }
     if (result) {
         m_active = false;
     }
@@ -518,6 +614,13 @@ Result<void> CliTranscriptionPersistence::interrupt(const QString& reason, const
 }
 
 Result<void> CliTranscriptionPersistence::fail(const QString& errorCode, const QString& message) {
+    const auto cancellation = finishCancellationIfRequested(QStringLiteral("Cancelled by the user."));
+    if (!cancellation) {
+        return Result<void>::failure(cancellation.error());
+    }
+    if (cancellation.value()) {
+        return Result<void>::failure(jobCancelledError());
+    }
     auto activeResult = requireActive();
     if (!activeResult)
         return activeResult;
@@ -531,6 +634,16 @@ Result<void> CliTranscriptionPersistence::fail(const QString& errorCode, const Q
             return updateResult;
     }
     auto result = transitionTo(JobState::Failed, errorCode, message);
+    if (!result) {
+        const auto racedCancellation =
+            finishCancellationIfRequested(QStringLiteral("Cancelled by the user."));
+        if (!racedCancellation) {
+            return Result<void>::failure(racedCancellation.error());
+        }
+        if (racedCancellation.value()) {
+            return Result<void>::failure(jobCancelledError());
+        }
+    }
     if (result) {
         m_active = false;
     }
@@ -538,6 +651,13 @@ Result<void> CliTranscriptionPersistence::fail(const QString& errorCode, const Q
 }
 
 Result<void> CliTranscriptionPersistence::complete() {
+    const auto cancellation = finishCancellationIfRequested(QStringLiteral("Cancelled by the user."));
+    if (!cancellation) {
+        return Result<void>::failure(cancellation.error());
+    }
+    if (cancellation.value()) {
+        return Result<void>::failure(jobCancelledError());
+    }
     auto activeResult = requireActive();
     if (!activeResult)
         return activeResult;
@@ -560,16 +680,27 @@ Result<void> CliTranscriptionPersistence::complete() {
     if (!progress)
         return progress;
     auto completed = m_jobs.completeAndActivate(m_identity.recordingId, m_identity.jobId, m_ownerToken);
-    if (!completed)
+    if (!completed) {
+        const auto racedCancellation =
+            finishCancellationIfRequested(QStringLiteral("Cancelled by the user."));
+        if (!racedCancellation) {
+            return Result<void>::failure(racedCancellation.error());
+        }
+        if (racedCancellation.value()) {
+            return Result<void>::failure(jobCancelledError());
+        }
         return completed;
+    }
     m_active = false;
     return Result<void>::success();
 }
 
 Result<void> CliTranscriptionPersistence::renewExecutionLease() {
-    auto activeResult = requireActive();
-    if (!activeResult)
-        return activeResult;
+    if (!m_active) {
+        return Result<void>::failure(
+            UserFacingError::validation(ErrorCode::InvalidStateTransition,
+                                        QStringLiteral("No durable transcription session is active.")));
+    }
     const auto renewed = m_jobs.renewLease(m_identity.jobId, m_ownerToken);
     if (!renewed)
         return Result<void>::failure(renewed.error());
@@ -607,6 +738,10 @@ Result<void> CliTranscriptionPersistence::transitionTo(const JobState state, con
     auto current = currentJob();
     if (!current)
         return Result<void>::failure(current.error());
+    if ((current.value().state == JobState::Cancelling || current.value().state == JobState::Cancelled) &&
+        state != JobState::Cancelled) {
+        return Result<void>::failure(jobCancelledError());
+    }
     if (current.value().state == state)
         return Result<void>::success();
     return m_jobs.transition(m_identity.jobId, state, errorCode, message);
@@ -618,6 +753,9 @@ Result<void> CliTranscriptionPersistence::updateProgressMonotonically(const JobS
     auto current = currentJob();
     if (!current)
         return Result<void>::failure(current.error());
+    if (current.value().state == JobState::Cancelling || current.value().state == JobState::Cancelled) {
+        return Result<void>::failure(jobCancelledError());
+    }
     if (static_cast<int>(stage) < static_cast<int>(current.value().stage))
         return Result<void>::success();
     return m_jobs.updateProgress(m_identity.jobId, stage, progress, lastCompletedChunk);
@@ -636,10 +774,16 @@ Result<void> CliTranscriptionPersistence::updateRecordingNormalizedPath(const QS
 }
 
 Result<void> CliTranscriptionPersistence::requireActive() const {
-    if (m_active)
-        return Result<void>::success();
-    return Result<void>::failure(UserFacingError::validation(
-        ErrorCode::InvalidStateTransition, QStringLiteral("No durable transcription session is active.")));
+    if (!m_active) {
+        return Result<void>::failure(
+            UserFacingError::validation(ErrorCode::InvalidStateTransition,
+                                        QStringLiteral("No durable transcription session is active.")));
+    }
+    const auto cancellation = cancellationRequested();
+    if (!cancellation) {
+        return Result<void>::failure(cancellation.error());
+    }
+    return cancellation.value() ? Result<void>::failure(jobCancelledError()) : Result<void>::success();
 }
 
 Result<void> CliTranscriptionPersistence::waitForExecutionClaim(const QString& jobId) {
@@ -648,9 +792,7 @@ Result<void> CliTranscriptionPersistence::waitForExecutionClaim(const QString& j
     bool notified = false;
     while (true) {
         if (m_cancellationRequested && m_cancellationRequested()) {
-            const auto cancelled = m_jobs.transition(
-                jobId, JobState::Cancelled, QStringLiteral("JobCancelled"),
-                QStringLiteral("Cancelled while waiting for the global transcription slot."));
+            const auto cancelled = JobQueue(m_jobs).cancel(jobId);
             if (!cancelled)
                 return cancelled;
             return Result<void>::failure(UserFacingError::validation(
@@ -658,9 +800,28 @@ Result<void> CliTranscriptionPersistence::waitForExecutionClaim(const QString& j
                 QStringLiteral("Transcription was cancelled while waiting for another job.")));
         }
 
+        const auto current = m_jobs.findById(jobId);
+        if (!current) {
+            return Result<void>::failure(current.error());
+        }
+        if (!current.value().has_value()) {
+            return Result<void>::failure(UserFacingError::validation(
+                ErrorCode::NotFound, QStringLiteral("The queued transcription job no longer exists.")));
+        }
+        if (current.value()->state == JobState::Cancelled || current.value()->state == JobState::Cancelling) {
+            return Result<void>::failure(jobCancelledError());
+        }
+
         const auto claim = m_jobs.claimQueued(jobId, m_ownerToken);
-        if (!claim)
+        if (!claim) {
+            const auto raced = m_jobs.findById(jobId);
+            if (raced && raced.value().has_value() &&
+                (raced.value()->state == JobState::Cancelled ||
+                 raced.value()->state == JobState::Cancelling)) {
+                return Result<void>::failure(jobCancelledError());
+            }
             return Result<void>::failure(claim.error());
+        }
         if (claim.value().claimed)
             return Result<void>::success();
 
@@ -678,6 +839,21 @@ Result<void> CliTranscriptionPersistence::waitForExecutionClaim(const QString& j
         }
         QThread::msleep(250);
     }
+}
+
+Result<bool> CliTranscriptionPersistence::finishCancellationIfRequested(const QString& reason) {
+    const auto requested = cancellationRequested();
+    if (!requested) {
+        return Result<bool>::failure(requested.error());
+    }
+    if (!requested.value()) {
+        return Result<bool>::success(false);
+    }
+    const auto cancelled = cancel(reason.isEmpty() ? QStringLiteral("Cancelled by the user.") : reason);
+    if (!cancelled) {
+        return Result<bool>::failure(cancelled.error());
+    }
+    return Result<bool>::success(true);
 }
 
 void CliTranscriptionPersistence::refreshChunk(const JobChunk& changed) {

@@ -1,6 +1,7 @@
 #include "breezedesk/cli/CliTranscriptionPersistence.h"
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
+#include "breezedesk/jobs/JobQueue.h"
 #include "breezedesk/jobs/SqliteJobRepository.h"
 #include "breezedesk/transcript/SqliteTranscriptRepository.h"
 
@@ -50,7 +51,126 @@ class CliTranscriptionPersistenceTest final : public QObject {
     void newSessionCheckpointFailureRetainsItsLease();
     void resumedSessionCheckpointFailureRetainsItsLease();
     void cancellingLeaseWaitDoesNotInterruptCurrentOwner();
+    void externalCancellationPreservesCompletedWorkAndPartialSegments();
+    void cancellationCheckpointFailureRetainsItsLease();
+    void externallyCancelledLeaseWaitDoesNotInterruptCurrentOwner();
 };
+
+void CliTranscriptionPersistenceTest::externalCancellationPreservesCompletedWorkAndPartialSegments() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("external-cancel.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    const QString databasePath = directory.filePath(QStringLiteral("library.sqlite"));
+    DatabaseManager database({databasePath});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-external-cancel");
+    descriptor.recording.title = QStringLiteral("External cancellation");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.job.id = QStringLiteral("job-external-cancel");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000), chunk(1, 1'000, 2'000)};
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts, QStringLiteral("headless-owner"));
+    QVERIFY(persistence.beginNew(descriptor));
+    QVERIFY(persistence.beginModelLoad());
+    QVERIFY(persistence.beginTranscription());
+    QVERIFY(persistence.beginChunk(0));
+    QVERIFY(persistence.completeChunk(0, {segment(0, 900, QStringLiteral("completed"))}));
+    QVERIFY(persistence.beginChunk(1));
+    QVERIFY(
+        persistence.saveChunkSegments(1, {segment(1'000, 1'300, QStringLiteral("preserved partial"))}, true));
+
+    DatabaseManager externalDatabase({databasePath});
+    QVERIFY(externalDatabase.initialize());
+    SqliteJobRepository externalJobs(externalDatabase);
+    QVERIFY(JobQueue(externalJobs).cancel(descriptor.job.id));
+    const auto requested = persistence.cancellationRequested();
+    QVERIFY(requested);
+    QVERIFY(requested.value());
+    QVERIFY(persistence.cancel(QStringLiteral("cancelled from another process")));
+
+    const auto cancelledJob = jobs.findById(descriptor.job.id);
+    QVERIFY(cancelledJob && cancelledJob.value().has_value());
+    QCOMPARE(cancelledJob.value()->state, JobState::Cancelled);
+    const auto savedChunks = jobs.chunks(descriptor.job.id);
+    QVERIFY(savedChunks);
+    QCOMPARE(savedChunks.value().size(), 2);
+    QCOMPARE(savedChunks.value().at(0).state, ChunkState::Completed);
+    QCOMPARE(savedChunks.value().at(1).state, ChunkState::Cancelled);
+    const auto savedSegments = transcripts.segmentsForJob(descriptor.job.id, true);
+    QVERIFY(savedSegments);
+    QCOMPARE(savedSegments.value().size(), 2);
+    QCOMPARE(savedSegments.value().at(0).originalText, QStringLiteral("completed"));
+    QCOMPARE(savedSegments.value().at(1).originalText, QStringLiteral("preserved partial"));
+    QVERIFY(savedSegments.value().at(1).provisional);
+    QVERIFY(!jobs.activeLease().value().has_value());
+    QVERIFY(!persistence.isActive());
+}
+
+void CliTranscriptionPersistenceTest::cancellationCheckpointFailureRetainsItsLease() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("cancel-checkpoint.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-cancel-checkpoint");
+    descriptor.recording.title = QStringLiteral("Cancellation checkpoint");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.job.id = QStringLiteral("job-cancel-checkpoint");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts,
+                                            QStringLiteral("checkpoint-owner"));
+    QVERIFY(persistence.beginNew(descriptor));
+    QVERIFY(persistence.beginModelLoad());
+    QVERIFY(persistence.beginTranscription());
+    QVERIFY(persistence.beginChunk(0));
+    QVERIFY(JobQueue(jobs).cancel(descriptor.job.id));
+
+    const auto connection = database.connection();
+    QVERIFY(connection);
+    QSqlQuery rejectTerminal(connection.value());
+    QVERIFY(rejectTerminal.exec(
+        QStringLiteral("CREATE TRIGGER reject_cancel_terminal BEFORE UPDATE OF state ON transcription_jobs "
+                       "WHEN OLD.id='job-cancel-checkpoint' AND NEW.state='Cancelled' BEGIN "
+                       "SELECT RAISE(ABORT,'forced cancellation checkpoint failure'); END")));
+    const auto rejected = persistence.cancel(QStringLiteral("cancel requested"));
+    QVERIFY(!rejected);
+    QVERIFY(rejected.error().technicalDetails.contains(QStringLiteral("forced cancellation")));
+    QVERIFY(persistence.isActive());
+    QCOMPARE(jobs.findById(descriptor.job.id).value()->state, JobState::Cancelling);
+    const auto retainedLease = jobs.activeLease();
+    QVERIFY(retainedLease && retainedLease.value().has_value());
+    QCOMPARE(retainedLease.value()->jobId, descriptor.job.id);
+    QCOMPARE(retainedLease.value()->ownerToken, QStringLiteral("checkpoint-owner"));
+
+    QSqlQuery allowTerminal(connection.value());
+    QVERIFY(allowTerminal.exec(QStringLiteral("DROP TRIGGER reject_cancel_terminal")));
+    QVERIFY(persistence.cancel(QStringLiteral("cancel requested")));
+    QCOMPARE(jobs.findById(descriptor.job.id).value()->state, JobState::Cancelled);
+    QVERIFY(!jobs.activeLease().value().has_value());
+    QVERIFY(!persistence.isActive());
+}
 
 void CliTranscriptionPersistenceTest::newSessionCheckpointFailureRetainsItsLease() {
     QTemporaryDir directory;
@@ -69,8 +189,8 @@ void CliTranscriptionPersistenceTest::newSessionCheckpointFailureRetainsItsLease
     const auto connection = database.connection();
     QVERIFY(connection);
     QSqlQuery rejectCheckpoint(connection.value());
-    QVERIFY(rejectCheckpoint.exec(QStringLiteral(
-        "CREATE TRIGGER reject_new_session_checkpoint BEFORE UPDATE ON transcription_jobs "
+    QVERIFY(rejectCheckpoint.exec(
+        QStringLiteral("CREATE TRIGGER reject_new_session_checkpoint BEFORE UPDATE ON transcription_jobs "
         "WHEN OLD.id='job-checkpoint-new' AND OLD.state='Preparing' BEGIN "
         "SELECT RAISE(ABORT,'forced new-session checkpoint failure'); END")));
 
@@ -610,6 +730,69 @@ void CliTranscriptionPersistenceTest::cancellingLeaseWaitDoesNotInterruptCurrent
     const auto cancelledWaiter = jobs.findById(descriptor.job.id);
     QVERIFY(cancelledWaiter && cancelledWaiter.value().has_value());
     QCOMPARE(cancelledWaiter.value()->state, JobState::Cancelled);
+}
+
+void CliTranscriptionPersistenceTest::externallyCancelledLeaseWaitDoesNotInterruptCurrentOwner() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("externally-queued.wav"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    const QString databasePath = directory.filePath(QStringLiteral("library.sqlite"));
+    DatabaseManager database({databasePath});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+    Recording recording;
+    recording.id = QStringLiteral("recording-external-wait");
+    recording.title = QStringLiteral("External lease wait cancellation");
+    recording.sourcePath = sourcePath;
+    QVERIFY(recordings.create(recording));
+
+    TranscriptionJob current;
+    current.id = QStringLiteral("external-wait-current-owner");
+    current.recordingId = recording.id;
+    QVERIFY(jobs.createQueued(current));
+    const auto claimed = jobs.claimQueued(current.id, QStringLiteral("gui-owner"));
+    QVERIFY(claimed && claimed.value().claimed);
+
+    DatabaseManager externalDatabase({databasePath});
+    QVERIFY(externalDatabase.initialize());
+    SqliteJobRepository externalJobs(externalDatabase);
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording = recording;
+    descriptor.job.id = QStringLiteral("externally-cancelled-waiter");
+    descriptor.job.recordingId = recording.id;
+    descriptor.chunks = {chunk(0, 0, 1'000)};
+
+    bool cancellationSent = false;
+    CliTranscriptionPersistence waiting(recordings, jobs, transcripts, QStringLiteral("waiting-owner"),
+                                        [&externalJobs, &cancellationSent, jobId = descriptor.job.id] {
+                                            if (!cancellationSent) {
+                                                cancellationSent = true;
+                                                const auto cancelled = JobQueue(externalJobs).cancel(jobId);
+                                                return !cancelled;
+                                            }
+                                            return false;
+                                        });
+    const auto started = waiting.beginNew(descriptor);
+    QVERIFY(!started);
+    QCOMPARE(started.error().code, ErrorCode::JobCancelled);
+    QVERIFY(cancellationSent);
+    QVERIFY(!waiting.isActive());
+
+    const auto currentAfterCancellation = jobs.findById(current.id);
+    QVERIFY(currentAfterCancellation && currentAfterCancellation.value().has_value());
+    QCOMPARE(currentAfterCancellation.value()->state, JobState::Preparing);
+    const auto lease = jobs.activeLease();
+    QVERIFY(lease && lease.value().has_value());
+    QCOMPARE(lease.value()->jobId, current.id);
+    QCOMPARE(lease.value()->ownerToken, QStringLiteral("gui-owner"));
+    QCOMPARE(jobs.findById(descriptor.job.id).value()->state, JobState::Cancelled);
 }
 
 QTEST_GUILESS_MAIN(CliTranscriptionPersistenceTest)

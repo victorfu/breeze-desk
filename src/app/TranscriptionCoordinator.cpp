@@ -18,6 +18,7 @@
 #include "breezedesk/glossary/IGlossaryRepository.h"
 #include "breezedesk/ipc/AsrWorkerClient.h"
 #include "breezedesk/jobs/IJobRepository.h"
+#include "breezedesk/jobs/JobQueue.h"
 #include "breezedesk/jobs/JobRecoveryService.h"
 #include "breezedesk/jobs/JobStateMachine.h"
 #include "breezedesk/models/ModelManager.h"
@@ -461,29 +462,30 @@ void TranscriptionCoordinator::cancel(const QString& jobId) {
         emit errorOccurred(current ? tr("The job no longer exists.") : current.error().message);
         return;
     }
-    if (!activeJobMatches(jobId)) {
-        const auto result = m_jobs.transition(jobId, JobState::Cancelled);
+    const auto result = JobQueue(m_jobs).cancel(jobId);
         if (!result) {
             emit errorOccurred(result.error().message);
+        return;
         }
         publish(jobId);
         publishEvents(jobId);
+    if (!activeJobMatches(jobId)) {
         return;
     }
-    const auto transition = m_jobs.transition(jobId, JobState::Cancelling);
-    if (!transition) {
-        emit errorOccurred(transition.error().message);
-        return;
-    }
+    const bool firstRequest = m_activeJob.state != JobState::Cancelling;
     m_activeJob.state = JobState::Cancelling;
-    publish(jobId);
-    publishEvents(jobId);
+    if (firstRequest) {
+        abortActiveOperationForCancellation();
+    }
+}
+
+void TranscriptionCoordinator::abortActiveOperationForCancellation() {
     if (m_normalization != nullptr && m_normalization->isRunning()) {
         m_normalization->cancel();
     } else if (m_waveformCancellation != nullptr) {
         m_waveformCancellation->store(true, std::memory_order_relaxed);
     } else if (m_requestKind == RequestKind::AnalyzeSpeech || m_requestKind == RequestKind::TranscribeChunk) {
-        m_worker.forceCancelAfterGrace(jobId);
+        m_worker.forceCancelAfterGrace(m_activeJob.id);
     } else if (m_requestKind == RequestKind::LoadModel) {
         // Model loading is not safely interruptible inside whisper.cpp. Finish the load,
         // then honour cancellation without starting inference.
@@ -627,6 +629,20 @@ void TranscriptionCoordinator::renewActiveLease() {
         m_leaseHeartbeatTimer.stop();
         return;
     }
+    const auto current = m_jobs.findById(m_activeJob.id);
+    if (current && current.value().has_value() &&
+        (current.value()->state == JobState::Cancelling || current.value()->state == JobState::Cancelled)) {
+        const bool firstRequest = m_activeJob.state != JobState::Cancelling;
+        m_activeJob.state = JobState::Cancelling;
+        if (firstRequest) {
+            publish(m_activeJob.id);
+            publishEvents(m_activeJob.id);
+            abortActiveOperationForCancellation();
+        }
+        if (m_activeJob.id.isEmpty()) {
+            return;
+        }
+    }
     const auto renewed = m_jobs.renewLease(m_activeJob.id, m_ownerToken);
     if (renewed) {
         return;
@@ -681,13 +697,16 @@ void TranscriptionCoordinator::verifySourceMedia() {
     const QString jobId = m_activeJob.id;
     const QString sourcePath = m_activeSourcePath;
     auto* watcher = new QFutureWatcher<SourceHashResult>(this);
-    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this,
-            [this, watcher, jobId] {
+    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this, [this, watcher, jobId] {
                 const SourceHashResult result = watcher->result();
                 watcher->deleteLater();
                 if (!activeJobMatches(jobId)) {
                     return;
                 }
+        if (m_activeJob.state == JobState::Cancelling) {
+            finishCancellation();
+            return;
+        }
                 if (result.sha256.isEmpty()) {
                     failActiveJob(QStringLiteral("SourceFileMissing"),
                                   tr("The source media file could not be read: %1").arg(result.error));
@@ -698,8 +717,7 @@ void TranscriptionCoordinator::verifySourceMedia() {
                 const auto recording = m_recordings.findById(m_activeJob.recordingId);
                 if (!recording || !recording.value().has_value()) {
                     failActiveJob(QStringLiteral("SourceFileMissing"),
-                                  recording ? tr("The recording no longer exists.")
-                                            : recording.error().message);
+                          recording ? tr("The recording no longer exists.") : recording.error().message);
                     return;
                 }
                 const Recording& value = recording.value().value();
@@ -711,13 +729,11 @@ void TranscriptionCoordinator::verifySourceMedia() {
                     failActiveJob(QStringLiteral("DatabaseQueryFailed"), chunks.error().message);
                     return;
                 }
-                const QString jobSourceHash =
-                    m_activeJob.parameters.value(QStringLiteral("sourceHash")).toString();
+        const QString jobSourceHash = m_activeJob.parameters.value(QStringLiteral("sourceHash")).toString();
                 if ((!jobSourceHash.isEmpty() &&
                      jobSourceHash.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) ||
                     (jobSourceHash.isEmpty() && !chunks.value().isEmpty())) {
-                    failActiveJob(
-                        QStringLiteral("SourceMediaChanged"),
+            failActiveJob(QStringLiteral("SourceMediaChanged"),
                         jobSourceHash.isEmpty()
                             ? tr("This transcription has no verified source-media identity. Start a new "
                                  "transcription so existing chunks are not mixed with different audio.")
@@ -738,10 +754,9 @@ void TranscriptionCoordinator::verifySourceMedia() {
 
                 NormalizedAudioInfo cachedAudio;
                 QString cacheError;
-                const bool reusableCache =
-                    cacheSourceMatches && value.durationMs > 0 &&
-                    NormalizedAudioValidator::validate(m_activeNormalizedPath, value.durationMs,
-                                                       &cachedAudio, &cacheError);
+        const bool reusableCache = cacheSourceMatches && value.durationMs > 0 &&
+                                   NormalizedAudioValidator::validate(
+                                       m_activeNormalizedPath, value.durationMs, &cachedAudio, &cacheError);
                 if (reusableCache) {
                     if (!persistNormalizedDuration(cachedAudio.durationMs, &cacheError)) {
                         failActiveJob(QStringLiteral("DatabaseQueryFailed"), cacheError);
@@ -900,8 +915,7 @@ void TranscriptionCoordinator::beginNormalization() {
                 if (!NormalizedAudioValidator::validate(outputPath, expectedDuration, &normalizedAudio,
                                                         &validationError)) {
                     failActiveJob(QStringLiteral("AudioDecodeFailed"),
-                                  tr("The decoded audio could not be validated: %1")
-                                      .arg(validationError));
+                                  tr("The decoded audio could not be validated: %1").arg(validationError));
                     return;
                 }
                 verifyNormalizedSource(normalizedAudio.durationMs);
@@ -912,20 +926,17 @@ void TranscriptionCoordinator::verifyNormalizedSource(const qint64 durationMs) {
     const QString jobId = m_activeJob.id;
     const QString sourcePath = m_activeSourcePath;
     auto* watcher = new QFutureWatcher<SourceHashResult>(this);
-    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this,
-            [this, watcher, jobId, durationMs] {
+    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this, [this, watcher, jobId, durationMs] {
                 const SourceHashResult result = watcher->result();
                 watcher->deleteLater();
                 if (!activeJobMatches(jobId)) {
                     return;
                 }
-                if (result.sha256.isEmpty() ||
-                    result.sha256.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) {
+        if (result.sha256.isEmpty() || result.sha256.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) {
                     failActiveJob(
                         QStringLiteral("SourceMediaChanged"),
                         result.sha256.isEmpty()
-                            ? tr("The source media could not be verified after audio decoding: %1")
-                                  .arg(result.error)
+                    ? tr("The source media could not be verified after audio decoding: %1").arg(result.error)
                             : tr("The source media changed while its audio was being decoded. Start the "
                                  "transcription again."));
                     return;
@@ -1026,8 +1037,7 @@ void TranscriptionCoordinator::prepareChunks() {
                 return chunk.state != ChunkState::Pending || chunk.attempts > 0;
             });
         if (planHasStarted && m_chunks.constLast().endMs < duration) {
-            failActiveJob(
-                QStringLiteral("ChunkPlanMismatch"),
+            failActiveJob(QStringLiteral("ChunkPlanMismatch"),
                 tr("The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. "
                    "Start a new transcription so the audio tail is not omitted.")
                     .arg(duration)
@@ -1036,8 +1046,7 @@ void TranscriptionCoordinator::prepareChunks() {
         }
         if (!planHasStarted && m_chunks.constLast().endMs != duration) {
             QString error;
-            if (!saveChunkPlan(
-                    makeJobChunks(m_activeJob.id, Asr::LongFormChunkPlanner().plan(duration, {})),
+            if (!saveChunkPlan(makeJobChunks(m_activeJob.id, Asr::LongFormChunkPlanner().plan(duration, {})),
                     &error)) {
                 failActiveJob(QStringLiteral("DatabaseQueryFailed"), error);
                 return;
@@ -1598,8 +1607,7 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         const qint64 normalizedDuration =
             m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
         if (durationMs != normalizedDuration) {
-            failActiveJob(
-                QStringLiteral("WorkerProtocolMismatch"),
+            failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
                 tr("Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.")
                     .arg(durationMs)
                     .arg(normalizedDuration));
@@ -1844,10 +1852,18 @@ bool TranscriptionCoordinator::finalizeCurrentChunk(QString* error) {
 }
 
 void TranscriptionCoordinator::completeActiveJob() {
+    if (durableCancellationWins()) {
+        finishCancellation();
+        return;
+    }
     const QString jobId = m_activeJob.id;
     const QString recordingId = m_activeJob.recordingId;
     const auto finalizing = m_jobs.transition(jobId, JobState::Finalizing);
     if (!finalizing) {
+        if (durableCancellationWins()) {
+            finishCancellation();
+            return;
+        }
         failActiveJob(QStringLiteral("InvalidStateTransition"), finalizing.error().message);
         return;
     }
@@ -1856,6 +1872,10 @@ void TranscriptionCoordinator::completeActiveJob() {
     advanceProgress(JobStage::Finalizing, 1.0, m_activeJob.lastCompletedChunk);
     const auto completed = m_jobs.completeAndActivate(recordingId, jobId, m_ownerToken);
     if (!completed) {
+        if (durableCancellationWins()) {
+            finishCancellation();
+            return;
+        }
         failActiveJob(QStringLiteral("DatabaseQueryFailed"), completed.error().message);
         return;
     }
@@ -1877,6 +1897,10 @@ void TranscriptionCoordinator::failActiveJob(const QString& code, const QString&
         emit errorOccurred(message);
         return;
     }
+    if (durableCancellationWins()) {
+        finishCancellation();
+        return;
+    }
     const QString jobId = m_activeJob.id;
     if (m_currentChunkIndex >= 0 && m_currentChunkIndex < m_chunks.size()) {
         JobChunk& chunk = m_chunks[m_currentChunkIndex];
@@ -1888,6 +1912,10 @@ void TranscriptionCoordinator::failActiveJob(const QString& code, const QString&
     }
     const auto failed = m_jobs.transition(jobId, JobState::Failed, code, message);
     if (!failed) {
+        if (durableCancellationWins()) {
+            finishCancellation();
+            return;
+        }
         emit errorOccurred(failed.error().message);
         if (terminalTransitionNeedsRetry(jobId)) {
             QTimer::singleShot(1'000, this, [this, jobId, code, message] {
@@ -1912,6 +1940,24 @@ void TranscriptionCoordinator::failActiveJob(const QString& code, const QString&
     QTimer::singleShot(0, this, &TranscriptionCoordinator::scheduleNext);
 }
 
+bool TranscriptionCoordinator::durableCancellationWins() {
+    if (m_activeJob.id.isEmpty()) {
+        return false;
+    }
+    if (m_activeJob.state == JobState::Cancelling) {
+        return true;
+    }
+    const auto current = m_jobs.findById(m_activeJob.id);
+    if (!current || !current.value().has_value()) {
+        return false;
+    }
+    if (current.value()->state != JobState::Cancelling && current.value()->state != JobState::Cancelled) {
+        return false;
+    }
+    m_activeJob.state = JobState::Cancelling;
+    return true;
+}
+
 void TranscriptionCoordinator::finishCancellation() {
     if (m_activeJob.id.isEmpty()) {
         return;
@@ -1919,13 +1965,26 @@ void TranscriptionCoordinator::finishCancellation() {
     const QString jobId = m_activeJob.id;
     if (m_currentChunkIndex >= 0 && m_currentChunkIndex < m_chunks.size()) {
         JobChunk& chunk = m_chunks[m_currentChunkIndex];
-        if (chunk.state == ChunkState::Running) {
-            chunk.state = ChunkState::Cancelled;
-            chunk.error = tr("Transcription was cancelled.");
-            (void)m_jobs.updateChunk(chunk);
+        if (chunk.state == ChunkState::Running || chunk.state == ChunkState::Failed ||
+            chunk.state == ChunkState::Interrupted) {
+            JobChunk cancelledChunk = chunk;
+            cancelledChunk.state = ChunkState::Cancelled;
+            cancelledChunk.error = tr("Transcription was cancelled.");
+            const auto updated = m_jobs.updateChunk(cancelledChunk);
+            if (!updated) {
+                emit errorOccurred(updated.error().message);
+                QTimer::singleShot(1'000, this, [this, jobId] {
+                    if (activeJobMatches(jobId)) {
+                        finishCancellation();
+                    }
+                });
+                return;
+            }
+            chunk = std::move(cancelledChunk);
         }
     }
-    const auto cancelled = m_jobs.transition(jobId, JobState::Cancelled);
+    const auto cancelled = m_jobs.transition(jobId, JobState::Cancelled, QStringLiteral("JobCancelled"),
+                                             tr("Transcription was cancelled."));
     if (!cancelled) {
         emit errorOccurred(cancelled.error().message);
         if (terminalTransitionNeedsRetry(jobId)) {
@@ -1956,6 +2015,10 @@ void TranscriptionCoordinator::interruptActiveJob(const QString& reason) {
     if (m_activeJob.id.isEmpty()) {
         return;
     }
+    if (durableCancellationWins()) {
+        finishCancellation();
+        return;
+    }
     const QString jobId = m_activeJob.id;
     if (m_currentChunkIndex >= 0 && m_currentChunkIndex < m_chunks.size()) {
         JobChunk& chunk = m_chunks[m_currentChunkIndex];
@@ -1968,6 +2031,10 @@ void TranscriptionCoordinator::interruptActiveJob(const QString& reason) {
     const auto interrupted =
         m_jobs.transition(jobId, JobState::Interrupted, QStringLiteral("WorkerCrashed"), reason);
     if (!interrupted) {
+        if (durableCancellationWins()) {
+            finishCancellation();
+            return;
+        }
         emit errorOccurred(interrupted.error().message);
         if (terminalTransitionNeedsRetry(jobId)) {
             QTimer::singleShot(1'000, this, [this, jobId, reason] {

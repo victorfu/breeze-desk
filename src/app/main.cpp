@@ -90,8 +90,7 @@ int main(int argc, char* argv[]) {
     const BreezeDesk::StorageLayoutInitializationResult storageInitialization =
         BreezeDesk::StoragePaths::initializeLayout(storageSettings.dataDirectoryOverride());
     if (!storageInitialization.succeeded) {
-        const QByteArray safeError =
-            BreezeDesk::LogSanitizer::sanitize(storageInitialization.error).toUtf8();
+        const QByteArray safeError = BreezeDesk::LogSanitizer::sanitize(storageInitialization.error).toUtf8();
         std::fprintf(stderr, "%s storage initialization failed: %s\n", qUtf8Printable(productName),
                      safeError.constData());
         return 10;
@@ -611,10 +610,10 @@ int main(int argc, char* argv[]) {
                              (void)viewModel->enqueueTranscription(recordingId);
                          }
                      });
-    instanceGuard.setCommandHandler([showWindow, viewModel = viewModel.get(), &recordingRepository,
-                                     &jobRepository, &modelManager, pendingForwardedTranscriptions,
-                                     &application](const QStringList& commandArguments)
-                                        -> BreezeDesk::Ipc::ApplicationCommandReply {
+    instanceGuard.setCommandHandler(
+        [showWindow, viewModel = viewModel.get(), &recordingRepository, &jobRepository, &modelManager,
+         &transcriptionCoordinator, pendingForwardedTranscriptions,
+         &application](const QStringList& commandArguments) -> BreezeDesk::Ipc::ApplicationCommandReply {
         BreezeDesk::Ipc::ApplicationCommandReply reply;
         if (commandArguments.isEmpty()) {
             return reply;
@@ -653,7 +652,8 @@ int main(int argc, char* argv[]) {
             for (const QString& path : paths) {
                 const QFileInfo file(path);
                 if (!file.isFile()) {
-                    setError(CliSourceMissingExitCode, QStringLiteral("Source file not found: %1").arg(path));
+                        setError(CliSourceMissingExitCode,
+                                 QStringLiteral("Source file not found: %1").arg(path));
                     return reply;
                 }
                 urls.append(QUrl::fromLocalFile(file.absoluteFilePath()));
@@ -750,10 +750,11 @@ int main(int argc, char* argv[]) {
                 return reply;
             }
             const BreezeDesk::JobState state = job.value()->state;
-            if (state != BreezeDesk::JobState::Cancelling &&
-                !BreezeDesk::JobStateMachine::canTransition(
-                    state, BreezeDesk::JobStateMachine::isRunning(state) ? BreezeDesk::JobState::Cancelling
-                                                                         : BreezeDesk::JobState::Cancelled)) {
+                const bool cancellable = state == BreezeDesk::JobState::Queued ||
+                                         state == BreezeDesk::JobState::Interrupted ||
+                                         state == BreezeDesk::JobState::Cancelling ||
+                                         BreezeDesk::JobStateMachine::isRunning(state);
+                if (!cancellable) {
                 setError(CliDatabaseFailureExitCode,
                          QStringLiteral("Job %1 cannot be cancelled from state %2.")
                              .arg(jobId, BreezeDesk::jobStateName(state)));
@@ -761,12 +762,23 @@ int main(int argc, char* argv[]) {
             }
             showWindow();
             viewModel->navigate(QStringLiteral("Queue"));
-            if (state != BreezeDesk::JobState::Cancelling) {
-                viewModel->jobQueue()->cancel(jobId);
+                transcriptionCoordinator.cancel(jobId);
+                const auto updated = jobRepository.findById(jobId);
+                if (!updated || !updated.value().has_value()) {
+                    setError(CliDatabaseFailureExitCode,
+                             updated ? QStringLiteral("Job not found after cancellation: %1").arg(jobId)
+                                     : updated.error().diagnosticString());
+                    return reply;
             }
-            const QString requestedState = BreezeDesk::JobStateMachine::isRunning(state)
-                                               ? QStringLiteral("Cancelling")
-                                               : QStringLiteral("Cancelled");
+                const BreezeDesk::JobState updatedState = updated.value()->state;
+                if (updatedState != BreezeDesk::JobState::Cancelling &&
+                    updatedState != BreezeDesk::JobState::Cancelled) {
+                    setError(CliDatabaseFailureExitCode,
+                             QStringLiteral("Job %1 did not accept the cancellation request (state %2).")
+                                 .arg(jobId, BreezeDesk::jobStateName(updatedState)));
+                    return reply;
+                }
+                const QString requestedState = BreezeDesk::jobStateName(updatedState);
             reply.handled = true;
             setOutput({{QStringLiteral("schemaVersion"), 1},
                        {QStringLiteral("forwarded"), true},
@@ -780,7 +792,8 @@ int main(int argc, char* argv[]) {
             positional.at(1) == QLatin1String("download")) {
             const QString modelId = positional.at(2);
             if (modelManager.manifest().find(modelId) == nullptr) {
-                setError(CliInvalidArgumentsExitCode, QStringLiteral("Unknown model id: %1").arg(modelId));
+                    setError(CliInvalidArgumentsExitCode,
+                             QStringLiteral("Unknown model id: %1").arg(modelId));
                 return reply;
             }
             showWindow();
