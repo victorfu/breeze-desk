@@ -235,6 +235,59 @@ class LibraryWorkflowsTest final : public QObject {
         QVERIFY(paths.contains(QFileInfo(second).absoluteFilePath()));
     }
 
+    void directImportRejectsUnsupportedMediaBeforeManagedCopy() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+        qputenv("BREEZEDESK_DATA_ROOT",
+                directory.filePath(QStringLiteral("application-data")).toUtf8());
+        QVERIFY(BreezeDesk::StoragePaths::ensureLayout());
+
+        const QString unsupported = directory.filePath(QStringLiteral("source/meeting-notes.txt"));
+        createFile(unsupported);
+        BreezeDesk::DatabaseManager database(
+            {directory.filePath(QStringLiteral("unsupported-import.sqlite3")), 5'000, true, false});
+        QVERIFY(database.initialize());
+        BreezeDesk::SqliteRecordingRepository repository(database);
+        BreezeDesk::ApplicationViewModel viewModel(&repository);
+        QSignalSpy rejected(viewModel.library(), &BreezeDesk::LibraryViewModel::importRejected);
+        QVERIFY(rejected.isValid());
+
+        QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(unsupported)}), 0);
+        QCOMPARE(rejected.count(), 1);
+        QCOMPARE(rejected.constLast().at(1).toString(),
+                 QStringLiteral("The selected file is not a supported audio or video file."));
+        auto recordings = repository.list({});
+        QVERIFY(recordings);
+        QVERIFY(recordings.value().items.isEmpty());
+
+        viewModel.setManagedMediaCopyEnabled(true);
+        QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(unsupported)}), 0);
+        QCOMPARE(rejected.count(), 2);
+        QCOMPARE(rejected.constLast().at(1).toString(),
+                 QStringLiteral("The selected file is not a supported audio or video file."));
+        recordings = repository.list({});
+        QVERIFY(recordings);
+        QVERIFY(recordings.value().items.isEmpty());
+
+        const QString unsupportedManaged =
+            QDir(BreezeDesk::StoragePaths::recordings())
+                .filePath(QStringLiteral("defensive-unsupported.txt"));
+        createFile(unsupportedManaged);
+        QVERIFY(viewModel.library()
+                    ->importManagedCopy(QUrl::fromLocalFile(unsupported), unsupportedManaged)
+                    .isEmpty());
+        QCOMPARE(rejected.count(), 3);
+        QCOMPARE(rejected.constLast().at(1).toString(),
+                 QStringLiteral("The selected file is not a supported audio or video file."));
+        QVERIFY(QFile::remove(unsupportedManaged));
+        QVERIFY(QDir(BreezeDesk::StoragePaths::recordings()).entryList(QDir::Files).isEmpty());
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
+                         .filePath(QStringLiteral("managed-imports")))
+                    .entryList(QDir::Files)
+                    .isEmpty());
+    }
+
     void folderImportCanBeCancelledBeforeResultsAreApplied() {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());

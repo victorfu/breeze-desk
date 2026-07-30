@@ -486,6 +486,13 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
         const QUrl url = value.canConvert<QUrl>() ? value.toUrl() : QUrl::fromLocalFile(value.toString());
         const QFileInfo source(url.toLocalFile());
         if (url.isLocalFile() && source.isFile() &&
+            !MediaFileSupport::isSupportedPath(source.fileName())) {
+            // Route the rejection through LibraryViewModel so every import mode reports the same
+            // user-facing error without scheduling an unnecessary managed copy first.
+            referencedUrls.append(url);
+            continue;
+        }
+        if (url.isLocalFile() && source.isFile() &&
             isInsideDirectory(source.absoluteFilePath(), StoragePaths::recordings())) {
             const bool imported = !m_library.importManagedCopy(url, source.absoluteFilePath()).isEmpty();
             if (imported) {

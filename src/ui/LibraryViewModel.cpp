@@ -162,6 +162,10 @@ int LibraryViewModel::importUrls(const QVariantList& urls) {
             emit importRejected(url, tr("The selected file does not exist or is not a local file."));
             continue;
         }
+        if (!MediaFileSupport::isSupportedPath(info.fileName())) {
+            emit importRejected(url, tr("The selected file is not a supported audio or video file."));
+            continue;
+        }
         if (m_repository == nullptr) {
             const QString recordingId = m_source.addSource(url);
             emit recordingImported(recordingId, info.absoluteFilePath());
@@ -199,6 +203,12 @@ QString LibraryViewModel::importManagedCopy(const QUrl& originalUrl, const QStri
     if (m_repository == nullptr || !originalUrl.isLocalFile() || !original.isFile() || !managed.isFile() ||
         !isFileWithin(managed.absoluteFilePath(), StoragePaths::recordings())) {
         emit importRejected(originalUrl, tr("The managed media copy could not be imported."));
+        return {};
+    }
+    if (!MediaFileSupport::isSupportedPath(original.fileName()) ||
+        !MediaFileSupport::isSupportedPath(managed.fileName())) {
+        emit importRejected(originalUrl,
+                            tr("The selected file is not a supported audio or video file."));
         return {};
     }
     Recording recording;
