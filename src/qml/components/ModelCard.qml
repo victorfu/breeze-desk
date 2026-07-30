@@ -219,7 +219,7 @@ Rectangle {
                 }
                 AppButton {
                     visible: root.installed
-                    enabled: root.modelState !== "Testing"
+                    enabled: root.modelState !== "Testing" && root.modelState !== "Verifying"
                     text: qsTr("Verify")
                     onClicked: root.verifyRequested(root.modelId)
                 }

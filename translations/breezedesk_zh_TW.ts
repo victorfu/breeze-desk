@@ -373,6 +373,18 @@
         <translation>刪除前請先卸載此模型。</translation>
     </message>
     <message>
+        <source>Wait for model verification to finish before deleting it.</source>
+        <translation>請等待模型驗證完成後再刪除。</translation>
+    </message>
+    <message>
+        <source>This model is already being verified.</source>
+        <translation>此模型正在驗證中。</translation>
+    </message>
+    <message>
+        <source>Model verification failed.</source>
+        <translation>模型驗證失敗。</translation>
+    </message>
+    <message>
         <location filename="../src/ui/ModelManagerViewModel.cpp" line="495"/>
         <source>Model deleted.</source>
         <translation>已刪除模型。</translation>
@@ -386,6 +398,14 @@
         <location filename="../src/ui/ModelManagerViewModel.cpp" line="542"/>
         <source>Choose an existing local GGML .bin file.</source>
         <translation>請選擇現有的本機 GGML .bin 檔案。</translation>
+    </message>
+    <message>
+        <source>This model is already being imported.</source>
+        <translation>此模型正在匯入中。</translation>
+    </message>
+    <message>
+        <source>The custom model could not be imported.</source>
+        <translation>無法匯入自訂模型。</translation>
     </message>
     <message>
         <location filename="../src/ui/ModelManagerViewModel.cpp" line="652"/>

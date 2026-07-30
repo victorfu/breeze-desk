@@ -376,6 +376,18 @@
         <translation>Unload this model before deleting it.</translation>
     </message>
     <message>
+        <source>Wait for model verification to finish before deleting it.</source>
+        <translation>Wait for model verification to finish before deleting it.</translation>
+    </message>
+    <message>
+        <source>This model is already being verified.</source>
+        <translation>This model is already being verified.</translation>
+    </message>
+    <message>
+        <source>Model verification failed.</source>
+        <translation>Model verification failed.</translation>
+    </message>
+    <message>
         <location filename="../src/ui/ModelManagerViewModel.cpp" line="495"/>
         <source>Model deleted.</source>
         <translation>Model deleted.</translation>
@@ -389,6 +401,14 @@
         <location filename="../src/ui/ModelManagerViewModel.cpp" line="542"/>
         <source>Choose an existing local GGML .bin file.</source>
         <translation>Choose an existing local GGML .bin file.</translation>
+    </message>
+    <message>
+        <source>This model is already being imported.</source>
+        <translation>This model is already being imported.</translation>
+    </message>
+    <message>
+        <source>The custom model could not be imported.</source>
+        <translation>The custom model could not be imported.</translation>
     </message>
     <message>
         <location filename="../src/ui/ModelManagerViewModel.cpp" line="652"/>

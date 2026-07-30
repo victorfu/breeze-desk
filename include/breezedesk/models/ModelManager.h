@@ -1,6 +1,7 @@
 #pragma once
 
 #include "breezedesk/models/ModelDownloadOperation.h"
+#include "breezedesk/models/ModelFileOperations.h"
 #include "breezedesk/models/ModelManifest.h"
 
 #include <QHash>
@@ -39,6 +40,11 @@ class ModelManager final : public QObject {
     [[nodiscard]] QString modelPath(const QString& id) const;
     [[nodiscard]] QByteArray expectedSha256(const QString& id) const;
     [[nodiscard]] QList<CustomModelInfo> customModels() const;
+    [[nodiscard]] ModelVerificationSnapshot verificationSnapshot(const QString& id) const;
+    [[nodiscard]] CustomModelImportRequest customModelImportRequest(const QString& sourcePath,
+                                                                    const QString& displayName) const;
+    [[nodiscard]] bool commitCustomModelImport(const PreparedCustomModelImport& prepared,
+                                               QString* error = nullptr);
     [[nodiscard]] bool verify(const QString& id, QString* error = nullptr) const;
     [[nodiscard]] bool importCustomModel(const QString& sourcePath, const QString& displayName,
                                          QString* modelId, QString* error = nullptr);
@@ -52,6 +58,7 @@ class ModelManager final : public QObject {
     void modelsChanged();
 
   private:
+    void assertOwnerThread(const char* operation) const;
     void discoverCustomModels();
 
     ModelManifest m_manifest;

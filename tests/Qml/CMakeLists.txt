@@ -44,3 +44,13 @@ breezedesk_enable_strict_warnings(tst_JobQueueViewModel)
 add_test(NAME Qml.JobQueueViewModel COMMAND tst_JobQueueViewModel)
 set_tests_properties(Qml.JobQueueViewModel PROPERTIES LABELS "Qml;Unit"
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic")
+
+qt_add_executable(tst_ModelManagerViewModel
+    tst_ModelManagerViewModel.cpp
+    ${PROJECT_SOURCE_DIR}/resources/resources.qrc)
+target_include_directories(tst_ModelManagerViewModel PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/ui)
+target_link_libraries(tst_ModelManagerViewModel PRIVATE breezedesk_ui Qt6::Test)
+breezedesk_enable_strict_warnings(tst_ModelManagerViewModel)
+add_test(NAME Qml.ModelManagerViewModel COMMAND tst_ModelManagerViewModel)
+set_tests_properties(Qml.ModelManagerViewModel PROPERTIES LABELS "Qml;Unit")

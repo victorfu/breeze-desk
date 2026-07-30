@@ -29,6 +29,7 @@ add_library(breezedesk_ui STATIC
     JobQueueViewModel.cpp
     LibraryViewModel.cpp
     ModelManagerViewModel.cpp
+    ModelManagerViewModelOperations.h
     PlayerViewModel.cpp
     RecordingDetailViewModel.cpp
     RecordingListModel.cpp

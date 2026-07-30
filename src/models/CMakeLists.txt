@@ -2,9 +2,11 @@ add_library(breezedesk_models STATIC
     ${PROJECT_SOURCE_DIR}/include/breezedesk/models/ModelManifest.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/models/IModelRepository.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/models/ModelDownloadOperation.h
+    ${PROJECT_SOURCE_DIR}/include/breezedesk/models/ModelFileOperations.h
     ${PROJECT_SOURCE_DIR}/include/breezedesk/models/ModelManager.h
     ModelManifest.cpp
     ModelDownloadOperation.cpp
+    ModelFileOperations.cpp
     ModelManager.cpp)
 
 target_link_libraries(breezedesk_models

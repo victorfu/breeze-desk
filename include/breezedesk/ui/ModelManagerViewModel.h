@@ -1,12 +1,25 @@
 #pragma once
 
+#include "breezedesk/models/ModelFileOperations.h"
+
 #include <QAbstractListModel>
 #include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QThreadPool>
 #include <QUrl>
 
+#include <atomic>
+#include <memory>
+
+template <typename T> class QFutureWatcher;
+
 namespace BreezeDesk {
+
+namespace Internal {
+struct ModelManagerViewModelOperations;
+struct ModelManagerViewModelTestAccess;
+} // namespace Internal
 
 class ModelDownloadOperation;
 class ModelManager;
@@ -104,6 +117,7 @@ class ModelManagerViewModel final : public QObject {
 
   public:
     explicit ModelManagerViewModel(QObject* parent = nullptr);
+    ~ModelManagerViewModel() override;
 
     // Dependencies remain owned by the application composition root and must
     // outlive this view model. Omitting them keeps the QML smoke-test mode.
@@ -152,6 +166,27 @@ class ModelManagerViewModel final : public QObject {
     void downloadFinished(const QString& id, bool success, const QString& error);
 
   private:
+    struct VerifyTask {
+        QFutureWatcher<ModelVerificationResult>* watcher{nullptr};
+        std::shared_ptr<std::atomic_bool> cancellation;
+        quint64 generation{0};
+        quint64 token{0};
+    };
+
+    struct ImportTask {
+        QFutureWatcher<PreparedCustomModelImport>* watcher{nullptr};
+        std::shared_ptr<std::atomic_bool> cancellation;
+        CustomModelImportRequest request;
+        QString sourceKey;
+        quint64 generation{0};
+        quint64 token{0};
+    };
+
+    explicit ModelManagerViewModel(Internal::ModelManagerViewModelOperations operations,
+                                   QObject* parent);
+    friend struct Internal::ModelManagerViewModelTestAccess;
+
+    void cancelAndDrainFileOperations();
     void refreshFromService();
     void refreshDefaultModelReady();
     void refreshDefaultModelDownload();
@@ -170,6 +205,14 @@ class ModelManagerViewModel final : public QObject {
     QPointer<ModelManager> m_modelManager;
     ModelSettingsManager* m_settingsManager{nullptr};
     QHash<QString, QPointer<ModelDownloadOperation>> m_downloads;
+    std::unique_ptr<Internal::ModelManagerViewModelOperations> m_fileOperations;
+    QThreadPool m_fileThreadPool;
+    QHash<QString, VerifyTask> m_verifyTasks;
+    QHash<quint64, ImportTask> m_importTasks;
+    QHash<QString, quint64> m_importTokensBySource;
+    quint64 m_serviceGeneration{0};
+    quint64 m_nextOperationToken{0};
+    bool m_shuttingDown{false};
 };
 
 } // namespace BreezeDesk

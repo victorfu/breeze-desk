@@ -3,10 +3,15 @@
 #include "breezedesk/models/ModelDownloadOperation.h"
 #include "breezedesk/models/ModelManager.h"
 #include "breezedesk/settings/SettingsManagers.h"
+#include "ModelManagerViewModelOperations.h"
 
+#include <QDir>
 #include <QFileInfo>
 #include <QFutureWatcher>
+#include <QThread>
 #include <QtConcurrentRun>
+
+#include <utility>
 
 namespace BreezeDesk {
 namespace {
@@ -84,20 +89,36 @@ QList<ModelListModel::ModelItem> bundledManifestItems() {
     return items;
 }
 
-struct VerifyOutcome {
-    QString id;
-    QString error;
-    bool installed{false};
-    bool valid{false};
-};
+QString importSourceKey(const QString& sourcePath) {
+    const QFileInfo source(sourcePath);
+    QString key = source.canonicalFilePath();
+    if (key.isEmpty()) {
+        key = source.absoluteFilePath();
+    }
+    key = QDir::cleanPath(key);
+#ifdef Q_OS_WIN
+    key = key.toCaseFolded();
+#endif
+    return key;
+}
 
-struct ImportOutcome {
-    QString id;
-    QString path;
-    QString displayName;
-    QString error;
-    bool success{false};
-};
+Internal::ModelManagerViewModelOperations defaultFileOperations() {
+    Internal::ModelManagerViewModelOperations operations;
+    operations.verify = [](ModelVerificationSnapshot snapshot,
+                           const Internal::ModelManagerViewModelOperations::Cancellation& cancellation) {
+        return ModelFileOperations::verify(snapshot, cancellation.get());
+    };
+    operations.prepareImport =
+        [](CustomModelImportRequest request,
+           const Internal::ModelManagerViewModelOperations::Cancellation& cancellation) {
+            return ModelFileOperations::prepareImport(request, cancellation.get());
+        };
+    operations.cleanupPreparedImport =
+        [](const PreparedCustomModelImport& prepared) {
+            ModelFileOperations::cleanupPreparedImport(prepared);
+        };
+    return operations;
+}
 
 } // namespace
 
@@ -312,7 +333,29 @@ void ModelListModel::emitRowChanged(int row) {
     emit dataChanged(index(row), index(row));
 }
 
-ModelManagerViewModel::ModelManagerViewModel(QObject* parent) : QObject(parent) {
+ModelManagerViewModel::ModelManagerViewModel(QObject* parent)
+    : ModelManagerViewModel(defaultFileOperations(), parent) {}
+
+ModelManagerViewModel::ModelManagerViewModel(Internal::ModelManagerViewModelOperations operations,
+                                             QObject* parent)
+    : QObject(parent),
+      m_fileOperations(
+          std::make_unique<Internal::ModelManagerViewModelOperations>(std::move(operations))) {
+    if (!m_fileOperations->verify || !m_fileOperations->prepareImport ||
+        !m_fileOperations->cleanupPreparedImport) {
+        const Internal::ModelManagerViewModelOperations defaults = defaultFileOperations();
+        if (!m_fileOperations->verify) {
+            m_fileOperations->verify = defaults.verify;
+        }
+        if (!m_fileOperations->prepareImport) {
+            m_fileOperations->prepareImport = defaults.prepareImport;
+        }
+        if (!m_fileOperations->cleanupPreparedImport) {
+            m_fileOperations->cleanupPreparedImport = defaults.cleanupPreparedImport;
+        }
+    }
+    m_fileThreadPool.setMaxThreadCount(2);
+    m_fileThreadPool.setExpiryTimeout(30'000);
     connect(&m_models, &QAbstractItemModel::dataChanged, this,
             &ModelManagerViewModel::refreshDefaultModelReady);
     connect(&m_models, &QAbstractItemModel::modelReset, this,
@@ -328,8 +371,24 @@ ModelManagerViewModel::ModelManagerViewModel(QObject* parent) : QObject(parent) 
     refreshDefaultModelReady();
 }
 
+ModelManagerViewModel::~ModelManagerViewModel() {
+    m_shuttingDown = true;
+    ++m_serviceGeneration;
+    cancelAndDrainFileOperations();
+}
+
+std::unique_ptr<ModelManagerViewModel> Internal::ModelManagerViewModelTestAccess::create(
+    ModelManagerViewModelOperations operations) {
+    return std::unique_ptr<ModelManagerViewModel>(
+        new ModelManagerViewModel(std::move(operations), nullptr));
+}
+
 void ModelManagerViewModel::installServices(ModelManager* modelManager,
-                                            ModelSettingsManager* settingsManager) {
+                                             ModelSettingsManager* settingsManager) {
+    Q_ASSERT_X(QThread::currentThread() == thread(), "ModelManagerViewModel",
+               "installServices must run on the view-model owner thread");
+    ++m_serviceGeneration;
+    cancelAndDrainFileOperations();
     if (m_modelManager != nullptr) {
         disconnect(m_modelManager, nullptr, this, nullptr);
     }
@@ -351,6 +410,52 @@ void ModelManagerViewModel::installServices(ModelManager* modelManager,
         }
     });
     refreshFromService();
+}
+
+void ModelManagerViewModel::cancelAndDrainFileOperations() {
+    Q_ASSERT_X(QThread::currentThread() == thread(), "ModelManagerViewModel",
+               "File operations must be drained on the view-model owner thread");
+    const QStringList verifyingIds = m_verifyTasks.keys();
+    for (auto iterator = m_verifyTasks.begin(); iterator != m_verifyTasks.end(); ++iterator) {
+        if (iterator->cancellation != nullptr) {
+            iterator->cancellation->store(true, std::memory_order_relaxed);
+        }
+    }
+    for (auto iterator = m_importTasks.begin(); iterator != m_importTasks.end(); ++iterator) {
+        if (iterator->cancellation != nullptr) {
+            iterator->cancellation->store(true, std::memory_order_relaxed);
+        }
+    }
+
+    m_fileThreadPool.waitForDone();
+
+    for (auto iterator = m_verifyTasks.begin(); iterator != m_verifyTasks.end(); ++iterator) {
+        if (iterator->watcher != nullptr) {
+            disconnect(iterator->watcher, nullptr, this, nullptr);
+            delete iterator->watcher;
+        }
+    }
+    m_verifyTasks.clear();
+    if (!m_shuttingDown) {
+        for (const QString& id : verifyingIds) {
+            const bool installed = m_modelManager != nullptr && m_modelManager->isInstalled(id);
+            m_models.setInstalled(id, installed, false);
+        }
+    }
+
+    for (auto iterator = m_importTasks.begin(); iterator != m_importTasks.end(); ++iterator) {
+        PreparedCustomModelImport prepared;
+        prepared.request = iterator->request;
+        if (iterator->watcher != nullptr) {
+            prepared = iterator->watcher->result();
+            prepared.request = iterator->request;
+            disconnect(iterator->watcher, nullptr, this, nullptr);
+            delete iterator->watcher;
+        }
+        m_fileOperations->cleanupPreparedImport(prepared);
+    }
+    m_importTasks.clear();
+    m_importTokensBySource.clear();
 }
 
 QAbstractItemModel* ModelManagerViewModel::models() noexcept {
@@ -478,6 +583,10 @@ void ModelManagerViewModel::cancel(const QString& id) {
 
 void ModelManagerViewModel::remove(const QString& id) {
     const QString normalizedId = normalizedModelId(id);
+    if (m_verifyTasks.contains(normalizedId)) {
+        emit commandRejected(tr("Wait for model verification to finish before deleting it."));
+        return;
+    }
     if (m_models.isLoaded(normalizedId)) {
         emit commandRejected(tr("Unload this model before deleting it."));
         return;
@@ -501,30 +610,61 @@ void ModelManagerViewModel::verify(const QString& id) {
     if (m_modelManager == nullptr) {
         return;
     }
+    if (m_verifyTasks.contains(normalizedId)) {
+        emit commandRejected(tr("This model is already being verified."));
+        return;
+    }
+
+    const ModelVerificationSnapshot snapshot = m_modelManager->verificationSnapshot(normalizedId);
+    const quint64 generation = m_serviceGeneration;
+    const quint64 token = ++m_nextOperationToken;
+    const QPointer<ModelManager> expectedManager = m_modelManager;
+    const auto cancellation = std::make_shared<std::atomic_bool>(false);
     m_models.setState(normalizedId, QStringLiteral("Verifying"), 1.0);
-    auto* watcher = new QFutureWatcher<VerifyOutcome>(this);
-    const QPointer<ModelManager> manager = m_modelManager;
-    connect(watcher, &QFutureWatcher<VerifyOutcome>::finished, this, [this, watcher] {
-        const VerifyOutcome outcome = watcher->result();
-        watcher->deleteLater();
-        m_models.setInstalled(outcome.id, outcome.installed, outcome.valid);
-        if (outcome.valid) {
-            emit operationSucceeded(tr("Model checksum verified."));
-        } else {
-            emit commandRejected(outcome.error);
-        }
-    });
-    watcher->setFuture(QtConcurrent::run([manager, normalizedId] {
-        VerifyOutcome outcome;
-        outcome.id = normalizedId;
-        if (manager == nullptr) {
-            outcome.error = QStringLiteral("Model service is no longer available.");
-            return outcome;
-        }
-        outcome.installed = manager->isInstalled(normalizedId);
-        outcome.valid = manager->verify(normalizedId, &outcome.error);
-        return outcome;
-    }));
+    auto* watcher = new QFutureWatcher<ModelVerificationResult>(this);
+    const QPointer<QFutureWatcher<ModelVerificationResult>> guardedWatcher = watcher;
+    m_verifyTasks.insert(normalizedId, {watcher, cancellation, generation, token});
+    connect(watcher, &QFutureWatcher<ModelVerificationResult>::finished, this,
+            [this, guardedWatcher, normalizedId, expectedManager, generation, token] {
+                if (guardedWatcher == nullptr) {
+                    return;
+                }
+                auto* watcher = guardedWatcher.data();
+                const auto active = m_verifyTasks.find(normalizedId);
+                if (active == m_verifyTasks.end() || active->watcher != watcher ||
+                    active->generation != generation || active->token != token) {
+                    watcher->deleteLater();
+                    return;
+                }
+                const ModelVerificationResult result = watcher->result();
+                m_verifyTasks.erase(active);
+                watcher->deleteLater();
+                if (m_shuttingDown) {
+                    return;
+                }
+                if (result.cancelled || generation != m_serviceGeneration ||
+                    m_modelManager != expectedManager || m_modelManager == nullptr) {
+                    const bool installed = m_modelManager != nullptr &&
+                                           m_modelManager->isInstalled(normalizedId);
+                    m_models.setInstalled(normalizedId, installed, false);
+                    return;
+                }
+
+                const bool currentlyInstalled = m_modelManager->isInstalled(normalizedId);
+                m_models.setInstalled(normalizedId, currentlyInstalled && result.installed,
+                                      currentlyInstalled && result.valid);
+                if (result.valid && currentlyInstalled) {
+                    emit operationSucceeded(tr("Model checksum verified."));
+                } else {
+                    emit commandRejected(result.error.isEmpty() ? tr("Model verification failed.")
+                                                                : result.error);
+                }
+            });
+    const auto verifyOperation = m_fileOperations->verify;
+    watcher->setFuture(QtConcurrent::run(
+        &m_fileThreadPool, [verifyOperation, snapshot, cancellation] {
+            return verifyOperation(snapshot, cancellation);
+        }));
 }
 
 void ModelManagerViewModel::testModel(const QString& id) {
@@ -542,32 +682,70 @@ void ModelManagerViewModel::importCustom(const QUrl& file) {
         emit commandRejected(tr("Choose an existing local GGML .bin file."));
         return;
     }
-    auto* watcher = new QFutureWatcher<ImportOutcome>(this);
-    const QPointer<ModelManager> manager = m_modelManager;
+    const QString sourceKey = importSourceKey(sourcePath);
+    if (m_importTokensBySource.contains(sourceKey)) {
+        emit commandRejected(tr("This model is already being imported."));
+        return;
+    }
+
     const QString displayName = source.completeBaseName();
-    connect(watcher, &QFutureWatcher<ImportOutcome>::finished, this, [this, watcher] {
-        const ImportOutcome outcome = watcher->result();
-        watcher->deleteLater();
-        if (!outcome.success) {
-            emit commandRejected(outcome.error);
-            return;
-        }
-        refreshFromService();
-        emit operationSucceeded(tr("Custom model imported."));
-    });
-    watcher->setFuture(QtConcurrent::run([manager, sourcePath, displayName] {
-        ImportOutcome outcome;
-        outcome.displayName = displayName;
-        if (manager == nullptr) {
-            outcome.error = QStringLiteral("Model service is no longer available.");
-            return outcome;
-        }
-        outcome.success = manager->importCustomModel(sourcePath, displayName, &outcome.id, &outcome.error);
-        if (outcome.success) {
-            outcome.path = manager->modelPath(outcome.id);
-        }
-        return outcome;
-    }));
+    const CustomModelImportRequest request =
+        m_modelManager->customModelImportRequest(sourcePath, displayName);
+    const quint64 generation = m_serviceGeneration;
+    const quint64 token = ++m_nextOperationToken;
+    const QPointer<ModelManager> expectedManager = m_modelManager;
+    const auto cancellation = std::make_shared<std::atomic_bool>(false);
+    auto* watcher = new QFutureWatcher<PreparedCustomModelImport>(this);
+    const QPointer<QFutureWatcher<PreparedCustomModelImport>> guardedWatcher = watcher;
+    m_importTokensBySource.insert(sourceKey, token);
+    m_importTasks.insert(token, {watcher, cancellation, request, sourceKey, generation, token});
+    connect(watcher, &QFutureWatcher<PreparedCustomModelImport>::finished, this,
+            [this, guardedWatcher, expectedManager, generation, token] {
+                if (guardedWatcher == nullptr) {
+                    return;
+                }
+                auto* watcher = guardedWatcher.data();
+                const auto active = m_importTasks.find(token);
+                if (active == m_importTasks.end() || active->watcher != watcher ||
+                    active->generation != generation || active->token != token) {
+                    watcher->deleteLater();
+                    return;
+                }
+                const QString sourceKey = active->sourceKey;
+                PreparedCustomModelImport prepared = watcher->result();
+                prepared.request = active->request;
+                m_importTasks.erase(active);
+                if (m_importTokensBySource.value(sourceKey) == token) {
+                    m_importTokensBySource.remove(sourceKey);
+                }
+                watcher->deleteLater();
+
+                const bool stale = m_shuttingDown || prepared.cancelled ||
+                                   generation != m_serviceGeneration ||
+                                   m_modelManager != expectedManager || m_modelManager == nullptr;
+                if (!prepared.success || stale) {
+                    m_fileOperations->cleanupPreparedImport(prepared);
+                    if (!stale) {
+                        emit commandRejected(prepared.error.isEmpty()
+                                                 ? tr("The custom model could not be imported.")
+                                                 : prepared.error);
+                    }
+                    return;
+                }
+
+                QString error;
+                if (!m_modelManager->commitCustomModelImport(prepared, &error)) {
+                    m_fileOperations->cleanupPreparedImport(prepared);
+                    emit commandRejected(error);
+                    return;
+                }
+                emit operationSucceeded(tr("Custom model imported."));
+            });
+    const auto importOperation = m_fileOperations->prepareImport;
+    watcher->setFuture(QtConcurrent::run(
+        &m_fileThreadPool, [importOperation, request, cancellation] {
+            return importOperation(request, cancellation);
+        }));
 }
 
 void ModelManagerViewModel::setDefaultModel(const QString& id) {
