@@ -1,5 +1,6 @@
 #include "breezedesk/ui/SettingsViewModel.h"
 
+#include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/platform/PlatformCapabilities.h"
 #include "breezedesk/settings/SettingsManagers.h"
 
@@ -298,10 +299,7 @@ QString SettingsViewModel::managedMediaPolicy() const {
 }
 
 QString SettingsViewModel::storagePath() const {
-    if (m_managers.storage != nullptr && !m_managers.storage->dataDirectoryOverride().isEmpty()) {
-        return m_managers.storage->dataDirectoryOverride();
-    }
-    return QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+    return StoragePaths::root();
 }
 
 QString SettingsViewModel::exportPath() const {
@@ -323,10 +321,6 @@ QString SettingsViewModel::appVersion() const {
     return QCoreApplication::applicationVersion();
 }
 
-void SettingsViewModel::chooseStoragePath() {
-    emit storagePathRequested();
-}
-
 void SettingsViewModel::chooseExportPath() {
     emit exportPathRequested();
 }
@@ -343,15 +337,6 @@ void SettingsViewModel::checkForUpdates() {
     emit updateCheckRequested();
 }
 
-void SettingsViewModel::setStoragePath(const QString& path) {
-    if (m_managers.storage == nullptr || path.trimmed().isEmpty() || storagePath() == path) {
-        return;
-    }
-    m_managers.storage->setDataDirectoryOverride(path);
-    syncManager(m_managers.storage);
-    emit storageChanged();
-}
-
 void SettingsViewModel::setExportPath(const QString& path) {
     if (m_managers.storage == nullptr || path.trimmed().isEmpty() || exportPath() == path) {
         return;
@@ -359,12 +344,6 @@ void SettingsViewModel::setExportPath(const QString& path) {
     m_managers.storage->setExportDirectory(path);
     syncManager(m_managers.storage);
     emit storageChanged();
-}
-
-void SettingsViewModel::setStorageFolder(const QUrl& folder) {
-    if (folder.isLocalFile()) {
-        setStoragePath(folder.toLocalFile());
-    }
 }
 
 void SettingsViewModel::setExportFolder(const QUrl& folder) {

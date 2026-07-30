@@ -108,14 +108,11 @@ class SettingsViewModel final : public QObject {
     [[nodiscard]] QString updateChannel() const;
     [[nodiscard]] QString appVersion() const;
 
-    Q_INVOKABLE void chooseStoragePath();
     Q_INVOKABLE void chooseExportPath();
     Q_INVOKABLE void clearCache();
     Q_INVOKABLE void backupDatabase();
     Q_INVOKABLE void checkForUpdates();
-    Q_INVOKABLE void setStoragePath(const QString& path);
     Q_INVOKABLE void setExportPath(const QString& path);
-    Q_INVOKABLE void setStorageFolder(const QUrl& folder);
     Q_INVOKABLE void setExportFolder(const QUrl& folder);
 
   public slots:
@@ -156,7 +153,6 @@ class SettingsViewModel final : public QObject {
     void audioDevicesChanged();
     void storageChanged();
     void updatesChanged();
-    void storagePathRequested();
     void exportPathRequested();
     void clearCacheRequested();
     void backupDatabaseRequested();

@@ -313,7 +313,11 @@ Item {
             InspectorSection {
                 Layout.fillWidth: true
                 title: qsTr("Storage")
-                SettingRow { label: qsTr("Application data"); description: root.vm.storagePath; AppButton { text: qsTr("Choose"); onClicked: storageFolderDialog.open() } }
+                SettingRow {
+                    objectName: "applicationDataStorageRow"
+                    label: qsTr("Application data")
+                    description: root.vm.storagePath
+                }
                 SettingRow { label: qsTr("Export directory"); description: root.vm.exportPath; AppButton { text: qsTr("Choose"); onClicked: exportFolderDialog.open() } }
                 SettingRow {
                     label: qsTr("Managed media")
@@ -400,11 +404,6 @@ Item {
             Item { Layout.preferredHeight: SemanticTokens.spacingLg }
         }
         }
-    }
-    FolderDialog {
-        id: storageFolderDialog
-        title: qsTr("Choose Application Data Folder")
-        onAccepted: root.vm.setStorageFolder(selectedFolder)
     }
     FolderDialog {
         id: exportFolderDialog

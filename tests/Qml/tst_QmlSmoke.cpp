@@ -358,6 +358,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(root->findChild<QObject*>(QStringLiteral("muteToggle")));
         QVERIFY(root->findChild<QObject*>(QStringLiteral("volumeSlider")));
         QVERIFY(root->findChild<QObject*>(QStringLiteral("notesEditor")));
+        QVERIFY(root->findChild<QObject*>(QStringLiteral("applicationDataStorageRow")));
         QVERIFY(!root->findChild<QObject*>(QStringLiteral("transcriptRevisionPicker")));
         QVERIFY(!root->findChild<QObject*>(QStringLiteral("transcriptHistoryButton")));
         const auto failures = qmlMessages.filter(
@@ -2882,7 +2883,6 @@ class tst_QmlSmoke final : public QObject {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         const QString settingsPath = directory.filePath(QStringLiteral("settings.ini"));
-        const QString dataPath = directory.filePath(QStringLiteral("data"));
         const QString exportPath = directory.filePath(QStringLiteral("exports"));
 
         {
@@ -2910,7 +2910,6 @@ class tst_QmlSmoke final : public QObject {
             first.setPreset(QStringLiteral("Accurate"));
             first.setBackend(QStringLiteral("CPU"));
             first.setMicrophoneDevice(QStringLiteral("microphone-id"));
-            first.setStoragePath(dataPath);
             first.setExportPath(exportPath);
             first.setAutomaticUpdates(true);
             first.setUpdateChannel(QStringLiteral("Beta"));
@@ -2939,10 +2938,29 @@ class tst_QmlSmoke final : public QObject {
         QCOMPARE(second.preset(), QStringLiteral("Accurate"));
         QCOMPARE(second.backend(), QStringLiteral("CPU"));
         QCOMPARE(second.microphoneDevice(), QStringLiteral("microphone-id"));
-        QCOMPARE(second.storagePath(), dataPath);
+        QCOMPARE(second.storagePath(), BreezeDesk::StoragePaths::root());
         QCOMPARE(second.exportPath(), exportPath);
         QVERIFY(second.automaticUpdates());
         QCOMPARE(second.updateChannel(), QStringLiteral("Beta"));
+    }
+
+    void settingsStoragePathReportsTheActiveRuntimeRoot() {
+        EnvironmentVariableGuard dataRootGuard(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const QString activePath = directory.filePath(QStringLiteral("active-data"));
+        const QString staleConfiguredPath = directory.filePath(QStringLiteral("pending-data"));
+        qputenv("BREEZEDESK_DATA_ROOT", activePath.toUtf8());
+
+        BreezeDesk::SettingsStore store(directory.filePath(QStringLiteral("settings.ini")));
+        BreezeDesk::StorageSettingsManager storage(store);
+        storage.setDataDirectoryOverride(staleConfiguredPath);
+        QVERIFY(storage.sync());
+
+        BreezeDesk::SettingsViewModel viewModel;
+        viewModel.installManagers({nullptr, nullptr, nullptr, nullptr, nullptr, &storage, nullptr});
+        QCOMPARE(storage.dataDirectoryOverride(), staleConfiguredPath);
+        QCOMPARE(viewModel.storagePath(), QFileInfo(activePath).absoluteFilePath());
     }
 
     void backendOptionsFilterByPlatform() {
