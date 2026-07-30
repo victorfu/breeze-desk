@@ -3,6 +3,7 @@
 #include "breezedesk/core/TimeUtils.h"
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/DatabaseSearchService.h"
+#include "breezedesk/glossary/GlossaryPostProcessor.h"
 
 #include <QJsonDocument>
 #include <QSqlError>
@@ -57,6 +58,18 @@ Result<void> validateSegments(const QList<TranscriptSegment>& segments, const bo
 }
 QString nonNull(const QString& value) {
     return value.isNull() ? QStringLiteral("") : value;
+}
+bool hasManualTextEdit(const TranscriptSegment& segment) {
+    if (!segment.isEdited()) {
+        return false;
+    }
+    const QList<GlossaryReplacement> replacements =
+        GlossaryPostProcessor::auditFromJson(segment.replacementAudit);
+    if (replacements.isEmpty()) {
+        return true;
+    }
+    const auto rendered = GlossaryPostProcessor().renderAudit(segment.originalText, replacements);
+    return !rendered.has_value() || rendered.value() != segment.editedText;
 }
 } // namespace
 
@@ -203,7 +216,7 @@ Result<void> SqliteTranscriptRepository::replaceChunk(const QString& recordingId
         return Result<void>::failure(existingResult.error());
     QList<TranscriptSegment> combined;
     for (const TranscriptSegment& existing : existingResult.value()) {
-        if (existing.chunkId == chunkId && existing.isEdited()) {
+        if (existing.chunkId == chunkId && hasManualTextEdit(existing)) {
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::InvalidStateTransition,
                 QStringLiteral("A chunk containing manual edits cannot be overwritten.")));

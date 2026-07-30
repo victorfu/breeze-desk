@@ -23,6 +23,7 @@ class TranscriptTest final : public QObject {
     void invalidTimeOverlapIsRejected();
     void allExportFormatsAreValid();
     void repositoryPersistsTranscriptAndAutosaves();
+    void repositoryDistinguishesGlossaryReplacementsFromManualEdits();
     void viewModelPreservesMetadataAndControlsGlossaryAudit();
 };
 
@@ -147,6 +148,69 @@ void TranscriptTest::repositoryPersistsTranscriptAndAutosaves() {
     QVERIFY(!repository.segment(edited.id).value()->reviewed);
     QVERIFY(!repository.replaceTranscript(recording.id, firstJob.id, fixtureSegments()));
     QCOMPARE(recordingRepository.findById(recording.id).value()->activeJobId, firstJob.id);
+}
+
+void TranscriptTest::repositoryDistinguishesGlossaryReplacementsFromManualEdits() {
+    QTemporaryDir directory;
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordingRepository(database);
+    Recording recording;
+    recording.id = QStringLiteral("recording-glossary-partial");
+    recording.title = QStringLiteral("Glossary partials");
+    QVERIFY(recordingRepository.create(recording));
+
+    SqliteJobRepository jobRepository(database);
+    TranscriptionJob job;
+    job.id = QStringLiteral("job-glossary-partial");
+    job.recordingId = recording.id;
+    QVERIFY(jobRepository.create(job));
+    JobChunk chunk;
+    chunk.id = QStringLiteral("chunk-1");
+    chunk.jobId = job.id;
+    chunk.ordinal = 0;
+    chunk.startMs = 0;
+    chunk.endMs = 1'000;
+    QVERIFY(jobRepository.replaceChunks(job.id, {chunk}));
+
+    GlossaryTerm term;
+    term.id = QStringLiteral("term-breezedesk");
+    term.canonicalText = QStringLiteral("BreezeDesk");
+    term.aliases = {QStringLiteral("Breeze Desk")};
+    const QString originalText = QStringLiteral("Breeze Desk meeting");
+    const GlossaryPostProcessResult processed =
+        GlossaryPostProcessor().applyExplicitAliases(originalText, {term});
+    QCOMPARE(processed.text, QStringLiteral("BreezeDesk meeting"));
+    QCOMPARE(processed.replacements.size(), 1);
+
+    TranscriptSegment automatic;
+    automatic.id = QStringLiteral("segment-glossary-partial");
+    automatic.recordingId = recording.id;
+    automatic.jobId = job.id;
+    automatic.chunkId = QStringLiteral("chunk-1");
+    automatic.startMs = 0;
+    automatic.endMs = 1'000;
+    automatic.originalText = originalText;
+    automatic.editedText = processed.text;
+    automatic.replacementAudit = GlossaryPostProcessor::auditToJson(processed.replacements);
+
+    SqliteTranscriptRepository repository(database);
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, false, 1));
+    const TranscriptSegment finalized = repository.segmentsForJob(job.id).value().first();
+    QCOMPARE(finalized.editedText, processed.text);
+    QVERIFY(!finalized.provisional);
+
+    TranscriptSegment manual = finalized;
+    manual.editedText = QStringLiteral("Manually corrected meeting");
+    QVERIFY(repository.saveEditedSegment(manual));
+    const auto rejected =
+        repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 2);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.error().code, ErrorCode::InvalidStateTransition);
+    QCOMPARE(repository.segment(manual.id).value()->editedText,
+             QStringLiteral("Manually corrected meeting"));
 }
 
 void TranscriptTest::viewModelPreservesMetadataAndControlsGlossaryAudit() {
