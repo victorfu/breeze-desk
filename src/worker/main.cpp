@@ -167,11 +167,13 @@ AsrError inspectPcmLayout(QFile& file, PcmLayout* layout) {
     return {};
 }
 
-AsrError readPcm16Chunk(const QString& path, qint64 startMs, qint64 endMs, std::atomic_bool& cancelled,
-                        QVector<float>* samples) {
+AsrError readPcm16Chunk(const QString& path, qint64 startMs, qint64 endMs, bool finalChunk,
+                        std::atomic_bool& cancelled, QVector<float>* samples) {
     constexpr qint64 sampleRate = 16'000;
     constexpr qint64 bytesPerSample = 2;
     constexpr qint64 blockBytes = 1024 * 1024;
+    // Match NormalizedAudioValidator's maximum accepted duration discrepancy.
+    constexpr qint64 maximumFinalChunkOvershootSamples = 2'000 * sampleRate / 1'000;
     if (samples == nullptr || startMs < 0 || endMs <= startMs ||
         endMs > std::numeric_limits<qint64>::max() / sampleRate) {
         return {AsrErrorCode::InvalidRequest, QStringLiteral("Invalid PCM time range"), {}};
@@ -188,11 +190,11 @@ AsrError readPcm16Chunk(const QString& path, qint64 startMs, qint64 endMs, std::
     const qint64 firstSample = startMs * sampleRate / 1000;
     qint64 lastSample = endMs * sampleRate / 1000;
     const qint64 totalSamples = layout.dataSize / bytesPerSample;
-    // A millisecond endpoint is coarser than the PCM sample clock. A duration
-    // rounded to the nearest millisecond can therefore address up to one
-    // millisecond beyond the final sample. Clamp only that rounding-sized
-    // overshoot; larger ranges remain protocol errors.
-    if (lastSample > totalSamples && lastSample - totalSamples <= sampleRate / 1000) {
+    // Container and decoded-track durations can disagree at the tail. Only a
+    // final chunk may consume the readable remainder; intermediate chunks must
+    // keep their requested bounds so a broken chunk plan remains visible.
+    if (finalChunk && firstSample < totalSamples && lastSample > totalSamples &&
+        lastSample - totalSamples <= maximumFinalChunkOvershootSamples) {
         lastSample = totalSamples;
     }
     const qint64 relativeByteOffset = firstSample * bytesPerSample;
@@ -314,8 +316,8 @@ VadAnalysis analyzePcmSpeech(const QString& path, WhisperVadContext& vad, const 
         }
     }
     const qint64 totalSamples = layout.dataSize / bytesPerSample;
-    // Use the greatest fully readable millisecond. readPcm16Chunk also accepts
-    // a sub-millisecond rounded endpoint from older persisted chunk plans.
+    // Use the greatest fully readable millisecond. Final chunk reads can clamp
+    // a coarser container-derived endpoint to the exact sample boundary.
     const qint64 durationMs = totalSamples * 1000 / 16'000;
     return {{}, segmenter.finish(durationMs), durationMs};
 }
@@ -513,7 +515,8 @@ class InferenceRunner final : public QObject {
                     bool finalChunk) {
         m_cancelled.store(false, std::memory_order_relaxed);
         QVector<float> samples;
-        const AsrError readError = readPcm16Chunk(pcmPath, startMs, endMs, m_cancelled, &samples);
+        const AsrError readError =
+            readPcm16Chunk(pcmPath, startMs, endMs, finalChunk, m_cancelled, &samples);
         if (readError.isError()) {
             emit response(clientId, readError.code == AsrErrorCode::Cancelled
                                         ? cancellationEnvelope(requestId, jobId)

@@ -9,6 +9,7 @@
 #include "breezedesk/audio/FFmpegLocator.h"
 #include "breezedesk/audio/FFmpegNormalizationService.h"
 #include "breezedesk/audio/FFprobeService.h"
+#include "breezedesk/audio/NormalizedAudioValidator.h"
 #include "breezedesk/audio/WaveformGenerator.h"
 #include "breezedesk/core/StoragePaths.h"
 #include "breezedesk/database/IRecordingRepository.h"
@@ -673,8 +674,15 @@ void TranscriptionCoordinator::continuePreparingJob() {
         failActiveJob(QStringLiteral("SourceFileMissing"), tr("The source media file is missing."));
         return;
     }
-    if (QFileInfo(m_activeNormalizedPath).size() > 44 && value.durationMs > 0) {
-        m_activeJob.parameters.insert(QStringLiteral("durationMs"), value.durationMs);
+    NormalizedAudioInfo cachedAudio;
+    QString cacheError;
+    if (value.durationMs > 0 &&
+        NormalizedAudioValidator::validate(m_activeNormalizedPath, value.durationMs, &cachedAudio,
+                                           &cacheError)) {
+        if (!persistNormalizedDuration(cachedAudio.durationMs, &cacheError)) {
+            failActiveJob(QStringLiteral("DatabaseQueryFailed"), cacheError);
+            return;
+        }
         if (!value.waveformPath.isEmpty() && QFileInfo(value.waveformPath).isFile()) {
             prepareChunks();
         } else {
@@ -683,6 +691,33 @@ void TranscriptionCoordinator::continuePreparingJob() {
         return;
     }
     inspectMedia();
+}
+
+bool TranscriptionCoordinator::persistNormalizedDuration(const qint64 durationMs, QString* error) {
+    if (durationMs <= 0) {
+        if (error != nullptr) {
+            *error = tr("The normalized recording duration is invalid.");
+        }
+        return false;
+    }
+    const auto recording = m_recordings.findById(m_activeJob.recordingId);
+    if (!recording || !recording.value().has_value()) {
+        if (error != nullptr) {
+            *error = recording ? tr("The recording no longer exists.") : recording.error().message;
+        }
+        return false;
+    }
+    Recording updated = recording.value().value();
+    updated.durationMs = durationMs;
+    const auto saved = m_recordings.update(updated);
+    if (!saved) {
+        if (error != nullptr) {
+            *error = saved.error().message;
+        }
+        return false;
+    }
+    m_activeJob.parameters.insert(QStringLiteral("durationMs"), durationMs);
+    return true;
 }
 
 void TranscriptionCoordinator::inspectMedia() {
@@ -775,6 +810,21 @@ void TranscriptionCoordinator::beginNormalization() {
                     return;
                 }
                 m_activeNormalizedPath = outputPath;
+                const qint64 expectedDuration =
+                    m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
+                NormalizedAudioInfo normalizedAudio;
+                QString validationError;
+                if (!NormalizedAudioValidator::validate(outputPath, expectedDuration, &normalizedAudio,
+                                                        &validationError)) {
+                    failActiveJob(QStringLiteral("AudioDecodeFailed"),
+                                  tr("The decoded audio could not be validated: %1")
+                                      .arg(validationError));
+                    return;
+                }
+                if (!persistNormalizedDuration(normalizedAudio.durationMs, &validationError)) {
+                    failActiveJob(QStringLiteral("DatabaseQueryFailed"), validationError);
+                    return;
+                }
                 beginWaveformGeneration();
             });
 }
@@ -842,6 +892,12 @@ void TranscriptionCoordinator::beginWaveformGeneration() {
 }
 
 void TranscriptionCoordinator::prepareChunks() {
+    const qint64 duration =
+        m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
+    if (duration <= 0) {
+        failActiveJob(QStringLiteral("UnsupportedMedia"), tr("The recording duration is invalid."));
+        return;
+    }
     const auto existing = m_jobs.chunks(m_activeJob.id);
     if (!existing) {
         failActiveJob(QStringLiteral("DatabaseQueryFailed"), existing.error().message);
@@ -849,15 +905,30 @@ void TranscriptionCoordinator::prepareChunks() {
     }
     m_chunks = existing.value();
     if (!m_chunks.isEmpty()) {
+        const bool planHasStarted =
+            std::any_of(m_chunks.cbegin(), m_chunks.cend(), [](const JobChunk& chunk) {
+                return chunk.state != ChunkState::Pending || chunk.attempts > 0;
+            });
+        if (planHasStarted && m_chunks.constLast().endMs < duration) {
+            failActiveJob(
+                QStringLiteral("ChunkPlanMismatch"),
+                tr("The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. "
+                   "Start a new transcription so the audio tail is not omitted.")
+                    .arg(duration)
+                    .arg(m_chunks.constLast().endMs));
+            return;
+        }
+        if (!planHasStarted && m_chunks.constLast().endMs != duration) {
+            QString error;
+            if (!saveChunkPlan(
+                    makeJobChunks(m_activeJob.id, Asr::LongFormChunkPlanner().plan(duration, {})),
+                    &error)) {
+                failActiveJob(QStringLiteral("DatabaseQueryFailed"), error);
+                return;
+            }
+        }
         emit jobTelemetryChanged(m_activeJob.id, 0, static_cast<int>(m_chunks.size()), m_latestPartialText);
         beginWaitingForModel();
-        return;
-    }
-
-    const qint64 duration =
-        m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
-    if (duration <= 0) {
-        failActiveJob(QStringLiteral("UnsupportedMedia"), tr("The recording duration is invalid."));
         return;
     }
     if (!m_activeJob.vadEnabled || duration <= ShortAudioThresholdMs) {
@@ -1406,6 +1477,16 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         QString error;
         if (!decodeWorkerChunkPlan(envelope.payload, m_activeJob.id, &chunks, &durationMs, &error)) {
             failActiveJob(QStringLiteral("WorkerProtocolMismatch"), error);
+            return;
+        }
+        const qint64 normalizedDuration =
+            m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
+        if (durationMs != normalizedDuration) {
+            failActiveJob(
+                QStringLiteral("WorkerProtocolMismatch"),
+                tr("Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.")
+                    .arg(durationMs)
+                    .arg(normalizedDuration));
             return;
         }
         const auto recording = m_recordings.findById(m_activeJob.recordingId);

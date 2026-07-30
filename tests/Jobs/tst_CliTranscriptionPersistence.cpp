@@ -5,6 +5,7 @@
 #include "breezedesk/transcript/SqliteTranscriptRepository.h"
 
 #include <QFile>
+#include <QFileInfo>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -39,9 +40,53 @@ class CliTranscriptionPersistenceTest final : public QObject {
 
   private slots:
     void checkpointsPartialResultsAndResumesOnlyUnfinishedChunks();
+    void synchronizesDecodedAudioDurationBeforeTranscription();
     void retriesFailedChunkWithoutRepeatingCompletedChunks();
     void cancellingLeaseWaitDoesNotInterruptCurrentOwner();
 };
+
+void CliTranscriptionPersistenceTest::synchronizesDecodedAudioDurationBeforeTranscription() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString sourcePath = directory.filePath(QStringLiteral("screen-recording.mp4"));
+    QFile source(sourcePath);
+    QVERIFY(source.open(QIODevice::WriteOnly));
+    QCOMPARE(source.write("fixture"), qint64{7});
+    source.close();
+
+    DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
+    QVERIFY(database.initialize());
+    SqliteRecordingRepository recordings(database);
+    SqliteJobRepository jobs(database);
+    SqliteTranscriptRepository transcripts(database);
+
+    DurableTranscriptionDescriptor descriptor;
+    descriptor.recording.id = QStringLiteral("recording-mp4-duration");
+    descriptor.recording.title = QStringLiteral("Screen recording");
+    descriptor.recording.sourcePath = sourcePath;
+    descriptor.recording.durationMs = 40'789;
+    descriptor.job.id = QStringLiteral("job-mp4-duration");
+    descriptor.job.recordingId = descriptor.recording.id;
+    descriptor.chunks = {chunk(0, 0, 40'789)};
+
+    CliTranscriptionPersistence persistence(recordings, jobs, transcripts);
+    QVERIFY(persistence.beginNew(descriptor));
+    QVERIFY(persistence.beginNormalization());
+    const QString normalizedPath = directory.filePath(QStringLiteral("decoded.wav"));
+    QVERIFY(persistence.updateNormalizedAudio(normalizedPath, 40'745));
+    QVERIFY(persistence.replaceChunkPlan({chunk(0, 0, 40'745)}));
+
+    const auto recording = recordings.findById(descriptor.recording.id);
+    QVERIFY(recording && recording.value().has_value());
+    QCOMPARE(recording.value()->normalizedPcmPath, QFileInfo(normalizedPath).absoluteFilePath());
+    QCOMPARE(recording.value()->durationMs, 40'745);
+    QCOMPARE(persistence.identity().chunks.size(), 1);
+    QCOMPARE(persistence.identity().chunks.constFirst().endMs, 40'745);
+    const auto savedChunks = jobs.chunks(descriptor.job.id);
+    QVERIFY(savedChunks);
+    QCOMPARE(savedChunks.value().constFirst().endMs, 40'745);
+    QVERIFY(persistence.interrupt(QStringLiteral("test complete")));
+}
 
 void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnfinishedChunks() {
     QTemporaryDir directory;

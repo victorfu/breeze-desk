@@ -39,6 +39,7 @@ class CliTranscriptionPersistence final {
 
     [[nodiscard]] Result<void> beginNormalization();
     [[nodiscard]] Result<void> updateNormalizationProgress(double fraction);
+    [[nodiscard]] Result<void> updateNormalizedAudio(const QString& path, qint64 durationMs);
     [[nodiscard]] Result<void> beginModelLoad();
     [[nodiscard]] Result<void> beginSpeechAnalysis();
     [[nodiscard]] Result<void> updateSpeechAnalysisProgress(double fraction);

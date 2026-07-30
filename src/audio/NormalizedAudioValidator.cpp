@@ -38,6 +38,12 @@ qint64 durationToleranceMs(qint64 expectedDurationMs) {
                       MaximumDurationToleranceMs);
 }
 
+qint64 readableDurationMs(qint64 dataSize) {
+    const qint64 wholeSeconds = dataSize / RequiredBytesPerSecond;
+    const qint64 remainingBytes = dataSize % RequiredBytesPerSecond;
+    return wholeSeconds * 1'000 + (remainingBytes * 1'000) / RequiredBytesPerSecond;
+}
+
 } // namespace
 
 bool NormalizedAudioValidator::validate(const QString& path, qint64 expectedDurationMs,
@@ -154,8 +160,7 @@ bool NormalizedAudioValidator::validate(const QString& path, qint64 expectedDura
     const qint64 toleratedBytes =
         (toleranceMs * static_cast<qint64>(RequiredBytesPerSecond)) / 1'000 + RequiredBlockAlign;
     if (qAbs(dataSize - expectedDataSize) > toleratedBytes) {
-        const qint64 actualDurationMs =
-            (dataSize * 1'000 + (RequiredBytesPerSecond / 2)) / RequiredBytesPerSecond;
+        const qint64 actualDurationMs = readableDurationMs(dataSize);
         setError(error,
                  QStringLiteral("The normalized WAV duration is %1 ms; expected %2 ms (tolerance %3 ms).")
                      .arg(actualDurationMs)
@@ -167,7 +172,10 @@ bool NormalizedAudioValidator::validate(const QString& path, qint64 expectedDura
     if (info != nullptr) {
         info->dataOffset = dataOffset;
         info->dataSize = dataSize;
-        info->durationMs = (dataSize * 1'000 + (RequiredBytesPerSecond / 2)) / RequiredBytesPerSecond;
+        // Chunk endpoints are expressed in whole milliseconds. Flooring here
+        // guarantees that an endpoint derived from this value is fully
+        // readable even when the final PCM sample falls between milliseconds.
+        info->durationMs = readableDurationMs(dataSize);
     }
     return true;
 }

@@ -245,6 +245,27 @@ Result<void> CliTranscriptionPersistence::updateNormalizationProgress(const doub
                                        MonotonicJobProgress::map(JobStage::NormalizingAudio, fraction));
 }
 
+Result<void> CliTranscriptionPersistence::updateNormalizedAudio(const QString& path,
+                                                                const qint64 durationMs) {
+    auto activeResult = requireActive();
+    if (!activeResult)
+        return activeResult;
+    if (path.trimmed().isEmpty() || durationMs <= 0)
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::InvalidArgument,
+            QStringLiteral("Normalized audio requires a path and a positive duration.")));
+    auto recording = m_recordings.findById(m_identity.recordingId);
+    if (!recording)
+        return Result<void>::failure(recording.error());
+    if (!recording.value())
+        return Result<void>::failure(UserFacingError::validation(
+            ErrorCode::NotFound, QStringLiteral("The durable source recording no longer exists.")));
+    Recording changed = *recording.value();
+    changed.normalizedPcmPath = normalizedPath(path);
+    changed.durationMs = durationMs;
+    return m_recordings.update(changed);
+}
+
 Result<void> CliTranscriptionPersistence::beginModelLoad() {
     auto activeResult = requireActive();
     if (!activeResult)

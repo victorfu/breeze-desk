@@ -248,7 +248,8 @@ void ModelIntegrationTest::workerLoadsTranscribesAndCancels() {
     QCborMap transcriptionPayload;
     transcriptionPayload.insert(QStringLiteral("pcmPath"), shortAudioPath);
     transcriptionPayload.insert(QStringLiteral("startMs"), 0);
-    transcriptionPayload.insert(QStringLiteral("endMs"), sourceDurationMs);
+    // Reproduce a container duration that is 44 ms longer than the decoded PCM track.
+    transcriptionPayload.insert(QStringLiteral("endMs"), sourceDurationMs + 44);
     transcriptionPayload.insert(QStringLiteral("finalChunk"), true);
     transcriptionPayload.insert(QStringLiteral("language"), QStringLiteral("en"));
     transcriptionPayload.insert(QStringLiteral("preset"), QStringLiteral("fast"));
@@ -282,6 +283,52 @@ void ModelIntegrationTest::workerLoadsTranscribesAndCancels() {
         QVERIFY(progressValues.at(index) >= progressValues.at(index - 1));
     }
     QCOMPARE(progressValues.constLast(), 100);
+
+    messages.clear();
+    const QString oversizedFinalJobId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QCborMap oversizedFinalPayload = transcriptionPayload;
+    oversizedFinalPayload.insert(QStringLiteral("endMs"), sourceDurationMs + 2'001);
+    const QString oversizedFinalRequestId =
+        client.sendRequest(MessageType::StartTranscription, oversizedFinalJobId, oversizedFinalPayload);
+    std::optional<Envelope> oversizedFinalError;
+    std::optional<Envelope> unexpectedlyAcceptedFinalRange;
+    for (int attempt = 0;
+         attempt < 100 && !oversizedFinalError && !unexpectedlyAcceptedFinalRange; ++attempt) {
+        oversizedFinalError = errorFor(messages, oversizedFinalRequestId);
+        unexpectedlyAcceptedFinalRange =
+            responseFor(messages, oversizedFinalRequestId, MessageType::TranscriptionCompleted);
+        if (!oversizedFinalError && !unexpectedlyAcceptedFinalRange) {
+            QTest::qWait(50);
+        }
+    }
+    QVERIFY2(!unexpectedlyAcceptedFinalRange.has_value(),
+             "Final PCM range beyond the clamp limit unexpectedly accepted");
+    const QString oversizedFinalDiagnostic = errorDiagnostic(oversizedFinalError, worker);
+    QVERIFY2(oversizedFinalError.has_value(), qPrintable(oversizedFinalDiagnostic));
+    QCOMPARE(oversizedFinalError->payload.value(QStringLiteral("message")).toString(),
+             QStringLiteral("Requested PCM range is outside the normalized audio"));
+
+    messages.clear();
+    const QString strictRangeJobId = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    QCborMap strictRangePayload = transcriptionPayload;
+    strictRangePayload.insert(QStringLiteral("finalChunk"), false);
+    const QString strictRangeRequestId =
+        client.sendRequest(MessageType::StartTranscription, strictRangeJobId, strictRangePayload);
+    std::optional<Envelope> strictRangeError;
+    std::optional<Envelope> unexpectedlyAcceptedRange;
+    for (int attempt = 0; attempt < 100 && !strictRangeError && !unexpectedlyAcceptedRange; ++attempt) {
+        strictRangeError = errorFor(messages, strictRangeRequestId);
+        unexpectedlyAcceptedRange =
+            responseFor(messages, strictRangeRequestId, MessageType::ChunkCompleted);
+        if (!strictRangeError && !unexpectedlyAcceptedRange) {
+            QTest::qWait(50);
+        }
+    }
+    QVERIFY2(!unexpectedlyAcceptedRange.has_value(), "Non-final PCM range unexpectedly accepted");
+    const QString strictRangeDiagnostic = errorDiagnostic(strictRangeError, worker);
+    QVERIFY2(strictRangeError.has_value(), qPrintable(strictRangeDiagnostic));
+    QCOMPARE(strictRangeError->payload.value(QStringLiteral("message")).toString(),
+             QStringLiteral("Requested PCM range is outside the normalized audio"));
 
     messages.clear();
     const QString cancellationJobId = QUuid::createUuid().toString(QUuid::WithoutBraces);

@@ -1,6 +1,7 @@
 @echo off
-if defined VSCMD_VER if defined INCLUDE exit /b 0
-if defined VCINSTALLDIR if defined INCLUDE exit /b 0
+if /i "%VSCMD_ARG_HOST_ARCH%"=="x64" if /i "%VSCMD_ARG_TGT_ARCH%"=="x64" if defined INCLUDE (
+  where cl.exe >nul 2>nul && exit /b 0
+)
 
 set "BREEZEDESK_VSWHERE=%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe"
 if not exist "%BREEZEDESK_VSWHERE%" (
@@ -28,6 +29,18 @@ if not exist "%BREEZEDESK_VS_INSTALL%\Common7\Tools\VsDevCmd.bat" (
 call "%BREEZEDESK_VS_INSTALL%\Common7\Tools\VsDevCmd.bat" -arch=amd64 -host_arch=amd64 -no_logo || exit /b 1
 if not defined INCLUDE (
   echo Visual Studio initialized without the C++ or Windows SDK include paths. 1>&2
+  exit /b 1
+)
+if /i not "%VSCMD_ARG_HOST_ARCH%"=="x64" (
+  echo Visual Studio initialized with a non-x64 host toolchain. 1>&2
+  exit /b 1
+)
+if /i not "%VSCMD_ARG_TGT_ARCH%"=="x64" (
+  echo Visual Studio initialized with a non-x64 target toolchain. 1>&2
+  exit /b 1
+)
+where cl.exe >nul 2>nul || (
+  echo Visual Studio initialized without an accessible C++ compiler. 1>&2
   exit /b 1
 )
 exit /b 0

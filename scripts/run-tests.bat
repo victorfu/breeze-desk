@@ -16,4 +16,18 @@ if not exist "%QT_BIN%\Qt6Testd.dll" (
 )
 set "PATH=%QT_BIN%;%PATH%"
 set "QT_PLUGIN_PATH=%QT_ROOT%\plugins"
+set "QT_QPA_PLATFORM_PLUGIN_PATH=%QT_PLUGIN_PATH%\platforms"
+set "QT_QPA_PLATFORM=windows"
+where cl.exe >nul 2>nul || (
+  echo The Visual Studio x64 compiler is not accessible in the test terminal. 1>&2
+  exit /b 1
+)
+where Qt6Testd.dll >nul 2>nul || (
+  echo Qt6Testd.dll is not accessible in the test terminal. 1>&2
+  exit /b 1
+)
+if not exist "%QT_QPA_PLATFORM_PLUGIN_PATH%\qwindowsd.dll" (
+  echo The matching Qt Debug Windows platform plugin is missing from %QT_QPA_PLATFORM_PLUGIN_PATH%. 1>&2
+  exit /b 1
+)
 ctest --test-dir build\debug --output-on-failure %* || exit /b 1

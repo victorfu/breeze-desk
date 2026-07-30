@@ -78,6 +78,7 @@ class TranscriptionCoordinator final : public QObject {
     void releaseActiveLease();
     void beginJob(const TranscriptionJob& job);
     void continuePreparingJob();
+    bool persistNormalizedDuration(qint64 durationMs, QString* error = nullptr);
     void inspectMedia();
     void beginNormalization();
     void beginWaveformGeneration();

@@ -10,6 +10,11 @@ source builds default to a CPU worker and require Visual Studio 2022 Build Tools
 the Vulkan worker requires the Vulkan SDK. Qt must be a dynamic LGPL-compatible
 installation.
 
+On Windows, every configure or build process must first call `scripts\setup-msvc.bat` in that same terminal.
+The script requires an x64 host and x64 target toolchain and fails when `cl.exe` is unavailable. AI agents
+must also follow the Qt runtime and test preflight in the repository [AGENTS.md](../../AGENTS.md); do not run
+raw CMake, CTest, or a test executable from a fresh uninitialized shell.
+
 ## Preset build
 
 ```sh

@@ -17,6 +17,8 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#include <limits>
+
 #ifndef BREEZEDESK_COORDINATOR_WORKER_PATH
 #error BREEZEDESK_COORDINATOR_WORKER_PATH must name the coordinator test worker
 #endif
@@ -30,11 +32,13 @@ bool writeFixture(const QString& path, const qsizetype size = 64) {
     return file.open(QIODevice::WriteOnly) && file.write(QByteArray(size, '\0')) == size;
 }
 
-bool writePcmWaveFixture(const QString& path) {
-    constexpr quint32 sampleCount = 512;
-    constexpr quint32 dataBytes = sampleCount * 2U;
+bool writePcmWaveFixture(const QString& path, const qint64 durationMs) {
+    if (durationMs <= 0 || durationMs > std::numeric_limits<quint32>::max() / 32) {
+        return false;
+    }
+    const quint32 dataBytes = static_cast<quint32>(durationMs * 32);
     constexpr quint32 junkBytes = 5;
-    constexpr quint32 riffSize = 4U + (8U + 16U) + (8U + junkBytes + 1U) + (8U + dataBytes);
+    const quint32 riffSize = 4U + (8U + 16U) + (8U + junkBytes + 1U) + (8U + dataBytes);
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly))
         return false;
@@ -51,9 +55,11 @@ bool writePcmWaveFixture(const QString& path) {
     stream << quint8{0};
     stream.writeRawData("data", 4);
     stream << dataBytes;
-    for (quint32 index = 0; index < sampleCount; ++index)
-        stream << static_cast<qint16>(static_cast<int>(index % 200U) - 100);
-    return stream.status() == QDataStream::Ok;
+    if (stream.status() != QDataStream::Ok || !file.flush()) {
+        return false;
+    }
+    const qint64 dataOffset = file.pos();
+    return file.resize(dataOffset + dataBytes);
 }
 
 } // namespace
@@ -141,7 +147,13 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
     ModelManager models;
     QVERIFY(models.manifest().find(QStringLiteral("breeze-asr-25-q5")) != nullptr);
     QVERIFY(writeFixture(models.modelPath(QStringLiteral("breeze-asr-25-q5"))));
-    QVERIFY(writeFixture(models.modelPath(QStringLiteral("silero-vad-v6.2.0"))));
+#ifndef BREEZEDESK_COORDINATOR_VAD_MODEL_PATH
+    QSKIP("The verified Silero VAD test model is not available in this build");
+#else
+    const QString vadFixturePath = QString::fromUtf8(BREEZEDESK_COORDINATOR_VAD_MODEL_PATH);
+    QVERIFY2(QFile::copy(vadFixturePath, models.modelPath(QStringLiteral("silero-vad-v6.2.0"))),
+             qPrintable(vadFixturePath));
+#endif
 
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(database.initialize());
@@ -152,7 +164,7 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
     const QString sourcePath = directory.filePath(QStringLiteral("長會議 source.m4a"));
     const QString normalizedPath = directory.filePath(QStringLiteral("長會議 normalized.wav"));
     QVERIFY(writeFixture(sourcePath));
-    QVERIFY(writePcmWaveFixture(normalizedPath));
+    QVERIFY(writePcmWaveFixture(normalizedPath, 1'300'000));
     Recording recording;
     recording.id = QStringLiteral("recording-coordinator");
     recording.title = QStringLiteral("Long architecture meeting");
@@ -173,7 +185,7 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
         QElapsedTimer timeout;
         timeout.start();
         JobState state = JobState::Queued;
-        while (timeout.elapsed() < 10'000) {
+        while (timeout.elapsed() < 60'000) {
             const auto current = jobs.findById(QStringLiteral("job-coordinator"));
             if (current && current.value().has_value()) {
                 state = current.value()->state;
@@ -237,7 +249,7 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
         QString waveformError;
         const auto waveform = WaveformGenerator::read(updatedRecording.value()->waveformPath, &waveformError);
         QVERIFY2(!waveform.isEmpty(), qPrintable(waveformError));
-        QCOMPARE(waveform.first().minimums.size(), 2);
+        QCOMPARE(waveform.first().minimums.size(), 81'250);
 
         coordinator.enqueue(QStringLiteral("job-cancel"), recording.id);
         JobState cancellationState = JobState::Queued;

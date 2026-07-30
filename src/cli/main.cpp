@@ -5,6 +5,7 @@
 #include "breezedesk/audio/FFmpegLocator.h"
 #include "breezedesk/audio/FFmpegNormalizationService.h"
 #include "breezedesk/audio/FFprobeService.h"
+#include "breezedesk/audio/NormalizedAudioValidator.h"
 #include "breezedesk/cli/CliExitCode.h"
 #include "breezedesk/cli/CliForwardingPolicy.h"
 #include "breezedesk/cli/CliTranscriptionPersistence.h"
@@ -534,6 +535,66 @@ QList<JobChunk> durableChunks(const QList<Asr::TranscriptionChunk>& chunks) {
     return values;
 }
 
+constexpr qsizetype MaximumAnalyzedChunks = 4'096;
+
+bool readCborInteger(const QCborMap& map, const QString& key, qint64* value) {
+    const QCborValue encoded = map.value(key);
+    if (value == nullptr || !encoded.isInteger()) {
+        return false;
+    }
+    *value = encoded.toInteger();
+    return true;
+}
+
+bool validateAnalyzedChunkPlan(const QList<JobChunk>& chunks, const qint64 durationMs,
+                               QString* error) {
+    if (durationMs <= 0 || chunks.isEmpty() || chunks.size() > MaximumAnalyzedChunks) {
+        if (error != nullptr) {
+            *error = QStringLiteral("The worker returned an invalid speech-analysis duration or chunk count.");
+        }
+        return false;
+    }
+    qint64 previousEnd = 0;
+    qint64 previousOverlapAfter = 0;
+    for (qsizetype index = 0; index < chunks.size(); ++index) {
+        const JobChunk& chunk = chunks.at(index);
+        if (chunk.ordinal != static_cast<int>(index) || chunk.startMs < 0 ||
+            chunk.endMs <= chunk.startMs || chunk.endMs > durationMs) {
+            if (error != nullptr) {
+                *error = QStringLiteral("The worker returned an invalid transcription chunk at index %1.")
+                             .arg(index);
+            }
+            return false;
+        }
+        const qint64 length = chunk.endMs - chunk.startMs;
+        if (chunk.overlapBeforeMs < 0 || chunk.overlapAfterMs < 0 ||
+            chunk.overlapBeforeMs >= length || chunk.overlapAfterMs >= length) {
+            if (error != nullptr) {
+                *error = QStringLiteral("The worker returned an invalid transcription chunk at index %1.")
+                             .arg(index);
+            }
+            return false;
+        }
+        if ((index == 0 && (chunk.startMs != 0 || chunk.overlapBeforeMs != 0)) ||
+            (index > 0 && (chunk.overlapBeforeMs != previousOverlapAfter ||
+                           chunk.startMs != previousEnd - chunk.overlapBeforeMs))) {
+            if (error != nullptr) {
+                *error = QStringLiteral("The worker returned a discontinuous transcription chunk plan.");
+            }
+            return false;
+        }
+        previousEnd = chunk.endMs;
+        previousOverlapAfter = chunk.overlapAfterMs;
+    }
+    if (chunks.constLast().endMs != durationMs || chunks.constLast().overlapAfterMs != 0) {
+        if (error != nullptr) {
+            *error = QStringLiteral("The worker chunk plan does not cover the normalized audio exactly.");
+        }
+        return false;
+    }
+    return true;
+}
+
 QString normalizedAudioPath(const QString& recordingId) {
     const QString directory = QDir(StoragePaths::cache()).filePath(QStringLiteral("audio"));
     if (!QDir().mkpath(directory)) {
@@ -542,14 +603,8 @@ QString normalizedAudioPath(const QString& recordingId) {
     return QDir(directory).filePath(recordingId + QStringLiteral(".wav"));
 }
 
-bool isReusableNormalizedAudio(const QString& path, qint64 durationMs) {
-    const QFileInfo information(path);
-    if (!information.isFile() || information.size() <= 44) {
-        return false;
-    }
-    constexpr qint64 PcmBytesPerMillisecond = 32;
-    const qint64 expectedBytes = qMax<qint64>(1, durationMs) * PcmBytesPerMillisecond;
-    return information.size() >= (expectedBytes * 9) / 10;
+bool isReusableNormalizedAudio(const QString& path, qint64 durationMs, NormalizedAudioInfo* info) {
+    return NormalizedAudioValidator::validate(path, durationMs, info, nullptr);
 }
 
 TranscribeRunResult runHeadlessTranscription(const QString& source, const QString& modelPath,
@@ -568,7 +623,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
     }
     FFprobeService probe(tools.ffprobePath);
     QString error;
-    const MediaMetadata metadata = probe.inspect(source, &error);
+    MediaMetadata metadata = probe.inspect(source, &error);
     if (!metadata.hasAudio || metadata.durationMs <= 0) {
         TranscribeRunResult result;
         result.exitCode = CliExitCode::MediaFailure;
@@ -741,7 +796,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         return makeResult(interruptionExitCode(), {}, reason);
     }
 
-    if (!isReusableNormalizedAudio(pcmPath, metadata.durationMs)) {
+    NormalizedAudioInfo normalizedAudio;
+    if (!isReusableNormalizedAudio(pcmPath, metadata.durationMs, &normalizedAudio)) {
         const auto normalizationStarted = persistence.beginNormalization();
         if (!normalizationStarted) {
             interruptSession(normalizationStarted.error().diagnosticString(),
@@ -794,6 +850,48 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             const auto failed = persistence.fail(QStringLiteral("AudioDecodeFailed"), reason);
             Q_UNUSED(failed)
             return makeResult(CliExitCode::MediaFailure, {}, reason);
+        }
+        QString validationError;
+        if (!NormalizedAudioValidator::validate(pcmPath, metadata.durationMs, &normalizedAudio,
+                                                &validationError)) {
+            const QString reason = QStringLiteral("The decoded audio could not be validated: %1")
+                                       .arg(validationError);
+            const auto failed = persistence.fail(QStringLiteral("AudioDecodeFailed"), reason);
+            Q_UNUSED(failed)
+            return makeResult(CliExitCode::MediaFailure, {}, reason);
+        }
+    }
+
+    const auto normalizedSaved =
+        persistence.updateNormalizedAudio(pcmPath, normalizedAudio.durationMs);
+    if (!normalizedSaved) {
+        const QString reason = normalizedSaved.error().diagnosticString();
+        interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));
+        return makeResult(CliExitCode::DatabaseFailure, {}, reason);
+    }
+    metadata.durationMs = normalizedAudio.durationMs;
+    const QList<JobChunk>& provisionalChunks = persistence.identity().chunks;
+    const bool provisionalPlanMatches =
+        !provisionalChunks.isEmpty() && provisionalChunks.constLast().endMs == metadata.durationMs;
+    if (resumeHadReachedTranscription &&
+        (provisionalChunks.isEmpty() || provisionalChunks.constLast().endMs < metadata.durationMs)) {
+        const QString reason = provisionalChunks.isEmpty()
+                                   ? QStringLiteral("The resumed transcription has no durable chunk plan.")
+                                   : QStringLiteral("The decoded audio is %1 ms, but the resumed chunk plan "
+                                                    "ends at %2 ms. Start a new transcription so the audio "
+                                                    "tail is not omitted.")
+                                         .arg(metadata.durationMs)
+                                         .arg(provisionalChunks.constLast().endMs);
+        interruptSession(reason, QStringLiteral("ChunkPlanMismatch"));
+        return makeResult(CliExitCode::TranscriptionFailure, {}, reason);
+    }
+    if (!resumeHadReachedTranscription && !provisionalPlanMatches) {
+        const auto replaced = persistence.replaceChunkPlan(
+            durableChunks(Asr::LongFormChunkPlanner().plan(metadata.durationMs, {})));
+        if (!replaced) {
+            const QString reason = replaced.error().diagnosticString();
+            interruptSession(reason, QStringLiteral("DatabaseQueryFailed"));
+            return makeResult(CliExitCode::DatabaseFailure, {}, reason);
         }
     }
 
@@ -947,6 +1045,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         bool analysisCompleted = false;
         bool analysisTimedOut = false;
         QList<JobChunk> analyzedChunks;
+        const qint64 expectedAnalysisDuration = metadata.durationMs;
         const QString requestId = client->sendRequest(Ipc::MessageType::AnalyzeSpeech, jobId,
                                                       {{QStringLiteral("pcmPath"), pcmPath},
                                                        {QStringLiteral("vadModelPath"), vadModelPath},
@@ -954,7 +1053,8 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
         const QMetaObject::Connection analysisConnection = QObject::connect(
             client, &Ipc::AsrWorkerClient::envelopeReceived, &analysisLoop,
             [&analysisLoop, &analysisError, &analysisCheckpointError, &analysisCompleted, &analyzedChunks,
-             &persistence, requestId, jobId, &worker](const Ipc::Envelope& envelope) {
+             &persistence, requestId, jobId, &worker,
+             expectedAnalysisDuration](const Ipc::Envelope& envelope) {
                 if (envelope.requestId != requestId || envelope.jobId != jobId) {
                     return;
                 }
@@ -969,21 +1069,74 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
                         analysisLoop.quit();
                     }
                 } else if (envelope.type == Ipc::MessageType::SpeechAnalysisCompleted) {
-                    const auto values = envelope.payload.value(QStringLiteral("chunks")).toArray();
+                    const QCborValue durationValue =
+                        envelope.payload.value(QStringLiteral("durationMs"));
+                    if (!durationValue.isInteger() ||
+                        durationValue.toInteger() != expectedAnalysisDuration) {
+                        analysisError = durationValue.isInteger()
+                                            ? QStringLiteral("Speech analysis reported %1 ms for normalized "
+                                                             "audio whose duration is %2 ms.")
+                                                  .arg(durationValue.toInteger())
+                                                  .arg(expectedAnalysisDuration)
+                                            : QStringLiteral(
+                                                  "Speech analysis did not report a valid audio duration.");
+                        analysisLoop.quit();
+                        return;
+                    }
+                    const QCborValue chunksValue = envelope.payload.value(QStringLiteral("chunks"));
+                    if (!chunksValue.isArray() ||
+                        chunksValue.toArray().size() > MaximumAnalyzedChunks) {
+                        analysisError = QStringLiteral(
+                            "Speech analysis returned an invalid transcription chunk count.");
+                        analysisLoop.quit();
+                        return;
+                    }
+                    const QCborArray values = chunksValue.toArray();
+                    analyzedChunks.clear();
                     analyzedChunks.reserve(values.size());
-                    for (const auto& value : values) {
+                    for (qsizetype index = 0; index < values.size(); ++index) {
+                        const QCborValue value = values.at(index);
                         const auto map = value.toMap();
+                        qint64 ordinal = -1;
+                        qint64 startMs = -1;
+                        qint64 endMs = -1;
+                        qint64 overlapBeforeMs = -1;
+                        qint64 overlapAfterMs = -1;
+                        if (!value.isMap() ||
+                            !readCborInteger(map, QStringLiteral("ordinal"), &ordinal) ||
+                            !readCborInteger(map, QStringLiteral("startMs"), &startMs) ||
+                            !readCborInteger(map, QStringLiteral("endMs"), &endMs) ||
+                            !readCborInteger(map, QStringLiteral("overlapBeforeMs"),
+                                             &overlapBeforeMs) ||
+                            !readCborInteger(map, QStringLiteral("overlapAfterMs"),
+                                             &overlapAfterMs)) {
+                            analysisError =
+                                QStringLiteral("Speech analysis returned an invalid chunk at index %1.")
+                                    .arg(index);
+                            analyzedChunks.clear();
+                            break;
+                        }
+                        if (ordinal != static_cast<qint64>(index)) {
+                            analysisError =
+                                QStringLiteral("Speech analysis returned an invalid chunk ordinal at index %1.")
+                                    .arg(index);
+                            analyzedChunks.clear();
+                            break;
+                        }
                         JobChunk chunk;
-                        chunk.ordinal = static_cast<int>(map.value(QStringLiteral("ordinal")).toInteger());
-                        chunk.startMs = map.value(QStringLiteral("startMs")).toInteger();
-                        chunk.endMs = map.value(QStringLiteral("endMs")).toInteger();
-                        chunk.overlapBeforeMs = map.value(QStringLiteral("overlapBeforeMs")).toInteger();
-                        chunk.overlapAfterMs = map.value(QStringLiteral("overlapAfterMs")).toInteger();
+                        chunk.ordinal = static_cast<int>(ordinal);
+                        chunk.startMs = startMs;
+                        chunk.endMs = endMs;
+                        chunk.overlapBeforeMs = overlapBeforeMs;
+                        chunk.overlapAfterMs = overlapAfterMs;
                         analyzedChunks.append(chunk);
                     }
-                    analysisCompleted = !analyzedChunks.isEmpty();
+                    if (analysisError.isEmpty()) {
+                        analysisCompleted = validateAnalyzedChunkPlan(
+                            analyzedChunks, expectedAnalysisDuration, &analysisError);
+                    }
                     if (!analysisCompleted) {
-                        analysisError = QStringLiteral("Speech analysis returned no transcription chunks.");
+                        analyzedChunks.clear();
                     }
                     analysisLoop.quit();
                 } else if (envelope.type == Ipc::MessageType::Error) {

@@ -23,13 +23,14 @@ namespace {
 
 bool writePcmWaveFixture(const QString& path, qint64 durationMs, quint32 sampleRate = 16'000,
                          quint16 channels = 1, quint16 bitsPerSample = 16,
-                         bool includeAncillaryChunks = true) {
+                         bool includeAncillaryChunks = true, quint32 trailingSamples = 0) {
     if (durationMs <= 0 || channels == 0 || bitsPerSample == 0 || (bitsPerSample % 8) != 0) {
         return false;
     }
     const quint16 blockAlign = static_cast<quint16>(channels * (bitsPerSample / 8));
     const quint32 bytesPerSecond = sampleRate * blockAlign;
-    const qint64 dataSize = (durationMs * static_cast<qint64>(bytesPerSecond)) / 1'000;
+    const qint64 dataSize = (durationMs * static_cast<qint64>(bytesPerSecond)) / 1'000 +
+                            static_cast<qint64>(trailingSamples) * blockAlign;
     if (dataSize <= 0 || dataSize > std::numeric_limits<int>::max()) {
         return false;
     }
@@ -190,6 +191,14 @@ void AudioTest::validatesNormalizedPcmWithAncillaryChunks() {
     const QString withinTolerance = temporary.filePath(QStringLiteral("within-tolerance.wav"));
     QVERIFY(writePcmWaveFixture(withinTolerance, 9'800, 16'000, 1, 16, false));
     QVERIFY2(NormalizedAudioValidator::validate(withinTolerance, 10'000, nullptr, &error), qPrintable(error));
+
+    const QString decodedMp4Audio = temporary.filePath(QStringLiteral("decoded-mp4-audio.wav"));
+    // Ten trailing samples put the PCM duration at 40,745.625 ms. The canonical
+    // whole-millisecond duration must floor to a fully readable endpoint.
+    QVERIFY(writePcmWaveFixture(decodedMp4Audio, 40'745, 16'000, 1, 16, false, 10));
+    QVERIFY2(NormalizedAudioValidator::validate(decodedMp4Audio, 40'789, &info, &error),
+             qPrintable(error));
+    QCOMPARE(info.durationMs, 40'745);
 }
 
 void AudioTest::rejectsWrongFormatTruncationAndDurationMismatch() {

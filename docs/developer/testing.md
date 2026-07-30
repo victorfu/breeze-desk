@@ -31,6 +31,22 @@ callbacks, then sends `CancelJob` during a second inference and requires `JobCan
 
 ## Local test workflow
 
+### Mandatory Windows and AI-agent preflight
+
+On Windows, every configure, build, and test command must run in the same `cmd.exe` process after
+`scripts\setup-msvc.bat` has loaded the Visual Studio x64 host and target environment. Do not assume a new
+terminal or agent tool call inherits that environment. Require `where cl.exe` to succeed before continuing.
+
+Before invoking CTest or a Qt test executable directly, deploy or expose the matching Qt Debug runtime and
+verify `Qt6Testd.dll` plus the `platforms\qwindowsd.dll` plugin. `scripts\run-tests.bat` performs these checks
+for the default Debug tree. Direct or alternate-tree testing must follow the preflight template in the
+repository [AGENTS.md](../../AGENTS.md). If any check fails, stop before launching the test executable so
+Windows cannot open a blocking missing-DLL system dialog.
+
+For compound `cmd.exe /d /v:on /c` commands, use delayed expansion (`!PATH!`) when preserving `PATH` after
+calling `setup-msvc.bat`. Initialize the toolchain once in the parent shell for parallel testing; do not run
+the setup script concurrently in multiple child shells.
+
 Configure and run the complete default suite:
 
 ```sh

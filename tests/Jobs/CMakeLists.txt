@@ -23,6 +23,20 @@ target_link_libraries(tst_TranscriptionCoordinator PRIVATE
     breezedesk_transcript breezedesk_models Qt6::Test Qt6::Sql)
 target_compile_definitions(tst_TranscriptionCoordinator PRIVATE
     BREEZEDESK_COORDINATOR_WORKER_PATH="$<TARGET_FILE:coordinator_worker_helper>")
+if(BREEZEDESK_ENABLE_WHISPER)
+    if(BREEZEDESK_WHISPER_CPP_SOURCE_DIR)
+        set(_breezedesk_coordinator_vad_model
+            "${BREEZEDESK_WHISPER_CPP_SOURCE_DIR}/models/for-tests-silero-v6.2.0-ggml.bin")
+    elseif(DEFINED whisper_cpp_SOURCE_DIR)
+        set(_breezedesk_coordinator_vad_model
+            "${whisper_cpp_SOURCE_DIR}/models/for-tests-silero-v6.2.0-ggml.bin")
+    endif()
+    if(DEFINED _breezedesk_coordinator_vad_model
+       AND EXISTS "${_breezedesk_coordinator_vad_model}")
+        target_compile_definitions(tst_TranscriptionCoordinator PRIVATE
+            BREEZEDESK_COORDINATOR_VAD_MODEL_PATH="${_breezedesk_coordinator_vad_model}")
+    endif()
+endif()
 add_dependencies(tst_TranscriptionCoordinator coordinator_worker_helper)
 breezedesk_enable_strict_warnings(tst_TranscriptionCoordinator)
 add_test(NAME Jobs.TranscriptionCoordinator COMMAND tst_TranscriptionCoordinator)
