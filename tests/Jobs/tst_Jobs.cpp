@@ -729,10 +729,15 @@ void JobsTest::recordingUpdatesArePartitionedByOwnership() {
     const auto fullUpdate = recordingsB.update(unfencedReplacement);
     QVERIFY(!fullUpdate);
     QCOMPARE(fullUpdate.error().code, ErrorCode::InvalidStateTransition);
+    QCOMPARE(fullUpdate.error().message,
+             QStringLiteral("The recording cannot be replaced while it is being transcribed."));
     const auto relink =
         recordingsB.relinkSource(recording.id, QStringLiteral("replacement.mp4"), true);
     QVERIFY(!relink);
     QCOMPARE(relink.error().code, ErrorCode::InvalidStateTransition);
+    QCOMPARE(relink.error().message,
+             QStringLiteral(
+                 "The recording source cannot be relinked while it is being transcribed."));
 
     Recording other;
     other.id = QStringLiteral("different-recording");
@@ -757,6 +762,9 @@ void JobsTest::recordingUpdatesArePartitionedByOwnership() {
     const auto permanentDelete = recordingsB.permanentlyDelete(recording.id);
     QVERIFY(!permanentDelete);
     QCOMPARE(permanentDelete.error().code, ErrorCode::InvalidStateTransition);
+    QCOMPARE(permanentDelete.error().message,
+             QStringLiteral(
+                 "The recording cannot be permanently deleted while it is being transcribed."));
     const auto preservedRecording = recordingsA.findById(recording.id);
     QVERIFY(preservedRecording && preservedRecording.value().has_value());
     QVERIFY(preservedRecording.value()->deletedAt.isValid());

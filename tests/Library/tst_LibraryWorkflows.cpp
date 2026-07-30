@@ -492,8 +492,9 @@ class LibraryWorkflowsTest final : public QObject {
         viewModel.library()->deletePermanently(recording.id);
 
         QCOMPARE(failures.count(), 1);
-        QVERIFY(failures.constFirst().constFirst().toString().contains(
-            QStringLiteral("being transcribed"), Qt::CaseInsensitive));
+        QCOMPARE(failures.constFirst().constFirst().toString(),
+                 QStringLiteral("The recording cannot be permanently deleted while it is being "
+                                "transcribed."));
         QCOMPARE(aboutToDelete.count(), 0);
         QCOMPARE(deleted.count(), 0);
         QCOMPARE(viewModel.activeRecordingId(), recording.id);

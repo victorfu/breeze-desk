@@ -685,7 +685,8 @@ Result<bool> pathIsReferenced(QSqlDatabase& database, const QString& path) {
     return Result<bool>::success(false);
 }
 
-Result<void> ensureNoActiveExecutionLease(QSqlDatabase& database, const QString& recordingId) {
+Result<void> ensureNoActiveExecutionLease(QSqlDatabase& database, const QString& recordingId,
+                                          const QString& blockedMessage) {
     QSqlQuery lease(database);
     lease.prepare(QStringLiteral(
         "SELECT l.expires_at FROM asr_execution_lease l "
@@ -700,8 +701,7 @@ Result<void> ensureNoActiveExecutionLease(QSqlDatabase& database, const QString&
         const QDateTime expiresAt = TimeUtils::fromStorageString(lease.value(0).toString());
         if (!expiresAt.isValid() || expiresAt > QDateTime::currentDateTimeUtc()) {
             return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::InvalidStateTransition,
-                QStringLiteral("The recording cannot be replaced while it is being transcribed.")));
+                ErrorCode::InvalidStateTransition, blockedMessage));
         }
     }
     return Result<void>::success();
@@ -881,7 +881,9 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording, const
     const bool replaceRecordingTags = !recording.tags.isEmpty();
     const QStringList tags = normalizedTags(recording.tags);
     const auto updateAllFields = [&](QSqlDatabase& database) {
-        const auto leaseCheck = ensureNoActiveExecutionLease(database, recording.id);
+        const auto leaseCheck = ensureNoActiveExecutionLease(
+            database, recording.id,
+            QStringLiteral("The recording cannot be replaced while it is being transcribed."));
         if (!leaseCheck) {
             return leaseCheck;
         }
@@ -1006,7 +1008,9 @@ Result<void> SqliteRecordingRepository::relinkSource(const QString& recordingId,
             ErrorCode::InvalidArgument, QStringLiteral("A recording and source path are required.")));
     }
     return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
-        const auto leaseCheck = ensureNoActiveExecutionLease(database, recordingId);
+        const auto leaseCheck = ensureNoActiveExecutionLease(
+            database, recordingId,
+            QStringLiteral("The recording source cannot be relinked while it is being transcribed."));
         if (!leaseCheck) {
             return leaseCheck;
         }
@@ -1211,7 +1215,10 @@ Result<void> SqliteRecordingRepository::restore(const QString& id) {
 
 Result<void> SqliteRecordingRepository::permanentlyDelete(const QString& id) {
     return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
-        const auto leaseCheck = ensureNoActiveExecutionLease(database, id);
+        const auto leaseCheck = ensureNoActiveExecutionLease(
+            database, id,
+            QStringLiteral(
+                "The recording cannot be permanently deleted while it is being transcribed."));
         if (!leaseCheck) {
             return leaseCheck;
         }
