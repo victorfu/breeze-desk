@@ -5,6 +5,7 @@
 #include <QObject>
 #include <QPointer>
 
+#include <functional>
 #include <memory>
 
 class QFile;
@@ -28,11 +29,14 @@ class ModelDownloadOperation final : public QObject {
     Q_PROPERTY(QString error READ error NOTIFY finished)
 
   public:
+    using PartFileFactory = std::function<QFile*(const QString& path, QObject* parent)>;
+
     enum class State { Pending, Downloading, Paused, Verifying, Completed, Cancelled, Failed };
     Q_ENUM(State)
 
     ModelDownloadOperation(ModelManifestEntry entry, QString destinationDirectory,
-                           QNetworkAccessManager* network, QObject* parent = nullptr);
+                           QNetworkAccessManager* network, QObject* parent = nullptr,
+                           PartFileFactory partFileFactory = {});
     ~ModelDownloadOperation() override;
 
     [[nodiscard]] QString modelId() const;
@@ -62,6 +66,7 @@ class ModelDownloadOperation final : public QObject {
     void acquireDownloadLock();
     void inspectLockedFiles();
     void beginRequest();
+    bool validateResponseHeaders();
     void handleReadyRead();
     void handleNetworkFinished();
     void beginVerification(const QString& path, VerificationPurpose purpose);
@@ -71,8 +76,9 @@ class ModelDownloadOperation final : public QObject {
     void finish(bool success, const QString& path = {});
     void closeActiveRequest();
     void releaseDownloadLock();
+    void discardPartialIfOwned();
     void setState(State state);
-    void fail(const QString& message, bool retryable);
+    void fail(const QString& message, bool retryable, bool discardPartial = false);
     void scheduleRetry();
 
     ModelManifestEntry m_entry;
@@ -81,6 +87,7 @@ class ModelDownloadOperation final : public QObject {
     QString m_finalPath;
     std::unique_ptr<QLockFile> m_downloadLock;
     QNetworkAccessManager* m_network = nullptr;
+    PartFileFactory m_partFileFactory;
     QPointer<QNetworkReply> m_reply;
     QFile* m_partFile = nullptr;
     QTimer* m_speedTimer = nullptr;
@@ -91,11 +98,13 @@ class ModelDownloadOperation final : public QObject {
     qint64 m_bytesTotal = 0;
     qint64 m_lastSpeedBytes = 0;
     double m_bytesPerSecond = 0.0;
+    qint64 m_requestOffset = 0;
     int m_retryCount = 0;
     QString m_error;
     bool m_userPaused = false;
     bool m_cancelled = false;
     bool m_restartWithoutRange = false;
+    bool m_responseValidated = false;
     bool m_verificationInProgress = false;
     bool m_finishedEmitted = false;
 };

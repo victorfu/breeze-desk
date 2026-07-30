@@ -13,6 +13,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QTimer>
 #include <QtTest>
 
 using namespace BreezeDesk;
@@ -39,6 +40,12 @@ class HttpFixture final : public QTcpServer {
                     const QByteArray body = m_payload.mid(offset);
                     QByteArray response = offset > 0 ? QByteArrayLiteral("HTTP/1.1 206 Partial Content\r\n")
                                                      : QByteArrayLiteral("HTTP/1.1 200 OK\r\n");
+                    if (offset > 0) {
+                        response += QByteArrayLiteral("Content-Range: bytes ") +
+                                    QByteArray::number(offset) + QByteArrayLiteral("-") +
+                                    QByteArray::number(m_payload.size() - 1) + QByteArrayLiteral("/") +
+                                    QByteArray::number(m_payload.size()) + QByteArrayLiteral("\r\n");
+                    }
                     response += QByteArrayLiteral("Content-Length: ") + QByteArray::number(body.size()) +
                                 QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body;
                     socket->write(response);
@@ -99,6 +106,12 @@ class ControlledHttpFixture final : public QTcpServer {
         QByteArray response = m_activeOffset > 0
                                   ? QByteArrayLiteral("HTTP/1.1 206 Partial Content\r\n")
                                   : QByteArrayLiteral("HTTP/1.1 200 OK\r\n");
+        if (m_activeOffset > 0) {
+            response += QByteArrayLiteral("Content-Range: bytes ") +
+                        QByteArray::number(m_activeOffset) + QByteArrayLiteral("-") +
+                        QByteArray::number(m_payload.size() - 1) + QByteArrayLiteral("/") +
+                        QByteArray::number(m_payload.size()) + QByteArrayLiteral("\r\n");
+        }
         response += QByteArrayLiteral("Content-Length: ") + QByteArray::number(body.size()) +
                     QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + prefix;
         QCOMPARE(m_activeSocket->write(response), static_cast<qint64>(response.size()));
@@ -133,6 +146,130 @@ class ControlledHttpFixture final : public QTcpServer {
     bool m_responseStarted{false};
 };
 
+struct ScriptedHttpResponse {
+    QByteArray statusLine{QByteArrayLiteral("HTTP/1.1 200 OK")};
+    QList<QPair<QByteArray, QByteArray>> headers;
+    QList<QByteArray> bodyChunks;
+    bool chunked{false};
+    bool closeWithoutResponse{false};
+};
+
+class ScriptedHttpFixture final : public QTcpServer {
+    Q_OBJECT
+  public:
+    explicit ScriptedHttpFixture(QList<ScriptedHttpResponse> responses, QObject* parent = nullptr)
+        : QTcpServer(parent), m_responses(std::move(responses)) {
+        connect(this, &QTcpServer::newConnection, this, [this] {
+            while (hasPendingConnections()) {
+                QTcpSocket* socket = nextPendingConnection();
+                connect(socket, &QTcpSocket::readyRead, socket, [this, socket] {
+                    if (socket->property("requestParsed").toBool()) {
+                        return;
+                    }
+                    QByteArray request = socket->property("requestBuffer").toByteArray();
+                    request += socket->readAll();
+                    if (!request.contains("\r\n\r\n")) {
+                        socket->setProperty("requestBuffer", request);
+                        return;
+                    }
+                    socket->setProperty("requestParsed", true);
+                    qint64 offset = 0;
+                    const qsizetype rangePosition = request.indexOf("Range: bytes=");
+                    if (rangePosition >= 0) {
+                        const qsizetype numberStart = rangePosition + 13;
+                        offset = request.mid(numberStart).split('-').first().toLongLong();
+                    }
+                    m_requestOffsets.append(offset);
+                    const int responseIndex = qMin(m_requestOffsets.size() - 1, m_responses.size() - 1);
+                    sendResponse(socket, m_responses.at(responseIndex));
+                });
+            }
+        });
+    }
+
+    [[nodiscard]] int requestCount() const noexcept { return m_requestOffsets.size(); }
+    [[nodiscard]] QList<qint64> requestOffsets() const { return m_requestOffsets; }
+
+  private:
+    static void sendResponse(QTcpSocket* socket, const ScriptedHttpResponse& scripted) {
+        if (scripted.closeWithoutResponse) {
+            socket->disconnectFromHost();
+            return;
+        }
+        QByteArray response = scripted.statusLine + QByteArrayLiteral("\r\n");
+        for (const auto& header : scripted.headers) {
+            response += header.first + QByteArrayLiteral(": ") + header.second +
+                        QByteArrayLiteral("\r\n");
+        }
+        if (scripted.chunked) {
+            response += QByteArrayLiteral("Transfer-Encoding: chunked\r\n");
+        }
+        response += QByteArrayLiteral("Connection: close\r\n\r\n");
+        if (!scripted.chunked) {
+            for (const QByteArray& chunk : scripted.bodyChunks) {
+                response += chunk;
+            }
+            socket->write(response);
+            socket->disconnectFromHost();
+            return;
+        }
+
+        socket->write(response);
+        QPointer<QTcpSocket> guardedSocket(socket);
+        for (qsizetype index = 0; index < scripted.bodyChunks.size(); ++index) {
+            const QByteArray chunk = scripted.bodyChunks.at(index);
+            QTimer::singleShot(static_cast<int>(index * 25), socket, [guardedSocket, chunk] {
+                if (guardedSocket != nullptr) {
+                    guardedSocket->write(QByteArray::number(chunk.size(), 16) +
+                                         QByteArrayLiteral("\r\n") + chunk +
+                                         QByteArrayLiteral("\r\n"));
+                    guardedSocket->flush();
+                }
+            });
+        }
+        QTimer::singleShot(static_cast<int>(scripted.bodyChunks.size() * 25), socket,
+                           [guardedSocket] {
+                               if (guardedSocket != nullptr) {
+                                   guardedSocket->write(QByteArrayLiteral("0\r\n\r\n"));
+                                   guardedSocket->disconnectFromHost();
+                               }
+                           });
+    }
+
+    QList<ScriptedHttpResponse> m_responses;
+    QList<qint64> m_requestOffsets;
+};
+
+class ObservingPartFile final : public QFile {
+  public:
+    ObservingPartFile(const QString& path, QObject* parent, qint64* maximumSize,
+                      QByteArray* writtenBytes, bool failWrites = false)
+        : QFile(path, parent), m_maximumSize(maximumSize), m_writtenBytes(writtenBytes),
+          m_failWrites(failWrites) {}
+
+  protected:
+    qint64 writeData(const char* data, const qint64 length) override {
+        if (m_failWrites) {
+            return -1;
+        }
+        const qint64 written = QFile::writeData(data, length);
+        if (written > 0) {
+            if (m_writtenBytes != nullptr) {
+                m_writtenBytes->append(data, written);
+            }
+            if (m_maximumSize != nullptr) {
+                *m_maximumSize = qMax(*m_maximumSize, size());
+            }
+        }
+        return written;
+    }
+
+  private:
+    qint64* m_maximumSize = nullptr;
+    QByteArray* m_writtenBytes = nullptr;
+    bool m_failWrites = false;
+};
+
 class ModelsTest final : public QObject {
     Q_OBJECT
   private slots:
@@ -140,6 +277,14 @@ class ModelsTest final : public QObject {
     void resumesAndCommitsVerifiedDownload();
     void removesChecksumFailure();
     void restartsWhenServerIgnoresRange();
+    void rejectsOversizedDeclaredResponse();
+    void capsChunkedOversizedResponse();
+    void rejectsHttpErrorBodyWithoutWriting();
+    void retriesServerErrorWithoutContamination();
+    void retriesTransportFailureWithoutDiscardingPrefix();
+    void rejectsInvalidResumeMetadata_data();
+    void rejectsInvalidResumeMetadata();
+    void removesPartialAfterWriteFailure();
     void serializesConcurrentOperationsAcrossNetworkManagers();
     void cancellingLockWaiterPreservesOwnerPartial();
     void cancellingPausedOwnerRemovesPartial();
@@ -241,6 +386,324 @@ void ModelsTest::restartsWhenServerIgnoresRange() {
     QFile result(temporary.filePath(QStringLiteral("no-range.bin")));
     QVERIFY(result.open(QIODevice::ReadOnly));
     QCOMPARE(result.readAll(), payload);
+}
+
+void ModelsTest::rejectsOversizedDeclaredResponse() {
+    const QByteArray payload("declared-size-bound");
+    ScriptedHttpResponse response;
+    response.headers.append(
+        {QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size() + 1)});
+    response.bodyChunks.append(payload + QByteArrayLiteral("!"));
+    ScriptedHttpFixture server({response});
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("declared-oversize");
+    entry.fileName = QStringLiteral("declared-oversize.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    qint64 maximumSize = 0;
+    QByteArray writtenBytes;
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(
+        entry, temporary.path(), &network, nullptr,
+        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
+        });
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), false);
+    QCOMPARE(server.requestCount(), 1);
+    QCOMPARE(maximumSize, 0);
+    QVERIFY(writtenBytes.isEmpty());
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("declared-oversize.bin.part"))));
+}
+
+void ModelsTest::capsChunkedOversizedResponse() {
+    const QByteArray payload("chunked-stream-bound");
+    ScriptedHttpResponse response;
+    response.chunked = true;
+    response.bodyChunks = {payload, QByteArrayLiteral("!")};
+    ScriptedHttpFixture server({response});
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("chunked-oversize");
+    entry.fileName = QStringLiteral("chunked-oversize.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    qint64 maximumSize = 0;
+    QByteArray writtenBytes;
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(
+        entry, temporary.path(), &network, nullptr,
+        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
+        });
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), false);
+    QCOMPARE(operation.bytesTotal(), entry.fileSize);
+    QCOMPARE(maximumSize, entry.fileSize);
+    QCOMPARE(writtenBytes, payload);
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("chunked-oversize.bin.part"))));
+}
+
+void ModelsTest::rejectsHttpErrorBodyWithoutWriting() {
+    const QByteArray errorBody(128 * 1024, 'e');
+    ScriptedHttpResponse response;
+    response.statusLine = QByteArrayLiteral("HTTP/1.1 404 Not Found");
+    response.headers.append(
+        {QByteArrayLiteral("Content-Length"), QByteArray::number(errorBody.size())});
+    response.bodyChunks.append(errorBody);
+    ScriptedHttpFixture server({response});
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("http-error-body");
+    entry.fileName = QStringLiteral("http-error-body.bin");
+    entry.fileSize = 32;
+    entry.sha256 = QByteArray(64, '0');
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    qint64 maximumSize = 0;
+    QByteArray writtenBytes;
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(
+        entry, temporary.path(), &network, nullptr,
+        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
+        });
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), false);
+    QCOMPARE(server.requestCount(), 1);
+    QCOMPARE(maximumSize, 0);
+    QVERIFY(writtenBytes.isEmpty());
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("http-error-body.bin.part"))));
+}
+
+void ModelsTest::retriesServerErrorWithoutContamination() {
+    const QByteArray payload("clean-retry-payload");
+    const QByteArray errorBody("server-error-must-not-be-written");
+    constexpr qint64 PrefixSize = 5;
+    ScriptedHttpResponse first;
+    first.statusLine = QByteArrayLiteral("HTTP/1.1 500 Server Error");
+    first.headers.append({QByteArrayLiteral("Content-Length"), QByteArray::number(errorBody.size())});
+    first.bodyChunks.append(errorBody);
+    ScriptedHttpResponse second;
+    second.statusLine = QByteArrayLiteral("HTTP/1.1 206 Partial Content");
+    second.headers.append(
+        {QByteArrayLiteral("Content-Range"),
+         QByteArrayLiteral("bytes ") + QByteArray::number(PrefixSize) + QByteArrayLiteral("-") +
+             QByteArray::number(payload.size() - 1) + QByteArrayLiteral("/") +
+             QByteArray::number(payload.size())});
+    second.headers.append(
+        {QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size() - PrefixSize)});
+    second.bodyChunks.append(payload.mid(PrefixSize));
+    ScriptedHttpFixture server({first, second});
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    const QString partPath = temporary.filePath(QStringLiteral("clean-server-retry.bin.part"));
+    QFile part(partPath);
+    QVERIFY(part.open(QIODevice::WriteOnly));
+    QCOMPARE(part.write(payload.first(PrefixSize)), PrefixSize);
+    part.close();
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("clean-server-retry");
+    entry.fileName = QStringLiteral("clean-server-retry.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    qint64 maximumSize = 0;
+    QByteArray writtenBytes;
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(
+        entry, temporary.path(), &network, nullptr,
+        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
+        });
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5'000);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), true);
+    QCOMPARE(server.requestCount(), 2);
+    QCOMPARE(server.requestOffsets(), QList<qint64>({PrefixSize, PrefixSize}));
+    QCOMPARE(writtenBytes, payload.mid(PrefixSize));
+    QCOMPARE(maximumSize, entry.fileSize);
+    QFile finalFile(temporary.filePath(QStringLiteral("clean-server-retry.bin")));
+    QVERIFY(finalFile.open(QIODevice::ReadOnly));
+    QCOMPARE(finalFile.readAll(), payload);
+}
+
+void ModelsTest::retriesTransportFailureWithoutDiscardingPrefix() {
+    const QByteArray payload("transport-retry-payload");
+    constexpr qint64 PrefixSize = 6;
+    ScriptedHttpResponse first;
+    first.closeWithoutResponse = true;
+    ScriptedHttpResponse second;
+    second.statusLine = QByteArrayLiteral("HTTP/1.1 206 Partial Content");
+    second.headers.append(
+        {QByteArrayLiteral("Content-Range"),
+         QByteArrayLiteral("bytes ") + QByteArray::number(PrefixSize) + QByteArrayLiteral("-") +
+             QByteArray::number(payload.size() - 1) + QByteArrayLiteral("/") +
+             QByteArray::number(payload.size())});
+    second.headers.append(
+        {QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size() - PrefixSize)});
+    second.bodyChunks.append(payload.mid(PrefixSize));
+    ScriptedHttpFixture server({first, second});
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    const QString partPath = temporary.filePath(QStringLiteral("transport-retry.bin.part"));
+    QFile part(partPath);
+    QVERIFY(part.open(QIODevice::WriteOnly));
+    QCOMPARE(part.write(payload.first(PrefixSize)), PrefixSize);
+    part.close();
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("transport-retry");
+    entry.fileName = QStringLiteral("transport-retry.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+
+    QByteArray writtenBytes;
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(
+        entry, temporary.path(), &network, nullptr,
+        [&writtenBytes](const QString& path, QObject* parent) {
+            return new ObservingPartFile(path, parent, nullptr, &writtenBytes);
+        });
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5'000);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), true);
+    QCOMPARE(server.requestCount(), 2);
+    QCOMPARE(server.requestOffsets(), QList<qint64>({PrefixSize, PrefixSize}));
+    QCOMPARE(writtenBytes, payload.mid(PrefixSize));
+    QFile finalFile(temporary.filePath(QStringLiteral("transport-retry.bin")));
+    QVERIFY(finalFile.open(QIODevice::ReadOnly));
+    QCOMPARE(finalFile.readAll(), payload);
+}
+
+void ModelsTest::rejectsInvalidResumeMetadata_data() {
+    const QByteArray payload("resume-metadata");
+    constexpr qint64 PrefixSize = 4;
+    const qint64 remaining = payload.size() - PrefixSize;
+    const QByteArray correctLength = QByteArray::number(remaining);
+    const QByteArray last = QByteArray::number(payload.size() - 1);
+    const QByteArray total = QByteArray::number(payload.size());
+
+    QTest::addColumn<QByteArray>("contentRange");
+    QTest::addColumn<QByteArray>("contentLength");
+    QTest::newRow("missing-content-range") << QByteArray() << correctLength;
+    QTest::newRow("malformed-content-range") << QByteArrayLiteral("bytes nope") << correctLength;
+    QTest::newRow("wrong-range-start")
+        << QByteArrayLiteral("bytes 3-") + last + QByteArrayLiteral("/") + total << correctLength;
+    QTest::newRow("wrong-range-end")
+        << QByteArrayLiteral("bytes 4-") + QByteArray::number(payload.size() - 2) +
+               QByteArrayLiteral("/") + total
+        << correctLength;
+    QTest::newRow("wrong-range-total")
+        << QByteArrayLiteral("bytes 4-") + last + QByteArrayLiteral("/") +
+               QByteArray::number(payload.size() + 1)
+        << correctLength;
+    QTest::newRow("wrong-content-length")
+        << QByteArrayLiteral("bytes 4-") + last + QByteArrayLiteral("/") + total
+        << QByteArray::number(remaining + 1);
+    QTest::newRow("malformed-content-length")
+        << QByteArrayLiteral("bytes 4-") + last + QByteArrayLiteral("/") + total
+        << QByteArrayLiteral("invalid");
+}
+
+void ModelsTest::rejectsInvalidResumeMetadata() {
+    QFETCH(QByteArray, contentRange);
+    QFETCH(QByteArray, contentLength);
+    const QByteArray payload("resume-metadata");
+    constexpr qint64 PrefixSize = 4;
+    ScriptedHttpResponse response;
+    response.statusLine = QByteArrayLiteral("HTTP/1.1 206 Partial Content");
+    if (!contentRange.isNull()) {
+        response.headers.append({QByteArrayLiteral("Content-Range"), contentRange});
+    }
+    if (!contentLength.isNull()) {
+        response.headers.append({QByteArrayLiteral("Content-Length"), contentLength});
+    }
+    response.bodyChunks.append(payload.mid(PrefixSize));
+    ScriptedHttpFixture server({response});
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString partPath = temporary.filePath(QStringLiteral("invalid-resume.bin.part"));
+    QFile part(partPath);
+    QVERIFY(part.open(QIODevice::WriteOnly));
+    QCOMPARE(part.write(payload.first(PrefixSize)), PrefixSize);
+    part.close();
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("invalid-resume");
+    entry.fileName = QStringLiteral("invalid-resume.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(entry, temporary.path(), &network);
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), false);
+    QCOMPARE(server.requestCount(), 1);
+    QCOMPARE(server.requestOffsets(), QList<qint64>({PrefixSize}));
+    QVERIFY(!QFileInfo::exists(partPath));
+}
+
+void ModelsTest::removesPartialAfterWriteFailure() {
+    const QByteArray payload("write-failure-payload");
+    ScriptedHttpResponse response;
+    response.headers.append({QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size())});
+    response.bodyChunks.append(payload);
+    ScriptedHttpFixture server({response});
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+
+    ModelManifestEntry entry;
+    entry.id = QStringLiteral("write-failure");
+    entry.fileName = QStringLiteral("write-failure.bin");
+    entry.fileSize = payload.size();
+    entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
+    entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
+    QNetworkAccessManager network;
+    ModelDownloadOperation operation(
+        entry, temporary.path(), &network, nullptr,
+        [](const QString& path, QObject* parent) {
+            return new ObservingPartFile(path, parent, nullptr, nullptr, true);
+        });
+    QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
+    operation.start();
+    QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
+    QCOMPARE(finished.constFirst().constFirst().toBool(), false);
+    QCOMPARE(server.requestCount(), 1);
+    QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("write-failure.bin.part"))));
 }
 
 void ModelsTest::serializesConcurrentOperationsAcrossNetworkManagers() {
