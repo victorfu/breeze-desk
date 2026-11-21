@@ -183,7 +183,7 @@ void MaintenanceControllerTest::clearCacheRefusesLinkedRoot() {
 
     const MaintenancePaths paths = pathsFor(applicationData);
     if (!createDirectoryLink(external.path(), paths.cacheDirectory)) {
-        QSKIP("This environment cannot create a directory symbolic link.");
+        QSKIP("This environment cannot create a directory symbolic link.", 0);
     }
     const auto removeLink = qScopeGuard([link = paths.cacheDirectory] { removeDirectoryLink(link); });
     Q_UNUSED(removeLink)

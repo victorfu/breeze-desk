@@ -1,5 +1,6 @@
 #include "breezedesk/app/TranscriptionCoordinator.h"
 #include "breezedesk/app/WorkerProcessManager.h"
+#include "breezedesk/audio/FFmpegLocator.h"
 #include "breezedesk/audio/WaveformGenerator.h"
 #include "breezedesk/core/FileHash.h"
 #include "breezedesk/core/StoragePaths.h"
@@ -1452,7 +1453,7 @@ void TranscriptionCoordinatorTest::analyzesLongAudioAndPersistsGlobalSegments() 
     QVERIFY(models.manifest().find(QStringLiteral("breeze-asr-25-q5")) != nullptr);
     QVERIFY(writeFixture(models.modelPath(QStringLiteral("breeze-asr-25-q5"))));
 #ifndef BREEZEDESK_COORDINATOR_VAD_MODEL_PATH
-    QSKIP("The verified Silero VAD test model is not available in this build");
+    QSKIP("The verified Silero VAD test model is not available in this build", 0);
 #else
     const QString vadFixturePath = QString::fromUtf8(BREEZEDESK_COORDINATOR_VAD_MODEL_PATH);
     QVERIFY2(QFile::copy(vadFixturePath, models.modelPath(QStringLiteral("silero-vad-v6.2.0"))),
@@ -1658,7 +1659,10 @@ void TranscriptionCoordinatorTest::rejectsStaleCacheWhenSourceContentsChange() {
     QTRY_VERIFY_WITH_TIMEOUT(jobFailed(), 20'000);
     const auto failed = jobs.findById(QStringLiteral("job-stale-cache"));
     QVERIFY(failed && failed.value().has_value());
-    QCOMPARE(failed.value()->errorCode, QStringLiteral("UnsupportedMedia"));
+    // A fresh probe rejects the invalid source. Source-only builds may lack the probe tool.
+    const QString expectedError = FFmpegLocator::locate().isValid() ? QStringLiteral("UnsupportedMedia")
+                                                                    : QStringLiteral("AudioDecodeFailed");
+    QCOMPARE(failed.value()->errorCode, expectedError);
     QCOMPARE(failed.value()->parameters.value(QStringLiteral("sourceHash")).toString(),
              FileHash::sha256(sourcePath));
 

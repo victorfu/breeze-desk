@@ -179,14 +179,14 @@ class ScriptedHttpFixture final : public QTcpServer {
                         offset = request.mid(numberStart).split('-').first().toLongLong();
                     }
                     m_requestOffsets.append(offset);
-                    const int responseIndex = qMin(m_requestOffsets.size() - 1, m_responses.size() - 1);
+                    const qsizetype responseIndex = qMin(m_requestOffsets.size() - 1, m_responses.size() - 1);
                     sendResponse(socket, m_responses.at(responseIndex));
                 });
             }
         });
     }
 
-    [[nodiscard]] int requestCount() const noexcept { return m_requestOffsets.size(); }
+    [[nodiscard]] qsizetype requestCount() const noexcept { return m_requestOffsets.size(); }
     [[nodiscard]] QList<qint64> requestOffsets() const { return m_requestOffsets; }
 
   private:
