@@ -25,14 +25,11 @@ class IRecordingRepository {
     // full-row replacement and is rejected while this recording has an active execution lease.
     [[nodiscard]] virtual Result<void> update(const Recording& recording, const QString& jobId = {},
                                               const QString& ownerToken = {}) = 0;
-    [[nodiscard]] virtual Result<void> updateTitle(const QString& recordingId,
-                                                   const QString& title) = 0;
-    [[nodiscard]] virtual Result<void> updateNotes(const QString& recordingId,
-                                                   const QString& notes) = 0;
+    [[nodiscard]] virtual Result<void> updateTitle(const QString& recordingId, const QString& title) = 0;
+    [[nodiscard]] virtual Result<void> updateNotes(const QString& recordingId, const QString& notes) = 0;
     [[nodiscard]] virtual Result<void> updateReviewState(const QString& recordingId,
                                                          const QString& reviewState) = 0;
-    [[nodiscard]] virtual Result<void> relinkSource(const QString& recordingId,
-                                                    const QString& sourcePath,
+    [[nodiscard]] virtual Result<void> relinkSource(const QString& recordingId, const QString& sourcePath,
                                                     bool clearDerivedArtifacts) = 0;
     [[nodiscard]] virtual Result<std::optional<Recording>> findById(const QString& id) const = 0;
     [[nodiscard]] virtual Result<std::optional<Recording>>

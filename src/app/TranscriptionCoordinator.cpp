@@ -307,8 +307,7 @@ TranscriptionCoordinator::TranscriptionCoordinator(IRecordingRepository& recordi
                                                    WorkerProcessManager& worker,
                                                    TranscriptionSettingsManager* settings, QObject* parent)
     : QObject(parent), m_recordings(recordings), m_jobs(jobs), m_transcripts(transcripts), m_models(models),
-      m_worker(worker), m_settings(settings),
-      m_ownerToken() {
+      m_worker(worker), m_settings(settings), m_ownerToken() {
     const auto tools = FFmpegLocator::locate();
     if (tools.isValid()) {
         m_normalizer = std::make_unique<FFmpegNormalizationService>(tools.ffmpegPath, this);
@@ -390,8 +389,8 @@ void TranscriptionCoordinator::shutdown() {
                 tr("This transcription lost the global execution lease and was stopped."));
             return;
         }
-        if (awaitWorkerQuiescence(PendingTerminalAction::Interrupt,
-                                  QStringLiteral("WorkerCrashed"), reason)) {
+        if (awaitWorkerQuiescence(PendingTerminalAction::Interrupt, QStringLiteral("WorkerCrashed"),
+                                  reason)) {
             return;
         }
         finishPendingTerminalCheckpoint();
@@ -621,8 +620,7 @@ void TranscriptionCoordinator::scheduleNext() {
         return;
     }
     QString activeJobId;
-    if (lease.value().has_value() &&
-        lease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+    if (lease.value().has_value() && lease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
         activeJobId = lease.value()->jobId;
     } else {
         const auto recovered = JobRecoveryService(m_jobs).recoverAfterAbnormalShutdown();
@@ -758,103 +756,99 @@ void TranscriptionCoordinator::verifySourceMedia() {
     const QString ownerToken = m_ownerToken;
     const QString sourcePath = m_activeSourcePath;
     auto* watcher = new QFutureWatcher<SourceHashResult>(this);
-    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this,
-            [this, watcher, jobId, ownerToken] {
-                const SourceHashResult result = watcher->result();
-                watcher->deleteLater();
-                if (!activeJobMatches(jobId, ownerToken)) {
-                    return;
-                }
+    connect(watcher, &QFutureWatcher<SourceHashResult>::finished, this, [this, watcher, jobId, ownerToken] {
+        const SourceHashResult result = watcher->result();
+        watcher->deleteLater();
+        if (!activeJobMatches(jobId, ownerToken)) {
+            return;
+        }
         if (m_activeJob.state == JobState::Cancelling) {
             finishCancellation();
             return;
         }
-                if (result.sha256.isEmpty()) {
-                    failActiveJob(QStringLiteral("SourceFileMissing"),
-                                  tr("The source media file could not be read: %1").arg(result.error));
-                    return;
-                }
-                m_activeSourceHash = result.sha256;
+        if (result.sha256.isEmpty()) {
+            failActiveJob(QStringLiteral("SourceFileMissing"),
+                          tr("The source media file could not be read: %1").arg(result.error));
+            return;
+        }
+        m_activeSourceHash = result.sha256;
 
-                const auto recording = m_recordings.findById(m_activeJob.recordingId);
-                if (!recording || !recording.value().has_value()) {
-                    failActiveJob(QStringLiteral("SourceFileMissing"),
+        const auto recording = m_recordings.findById(m_activeJob.recordingId);
+        if (!recording || !recording.value().has_value()) {
+            failActiveJob(QStringLiteral("SourceFileMissing"),
                           recording ? tr("The recording no longer exists.") : recording.error().message);
-                    return;
-                }
-                const Recording& value = recording.value().value();
-                const bool cacheSourceMatches =
-                    !value.sourceHash.isEmpty() &&
-                    value.sourceHash.compare(m_activeSourceHash, Qt::CaseInsensitive) == 0;
-                const auto chunks = m_jobs.chunks(m_activeJob.id);
-                if (!chunks) {
-                    failActiveJob(QStringLiteral("DatabaseQueryFailed"), chunks.error().message);
-                    return;
-                }
+            return;
+        }
+        const Recording& value = recording.value().value();
+        const bool cacheSourceMatches =
+            !value.sourceHash.isEmpty() &&
+            value.sourceHash.compare(m_activeSourceHash, Qt::CaseInsensitive) == 0;
+        const auto chunks = m_jobs.chunks(m_activeJob.id);
+        if (!chunks) {
+            failActiveJob(QStringLiteral("DatabaseQueryFailed"), chunks.error().message);
+            return;
+        }
         const QString jobSourceHash = m_activeJob.parameters.value(QStringLiteral("sourceHash")).toString();
-                if ((!jobSourceHash.isEmpty() &&
-                     jobSourceHash.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) ||
-                    (jobSourceHash.isEmpty() && !chunks.value().isEmpty())) {
+        if ((!jobSourceHash.isEmpty() &&
+             jobSourceHash.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) ||
+            (jobSourceHash.isEmpty() && !chunks.value().isEmpty())) {
             failActiveJob(QStringLiteral("SourceMediaChanged"),
-                        jobSourceHash.isEmpty()
-                            ? tr("This transcription has no verified source-media identity. Start a new "
-                                 "transcription so existing chunks are not mixed with different audio.")
-                            : tr("The source media changed after this transcription started. Start a new "
-                                 "transcription so existing chunks are not mixed with different audio."));
-                    return;
-                }
-                if (jobSourceHash.isEmpty()) {
-                    QJsonObject parameters = m_activeJob.parameters;
-                    parameters.insert(QStringLiteral("sourceHash"), m_activeSourceHash);
-                    const auto bound = m_jobs.updateParameters(m_activeJob.id, parameters, m_ownerToken);
-                    if (!bound) {
-                        failActiveJob(QStringLiteral("DatabaseQueryFailed"), bound.error().message);
-                        return;
-                    }
-                    m_activeJob.parameters = std::move(parameters);
-                }
+                          jobSourceHash.isEmpty()
+                              ? tr("This transcription has no verified source-media identity. Start a new "
+                                   "transcription so existing chunks are not mixed with different audio.")
+                              : tr("The source media changed after this transcription started. Start a new "
+                                   "transcription so existing chunks are not mixed with different audio."));
+            return;
+        }
+        if (jobSourceHash.isEmpty()) {
+            QJsonObject parameters = m_activeJob.parameters;
+            parameters.insert(QStringLiteral("sourceHash"), m_activeSourceHash);
+            const auto bound = m_jobs.updateParameters(m_activeJob.id, parameters, m_ownerToken);
+            if (!bound) {
+                failActiveJob(QStringLiteral("DatabaseQueryFailed"), bound.error().message);
+                return;
+            }
+            m_activeJob.parameters = std::move(parameters);
+        }
 
-                NormalizedAudioInfo cachedAudio;
-                QString cacheError;
+        NormalizedAudioInfo cachedAudio;
+        QString cacheError;
         const bool reusableCache = cacheSourceMatches && value.durationMs > 0 &&
-                                   AudioCacheManager::isReusableNormalizedAudioPath(
-                                       m_activeNormalizedPath) &&
+                                   AudioCacheManager::isReusableNormalizedAudioPath(m_activeNormalizedPath) &&
                                    NormalizedAudioValidator::validate(
                                        m_activeNormalizedPath, value.durationMs, &cachedAudio, &cacheError);
-                if (reusableCache) {
-                    if (!persistNormalizedDuration(cachedAudio.durationMs, &cacheError)) {
-                        failActiveJob(QStringLiteral("DatabaseQueryFailed"), cacheError);
-                        return;
-                    }
-                    if (!value.waveformPath.isEmpty() && QFileInfo(value.waveformPath).isFile()) {
-                        prepareChunks();
-                    } else {
-                        beginWaveformGeneration();
-                    }
-                    return;
-                }
+        if (reusableCache) {
+            if (!persistNormalizedDuration(cachedAudio.durationMs, &cacheError)) {
+                failActiveJob(QStringLiteral("DatabaseQueryFailed"), cacheError);
+                return;
+            }
+            if (!value.waveformPath.isEmpty() && QFileInfo(value.waveformPath).isFile()) {
+                prepareChunks();
+            } else {
+                beginWaveformGeneration();
+            }
+            return;
+        }
 
-                Recording invalidated = value;
-                const QString obsoleteNormalizedPath = invalidated.normalizedPcmPath;
-                const QString obsoleteWaveformPath = invalidated.waveformPath;
-                invalidated.sourceHash.clear();
-                invalidated.normalizedPcmPath.clear();
-                invalidated.waveformPath.clear();
-                invalidated.durationMs = 0;
-                invalidated.sampleRate = 0;
-                invalidated.channelCount = 0;
-                const auto saved =
-                    m_recordings.update(invalidated, m_activeJob.id, m_ownerToken);
-                if (!saved) {
-                    failActiveJob(QStringLiteral("DatabaseQueryFailed"), saved.error().message);
-                    return;
-                }
-                removeCacheCandidateIfUnreferenced(value.id, obsoleteNormalizedPath);
-                removeCacheCandidateIfUnreferenced(value.id, obsoleteWaveformPath);
-                m_activeNormalizedPath =
-                    AudioCacheManager::normalizedAudioPath(value.id, m_ownerToken);
-                inspectMedia();
-            });
+        Recording invalidated = value;
+        const QString obsoleteNormalizedPath = invalidated.normalizedPcmPath;
+        const QString obsoleteWaveformPath = invalidated.waveformPath;
+        invalidated.sourceHash.clear();
+        invalidated.normalizedPcmPath.clear();
+        invalidated.waveformPath.clear();
+        invalidated.durationMs = 0;
+        invalidated.sampleRate = 0;
+        invalidated.channelCount = 0;
+        const auto saved = m_recordings.update(invalidated, m_activeJob.id, m_ownerToken);
+        if (!saved) {
+            failActiveJob(QStringLiteral("DatabaseQueryFailed"), saved.error().message);
+            return;
+        }
+        removeCacheCandidateIfUnreferenced(value.id, obsoleteNormalizedPath);
+        removeCacheCandidateIfUnreferenced(value.id, obsoleteWaveformPath);
+        m_activeNormalizedPath = AudioCacheManager::normalizedAudioPath(value.id, m_ownerToken);
+        inspectMedia();
+    });
     watcher->setFuture(QtConcurrent::run([sourcePath] {
         SourceHashResult result;
         result.sha256 = FileHash::sha256(sourcePath, &result.error);
@@ -903,8 +897,7 @@ void TranscriptionCoordinator::inspectMedia() {
     const QString jobId = m_activeJob.id;
     const QString ownerToken = m_ownerToken;
     auto* watcher = new QFutureWatcher<InspectionResult>(this);
-    connect(watcher, &QFutureWatcher<InspectionResult>::finished, this,
-            [this, watcher, jobId, ownerToken] {
+    connect(watcher, &QFutureWatcher<InspectionResult>::finished, this, [this, watcher, jobId, ownerToken] {
         const InspectionResult result = watcher->result();
         watcher->deleteLater();
         if (!activeJobMatches(jobId, ownerToken) || m_activeJob.state == JobState::Cancelling) {
@@ -951,8 +944,7 @@ void TranscriptionCoordinator::beginNormalization() {
         failActiveJob(QStringLiteral("AudioDecodeFailed"), tr("ffmpeg is not available."));
         return;
     }
-    const auto transition =
-        m_jobs.transition(m_activeJob.id, JobState::Normalizing, {}, {}, m_ownerToken);
+    const auto transition = m_jobs.transition(m_activeJob.id, JobState::Normalizing, {}, {}, m_ownerToken);
     if (!transition) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), transition.error().message);
         return;
@@ -967,8 +959,7 @@ void TranscriptionCoordinator::beginNormalization() {
     const QString jobId = m_activeJob.id;
     const QString ownerToken = m_ownerToken;
     const QString recordingId = m_activeJob.recordingId;
-    connect(operation, &NormalizationOperation::progressChanged, this,
-            [this, operation, jobId, ownerToken] {
+    connect(operation, &NormalizationOperation::progressChanged, this, [this, operation, jobId, ownerToken] {
         if (m_normalization != operation || !activeJobMatches(jobId, ownerToken)) {
             return;
         }
@@ -981,8 +972,7 @@ void TranscriptionCoordinator::beginNormalization() {
         }
     });
     connect(operation, &NormalizationOperation::finished, this,
-            [this, operation, jobId, ownerToken, recordingId](bool success,
-                                                              const QString& outputPath) {
+            [this, operation, jobId, ownerToken, recordingId](bool success, const QString& outputPath) {
                 if (m_normalization != operation || !activeJobMatches(jobId, ownerToken)) {
                     if (success) {
                         removeCacheCandidateIfUnreferenced(recordingId, outputPath);
@@ -994,9 +984,8 @@ void TranscriptionCoordinator::beginNormalization() {
                     return;
                 }
                 if (!success) {
-                    const QString message = operation->error().isEmpty()
-                                                ? tr("Audio normalization failed.")
-                                                : operation->error();
+                    const QString message =
+                        operation->error().isEmpty() ? tr("Audio normalization failed.") : operation->error();
                     failActiveJob(QStringLiteral("AudioDecodeFailed"), message);
                     return;
                 }
@@ -1031,12 +1020,14 @@ void TranscriptionCoordinator::verifyNormalizedSource(const qint64 durationMs) {
                     removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
                     return;
                 }
-        if (result.sha256.isEmpty() || result.sha256.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) {
+                if (result.sha256.isEmpty() ||
+                    result.sha256.compare(m_activeSourceHash, Qt::CaseInsensitive) != 0) {
                     removeCacheCandidateIfUnreferenced(recordingId, normalizedPath);
                     failActiveJob(
                         QStringLiteral("SourceMediaChanged"),
                         result.sha256.isEmpty()
-                    ? tr("The source media could not be verified after audio decoding: %1").arg(result.error)
+                            ? tr("The source media could not be verified after audio decoding: %1")
+                                  .arg(result.error)
                             : tr("The source media changed while its audio was being decoded. Start the "
                                  "transcription again."));
                     return;
@@ -1159,16 +1150,16 @@ void TranscriptionCoordinator::prepareChunks() {
             });
         if (planHasStarted && m_chunks.constLast().endMs < duration) {
             failActiveJob(QStringLiteral("ChunkPlanMismatch"),
-                tr("The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. "
-                   "Start a new transcription so the audio tail is not omitted.")
-                    .arg(duration)
-                    .arg(m_chunks.constLast().endMs));
+                          tr("The normalized audio is %1 ms, but the resumed chunk plan ends at %2 ms. "
+                             "Start a new transcription so the audio tail is not omitted.")
+                              .arg(duration)
+                              .arg(m_chunks.constLast().endMs));
             return;
         }
         if (!planHasStarted && m_chunks.constLast().endMs != duration) {
             QString error;
             if (!saveChunkPlan(makeJobChunks(m_activeJob.id, Asr::LongFormChunkPlanner().plan(duration, {})),
-                    &error)) {
+                               &error)) {
                 failActiveJob(QStringLiteral("DatabaseQueryFailed"), error);
                 return;
             }
@@ -1191,8 +1182,7 @@ void TranscriptionCoordinator::prepareChunks() {
     if (!ensureVadModelAvailable(VadModelContinuation::PrepareChunks)) {
         return;
     }
-    const auto analyzing =
-        m_jobs.transition(m_activeJob.id, JobState::AnalyzingSpeech, {}, {}, m_ownerToken);
+    const auto analyzing = m_jobs.transition(m_activeJob.id, JobState::AnalyzingSpeech, {}, {}, m_ownerToken);
     if (!analyzing) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), analyzing.error().message);
         return;
@@ -1224,8 +1214,7 @@ bool TranscriptionCoordinator::saveChunkPlan(QList<JobChunk> chunks, QString* er
 }
 
 void TranscriptionCoordinator::beginWaitingForModel() {
-    const auto waiting =
-        m_jobs.transition(m_activeJob.id, JobState::WaitingForModel, {}, {}, m_ownerToken);
+    const auto waiting = m_jobs.transition(m_activeJob.id, JobState::WaitingForModel, {}, {}, m_ownerToken);
     if (!waiting) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), waiting.error().message);
         return;
@@ -1263,10 +1252,9 @@ void TranscriptionCoordinator::ensureWorkerReady(const QString& jobId, int attem
         failActiveJob(QStringLiteral("WorkerTimeout"), tr("The ASR worker did not become ready."));
         return;
     }
-    QTimer::singleShot(WorkerReadyIntervalMs, this,
-                       [this, jobId, attempt, executionOwner] {
-                           ensureWorkerReady(jobId, attempt + 1, executionOwner);
-                       });
+    QTimer::singleShot(WorkerReadyIntervalMs, this, [this, jobId, attempt, executionOwner] {
+        ensureWorkerReady(jobId, attempt + 1, executionOwner);
+    });
 }
 
 void TranscriptionCoordinator::requestWorkerCapabilities() {
@@ -1483,8 +1471,7 @@ void TranscriptionCoordinator::loadModel() {
                       tr("The selected ASR model does not have a trusted checksum."));
         return;
     }
-    const auto loading =
-        m_jobs.transition(m_activeJob.id, JobState::LoadingModel, {}, {}, m_ownerToken);
+    const auto loading = m_jobs.transition(m_activeJob.id, JobState::LoadingModel, {}, {}, m_ownerToken);
     if (!loading) {
         failActiveJob(QStringLiteral("InvalidStateTransition"), loading.error().message);
         return;
@@ -1764,9 +1751,9 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
             m_activeJob.parameters.value(QStringLiteral("durationMs")).toVariant().toLongLong();
         if (durationMs != normalizedDuration) {
             failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
-                tr("Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.")
-                    .arg(durationMs)
-                    .arg(normalizedDuration));
+                          tr("Speech analysis reported %1 ms for normalized audio whose duration is %2 ms.")
+                              .arg(durationMs)
+                              .arg(normalizedDuration));
             return;
         }
         const auto recording = m_recordings.findById(m_activeJob.recordingId);
@@ -1777,8 +1764,7 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         }
         Recording updatedRecording = recording.value().value();
         updatedRecording.durationMs = durationMs;
-        const auto updated =
-            m_recordings.update(updatedRecording, m_activeJob.id, m_ownerToken);
+        const auto updated = m_recordings.update(updatedRecording, m_activeJob.id, m_ownerToken);
         if (!updated) {
             failActiveJob(QStringLiteral("DatabaseQueryFailed"), updated.error().message);
             return;
@@ -1873,12 +1859,10 @@ void TranscriptionCoordinator::handleWorkerEnvelope(const Ipc::Envelope& envelop
         const Asr::WorkerSegmentValidationResult validated = Asr::validateWorkerSegmentRange(
             envelope.payload, chunk.startMs, chunk.endMs, recordingDurationMs);
         if (!validated) {
-            const QString message =
-                validated.error == Asr::WorkerSegmentValidationError::EmptyRange
-                    ? tr("The ASR worker returned an empty segment time range.")
-                    : tr("The ASR worker returned a segment outside the active chunk.");
-            failActiveJob(QStringLiteral("WorkerProtocolMismatch"),
-                          message);
+            const QString message = validated.error == Asr::WorkerSegmentValidationError::EmptyRange
+                                        ? tr("The ASR worker returned an empty segment time range.")
+                                        : tr("The ASR worker returned a segment outside the active chunk.");
+            failActiveJob(QStringLiteral("WorkerProtocolMismatch"), message);
             return;
         }
         TranscriptSegment segment;
@@ -2069,13 +2053,11 @@ void TranscriptionCoordinator::completeActiveJob() {
 
 bool TranscriptionCoordinator::activeWorkerRequestMayStillRun() const noexcept {
     return !m_requestId.isEmpty() &&
-           (m_requestKind == RequestKind::AnalyzeSpeech ||
-            m_requestKind == RequestKind::LoadModel ||
+           (m_requestKind == RequestKind::AnalyzeSpeech || m_requestKind == RequestKind::LoadModel ||
             m_requestKind == RequestKind::TranscribeChunk);
 }
 
-bool TranscriptionCoordinator::awaitWorkerQuiescence(const PendingTerminalAction action,
-                                                     const QString& code,
+bool TranscriptionCoordinator::awaitWorkerQuiescence(const PendingTerminalAction action, const QString& code,
                                                      const QString& message) {
     if (!activeWorkerRequestMayStillRun()) {
         return false;
@@ -2105,8 +2087,7 @@ bool TranscriptionCoordinator::awaitWorkerQuiescence(const PendingTerminalAction
         return false;
     }
 
-    const QString workerJobId =
-        m_requestKind == RequestKind::LoadModel ? QString{} : m_activeJob.id;
+    const QString workerJobId = m_requestKind == RequestKind::LoadModel ? QString{} : m_activeJob.id;
     m_worker.forceCancelAfterGrace(workerJobId, m_requestId);
     if (!m_worker.forcedCancellationPending()) {
         // WorkerProcessManager has already observed the exact terminal
@@ -2407,9 +2388,8 @@ void TranscriptionCoordinator::checkpointInterruption(const QString& reason) {
             chunk = std::move(interruptedChunk);
         }
     }
-    const auto interrupted =
-        m_jobs.transition(jobId, JobState::Interrupted, QStringLiteral("WorkerCrashed"), reason,
-                          m_ownerToken);
+    const auto interrupted = m_jobs.transition(jobId, JobState::Interrupted, QStringLiteral("WorkerCrashed"),
+                                               reason, m_ownerToken);
     if (!interrupted) {
         if (interrupted.error().code == ErrorCode::ExecutionLeaseLost) {
             abandonActiveJobAfterLeaseLoss(
@@ -2447,8 +2427,7 @@ void TranscriptionCoordinator::abandonActiveJobAfterLeaseLoss(const QString& rea
     if (m_activeJob.id.isEmpty()) {
         return;
     }
-    const bool firstLeaseLoss =
-        m_pendingTerminalAction != PendingTerminalAction::AbandonAfterLeaseLoss;
+    const bool firstLeaseLoss = m_pendingTerminalAction != PendingTerminalAction::AbandonAfterLeaseLoss;
     m_leaseHeartbeatTimer.stop();
     if (m_normalization != nullptr && m_normalization->isRunning()) {
         m_normalization->cancel();
@@ -2492,8 +2471,7 @@ void TranscriptionCoordinator::finishLeaseLossHandoff(const QString&) {
 
     QString durableRunningJobId;
     const auto lease = m_jobs.activeLease();
-    if (lease && lease.value().has_value() &&
-        lease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+    if (lease && lease.value().has_value() && lease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
         durableRunningJobId = lease.value()->jobId;
     }
     if (m_runningJobId != durableRunningJobId) {
@@ -2535,8 +2513,8 @@ void TranscriptionCoordinator::refreshHandedOffJob(const QString& activeJobId) {
     m_handedOffRecordingId.clear();
 }
 
-void TranscriptionCoordinator::removeCacheCandidateIfUnreferenced(
-    const QString& recordingId, const QString& path) const {
+void TranscriptionCoordinator::removeCacheCandidateIfUnreferenced(const QString& recordingId,
+                                                                  const QString& path) const {
     if (path.trimmed().isEmpty()) {
         return;
     }
@@ -2555,11 +2533,9 @@ void TranscriptionCoordinator::removeCacheCandidateIfUnreferenced(
         return;
     }
     if (recording.value().has_value()) {
-        const auto referencesCandidate = [&candidate, PathCaseSensitivity](
-                                             const QString& referencedPath) {
-            return !referencedPath.isEmpty() &&
-                   QDir::cleanPath(QFileInfo(referencedPath).absoluteFilePath())
-                           .compare(candidate, PathCaseSensitivity) == 0;
+        const auto referencesCandidate = [&candidate](const QString& referencedPath) {
+            return !referencedPath.isEmpty() && QDir::cleanPath(QFileInfo(referencedPath).absoluteFilePath())
+                                                        .compare(candidate, PathCaseSensitivity) == 0;
         };
         if (referencesCandidate(recording.value()->normalizedPcmPath) ||
             referencesCandidate(recording.value()->waveformPath)) {
@@ -2647,9 +2623,9 @@ bool TranscriptionCoordinator::persistLoadedRuntimeInfo(QString* error) {
         }
         return false;
     }
-    const auto saved = m_jobs.updateRuntimeInfo(m_activeJob.id, m_loadedActualBackend, m_loadedRuntimeVersion,
-                                                m_activeJob.workerVersion, m_loadedRuntimeDiagnostics,
-                                                m_ownerToken);
+    const auto saved =
+        m_jobs.updateRuntimeInfo(m_activeJob.id, m_loadedActualBackend, m_loadedRuntimeVersion,
+                                 m_activeJob.workerVersion, m_loadedRuntimeDiagnostics, m_ownerToken);
     if (!saved) {
         if (error != nullptr) {
             *error = saved.error().message;

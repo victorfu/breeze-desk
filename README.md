@@ -60,7 +60,7 @@ macOS 14+ (Apple Silicon) and Windows 10 22H2+/Windows 11 (x64).
 
 | Layer | Implementation |
 | --- | --- |
-| UI | Qt 6.8+ Quick/QML (Qt 6.10.1 release baseline) over a C++17 core |
+| UI | Qt 6.8+ Quick/QML (Qt 6.12.0 release baseline) over a C++17 core |
 | ASR | whisper.cpp pinned to an immutable commit, linked as a library by the worker process |
 | Acceleration | Metal + Accelerate on macOS; Vulkan or CPU worker builds on Windows |
 | Media | LGPL FFmpeg sidecar for probing and normalization; Qt Multimedia for capture and playback |
@@ -87,7 +87,7 @@ after the model is installed.
 
 ### Build on macOS
 
-Install CMake, Ninja, Qt 6.8+ (Qt 6.10.1 is the release baseline), Xcode Command Line Tools, and an
+Install CMake, Ninja, Qt 6.8+ (Qt 6.12.0 is the release baseline), Xcode Command Line Tools, and an
 LGPL-compatible FFmpeg development sidecar. Then run:
 
 ```sh

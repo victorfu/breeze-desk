@@ -100,10 +100,9 @@ bool injectSearchIndexInsertFailure(DatabaseManager& manager, QString recordingI
     }
     recordingId.replace(QLatin1Char('\''), QStringLiteral("''"));
     QSqlQuery trigger(connection.value());
-    return trigger.exec(QStringLiteral(
-                            "CREATE TRIGGER fail_search_index_insert BEFORE INSERT ON "
-                            "search_index_fallback WHEN NEW.recording_id='%1' BEGIN "
-                            "SELECT RAISE(ABORT,'injected search index insert failure'); END")
+    return trigger.exec(QStringLiteral("CREATE TRIGGER fail_search_index_insert BEFORE INSERT ON "
+                                       "search_index_fallback WHEN NEW.recording_id='%1' BEGIN "
+                                       "SELECT RAISE(ABORT,'injected search index insert failure'); END")
                             .arg(recordingId));
 }
 } // namespace
@@ -199,8 +198,8 @@ void DatabaseTest::recordingCreateRollsBackWhenSearchRebuildFails() {
     const auto created = repository.create(recording);
     QVERIFY(!created);
     QCOMPARE(created.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(created.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        created.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
 
     const auto durable = repository.findById(recordingId);
     QVERIFY(durable);
@@ -208,12 +207,11 @@ void DatabaseTest::recordingCreateRollsBackWhenSearchRebuildFails() {
     const auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery counts(connection.value());
-    QVERIFY(counts.exec(QStringLiteral(
-        "SELECT (SELECT COUNT(*) FROM recording_tags WHERE recording_id="
-        "'atomic-index-create-recording'),"
-        "(SELECT COUNT(*) FROM tags WHERE name='AtomicCreateTag'),"
-        "(SELECT COUNT(*) FROM search_index_fallback WHERE recording_id="
-        "'atomic-index-create-recording')")));
+    QVERIFY(counts.exec(QStringLiteral("SELECT (SELECT COUNT(*) FROM recording_tags WHERE recording_id="
+                                       "'atomic-index-create-recording'),"
+                                       "(SELECT COUNT(*) FROM tags WHERE name='AtomicCreateTag'),"
+                                       "(SELECT COUNT(*) FROM search_index_fallback WHERE recording_id="
+                                       "'atomic-index-create-recording')")));
     QVERIFY(counts.next());
     QCOMPARE(counts.value(0).toInt(), 0);
     QCOMPARE(counts.value(1).toInt(), 0);
@@ -251,33 +249,30 @@ void DatabaseTest::recordingMutationsRollBackWhenSearchRebuildFails() {
     const auto fullUpdate = repository.update(replacement);
     QVERIFY(!fullUpdate);
     QCOMPARE(fullUpdate.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(fullUpdate.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        fullUpdate.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
 
-    const auto titleUpdate =
-        repository.updateTitle(recordingId, QStringLiteral("Rejected title update"));
+    const auto titleUpdate = repository.updateTitle(recordingId, QStringLiteral("Rejected title update"));
     QVERIFY(!titleUpdate);
     QCOMPARE(titleUpdate.error().code, ErrorCode::DatabaseQueryFailed);
     QVERIFY(titleUpdate.error().technicalDetails.contains(
         QStringLiteral("injected search index insert failure")));
-    const auto notesUpdate =
-        repository.updateNotes(recordingId, QStringLiteral("Rejected notes update"));
+    const auto notesUpdate = repository.updateNotes(recordingId, QStringLiteral("Rejected notes update"));
     QVERIFY(!notesUpdate);
     QCOMPARE(notesUpdate.error().code, ErrorCode::DatabaseQueryFailed);
     QVERIFY(notesUpdate.error().technicalDetails.contains(
         QStringLiteral("injected search index insert failure")));
-    const auto tagsUpdate =
-        repository.setTags(recordingId, {QStringLiteral("RejectedSetTag")});
+    const auto tagsUpdate = repository.setTags(recordingId, {QStringLiteral("RejectedSetTag")});
     QVERIFY(!tagsUpdate);
     QCOMPARE(tagsUpdate.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(tagsUpdate.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        tagsUpdate.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
     const auto activation =
         repository.setActiveTranscriptJob(recordingId, QStringLiteral("atomic-index-update-job"));
     QVERIFY(!activation);
     QCOMPARE(activation.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(activation.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        activation.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
 
     const auto durable = repository.findById(recordingId);
     QVERIFY(durable && durable.value().has_value());
@@ -287,8 +282,8 @@ void DatabaseTest::recordingMutationsRollBackWhenSearchRebuildFails() {
     QVERIFY(durable.value()->activeJobId.isEmpty());
 
     QSqlQuery rawIndex(connection.value());
-    rawIndex.prepare(QStringLiteral(
-        "SELECT title,notes,tags,transcript FROM search_index_fallback WHERE recording_id=?"));
+    rawIndex.prepare(
+        QStringLiteral("SELECT title,notes,tags,transcript FROM search_index_fallback WHERE recording_id=?"));
     rawIndex.addBindValue(recordingId);
     QVERIFY(rawIndex.exec());
     QVERIFY(rawIndex.next());
@@ -298,8 +293,8 @@ void DatabaseTest::recordingMutationsRollBackWhenSearchRebuildFails() {
     QVERIFY(rawIndex.value(3).toString().isEmpty());
 
     QSqlQuery rejectedTags(connection.value());
-    QVERIFY(rejectedTags.exec(QStringLiteral(
-        "SELECT COUNT(*) FROM tags WHERE name IN ('RejectedUpdateTag','RejectedSetTag')")));
+    QVERIFY(rejectedTags.exec(
+        QStringLiteral("SELECT COUNT(*) FROM tags WHERE name IN ('RejectedUpdateTag','RejectedSetTag')")));
     QVERIFY(rejectedTags.next());
     QCOMPARE(rejectedTags.value(0).toInt(), 0);
 }
@@ -402,8 +397,8 @@ void DatabaseTest::permanentDeletePurgesRawSearchIndexes() {
         ftsTableExists = setup.hasFts5();
         if (ftsTableExists) {
             QSqlQuery fts(connection.value());
-            fts.prepare(QStringLiteral(
-                "SELECT title,notes,tags,transcript FROM search_index WHERE recording_id=?"));
+            fts.prepare(
+                QStringLiteral("SELECT title,notes,tags,transcript FROM search_index WHERE recording_id=?"));
             fts.addBindValue(recordingId);
             QVERIFY(fts.exec());
             QVERIFY(fts.next());
@@ -415,9 +410,9 @@ void DatabaseTest::permanentDeletePurgesRawSearchIndexes() {
             // Simulate a legacy database whose dormant FTS table is not advertised by the cached
             // feature flag. Permanent deletion must inspect the schema rather than trusting the flag.
             QSqlQuery disableFeature(connection.value());
-            QVERIFY(disableFeature.exec(QStringLiteral(
-                "UPDATE database_features SET enabled=0,detail='legacy dormant FTS table' "
-                "WHERE name='fts5'")));
+            QVERIFY(disableFeature.exec(
+                QStringLiteral("UPDATE database_features SET enabled=0,detail='legacy dormant FTS table' "
+                               "WHERE name='fts5'")));
             QCOMPARE(disableFeature.numRowsAffected(), 1);
         }
     }
@@ -434,8 +429,7 @@ void DatabaseTest::permanentDeletePurgesRawSearchIndexes() {
     const auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery fallbackCount(connection.value());
-    fallbackCount.prepare(
-        QStringLiteral("SELECT COUNT(*) FROM search_index_fallback WHERE recording_id=?"));
+    fallbackCount.prepare(QStringLiteral("SELECT COUNT(*) FROM search_index_fallback WHERE recording_id=?"));
     fallbackCount.addBindValue(recordingId);
     QVERIFY(fallbackCount.exec());
     QVERIFY(fallbackCount.next());
@@ -454,8 +448,7 @@ void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
     const QString sourcePath = directory.filePath(QStringLiteral("source/original.wav"));
     const QString managedPath =
@@ -473,8 +466,7 @@ void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
     recording.sourcePath = sourcePath;
     recording.managedMediaPath = managedPath;
     QVERIFY(repository.create(recording));
-    QVERIFY(insertTranscript(manager, recordingId,
-                             {QStringLiteral("AtomicTranscriptSecret-2706ce")}));
+    QVERIFY(insertTranscript(manager, recordingId, {QStringLiteral("AtomicTranscriptSecret-2706ce")}));
     QVERIFY(repository.moveToTrash(recordingId));
 
     const auto connection = manager.connection();
@@ -494,10 +486,10 @@ void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
     legacyIndex.addBindValue(QStringLiteral("AtomicTranscriptSecret-2706ce"));
     QVERIFY(legacyIndex.exec());
     QSqlQuery injectFailure(connection.value());
-    QVERIFY(injectFailure.exec(QStringLiteral(
-        "CREATE TRIGGER fail_search_index_delete BEFORE DELETE ON search_index "
-        "WHEN OLD.recording_id='atomic-index-delete-recording' BEGIN "
-        "SELECT RAISE(ABORT,'injected search index delete failure'); END")));
+    QVERIFY(injectFailure.exec(
+        QStringLiteral("CREATE TRIGGER fail_search_index_delete BEFORE DELETE ON search_index "
+                       "WHEN OLD.recording_id='atomic-index-delete-recording' BEGIN "
+                       "SELECT RAISE(ABORT,'injected search index delete failure'); END")));
 
     const auto permanentlyDeleted = repository.permanentlyDelete(recordingId);
     QVERIFY(!permanentlyDeleted);
@@ -511,24 +503,21 @@ void DatabaseTest::permanentDeleteRollsBackWhenSearchIndexDeleteFails() {
     QCOMPARE(recordingCount.value(0).toInt(), 1);
 
     QSqlQuery fallbackCount(connection.value());
-    fallbackCount.prepare(
-        QStringLiteral("SELECT COUNT(*) FROM search_index_fallback WHERE recording_id=?"));
+    fallbackCount.prepare(QStringLiteral("SELECT COUNT(*) FROM search_index_fallback WHERE recording_id=?"));
     fallbackCount.addBindValue(recordingId);
     QVERIFY(fallbackCount.exec());
     QVERIFY(fallbackCount.next());
     QCOMPARE(fallbackCount.value(0).toInt(), 1);
 
     QSqlQuery searchIndexCount(connection.value());
-    searchIndexCount.prepare(
-        QStringLiteral("SELECT COUNT(*) FROM search_index WHERE recording_id=?"));
+    searchIndexCount.prepare(QStringLiteral("SELECT COUNT(*) FROM search_index WHERE recording_id=?"));
     searchIndexCount.addBindValue(recordingId);
     QVERIFY(searchIndexCount.exec());
     QVERIFY(searchIndexCount.next());
     QCOMPARE(searchIndexCount.value(0).toInt(), 1);
 
     QSqlQuery pendingCount(connection.value());
-    QVERIFY(pendingCount.exec(
-        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.exec(QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
     QVERIFY(pendingCount.next());
     QCOMPARE(pendingCount.value(0).toInt(), 0);
     QVERIFY(QFileInfo::exists(sourcePath));
@@ -539,8 +528,7 @@ void DatabaseTest::permanentDeleteOutboxRetriesAndConverges() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString sourcePath = directory.filePath(QStringLiteral("source/original.wav"));
@@ -552,14 +540,13 @@ void DatabaseTest::permanentDeleteOutboxRetriesAndConverges() {
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
     int removalAttempts = 0;
-    SqliteRecordingRepository failingRepository(
-        manager, [&removalAttempts](const QString&, QString* error) {
-            ++removalAttempts;
-            if (error != nullptr) {
-                *error = QStringLiteral("injected sharing violation");
-            }
-            return false;
-        });
+    SqliteRecordingRepository failingRepository(manager, [&removalAttempts](const QString&, QString* error) {
+        ++removalAttempts;
+        if (error != nullptr) {
+            *error = QStringLiteral("injected sharing violation");
+        }
+        return false;
+    });
     Recording recording;
     recording.id = QStringLiteral("outbox-retry");
     recording.title = QStringLiteral("Outbox retry");
@@ -579,8 +566,8 @@ void DatabaseTest::permanentDeleteOutboxRetriesAndConverges() {
     QVERIFY(connection);
     {
         QSqlQuery queued(connection.value());
-        queued.prepare(QStringLiteral(
-            "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+        queued.prepare(
+            QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
         queued.addBindValue(recording.id);
         QVERIFY(queued.exec());
         QVERIFY(queued.next());
@@ -601,15 +588,13 @@ void DatabaseTest::permanentDeleteOutboxRetriesAndConverges() {
     QCOMPARE(removalAttempts, 1);
 
     QSqlQuery pending(connection.value());
-    pending.prepare(QStringLiteral(
-        "SELECT attempt_count,next_attempt_at,last_error FROM "
-        "pending_recording_artifact_deletions WHERE recording_id=?"));
+    pending.prepare(QStringLiteral("SELECT attempt_count,next_attempt_at,last_error FROM "
+                                   "pending_recording_artifact_deletions WHERE recording_id=?"));
     pending.addBindValue(recording.id);
     QVERIFY(pending.exec());
     QVERIFY(pending.next());
     QCOMPARE(pending.value(0).toInt(), 1);
-    QVERIFY(TimeUtils::fromStorageString(pending.value(1).toString()) >
-            QDateTime::currentDateTimeUtc());
+    QVERIFY(TimeUtils::fromStorageString(pending.value(1).toString()) > QDateTime::currentDateTimeUtc());
     QCOMPARE(pending.value(2).toString(), QStringLiteral("injected sharing violation"));
     QVERIFY(!pending.next());
     pending.finish();
@@ -632,8 +617,7 @@ void DatabaseTest::permanentDeleteOutboxRetriesAndConverges() {
     QVERIFY(QFileInfo::exists(sourcePath));
 
     QSqlQuery pendingCount(connection.value());
-    QVERIFY(pendingCount.exec(
-        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.exec(QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
     QVERIFY(pendingCount.next());
     QCOMPARE(pendingCount.value(0).toInt(), 0);
 }
@@ -642,13 +626,11 @@ void DatabaseTest::permanentDeleteOutboxRemovesOwnedArtifacts() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString sourcePath = directory.filePath(QStringLiteral("source/original.mp4"));
-    const QString managedPath =
-        QDir(StoragePaths::recordings()).filePath(QStringLiteral("owned-media.mp4"));
+    const QString managedPath = QDir(StoragePaths::recordings()).filePath(QStringLiteral("owned-media.mp4"));
     const QString normalizedPath =
         QDir(StoragePaths::cache()).filePath(QStringLiteral("audio/owned-audio.wav"));
     const QString waveformPath =
@@ -676,8 +658,8 @@ void DatabaseTest::permanentDeleteOutboxRemovesOwnedArtifacts() {
     QVERIFY(connection);
     {
         QSqlQuery queued(connection.value());
-        queued.prepare(QStringLiteral(
-            "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+        queued.prepare(
+            QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
         queued.addBindValue(recording.id);
         QVERIFY(queued.exec());
         QVERIFY(queued.next());
@@ -698,8 +680,7 @@ void DatabaseTest::permanentDeleteOutboxQueuesDistinctAliases() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString managedPath =
@@ -727,8 +708,8 @@ void DatabaseTest::permanentDeleteOutboxQueuesDistinctAliases() {
     const auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery queued(connection.value());
-    queued.prepare(QStringLiteral(
-        "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+    queued.prepare(
+        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
     queued.addBindValue(recording.id);
     QVERIFY(queued.exec());
     QVERIFY(queued.next());
@@ -746,8 +727,7 @@ void DatabaseTest::permanentDeleteOutboxTreatsMissingFilesAsComplete() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString missingManagedPath =
@@ -756,11 +736,10 @@ void DatabaseTest::permanentDeleteOutboxTreatsMissingFilesAsComplete() {
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
     int removalAttempts = 0;
-    SqliteRecordingRepository repository(
-        manager, [&removalAttempts](const QString&, QString*) {
-            ++removalAttempts;
-            return false;
-        });
+    SqliteRecordingRepository repository(manager, [&removalAttempts](const QString&, QString*) {
+        ++removalAttempts;
+        return false;
+    });
     Recording recording;
     recording.id = QStringLiteral("outbox-missing");
     recording.title = QStringLiteral("Outbox missing");
@@ -774,8 +753,8 @@ void DatabaseTest::permanentDeleteOutboxTreatsMissingFilesAsComplete() {
     QVERIFY(connection);
     {
         QSqlQuery queued(connection.value());
-        queued.prepare(QStringLiteral(
-            "SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
+        queued.prepare(
+            QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions WHERE recording_id=?"));
         queued.addBindValue(recording.id);
         QVERIFY(queued.exec());
         QVERIFY(queued.next());
@@ -791,8 +770,7 @@ void DatabaseTest::permanentDeleteOutboxTreatsMissingFilesAsComplete() {
     QCOMPARE(removalAttempts, 0);
 
     QSqlQuery pendingCount(connection.value());
-    QVERIFY(pendingCount.exec(
-        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.exec(QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
     QVERIFY(pendingCount.next());
     QCOMPARE(pendingCount.value(0).toInt(), 0);
 }
@@ -801,8 +779,7 @@ void DatabaseTest::permanentDeleteOutboxDefersSharedArtifacts() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString sharedPath =
@@ -844,17 +821,15 @@ void DatabaseTest::permanentDeleteOutboxDefersSharedArtifacts() {
     const auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery makeDue(connection.value());
-    QVERIFY(makeDue.exec(QStringLiteral(
-        "UPDATE pending_recording_artifact_deletions SET "
-        "next_attempt_at='1970-01-01T00:00:00.000Z'")));
+    QVERIFY(makeDue.exec(QStringLiteral("UPDATE pending_recording_artifact_deletions SET "
+                                        "next_attempt_at='1970-01-01T00:00:00.000Z'")));
     QCOMPARE(makeDue.numRowsAffected(), 1);
     const auto convergence = repository.drainPendingArtifactDeletions();
     QVERIFY(convergence);
     QCOMPARE(convergence.value().missingFiles, 1);
 
     QSqlQuery pendingCount(connection.value());
-    QVERIFY(pendingCount.exec(
-        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.exec(QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
     QVERIFY(pendingCount.next());
     QCOMPARE(pendingCount.value(0).toInt(), 0);
 }
@@ -863,8 +838,7 @@ void DatabaseTest::permanentDeleteOutboxDiscardsUnsafeEntries() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString externalPath = directory.filePath(QStringLiteral("external/keep.wav"));
@@ -878,19 +852,18 @@ void DatabaseTest::permanentDeleteOutboxDiscardsUnsafeEntries() {
     QVERIFY(connection);
     const QString now = TimeUtils::nowStorageString();
     QSqlQuery insert(connection.value());
-    insert.prepare(QStringLiteral(
-        "INSERT INTO pending_recording_artifact_deletions("
-        "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
-        "VALUES('unsafe-row','deleted-recording','managed_media',?,?,?)"));
+    insert.prepare(QStringLiteral("INSERT INTO pending_recording_artifact_deletions("
+                                  "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
+                                  "VALUES('unsafe-row','deleted-recording','managed_media',?,?,?)"));
     insert.addBindValue(QFileInfo(externalPath).absoluteFilePath());
     insert.addBindValue(now);
     insert.addBindValue(now);
     QVERIFY(insert.exec());
     QSqlQuery insertDirectory(connection.value());
-    insertDirectory.prepare(QStringLiteral(
-        "INSERT INTO pending_recording_artifact_deletions("
-        "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
-        "VALUES('directory-row','deleted-recording','managed_media',?,?,?)"));
+    insertDirectory.prepare(
+        QStringLiteral("INSERT INTO pending_recording_artifact_deletions("
+                       "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
+                       "VALUES('directory-row','deleted-recording','managed_media',?,?,?)"));
     insertDirectory.addBindValue(QFileInfo(managedDirectory).absoluteFilePath());
     insertDirectory.addBindValue(now);
     insertDirectory.addBindValue(now);
@@ -906,8 +879,7 @@ void DatabaseTest::permanentDeleteOutboxDiscardsUnsafeEntries() {
     QVERIFY(QFileInfo(managedDirectory).isDir());
 
     QSqlQuery pendingCount(connection.value());
-    QVERIFY(pendingCount.exec(
-        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.exec(QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
     QVERIFY(pendingCount.next());
     QCOMPARE(pendingCount.value(0).toInt(), 0);
 }
@@ -916,12 +888,10 @@ void DatabaseTest::permanentDeleteOutboxRejectsUnsafeManagedSourceAlias() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
-    const QString sourcePath =
-        QDir(StoragePaths::cache()).filePath(QStringLiteral("audio/user-source.wav"));
+    const QString sourcePath = QDir(StoragePaths::cache()).filePath(QStringLiteral("audio/user-source.wav"));
     QVERIFY2(createFile(sourcePath), qPrintable(sourcePath));
     DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite"))});
     QVERIFY(manager.initialize());
@@ -945,8 +915,7 @@ void DatabaseTest::permanentDeleteOutboxRejectsUnsafeManagedSourceAlias() {
     const auto connection = manager.connection();
     QVERIFY(connection);
     QSqlQuery pendingCount(connection.value());
-    QVERIFY(pendingCount.exec(
-        QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
+    QVERIFY(pendingCount.exec(QStringLiteral("SELECT COUNT(*) FROM pending_recording_artifact_deletions")));
     QVERIFY(pendingCount.next());
     QCOMPARE(pendingCount.value(0).toInt(), 0);
 }
@@ -955,15 +924,13 @@ void DatabaseTest::permanentDeleteOutboxFencesConcurrentReferences() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString managedPath =
         QDir(StoragePaths::recordings()).filePath(QStringLiteral("concurrent-managed.wav"));
     QVERIFY2(createFile(managedPath), qPrintable(managedPath));
-    DatabaseManager manager(
-        {directory.filePath(QStringLiteral("library.sqlite")), 100, true, false});
+    DatabaseManager manager({directory.filePath(QStringLiteral("library.sqlite")), 100, true, false});
     QVERIFY(manager.initialize());
     SqliteRecordingRepository setupRepository(manager);
     Recording deleted;
@@ -997,11 +964,10 @@ void DatabaseTest::permanentDeleteOutboxFencesConcurrentReferences() {
     const bool drainerPrepared = drainerReady.tryAcquire(1, 5'000);
 
     std::thread creator([&] {
-        SqliteRecordingRepository repository(
-            manager, {}, [&] {
-                writerLocked.release();
-                allowWriter.acquire();
-            });
+        SqliteRecordingRepository repository(manager, {}, [&] {
+            writerLocked.release();
+            allowWriter.acquire();
+        });
         Recording replacement;
         replacement.id = QStringLiteral("outbox-concurrent-replacement");
         replacement.title = QStringLiteral("Concurrent replacement");
@@ -1023,16 +989,14 @@ void DatabaseTest::permanentDeleteOutboxFencesConcurrentReferences() {
 
     QVERIFY2(drainerPrepared && drainerConnectionReady,
              "The concurrent drainer database connection was not prepared.");
-    QVERIFY2(writerAcquiredTransaction,
-             "The writer did not reach the managed-reference transaction hook.");
+    QVERIFY2(writerAcquiredTransaction, "The writer did not reach the managed-reference transaction hook.");
     QVERIFY2(drainerFinishedWhileWriterLocked,
              "The concurrent drainer did not finish within its database busy timeout.");
     QVERIFY(blockedDrainFailed);
     QCOMPARE(blockedDrainError, ErrorCode::DatabaseQueryFailed);
     QVERIFY(creationSucceeded);
     QVERIFY(QFileInfo::exists(managedPath));
-    const auto replacement = setupRepository.findById(
-        QStringLiteral("outbox-concurrent-replacement"));
+    const auto replacement = setupRepository.findById(QStringLiteral("outbox-concurrent-replacement"));
     QVERIFY(replacement);
     QVERIFY(replacement.value().has_value());
     QCOMPARE(replacement.value()->managedMediaPath, managedPath);
@@ -1048,8 +1012,7 @@ void DatabaseTest::managedReferenceFenceRecognizesExternalFileAlias() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString managedPath =
@@ -1092,21 +1055,22 @@ void DatabaseTest::managedReferenceFenceRecognizesExternalFileAlias() {
 void DatabaseTest::managedReferenceFenceRecognizesDeepAliasChain() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
+    // Avoid spending a symlink traversal on /var -> /private/var at every absolute hop on macOS.
+    const QDir physicalDirectory(QFileInfo(directory.path()).canonicalFilePath());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT",
-            directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", physicalDirectory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString managedPath =
         QDir(StoragePaths::recordings()).filePath(QStringLiteral("deep-aliased-managed.wav"));
-    const QString aliasesDirectory = directory.filePath(QStringLiteral("external-aliases"));
+    const QString aliasesDirectory = physicalDirectory.filePath(QStringLiteral("external-aliases"));
     QVERIFY2(createFile(managedPath), qPrintable(managedPath));
     QVERIFY(QDir().mkpath(aliasesDirectory));
     QString deepAlias = managedPath;
     constexpr int AliasDepth = 20;
     for (int index = 0; index < AliasDepth; ++index) {
-        QString alias = QDir(aliasesDirectory).filePath(
-            QStringLiteral("alias-%1").arg(index, 2, 10, QLatin1Char('0')));
+        QString alias =
+            QDir(aliasesDirectory).filePath(QStringLiteral("alias-%1").arg(index, 2, 10, QLatin1Char('0')));
 #if defined(Q_OS_WIN)
         alias += QStringLiteral(".lnk");
 #endif

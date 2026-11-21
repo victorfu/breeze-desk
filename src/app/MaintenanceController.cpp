@@ -71,8 +71,8 @@ bool isStrictChildPath(const QString& path, const QString& directory) {
     }
     const QString relative = QDir(directory).relativeFilePath(path);
     return !relative.isEmpty() && relative != QLatin1String(".") && relative != QLatin1String("..") &&
-           !relative.startsWith(QLatin1String("../")) &&
-           !relative.startsWith(QLatin1String("..\\")) && !QDir::isAbsolutePath(relative);
+           !relative.startsWith(QLatin1String("../")) && !relative.startsWith(QLatin1String("..\\")) &&
+           !QDir::isAbsolutePath(relative);
 }
 
 bool isLinkOrJunction(const QFileInfo& info) {
@@ -176,8 +176,7 @@ OperationResult clearCacheDirectory(const QString& cachePath, const QString& dat
     }
 
     const QFileInfo configuredCache(cache);
-    if (isLinkOrJunction(configuredCache) ||
-        (configuredCache.exists() && !configuredCache.isDir())) {
+    if (isLinkOrJunction(configuredCache) || (configuredCache.exists() && !configuredCache.isDir())) {
         result.message = QStringLiteral("The configured cache location is not a regular directory.");
         result.technicalDetails = cache;
         return result;

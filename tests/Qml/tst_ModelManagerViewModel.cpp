@@ -1,7 +1,7 @@
+#include "ModelManagerViewModelOperations.h"
 #include "breezedesk/models/ModelFileOperations.h"
 #include "breezedesk/models/ModelManager.h"
 #include "breezedesk/ui/ModelManagerViewModel.h"
-#include "ModelManagerViewModelOperations.h"
 
 #include <QAbstractItemModel>
 #include <QCoreApplication>
@@ -27,8 +27,7 @@ constexpr auto TestModelId = "breeze-asr-25-q5";
 class EnvironmentVariableGuard final {
   public:
     explicit EnvironmentVariableGuard(QByteArray name)
-        : m_name(std::move(name)),
-          m_wasSet(qEnvironmentVariableIsSet(m_name.constData())),
+        : m_name(std::move(name)), m_wasSet(qEnvironmentVariableIsSet(m_name.constData())),
           m_value(qgetenv(m_name.constData())) {}
 
     ~EnvironmentVariableGuard() {
@@ -125,9 +124,8 @@ void ModelManagerViewModelTest::serviceReplacementDropsQueuedVerification() {
 
     QSemaphore returned;
     Internal::ModelManagerViewModelOperations operations;
-    operations.verify = [&returned](
-                            ModelVerificationSnapshot snapshot,
-                            const Internal::ModelManagerViewModelOperations::Cancellation&) {
+    operations.verify = [&returned](ModelVerificationSnapshot snapshot,
+                                    const Internal::ModelManagerViewModelOperations::Cancellation&) {
         const ModelVerificationResult result = successfulVerification(snapshot);
         returned.release();
         return result;
@@ -217,9 +215,9 @@ void ModelManagerViewModelTest::duplicateImportCommitsOnlyOnOwnerThread() {
     std::thread::id workerThread;
     Internal::ModelManagerViewModelOperations operations;
     operations.prepareImport =
-        [&started, &release, &calls, &threadMutex, &workerThread](
-            CustomModelImportRequest request,
-            const Internal::ModelManagerViewModelOperations::Cancellation& cancellation) {
+        [&started, &release, &calls, &threadMutex,
+         &workerThread](CustomModelImportRequest request,
+                        const Internal::ModelManagerViewModelOperations::Cancellation& cancellation) {
             calls.fetch_add(1, std::memory_order_relaxed);
             {
                 const std::lock_guard lock(threadMutex);
@@ -240,8 +238,9 @@ void ModelManagerViewModelTest::duplicateImportCommitsOnlyOnOwnerThread() {
     ModelManager manager;
     const std::thread::id ownerThread = std::this_thread::get_id();
     std::thread::id commitThread;
-    connect(&manager, &ModelManager::modelsChanged, &manager,
-            [&commitThread] { commitThread = std::this_thread::get_id(); }, Qt::DirectConnection);
+    connect(
+        &manager, &ModelManager::modelsChanged, &manager,
+        [&commitThread] { commitThread = std::this_thread::get_id(); }, Qt::DirectConnection);
     auto viewModel = Internal::ModelManagerViewModelTestAccess::create(std::move(operations));
     viewModel->installServices(&manager);
     QSignalSpy rejected(viewModel.get(), &ModelManagerViewModel::commandRejected);
@@ -280,9 +279,9 @@ void ModelManagerViewModelTest::stalePreparedImportIsCleanedOnServiceReplacement
     std::thread::id cleanupThread;
     Internal::ModelManagerViewModelOperations operations;
     operations.prepareImport =
-        [&preparedReady, &requestMutex, &preparedRequest](
-            CustomModelImportRequest request,
-            const Internal::ModelManagerViewModelOperations::Cancellation& cancellation) {
+        [&preparedReady, &requestMutex,
+         &preparedRequest](CustomModelImportRequest request,
+                           const Internal::ModelManagerViewModelOperations::Cancellation& cancellation) {
             PreparedCustomModelImport prepared =
                 ModelFileOperations::prepareImport(request, cancellation.get());
             {
@@ -335,23 +334,23 @@ void ModelManagerViewModelTest::failedPreparedImportIsCleaned() {
     std::mutex requestMutex;
     CustomModelImportRequest failedRequest;
     Internal::ModelManagerViewModelOperations operations;
-    operations.prepareImport = [&requestMutex, &failedRequest](
-                                   CustomModelImportRequest request,
-                                   const Internal::ModelManagerViewModelOperations::Cancellation&) {
-        QFile staging(request.stagingPath);
-        if (staging.open(QIODevice::WriteOnly)) {
-            staging.write("unpublished", 11);
-            staging.close();
-        }
-        {
-            const std::lock_guard lock(requestMutex);
-            failedRequest = request;
-        }
-        PreparedCustomModelImport failed;
-        failed.request = request;
-        failed.error = QStringLiteral("Injected import failure.");
-        return failed;
-    };
+    operations.prepareImport =
+        [&requestMutex, &failedRequest](CustomModelImportRequest request,
+                                        const Internal::ModelManagerViewModelOperations::Cancellation&) {
+            QFile staging(request.stagingPath);
+            if (staging.open(QIODevice::WriteOnly)) {
+                staging.write("unpublished", 11);
+                staging.close();
+            }
+            {
+                const std::lock_guard lock(requestMutex);
+                failedRequest = request;
+            }
+            PreparedCustomModelImport failed;
+            failed.request = request;
+            failed.error = QStringLiteral("Injected import failure.");
+            return failed;
+        };
 
     ModelManager manager;
     auto viewModel = Internal::ModelManagerViewModelTestAccess::create(std::move(operations));

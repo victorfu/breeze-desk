@@ -132,13 +132,12 @@ AsrExecutionLease readLease(QSqlQuery& query) {
 }
 UserFacingError corruptLeaseError(const QString& technicalDetails) {
     return UserFacingError::database(ErrorCode::DatabaseCorrupt,
-                                     QStringLiteral("The ASR execution lease is damaged."),
-                                     technicalDetails);
+                                     QStringLiteral("The ASR execution lease is damaged."), technicalDetails);
 }
 Result<void> validateLeaseIdentity(QSqlDatabase& database, const AsrExecutionLease& lease) {
     if (lease.ownerToken.trimmed().isEmpty() || lease.jobId.trimmed().isEmpty()) {
-        return Result<void>::failure(corruptLeaseError(
-            QStringLiteral("The execution lease has an empty owner or job identifier.")));
+        return Result<void>::failure(
+            corruptLeaseError(QStringLiteral("The execution lease has an empty owner or job identifier.")));
     }
 
     QSqlQuery job(database);
@@ -149,24 +148,22 @@ Result<void> validateLeaseIdentity(QSqlDatabase& database, const AsrExecutionLea
             queryError(QStringLiteral("The execution lease job could not be checked."), job));
     }
     if (!job.next()) {
-        return Result<void>::failure(corruptLeaseError(
-            QStringLiteral("The execution lease references a missing transcription job.")));
+        return Result<void>::failure(
+            corruptLeaseError(QStringLiteral("The execution lease references a missing transcription job.")));
     }
     return Result<void>::success();
 }
 Result<void> validateLeaseTimestamps(const AsrExecutionLease& lease) {
-    if (!lease.acquiredAt.isValid() || !lease.heartbeatAt.isValid() ||
-        !lease.expiresAt.isValid()) {
-        return Result<void>::failure(corruptLeaseError(
-            QStringLiteral("The execution lease contains an invalid timestamp.")));
+    if (!lease.acquiredAt.isValid() || !lease.heartbeatAt.isValid() || !lease.expiresAt.isValid()) {
+        return Result<void>::failure(
+            corruptLeaseError(QStringLiteral("The execution lease contains an invalid timestamp.")));
     }
     return Result<void>::success();
 }
 QString nonNull(const QString& value) {
     return value.isNull() ? QStringLiteral("") : value;
 }
-Result<void> executionWrite(DatabaseManager& databaseManager, const QString& jobId,
-                            const QString& ownerToken,
+Result<void> executionWrite(DatabaseManager& databaseManager, const QString& jobId, const QString& ownerToken,
                             const std::function<Result<void>(QSqlDatabase&)>& operation) {
     return ownerToken.isEmpty() ? databaseManager.immediateTransaction(operation)
                                 : databaseManager.executionLeaseTransaction(jobId, ownerToken, operation);
@@ -323,7 +320,7 @@ Result<JobClaimResult> claimInDatabase(QSqlDatabase& database, const std::option
                     "UPDATE job_chunks SET state='Cancelled',error=? WHERE job_id=? AND state IN "
                     "('Running','Interrupted','Failed')"));
             } else {
-            chunks.prepare(QStringLiteral(
+                chunks.prepare(QStringLiteral(
                     "UPDATE job_chunks SET state='Interrupted',error=? WHERE job_id=? AND state='Running'"));
             }
             chunks.addBindValue(recoveryMessage);
@@ -593,8 +590,7 @@ SqliteJobRepository::latestSegmentForJob(const QString& jobId, const bool includ
 
 Result<JobEvent> SqliteJobRepository::appendEvent(JobEvent event, const QString& ownerToken) {
     const auto result = m_databaseManager.executionLeaseTransaction(
-        event.jobId, ownerToken,
-        [&](QSqlDatabase& database) { return insertEvent(database, &event); });
+        event.jobId, ownerToken, [&](QSqlDatabase& database) { return insertEvent(database, &event); });
     return result ? Result<JobEvent>::success(event) : Result<JobEvent>::failure(result.error());
 }
 
@@ -705,9 +701,9 @@ Result<AsrExecutionLease> SqliteJobRepository::renewLease(const QString& jobId, 
         renewed.heartbeatAt = now;
         renewed.expiresAt = now.addMSecs(leaseDurationMs);
         QSqlQuery update(database);
-        update.prepare(QStringLiteral(
-            "UPDATE asr_execution_lease SET acquired_at=?,heartbeat_at=?,expires_at=? WHERE "
-            "resource='asr' AND job_id=? AND owner_token=?"));
+        update.prepare(
+            QStringLiteral("UPDATE asr_execution_lease SET acquired_at=?,heartbeat_at=?,expires_at=? WHERE "
+                           "resource='asr' AND job_id=? AND owner_token=?"));
         update.addBindValue(TimeUtils::toStorageString(renewed.acquiredAt));
         update.addBindValue(TimeUtils::toStorageString(renewed.heartbeatAt));
         update.addBindValue(TimeUtils::toStorageString(renewed.expiresAt));
@@ -884,10 +880,9 @@ Result<void> SqliteJobRepository::transition(const QString& id, const JobState s
             const bool cancelWithoutExecutor =
                 state == JobState::Cancelled &&
                 (current.state == JobState::Queued || current.state == JobState::Interrupted);
-            const bool queueRequest =
-                state == JobState::Queued &&
-                (current.state == JobState::Interrupted || current.state == JobState::Failed ||
-                 current.state == JobState::Cancelled);
+            const bool queueRequest = state == JobState::Queued && (current.state == JobState::Interrupted ||
+                                                                    current.state == JobState::Failed ||
+                                                                    current.state == JobState::Cancelled);
             if (!cancellationRequest && !cancelWithoutExecutor && !queueRequest) {
                 return Result<void>::failure(UserFacingError::validation(
                     ErrorCode::InvalidStateTransition,
@@ -1198,8 +1193,7 @@ Result<void> SqliteJobRepository::updateChunk(const JobChunk& chunk, const QStri
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A transcription job chunk is required.")));
     }
-    return m_databaseManager.executionLeaseTransaction(
-        chunk.jobId, ownerToken, [&](QSqlDatabase& database) {
+    return m_databaseManager.executionLeaseTransaction(chunk.jobId, ownerToken, [&](QSqlDatabase& database) {
         QSqlQuery current(database);
         current.prepare(QStringLiteral(
             "SELECT c.state,c.ordinal,j.state,j.stage,j.progress,(SELECT COUNT(*) FROM job_chunks total "
@@ -1350,14 +1344,14 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
                     : recoveryReason;
             QSqlQuery job(database);
             if (cancellationPending) {
-            job.prepare(QStringLiteral(
+                job.prepare(QStringLiteral(
                     "UPDATE transcription_jobs SET state='Cancelled',error_code='JobCancelled',"
                     "error_message=? WHERE id=? AND state='Cancelling'"));
             } else {
                 job.prepare(
                     QStringLiteral("UPDATE transcription_jobs SET state='Interrupted',interrupted_at=?,"
                                    "error_code='WorkerCrashed',error_message=? WHERE id=? AND state=?"));
-            job.addBindValue(nowText);
+                job.addBindValue(nowText);
                 job.addBindValue(message);
             }
             if (cancellationPending) {
@@ -1382,8 +1376,8 @@ Result<int> SqliteJobRepository::markRunningJobsInterrupted(const QString& reaso
                     "UPDATE job_chunks SET state='Cancelled',error=? WHERE job_id=? AND state IN "
                     "('Running','Interrupted','Failed')"));
             } else {
-            chunks.prepare(QStringLiteral(
-                "UPDATE job_chunks SET state='Interrupted',error=? WHERE job_id=? AND state='Running'"));
+                chunks.prepare(QStringLiteral(
+                    "UPDATE job_chunks SET state='Interrupted',error=? WHERE job_id=? AND state='Running'"));
             }
             chunks.addBindValue(message);
             chunks.addBindValue(jobId);

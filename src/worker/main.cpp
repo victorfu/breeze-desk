@@ -243,8 +243,7 @@ struct VadAnalysis {
 };
 
 VadAnalysis analyzePcmSpeech(const QString& path, WhisperVadContext& vad, const VadOptions& options,
-                             const CancellationFlag& cancellation,
-                             const std::function<void(int)>& progress) {
+                             const CancellationFlag& cancellation, const std::function<void(int)>& progress) {
     constexpr qsizetype vadFrameSamples = 512;
     constexpr qsizetype framesPerBlock = 128;
     constexpr qsizetype samplesPerBlock = vadFrameSamples * framesPerBlock;

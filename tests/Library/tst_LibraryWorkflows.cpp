@@ -239,8 +239,7 @@ class LibraryWorkflowsTest final : public QObject {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-        qputenv("BREEZEDESK_DATA_ROOT",
-                directory.filePath(QStringLiteral("application-data")).toUtf8());
+        qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
         QVERIFY(BreezeDesk::StoragePaths::ensureLayout());
 
         const QString unsupported = directory.filePath(QStringLiteral("source/meeting-notes.txt"));
@@ -270,9 +269,8 @@ class LibraryWorkflowsTest final : public QObject {
         QVERIFY(recordings);
         QVERIFY(recordings.value().items.isEmpty());
 
-        const QString unsupportedManaged =
-            QDir(BreezeDesk::StoragePaths::recordings())
-                .filePath(QStringLiteral("defensive-unsupported.txt"));
+        const QString unsupportedManaged = QDir(BreezeDesk::StoragePaths::recordings())
+                                               .filePath(QStringLiteral("defensive-unsupported.txt"));
         createFile(unsupportedManaged);
         QVERIFY(viewModel.library()
                     ->importManagedCopy(QUrl::fromLocalFile(unsupported), unsupportedManaged)
@@ -282,8 +280,7 @@ class LibraryWorkflowsTest final : public QObject {
                  QStringLiteral("The selected file is not a supported audio or video file."));
         QVERIFY(QFile::remove(unsupportedManaged));
         QVERIFY(QDir(BreezeDesk::StoragePaths::recordings()).entryList(QDir::Files).isEmpty());
-        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
-                         .filePath(QStringLiteral("managed-imports")))
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary()).filePath(QStringLiteral("managed-imports")))
                     .entryList(QDir::Files)
                     .isEmpty());
     }
@@ -332,8 +329,7 @@ class LibraryWorkflowsTest final : public QObject {
         QFile managed(stored.managedMediaPath);
         QVERIFY(managed.open(QIODevice::ReadOnly));
         QCOMPARE(managed.readAll(), QByteArrayLiteral("media"));
-        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
-                         .filePath(QStringLiteral("managed-imports")))
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary()).filePath(QStringLiteral("managed-imports")))
                     .entryList(QDir::Files)
                     .isEmpty());
     }
@@ -357,8 +353,8 @@ class LibraryWorkflowsTest final : public QObject {
             viewModel.setManagedMediaCopyEnabled(true);
             QCOMPARE(viewModel.importUrls({QUrl::fromLocalFile(source)}), 1);
 
-            const QString stagingDirectory = QDir(BreezeDesk::StoragePaths::temporary())
-                                                 .filePath(QStringLiteral("managed-imports"));
+            const QString stagingDirectory =
+                QDir(BreezeDesk::StoragePaths::temporary()).filePath(QStringLiteral("managed-imports"));
             QElapsedTimer timeout;
             timeout.start();
             const QStringList committedFilter{QStringLiteral("*.pending")};
@@ -366,10 +362,10 @@ class LibraryWorkflowsTest final : public QObject {
                    timeout.elapsed() < 5'000) {
                 QThread::msleep(1);
             }
-            const QStringList committedFiles =
-                QDir(stagingDirectory).entryList(committedFilter, QDir::Files);
+            const QStringList committedFiles = QDir(stagingDirectory).entryList(committedFilter, QDir::Files);
             QCOMPARE(committedFiles.size(), 1);
-            QCOMPARE(QFileInfo(QDir(stagingDirectory).filePath(committedFiles.constFirst())).size(), qint64{5});
+            QCOMPARE(QFileInfo(QDir(stagingDirectory).filePath(committedFiles.constFirst())).size(),
+                     qint64{5});
             // Keep the GUI event queue blocked after the worker commits so its finished callback remains
             // undispatched when the view model begins destruction.
             QThread::msleep(25);
@@ -379,8 +375,7 @@ class LibraryWorkflowsTest final : public QObject {
         QVERIFY(recordings);
         QVERIFY(recordings.value().items.isEmpty());
         QVERIFY(QDir(BreezeDesk::StoragePaths::recordings()).entryList(QDir::Files).isEmpty());
-        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
-                         .filePath(QStringLiteral("managed-imports")))
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary()).filePath(QStringLiteral("managed-imports")))
                     .entryList(QDir::Files)
                     .isEmpty());
         QVERIFY(QFileInfo::exists(source));
@@ -401,9 +396,9 @@ class LibraryWorkflowsTest final : public QObject {
         const auto connection = database.connection();
         QVERIFY(connection);
         QSqlQuery injectFailure(connection.value());
-        QVERIFY(injectFailure.exec(QStringLiteral(
-            "CREATE TRIGGER fail_managed_search_insert BEFORE INSERT ON search_index_fallback "
-            "BEGIN SELECT RAISE(ABORT,'injected managed search insert failure'); END")));
+        QVERIFY(injectFailure.exec(
+            QStringLiteral("CREATE TRIGGER fail_managed_search_insert BEFORE INSERT ON search_index_fallback "
+                           "BEGIN SELECT RAISE(ABORT,'injected managed search insert failure'); END")));
 
         BreezeDesk::SqliteRecordingRepository repository(database);
         BreezeDesk::ApplicationViewModel viewModel(&repository);
@@ -417,8 +412,7 @@ class LibraryWorkflowsTest final : public QObject {
                  QStringLiteral("The fallback search entry could not be written."));
         QTRY_VERIFY_WITH_TIMEOUT(
             QDir(BreezeDesk::StoragePaths::recordings()).entryList(QDir::Files).isEmpty(), 5'000);
-        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary())
-                         .filePath(QStringLiteral("managed-imports")))
+        QVERIFY(QDir(QDir(BreezeDesk::StoragePaths::temporary()).filePath(QStringLiteral("managed-imports")))
                     .entryList(QDir::Files)
                     .isEmpty());
 
@@ -433,25 +427,23 @@ class LibraryWorkflowsTest final : public QObject {
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-        qputenv("BREEZEDESK_DATA_ROOT",
-                directory.filePath(QStringLiteral("application-data")).toUtf8());
+        qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
         QVERIFY(BreezeDesk::StoragePaths::ensureLayout());
 
         const QString source = directory.filePath(QStringLiteral("source/original.wav"));
-        const QString managed = QDir(BreezeDesk::StoragePaths::recordings())
-                                    .filePath(QStringLiteral("locked-managed.wav"));
+        const QString managed =
+            QDir(BreezeDesk::StoragePaths::recordings()).filePath(QStringLiteral("locked-managed.wav"));
         createFile(source);
         createFile(managed);
         BreezeDesk::DatabaseManager database(
             {directory.filePath(QStringLiteral("delete-library.sqlite3")), 5'000, true, false});
         QVERIFY(database.initialize());
-        BreezeDesk::SqliteRecordingRepository repository(
-            database, [](const QString&, QString* error) {
-                if (error != nullptr) {
-                    *error = QStringLiteral("injected sharing violation");
-                }
-                return false;
-            });
+        BreezeDesk::SqliteRecordingRepository repository(database, [](const QString&, QString* error) {
+            if (error != nullptr) {
+                *error = QStringLiteral("injected sharing violation");
+            }
+            return false;
+        });
         BreezeDesk::Recording recording;
         recording.id = QStringLiteral("locked-delete");
         recording.title = QStringLiteral("Locked delete");
@@ -474,8 +466,8 @@ class LibraryWorkflowsTest final : public QObject {
         QCOMPARE(deleted.count(), 1);
         QCOMPARE(deleted.constFirst().constFirst().toString(), recording.id);
         QCOMPARE(failures.count(), 1);
-        QVERIFY(failures.constFirst().constFirst().toString().contains(
-            QStringLiteral("retry automatically"), Qt::CaseInsensitive));
+        QVERIFY(failures.constFirst().constFirst().toString().contains(QStringLiteral("retry automatically"),
+                                                                       Qt::CaseInsensitive));
         const auto durableRecording = repository.findById(recording.id);
         QVERIFY(durableRecording);
         QVERIFY(!durableRecording.value().has_value());
@@ -485,9 +477,9 @@ class LibraryWorkflowsTest final : public QObject {
         const auto connection = database.connection();
         QVERIFY(connection);
         QSqlQuery pending(connection.value());
-        pending.prepare(QStringLiteral(
-            "SELECT attempt_count,last_error FROM pending_recording_artifact_deletions "
-            "WHERE recording_id=?"));
+        pending.prepare(
+            QStringLiteral("SELECT attempt_count,last_error FROM pending_recording_artifact_deletions "
+                           "WHERE recording_id=?"));
         pending.addBindValue(recording.id);
         QVERIFY(pending.exec());
         QVERIFY(pending.next());
@@ -530,11 +522,9 @@ class LibraryWorkflowsTest final : public QObject {
         QVERIFY(!activeSource.isEmpty());
         QCOMPARE(activeSource, QUrl::fromLocalFile(source));
 
-        QSignalSpy aboutToDelete(
-            viewModel.library(),
-            &BreezeDesk::LibraryViewModel::recordingAboutToBePermanentlyDeleted);
-        QSignalSpy deleted(viewModel.library(),
-                           &BreezeDesk::LibraryViewModel::recordingPermanentlyDeleted);
+        QSignalSpy aboutToDelete(viewModel.library(),
+                                 &BreezeDesk::LibraryViewModel::recordingAboutToBePermanentlyDeleted);
+        QSignalSpy deleted(viewModel.library(), &BreezeDesk::LibraryViewModel::recordingPermanentlyDeleted);
         QSignalSpy failures(viewModel.library(), &BreezeDesk::LibraryViewModel::operationFailed);
         QVERIFY(aboutToDelete.isValid());
         QVERIFY(deleted.isValid());

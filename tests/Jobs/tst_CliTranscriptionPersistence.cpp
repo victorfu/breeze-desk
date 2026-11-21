@@ -1,6 +1,6 @@
-#include "breezedesk/cli/CliTranscriptionPersistence.h"
 #include "breezedesk/cli/CliChunkEnvelopeGate.h"
 #include "breezedesk/cli/CliExitCode.h"
+#include "breezedesk/cli/CliTranscriptionPersistence.h"
 #include "breezedesk/core/TimeUtils.h"
 #include "breezedesk/database/DatabaseManager.h"
 #include "breezedesk/database/SqliteRecordingRepository.h"
@@ -20,8 +20,8 @@ using namespace BreezeDesk;
 
 namespace {
 
-JobChunk chunk(const int ordinal, const qint64 startMs, const qint64 endMs,
-               const qint64 overlapBeforeMs = 0, const qint64 overlapAfterMs = 0) {
+JobChunk chunk(const int ordinal, const qint64 startMs, const qint64 endMs, const qint64 overlapBeforeMs = 0,
+               const qint64 overlapAfterMs = 0) {
     JobChunk value;
     value.ordinal = ordinal;
     value.startMs = startMs;
@@ -74,8 +74,7 @@ class CliTranscriptionPersistenceTest final : public QObject {
 void CliTranscriptionPersistenceTest::protocolFailureGateIgnoresLateBatchUntilTerminal() {
     CliChunkEnvelopeGate gate;
     gate.protocolFailurePending = true;
-    QString chosenError =
-        QStringLiteral("The ASR worker returned a segment outside the active chunk.");
+    QString chosenError = QStringLiteral("The ASR worker returned a segment outside the active chunk.");
     int persistedSegmentCount = 1;
     bool completed = false;
 
@@ -94,22 +93,19 @@ void CliTranscriptionPersistenceTest::protocolFailureGateIgnoresLateBatchUntilTe
 
     deliver(Ipc::MessageType::PartialSegment);
     QCOMPARE(persistedSegmentCount, 1);
-    QCOMPARE(chosenError,
-             QStringLiteral("The ASR worker returned a segment outside the active chunk."));
+    QCOMPARE(chosenError, QStringLiteral("The ASR worker returned a segment outside the active chunk."));
     QVERIFY(gate.requestInFlight);
 
     deliver(Ipc::MessageType::ModelLoaded);
     QVERIFY(gate.requestInFlight);
     QCOMPARE(persistedSegmentCount, 1);
-    QCOMPARE(chosenError,
-             QStringLiteral("The ASR worker returned a segment outside the active chunk."));
+    QCOMPARE(chosenError, QStringLiteral("The ASR worker returned a segment outside the active chunk."));
 
     deliver(Ipc::MessageType::JobCancelled);
     QVERIFY(!gate.requestInFlight);
     QVERIFY(gate.protocolFailurePending);
     QCOMPARE(persistedSegmentCount, 1);
-    QCOMPARE(chosenError,
-             QStringLiteral("The ASR worker returned a segment outside the active chunk."));
+    QCOMPARE(chosenError, QStringLiteral("The ASR worker returned a segment outside the active chunk."));
     QVERIFY(!completed);
 }
 
@@ -154,14 +150,12 @@ void CliTranscriptionPersistenceTest::protocolFailureQuiescesBeforeOwnerFencedCh
         QCOMPARE(activeLease.value()->jobId, descriptor.job.id);
         QCOMPARE(activeLease.value()->ownerToken, ownerToken);
         QCOMPARE(jobs.findById(descriptor.job.id).value()->state, JobState::Transcribing);
-        QCOMPARE(jobs.chunks(descriptor.job.id).value().constFirst().state,
-                 ChunkState::Running);
+        QCOMPARE(jobs.chunks(descriptor.job.id).value().constFirst().state, ChunkState::Running);
     });
     QVERIFY(quiesced);
     QVERIFY(workerStopped);
 
-    const QString reason =
-        QStringLiteral("The ASR worker returned a segment outside the active chunk.");
+    const QString reason = QStringLiteral("The ASR worker returned a segment outside the active chunk.");
     QVERIFY(persistence.fail(QStringLiteral("WorkerProtocolMismatch"), reason));
     const auto failedJob = jobs.findById(descriptor.job.id);
     QVERIFY(failedJob && failedJob.value().has_value());
@@ -208,21 +202,21 @@ void CliTranscriptionPersistenceTest::rejectsOutOfRangeSegmentsWithoutReplacingV
     QVERIFY(persistence.beginModelLoad());
     QVERIFY(persistence.beginTranscription());
     QVERIFY(persistence.beginChunk(0));
-    QVERIFY(persistence.saveChunkSegments(
-        0, {segment(100, 500, QStringLiteral("preserved valid partial"))}, true));
+    QVERIFY(persistence.saveChunkSegments(0, {segment(100, 500, QStringLiteral("preserved valid partial"))},
+                                          true));
 
-    const auto rejected = persistence.saveChunkSegments(
-        0, {segment(100, 500, QStringLiteral("preserved valid partial")),
-            segment(900, 1'001, QStringLiteral("cross-chunk partial"))},
-        true);
+    const auto rejected =
+        persistence.saveChunkSegments(0,
+                                      {segment(100, 500, QStringLiteral("preserved valid partial")),
+                                       segment(900, 1'001, QStringLiteral("cross-chunk partial"))},
+                                      true);
     QVERIFY(!rejected);
     QCOMPARE(rejected.error().code, ErrorCode::WorkerProtocolMismatch);
 
     const auto persisted = transcripts.segmentsForJob(descriptor.job.id, true);
     QVERIFY(persisted);
     QCOMPARE(persisted.value().size(), 1);
-    QCOMPARE(persisted.value().constFirst().originalText,
-             QStringLiteral("preserved valid partial"));
+    QCOMPARE(persisted.value().constFirst().originalText, QStringLiteral("preserved valid partial"));
     QCOMPARE(persisted.value().constFirst().startMs, 100);
     QCOMPARE(persisted.value().constFirst().endMs, 500);
 }
@@ -264,8 +258,8 @@ void CliTranscriptionPersistenceTest::beginNewRejectsInvalidChunkRangesBeforeMut
     const auto connection = database.connection();
     QVERIFY(connection);
     QSqlQuery removeSentinelLease(connection.value());
-    removeSentinelLease.prepare(QStringLiteral(
-        "DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
+    removeSentinelLease.prepare(
+        QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
     removeSentinelLease.addBindValue(sentinelJob.id);
     QVERIFY(removeSentinelLease.exec());
     QCOMPARE(removeSentinelLease.numRowsAffected(), 1);
@@ -351,15 +345,14 @@ void CliTranscriptionPersistenceTest::resumeRejectsDiscontinuousChunkPlanBeforeM
     const auto connection = database.connection();
     QVERIFY(connection);
     QSqlQuery removeSentinelLease(connection.value());
-    removeSentinelLease.prepare(QStringLiteral(
-        "DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
+    removeSentinelLease.prepare(
+        QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
     removeSentinelLease.addBindValue(sentinelJob.id);
     QVERIFY(removeSentinelLease.exec());
     QCOMPARE(removeSentinelLease.numRowsAffected(), 1);
     const auto eventCount = [&connection](const QString& jobId) {
         QSqlQuery count(connection.value());
-        count.prepare(
-            QStringLiteral("SELECT COUNT(*) FROM transcription_job_events WHERE job_id=?"));
+        count.prepare(QStringLiteral("SELECT COUNT(*) FROM transcription_job_events WHERE job_id=?"));
         count.addBindValue(jobId);
         if (!count.exec() || !count.next()) {
             return -1;
@@ -419,8 +412,8 @@ void CliTranscriptionPersistenceTest::resumeAllowsPendingPlanDurationCorrection(
 
     CliTranscriptionPersistence firstRun(recordings, jobs, transcripts);
     QVERIFY(firstRun.beginNew(descriptor));
-    QVERIFY(firstRun.updateNormalizedAudio(directory.filePath(QStringLiteral("normalized.wav")),
-                                           1'900, QString(64, QLatin1Char('a')), true));
+    QVERIFY(firstRun.updateNormalizedAudio(directory.filePath(QStringLiteral("normalized.wav")), 1'900,
+                                           QString(64, QLatin1Char('a')), true));
     QVERIFY(firstRun.interrupt(QStringLiteral("interrupted before provisional plan replacement")));
 
     CliTranscriptionPersistence resumedRun(recordings, jobs, transcripts);
@@ -499,8 +492,7 @@ void CliTranscriptionPersistenceTest::staleOwnerCannotUseNoOpFastPaths() {
     descriptor.job.recordingId = descriptor.recording.id;
     descriptor.chunks = {chunk(0, 0, 1'000)};
     const QString sourceHash(64, QLatin1Char('a'));
-    CliTranscriptionPersistence stale(recordings, staleJobs, transcripts,
-                                      QStringLiteral("stale-owner"));
+    CliTranscriptionPersistence stale(recordings, staleJobs, transcripts, QStringLiteral("stale-owner"));
     QVERIFY(stale.beginNew(descriptor));
     QVERIFY(stale.bindSourceMedia(sourceHash));
     QVERIFY(stale.beginNormalization());
@@ -516,8 +508,7 @@ void CliTranscriptionPersistenceTest::staleOwnerCannotUseNoOpFastPaths() {
     QVERIFY(currentJobs.claimQueued(descriptor.job.id, currentOwner, 10'000).value().claimed);
     QVERIFY(currentJobs.transition(descriptor.job.id, JobState::Normalizing, {}, {}, currentOwner));
     QVERIFY(currentJobs.transition(descriptor.job.id, JobState::LoadingModel, {}, {}, currentOwner));
-    QVERIFY(currentJobs.updateProgress(descriptor.job.id, JobStage::LoadingModel, 0.42, -1,
-                                       currentOwner));
+    QVERIFY(currentJobs.updateProgress(descriptor.job.id, JobStage::LoadingModel, 0.42, -1, currentOwner));
 
     const auto sameSource = stale.bindSourceMedia(sourceHash);
     QVERIFY(!sameSource);
@@ -669,8 +660,8 @@ void CliTranscriptionPersistenceTest::newSessionCheckpointFailureRetainsItsLease
     QSqlQuery rejectCheckpoint(connection.value());
     QVERIFY(rejectCheckpoint.exec(
         QStringLiteral("CREATE TRIGGER reject_new_session_checkpoint BEFORE UPDATE ON transcription_jobs "
-        "WHEN OLD.id='job-checkpoint-new' AND OLD.state='Preparing' BEGIN "
-        "SELECT RAISE(ABORT,'forced new-session checkpoint failure'); END")));
+                       "WHEN OLD.id='job-checkpoint-new' AND OLD.state='Preparing' BEGIN "
+                       "SELECT RAISE(ABORT,'forced new-session checkpoint failure'); END")));
 
     DurableTranscriptionDescriptor descriptor;
     descriptor.recording.id = QStringLiteral("recording-checkpoint-new");
@@ -680,7 +671,7 @@ void CliTranscriptionPersistenceTest::newSessionCheckpointFailureRetainsItsLease
     descriptor.job.recordingId = descriptor.recording.id;
     descriptor.chunks = {chunk(0, 0, 1'000)};
     CliTranscriptionPersistence persistence(recordings, jobs, transcripts,
-                                             QStringLiteral("checkpoint-new-owner"));
+                                            QStringLiteral("checkpoint-new-owner"));
     const auto started = persistence.beginNew(descriptor);
     QVERIFY(!started);
     QVERIFY(started.error().technicalDetails.contains(QStringLiteral("forced new-session")));
@@ -851,7 +842,7 @@ void CliTranscriptionPersistenceTest::resumesAnUnleasedRunningJobAfterRecovery()
     QVERIFY(removeLease.exec(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr'")));
 
     CliTranscriptionPersistence persistence(recordings, jobs, transcripts,
-                                             QStringLiteral("resuming-cli-owner"));
+                                            QStringLiteral("resuming-cli-owner"));
     const auto resumed = persistence.resume(job.id, sourcePath);
     if (!resumed)
         QFAIL(qPrintable(resumed.error().diagnosticString()));
@@ -899,8 +890,7 @@ void CliTranscriptionPersistenceTest::quiescenceRetainsLeaseUntilCancellationChe
     const auto connection = database.connection();
     QVERIFY(connection);
     QSqlQuery shortenLease(connection.value());
-    shortenLease.prepare(
-        QStringLiteral("UPDATE asr_execution_lease SET expires_at=? WHERE resource='asr'"));
+    shortenLease.prepare(QStringLiteral("UPDATE asr_execution_lease SET expires_at=? WHERE resource='asr'"));
     shortenLease.addBindValue(TimeUtils::toStorageString(QDateTime::currentDateTimeUtc().addSecs(2)));
     QVERIFY(shortenLease.exec());
 
@@ -951,7 +941,7 @@ void CliTranscriptionPersistenceTest::quiescenceStillStopsAfterLeaseLoss() {
     descriptor.chunks = {chunk(0, 0, 1'000)};
 
     CliTranscriptionPersistence persistence(recordings, jobs, transcripts,
-                                             QStringLiteral("stale-quiescence-owner"));
+                                            QStringLiteral("stale-quiescence-owner"));
     QVERIFY(persistence.beginNew(descriptor));
     QVERIFY(persistence.beginModelLoad());
     QVERIFY(persistence.beginTranscription());
@@ -963,8 +953,8 @@ void CliTranscriptionPersistenceTest::quiescenceStillStopsAfterLeaseLoss() {
     QVERIFY(removeLease.exec(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr'")));
 
     bool quiescenceCalled = false;
-    const auto quiesced = persistence.quiesceWorkerBeforeTerminalCheckpoint(
-        [&quiescenceCalled] { quiescenceCalled = true; });
+    const auto quiesced =
+        persistence.quiesceWorkerBeforeTerminalCheckpoint([&quiescenceCalled] { quiescenceCalled = true; });
     QVERIFY(!quiesced);
     QCOMPARE(quiesced.error().code, ErrorCode::ExecutionLeaseLost);
     QVERIFY(quiescenceCalled);
@@ -1069,8 +1059,7 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
     QVERIFY(firstRun.updateNormalizationProgress(0.75));
     QVERIFY(firstRun.beginModelLoad());
     QVERIFY(firstRun.beginSpeechAnalysis());
-    QVERIFY(firstRun.replaceChunkPlan(
-        {chunk(0, 0, 1'000, 0, 100), chunk(1, 900, 2'000, 100)}));
+    QVERIFY(firstRun.replaceChunkPlan({chunk(0, 0, 1'000, 0, 100), chunk(1, 900, 2'000, 100)}));
     QVERIFY(firstRun.beginTranscription());
 
     const auto firstChunk = firstRun.beginChunk(0);
@@ -1099,8 +1088,8 @@ void CliTranscriptionPersistenceTest::checkpointsPartialResultsAndResumesOnlyUnf
     QVERIFY(checkpointed.value().at(1).provisional);
 
     CliTranscriptionPersistence wrongSource(recordings, jobs, transcripts);
-    const auto rejected = wrongSource.resume(
-        QStringLiteral("job-1"), directory.filePath(QStringLiteral("different.wav")));
+    const auto rejected =
+        wrongSource.resume(QStringLiteral("job-1"), directory.filePath(QStringLiteral("different.wav")));
     QVERIFY(!rejected);
 
     CliTranscriptionPersistence resumedRun(recordings, jobs, transcripts);

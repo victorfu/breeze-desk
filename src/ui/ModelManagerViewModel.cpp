@@ -1,9 +1,9 @@
 #include "breezedesk/ui/ModelManagerViewModel.h"
 
+#include "ModelManagerViewModelOperations.h"
 #include "breezedesk/models/ModelDownloadOperation.h"
 #include "breezedesk/models/ModelManager.h"
 #include "breezedesk/settings/SettingsManagers.h"
-#include "ModelManagerViewModelOperations.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -113,10 +113,9 @@ Internal::ModelManagerViewModelOperations defaultFileOperations() {
            const Internal::ModelManagerViewModelOperations::Cancellation& cancellation) {
             return ModelFileOperations::prepareImport(request, cancellation.get());
         };
-    operations.cleanupPreparedImport =
-        [](const PreparedCustomModelImport& prepared) {
-            ModelFileOperations::cleanupPreparedImport(prepared);
-        };
+    operations.cleanupPreparedImport = [](const PreparedCustomModelImport& prepared) {
+        ModelFileOperations::cleanupPreparedImport(prepared);
+    };
     return operations;
 }
 
@@ -339,8 +338,7 @@ ModelManagerViewModel::ModelManagerViewModel(QObject* parent)
 ModelManagerViewModel::ModelManagerViewModel(Internal::ModelManagerViewModelOperations operations,
                                              QObject* parent)
     : QObject(parent),
-      m_fileOperations(
-          std::make_unique<Internal::ModelManagerViewModelOperations>(std::move(operations))) {
+      m_fileOperations(std::make_unique<Internal::ModelManagerViewModelOperations>(std::move(operations))) {
     if (!m_fileOperations->verify || !m_fileOperations->prepareImport ||
         !m_fileOperations->cleanupPreparedImport) {
         const Internal::ModelManagerViewModelOperations defaults = defaultFileOperations();
@@ -377,14 +375,13 @@ ModelManagerViewModel::~ModelManagerViewModel() {
     cancelAndDrainFileOperations();
 }
 
-std::unique_ptr<ModelManagerViewModel> Internal::ModelManagerViewModelTestAccess::create(
-    ModelManagerViewModelOperations operations) {
-    return std::unique_ptr<ModelManagerViewModel>(
-        new ModelManagerViewModel(std::move(operations), nullptr));
+std::unique_ptr<ModelManagerViewModel>
+Internal::ModelManagerViewModelTestAccess::create(ModelManagerViewModelOperations operations) {
+    return std::unique_ptr<ModelManagerViewModel>(new ModelManagerViewModel(std::move(operations), nullptr));
 }
 
 void ModelManagerViewModel::installServices(ModelManager* modelManager,
-                                             ModelSettingsManager* settingsManager) {
+                                            ModelSettingsManager* settingsManager) {
     Q_ASSERT_X(QThread::currentThread() == thread(), "ModelManagerViewModel",
                "installServices must run on the view-model owner thread");
     ++m_serviceGeneration;
@@ -644,8 +641,8 @@ void ModelManagerViewModel::verify(const QString& id) {
                 }
                 if (result.cancelled || generation != m_serviceGeneration ||
                     m_modelManager != expectedManager || m_modelManager == nullptr) {
-                    const bool installed = m_modelManager != nullptr &&
-                                           m_modelManager->isInstalled(normalizedId);
+                    const bool installed =
+                        m_modelManager != nullptr && m_modelManager->isInstalled(normalizedId);
                     m_models.setInstalled(normalizedId, installed, false);
                     return;
                 }
@@ -661,10 +658,9 @@ void ModelManagerViewModel::verify(const QString& id) {
                 }
             });
     const auto verifyOperation = m_fileOperations->verify;
-    watcher->setFuture(QtConcurrent::run(
-        &m_fileThreadPool, [verifyOperation, snapshot, cancellation] {
-            return verifyOperation(snapshot, cancellation);
-        }));
+    watcher->setFuture(QtConcurrent::run(&m_fileThreadPool, [verifyOperation, snapshot, cancellation] {
+        return verifyOperation(snapshot, cancellation);
+    }));
 }
 
 void ModelManagerViewModel::testModel(const QString& id) {
@@ -721,8 +717,8 @@ void ModelManagerViewModel::importCustom(const QUrl& file) {
                 watcher->deleteLater();
 
                 const bool stale = m_shuttingDown || prepared.cancelled ||
-                                   generation != m_serviceGeneration ||
-                                   m_modelManager != expectedManager || m_modelManager == nullptr;
+                                   generation != m_serviceGeneration || m_modelManager != expectedManager ||
+                                   m_modelManager == nullptr;
                 if (!prepared.success || stale) {
                     m_fileOperations->cleanupPreparedImport(prepared);
                     if (!stale) {
@@ -742,10 +738,9 @@ void ModelManagerViewModel::importCustom(const QUrl& file) {
                 emit operationSucceeded(tr("Custom model imported."));
             });
     const auto importOperation = m_fileOperations->prepareImport;
-    watcher->setFuture(QtConcurrent::run(
-        &m_fileThreadPool, [importOperation, request, cancellation] {
-            return importOperation(request, cancellation);
-        }));
+    watcher->setFuture(QtConcurrent::run(&m_fileThreadPool, [importOperation, request, cancellation] {
+        return importOperation(request, cancellation);
+    }));
 }
 
 void ModelManagerViewModel::setDefaultModel(const QString& id) {

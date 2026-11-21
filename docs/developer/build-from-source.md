@@ -1,7 +1,7 @@
 # Build from source
 
 Requirements are CMake 3.24+, Ninja, a C++17 compiler, Qt 6.8+ with Quick, SQL, Multimedia, Network,
-Concurrent, SVG, Widgets, and Test, plus platform SDKs. Release CI uses Qt 6.10.1. whisper.cpp is fetched
+Concurrent, SVG, Widgets, and Test, plus platform SDKs. Release CI uses Qt 6.12.0. whisper.cpp is fetched
 at commit `f049fff95a089aa9969deb009cdd4892b3e74916`; set `BREEZEDESK_WHISPER_CPP_SOURCE_DIR` to an exact
 local checkout to build without FetchContent network access.
 

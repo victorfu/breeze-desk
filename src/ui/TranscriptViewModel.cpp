@@ -126,7 +126,8 @@ bool TranscriptViewModel::editTextById(const QString& segmentId, const QString& 
     const bool changed = m_source.editText(sourceRow, text);
     afterMutation(changed);
     return changed ||
-           m_source.data(m_source.index(sourceRow), TranscriptSegmentModel::EditedTextRole).toString() == text;
+           m_source.data(m_source.index(sourceRow), TranscriptSegmentModel::EditedTextRole).toString() ==
+               text;
 }
 
 void TranscriptViewModel::splitAt(int proxyRow, qint64 positionMs) {

@@ -87,8 +87,7 @@ class TranscriptionCoordinator final : public QObject {
     void prepareChunks();
     bool saveChunkPlan(QList<JobChunk> chunks, QString* error = nullptr);
     void beginWaitingForModel();
-    void ensureWorkerReady(const QString& jobId, int attempt = 0,
-                           const QString& ownerToken = {});
+    void ensureWorkerReady(const QString& jobId, int attempt = 0, const QString& ownerToken = {});
     void requestWorkerCapabilities();
     void continueAfterWorkerPreflight();
     void analyzeSpeech();
@@ -108,8 +107,7 @@ class TranscriptionCoordinator final : public QObject {
     void finishCancellation();
     void interruptActiveJob(const QString& reason);
     void abandonActiveJobAfterLeaseLoss(const QString& reason);
-    [[nodiscard]] bool awaitWorkerQuiescence(PendingTerminalAction action,
-                                             const QString& code = {},
+    [[nodiscard]] bool awaitWorkerQuiescence(PendingTerminalAction action, const QString& code = {},
                                              const QString& message = {});
     void finishPendingTerminalCheckpoint();
     void checkpointFailedJob(const QString& code, const QString& message);
@@ -118,8 +116,7 @@ class TranscriptionCoordinator final : public QObject {
     void finishLeaseLossHandoff(const QString& reason);
     [[nodiscard]] bool activeWorkerRequestMayStillRun() const noexcept;
     void refreshHandedOffJob(const QString& activeJobId);
-    void removeCacheCandidateIfUnreferenced(const QString& recordingId,
-                                            const QString& path) const;
+    void removeCacheCandidateIfUnreferenced(const QString& recordingId, const QString& path) const;
     [[nodiscard]] bool activeExecutionLeaseLost() const;
     [[nodiscard]] bool terminalTransitionNeedsRetry(const QString& jobId) const;
     void clearActive();
@@ -129,11 +126,9 @@ class TranscriptionCoordinator final : public QObject {
     void publish(const QString& jobId);
     void publish(const TranscriptionJob& job);
     void publishEvents(const QString& jobId);
-    [[nodiscard]] bool advanceProgress(JobStage stage, double fraction,
-                                       int lastCompletedChunk = -1);
+    [[nodiscard]] bool advanceProgress(JobStage stage, double fraction, int lastCompletedChunk = -1);
     [[nodiscard]] QString recordingTitle(const QString& recordingId) const;
-    [[nodiscard]] bool activeJobMatches(const QString& jobId,
-                                        const QString& ownerToken = {}) const;
+    [[nodiscard]] bool activeJobMatches(const QString& jobId, const QString& ownerToken = {}) const;
 
     IRecordingRepository& m_recordings;
     IJobRepository& m_jobs;

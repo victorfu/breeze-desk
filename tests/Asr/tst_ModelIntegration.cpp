@@ -292,8 +292,8 @@ void ModelIntegrationTest::workerLoadsTranscribesAndCancels() {
         client.sendRequest(MessageType::StartTranscription, oversizedFinalJobId, oversizedFinalPayload);
     std::optional<Envelope> oversizedFinalError;
     std::optional<Envelope> unexpectedlyAcceptedFinalRange;
-    for (int attempt = 0;
-         attempt < 100 && !oversizedFinalError && !unexpectedlyAcceptedFinalRange; ++attempt) {
+    for (int attempt = 0; attempt < 100 && !oversizedFinalError && !unexpectedlyAcceptedFinalRange;
+         ++attempt) {
         oversizedFinalError = errorFor(messages, oversizedFinalRequestId);
         unexpectedlyAcceptedFinalRange =
             responseFor(messages, oversizedFinalRequestId, MessageType::TranscriptionCompleted);
@@ -318,8 +318,7 @@ void ModelIntegrationTest::workerLoadsTranscribesAndCancels() {
     std::optional<Envelope> unexpectedlyAcceptedRange;
     for (int attempt = 0; attempt < 100 && !strictRangeError && !unexpectedlyAcceptedRange; ++attempt) {
         strictRangeError = errorFor(messages, strictRangeRequestId);
-        unexpectedlyAcceptedRange =
-            responseFor(messages, strictRangeRequestId, MessageType::ChunkCompleted);
+        unexpectedlyAcceptedRange = responseFor(messages, strictRangeRequestId, MessageType::ChunkCompleted);
         if (!strictRangeError && !unexpectedlyAcceptedRange) {
             QTest::qWait(50);
         }

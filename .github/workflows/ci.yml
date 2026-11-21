@@ -14,7 +14,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  QT_VERSION: 6.10.1
+  QT_VERSION: 6.12.0
+  # Upstream aqt support for the Qt 6.12 repository layout.
+  AQT_SOURCE: git+https://github.com/miurahr/aqtinstall.git@9e49c82edc6d946db376dec907cca5b4b486eec5
   WHISPER_CPP_REF: f049fff95a089aa9969deb009cdd4892b3e74916
   CCACHE_DIR: ${{ github.workspace }}/.cache/ccache
   SCCACHE_DIR: ${{ github.workspace }}/.cache/sccache
@@ -37,6 +39,7 @@ jobs:
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
+          aqtsource: ${{ env.AQT_SOURCE }}
           arch: linux_gcc_64
           modules: qtmultimedia qtshadertools
           cache: true
@@ -66,6 +69,7 @@ jobs:
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
+          aqtsource: ${{ env.AQT_SOURCE }}
           arch: ${{ matrix.qt_arch }}
           modules: qtmultimedia qtshadertools
           cache: true
@@ -162,6 +166,7 @@ jobs:
       - uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
+          aqtsource: ${{ env.AQT_SOURCE }}
           arch: clang_64
           modules: qtmultimedia qtshadertools
           cache: true
@@ -172,7 +177,7 @@ jobs:
           -DBREEZEDESK_ENABLE_WHISPER=OFF
           -DBREEZEDESK_BUILD_TESTS=ON
       - name: Build QML smoke tests
-        run: cmake --build build/qml --target tst_QmlSmoke tst_JobQueueViewModel --parallel
+        run: cmake --build build/qml --target tst_QmlSmoke tst_JobQueueViewModel tst_ModelManagerViewModel --parallel
       - name: Load every registered QML page offscreen
         env:
           QT_QPA_PLATFORM: offscreen

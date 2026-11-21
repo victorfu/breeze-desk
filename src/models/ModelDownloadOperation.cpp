@@ -38,8 +38,7 @@ bool parseNonNegativeInteger(const QByteArray& text, qint64* value) {
     return true;
 }
 
-bool readSingleHeader(const QNetworkReply* reply, const QByteArray& name, QByteArray* value,
-                      bool* present) {
+bool readSingleHeader(const QNetworkReply* reply, const QByteArray& name, QByteArray* value, bool* present) {
     int occurrences = 0;
     QByteArray found;
     const auto headers = reply->rawHeaderPairs();
@@ -57,11 +56,10 @@ bool readSingleHeader(const QNetworkReply* reply, const QByteArray& name, QByteA
     return true;
 }
 
-bool contentRangeMatches(const QByteArray& value, const qint64 expectedStart,
-                         const qint64 expectedTotal) {
+bool contentRangeMatches(const QByteArray& value, const qint64 expectedStart, const qint64 expectedTotal) {
     const QByteArray trimmed = value.trimmed();
-    if (trimmed.size() < 8 || trimmed.left(6).compare(QByteArrayLiteral("bytes "),
-                                                      Qt::CaseInsensitive) != 0) {
+    if (trimmed.size() < 8 ||
+        trimmed.left(6).compare(QByteArrayLiteral("bytes "), Qt::CaseInsensitive) != 0) {
         return false;
     }
     const qsizetype dash = trimmed.indexOf('-', 6);
@@ -177,8 +175,7 @@ void ModelDownloadOperation::start() {
 }
 
 void ModelDownloadOperation::pause() {
-    if (m_state != State::Downloading &&
-        !(m_state == State::Pending && m_lockRetryTimer->isActive())) {
+    if (m_state != State::Downloading && !(m_state == State::Pending && m_lockRetryTimer->isActive())) {
         return;
     }
     m_userPaused = true;
@@ -282,8 +279,7 @@ void ModelDownloadOperation::beginRequest() {
         return;
     }
     const QStorageInfo storage(m_destinationDirectory);
-    if (storage.isValid() &&
-        storage.bytesAvailable() < (m_entry.fileSize - existing) + DiskSafetyMargin) {
+    if (storage.isValid() && storage.bytesAvailable() < (m_entry.fileSize - existing) + DiskSafetyMargin) {
         fail(QStringLiteral("Insufficient disk space for model download."), false);
         return;
     }
@@ -349,8 +345,7 @@ bool ModelDownloadOperation::validateResponseHeaders() {
         return false;
     }
     if ((m_requestOffset == 0 && status != 200) || (m_requestOffset > 0 && status != 206)) {
-        fail(QStringLiteral("Model server returned an invalid HTTP status for this download."), false,
-             true);
+        fail(QStringLiteral("Model server returned an invalid HTTP status for this download."), false, true);
         return false;
     }
 
@@ -364,8 +359,7 @@ bool ModelDownloadOperation::validateResponseHeaders() {
     }
     if (hasContentLength) {
         qint64 declaredLength = 0;
-        if (!parseNonNegativeInteger(contentLength, &declaredLength) ||
-            declaredLength != expectedRemaining) {
+        if (!parseNonNegativeInteger(contentLength, &declaredLength) || declaredLength != expectedRemaining) {
             fail(QStringLiteral("Model server returned an invalid Content-Length."), false, true);
             return false;
         }
@@ -379,8 +373,7 @@ bool ModelDownloadOperation::validateResponseHeaders() {
         return false;
     }
     if (m_requestOffset > 0) {
-        if (!hasContentRange ||
-            !contentRangeMatches(contentRange, m_requestOffset, m_entry.fileSize)) {
+        if (!hasContentRange || !contentRangeMatches(contentRange, m_requestOffset, m_entry.fileSize)) {
             fail(QStringLiteral("Model server returned an invalid Content-Range."), false, true);
             return false;
         }
@@ -407,8 +400,7 @@ void ModelDownloadOperation::handleReadyRead() {
             return;
         }
         const qint64 remaining = m_entry.fileSize - currentSize;
-        const qint64 maximumRead =
-            remaining >= MaximumReadChunk ? MaximumReadChunk : remaining + 1;
+        const qint64 maximumRead = remaining >= MaximumReadChunk ? MaximumReadChunk : remaining + 1;
         const QByteArray data = m_reply->read(maximumRead);
         if (data.isEmpty()) {
             return;
@@ -494,8 +486,7 @@ void ModelDownloadOperation::handleNetworkFinished() {
     beginVerification(m_partPath, VerificationPurpose::DownloadedPart);
 }
 
-void ModelDownloadOperation::beginVerification(const QString& path,
-                                               const VerificationPurpose purpose) {
+void ModelDownloadOperation::beginVerification(const QString& path, const VerificationPurpose purpose) {
     if (!m_downloadLock->isLocked()) {
         fail(QStringLiteral("The model download lock was lost before verification."), false);
         return;

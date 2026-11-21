@@ -207,8 +207,7 @@ QString LibraryViewModel::importManagedCopy(const QUrl& originalUrl, const QStri
     }
     if (!MediaFileSupport::isSupportedPath(original.fileName()) ||
         !MediaFileSupport::isSupportedPath(managed.fileName())) {
-        emit importRejected(originalUrl,
-                            tr("The selected file is not a supported audio or video file."));
+        emit importRejected(originalUrl, tr("The selected file is not a supported audio or video file."));
         return {};
     }
     Recording recording;
@@ -341,8 +340,7 @@ void LibraryViewModel::relinkSource(const QString& id, const QUrl& source) {
     // cannot be verified against the newly selected source. The repository performs both the
     // lease check and the relink atomically.
     const bool clearDerivedArtifacts = !QFileInfo(existing.value()->managedMediaPath).isFile();
-    const auto result = m_repository->relinkSource(
-        id, sourceInfo.absoluteFilePath(), clearDerivedArtifacts);
+    const auto result = m_repository->relinkSource(id, sourceInfo.absoluteFilePath(), clearDerivedArtifacts);
     if (!result) {
         emit operationFailed(result.error().message);
         return;

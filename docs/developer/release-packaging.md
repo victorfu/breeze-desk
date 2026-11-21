@@ -187,5 +187,5 @@ launch and SmartScreen instructions. No credential, private key, or certificate 
 uploaded as an artifact.
 
 The workflows validate build and package mechanics, not backend performance. Metal is exercised by the
-optional tiny-model nightly test. Vulkan and CPU are built in hosted Windows CI. The full Breeze
+optional local tiny-model integration test. Vulkan and CPU are built in hosted Windows CI. The full Breeze
 model requires an explicitly provisioned runner and is reported as untested when that runner is absent.

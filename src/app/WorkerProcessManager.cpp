@@ -61,20 +61,19 @@ WorkerProcessManager::WorkerProcessManager(QObject* parent)
         const bool authenticated = m_authenticatedProcessGeneration == processGeneration;
         emit readyChanged();
         if (authenticated) {
-            recoverAuthenticatedChannelFailure(
-                processGeneration, QStringLiteral("The ASR worker disconnected unexpectedly."));
+            recoverAuthenticatedChannelFailure(processGeneration,
+                                               QStringLiteral("The ASR worker disconnected unexpectedly."));
         }
     });
-    connect(&m_client, &Ipc::AsrWorkerClient::protocolError, this,
-            [this](const Ipc::ProtocolError& error) {
-                const quint64 processGeneration = m_processGeneration;
-                const bool authenticated = m_client.isReady() &&
-                                           m_authenticatedProcessGeneration == processGeneration;
-                setLastError(error.detail);
-                if (authenticated) {
-                    recoverAuthenticatedChannelFailure(processGeneration, error.detail);
-                }
-            });
+    connect(&m_client, &Ipc::AsrWorkerClient::protocolError, this, [this](const Ipc::ProtocolError& error) {
+        const quint64 processGeneration = m_processGeneration;
+        const bool authenticated =
+            m_client.isReady() && m_authenticatedProcessGeneration == processGeneration;
+        setLastError(error.detail);
+        if (authenticated) {
+            recoverAuthenticatedChannelFailure(processGeneration, error.detail);
+        }
+    });
     connect(&m_client, &Ipc::AsrWorkerClient::envelopeReceived, this, [this](const Ipc::Envelope& envelope) {
         if (envelope.type == Ipc::MessageType::ChunkCompleted ||
             envelope.type == Ipc::MessageType::TranscriptionCompleted ||
@@ -99,8 +98,7 @@ WorkerProcessManager::WorkerProcessManager(QObject* parent)
     });
     m_forcedCancellationRecoveryTimer.setSingleShot(true);
     connect(&m_forcedCancellationRecoveryTimer, &QTimer::timeout, this, [this] {
-        if (!m_forcedCancellationPending || m_stopping ||
-            m_process.state() != QProcess::NotRunning) {
+        if (!m_forcedCancellationPending || m_stopping || m_process.state() != QProcess::NotRunning) {
             return;
         }
         m_failedExecutables.clear();
@@ -151,8 +149,8 @@ QStringList WorkerProcessManager::workerExecutables() const {
         qEnvironmentVariableIntValue("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY") == 1 &&
                 !overridePath.trimmed().isEmpty()
             ? QStringList{overridePath}
-            : WorkerRegistry::executableCandidates(applicationDirectory, m_preferredBackend,
-                                                   overridePath, developmentPath);
+            : WorkerRegistry::executableCandidates(applicationDirectory, m_preferredBackend, overridePath,
+                                                   developmentPath);
     QStringList available;
     QSet<QString> inspected;
     for (const QString& candidate : std::as_const(candidates)) {
@@ -240,14 +238,12 @@ bool WorkerProcessManager::start() {
 }
 
 void WorkerProcessManager::connectClientWithRetry(const quint64 processGeneration, const int attempt) {
-    if (processGeneration != m_processGeneration ||
-        m_process.state() == QProcess::NotRunning || m_stopping) {
+    if (processGeneration != m_processGeneration || m_process.state() == QProcess::NotRunning || m_stopping) {
         return;
     }
     if (attempt >= MaximumConnectionAttempts) {
         setLastError(QStringLiteral("The ASR worker did not open its local endpoint in time."));
-        if (processGeneration == m_processGeneration &&
-            m_process.state() != QProcess::NotRunning) {
+        if (processGeneration == m_processGeneration && m_process.state() != QProcess::NotRunning) {
             m_process.kill();
         }
         return;
@@ -263,10 +259,9 @@ void WorkerProcessManager::connectClientWithRetry(const quint64 processGeneratio
 }
 
 void WorkerProcessManager::recoverAuthenticatedChannelFailure(const quint64 processGeneration,
-                                                               const QString& reason) {
-    if (processGeneration != m_processGeneration ||
-        m_authenticatedProcessGeneration != processGeneration || m_stopping ||
-        m_process.state() == QProcess::NotRunning) {
+                                                              const QString& reason) {
+    if (processGeneration != m_processGeneration || m_authenticatedProcessGeneration != processGeneration ||
+        m_stopping || m_process.state() == QProcess::NotRunning) {
         return;
     }
 
@@ -351,10 +346,8 @@ void WorkerProcessManager::forceCancelAfterGrace(const QString& jobId, const QSt
         return;
     }
     m_client.sendRequest(Ipc::MessageType::CancelJob, jobId, {});
-    QTimer::singleShot(CancellationGraceMs, this,
-                       [this, cancellationTicket, processGeneration] {
-        if (cancellationTicket == m_forcedCancellationTicket &&
-            processGeneration == m_processGeneration &&
+    QTimer::singleShot(CancellationGraceMs, this, [this, cancellationTicket, processGeneration] {
+        if (cancellationTicket == m_forcedCancellationTicket && processGeneration == m_processGeneration &&
             m_process.state() != QProcess::NotRunning) {
             m_process.kill();
         }
@@ -401,8 +394,8 @@ void WorkerProcessManager::handleUnexpectedExit(int exitCode, QProcess::ExitStat
 }
 
 void WorkerProcessManager::scheduleForcedCancellationRecovery() {
-    if (!m_forcedCancellationPending || m_stopping ||
-        m_process.state() != QProcess::NotRunning || m_forcedCancellationRecoveryTimer.isActive()) {
+    if (!m_forcedCancellationPending || m_stopping || m_process.state() != QProcess::NotRunning ||
+        m_forcedCancellationRecoveryTimer.isActive()) {
         return;
     }
     m_forcedCancellationRecoveryTimer.start(forcedCancellationRecoveryDelayMs());

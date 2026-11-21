@@ -15,6 +15,12 @@ if(NOT _breezedesk_qt_plugins_result EQUAL 0
 endif()
 file(TO_CMAKE_PATH "${_breezedesk_qt_plugins_dir}" _breezedesk_qt_plugins_dir)
 
+if(WIN32)
+    set(_qml_test_platform windows)
+else()
+    set(_qml_test_platform offscreen)
+endif()
+
 qt_add_executable(tst_QmlSmoke
     tst_QmlSmoke.cpp
     QmlTestApplication.h
@@ -31,7 +37,7 @@ qt_add_translations(tst_QmlSmoke
 breezedesk_enable_strict_warnings(tst_QmlSmoke)
 add_test(NAME Qml.Smoke COMMAND tst_QmlSmoke)
 set_tests_properties(Qml.Smoke PROPERTIES LABELS "Qml;Unit"
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic")
+    ENVIRONMENT "QT_QPA_PLATFORM=${_qml_test_platform};QT_QUICK_CONTROLS_STYLE=Basic")
 
 qt_add_executable(tst_JobQueueViewModel
     tst_JobQueueViewModel.cpp
@@ -43,7 +49,7 @@ target_compile_definitions(tst_JobQueueViewModel PRIVATE
 breezedesk_enable_strict_warnings(tst_JobQueueViewModel)
 add_test(NAME Qml.JobQueueViewModel COMMAND tst_JobQueueViewModel)
 set_tests_properties(Qml.JobQueueViewModel PROPERTIES LABELS "Qml;Unit"
-    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_CONTROLS_STYLE=Basic")
+    ENVIRONMENT "QT_QPA_PLATFORM=${_qml_test_platform};QT_QUICK_CONTROLS_STYLE=Basic")
 
 qt_add_executable(tst_ModelManagerViewModel
     tst_ModelManagerViewModel.cpp

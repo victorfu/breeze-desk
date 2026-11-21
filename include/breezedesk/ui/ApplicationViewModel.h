@@ -79,7 +79,7 @@ class ApplicationViewModel : public QObject {
     Q_INVOKABLE QString enqueueTranscription(const QString& recordingId);
     Q_INVOKABLE void exportActiveRecording();
     Q_INVOKABLE void exportActiveRecordingTo(const QUrl& file, const QString& format,
-                                              bool includeTimecodes = false);
+                                             bool includeTimecodes = false);
     Q_INVOKABLE bool flushActiveTranscript();
     Q_INVOKABLE void reportActiveTranscriptDraftCommit(bool accepted);
     Q_INVOKABLE void scheduleActiveTranscriptAutosave();

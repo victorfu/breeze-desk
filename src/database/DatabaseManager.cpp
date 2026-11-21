@@ -836,16 +836,15 @@ Result<void> DatabaseManager::executionLeaseTransaction(
     }
     return immediateTransaction([&](QSqlDatabase& database) {
         QSqlQuery lease(database);
-        lease.prepare(QStringLiteral(
-            "SELECT expires_at FROM asr_execution_lease WHERE resource='asr' AND job_id=? "
-            "AND owner_token=?"));
+        lease.prepare(
+            QStringLiteral("SELECT expires_at FROM asr_execution_lease WHERE resource='asr' AND job_id=? "
+                           "AND owner_token=?"));
         lease.addBindValue(jobId);
         lease.addBindValue(ownerToken);
         if (!lease.exec()) {
-            return Result<void>::failure(
-                sqlError(ErrorCode::DatabaseQueryFailed,
-                         QStringLiteral("The ASR execution lease could not be validated."),
-                         lease.lastError(), true));
+            return Result<void>::failure(sqlError(
+                ErrorCode::DatabaseQueryFailed,
+                QStringLiteral("The ASR execution lease could not be validated."), lease.lastError(), true));
         }
         if (!lease.next()) {
             return Result<void>::failure(UserFacingError::validation(

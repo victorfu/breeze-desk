@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions are welcome through focused issues and pull requests. Build with Qt 6.10.1 when
+Contributions are welcome through focused issues and pull requests. Build with Qt 6.12.0 when
 possible, keep C++ at C++17, run `scripts/run-tests.*`, and run clang-format before submitting.
 
 Keep the target dependency graph acyclic: domain code must not depend on QML, SQL must remain behind

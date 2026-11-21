@@ -8,10 +8,8 @@ glossary audit; transcript editing/replacement/exports; settings isolation; and 
 
 Ordinary CI uses generated WAVs, a local HTTP fixture server, and fake engine/client test doubles, never
 the Breeze model. `BREEZEDESK_ENABLE_MODEL_INTEGRATION_TESTS=ON` enables a tiny official model worker test.
-Nightly exercises the deterministic four-hour continuous-speech planning pipeline without running four
-hours of inference. It separately runs the checksum-pinned tiny-model worker integration. Full Breeze Q5
-and 68-minute media remain manual or explicitly provisioned self-hosted smoke tests; hosted CI does not
-claim their performance or quality.
+The ASR core tests exercise the four-hour planning pipeline with synthetic data. Run the full Breeze Q5
+smoke test manually with a provisioned model and audio fixture.
 
 The optional worker test uses `ggml-tiny.en-q5_1.bin` from immutable Hugging Face revision
 `c521a4b02f422512d734391fdf08bb08c0862f68`. The download script validates SHA-256 before making the
@@ -90,6 +88,4 @@ local HTTP fixture server, generated WAVs, fake engine/client implementations, a
 ## CI tiers
 
 `ci.yml` checks clang-format, dependency-free CMake configure, macOS/Windows native builds and tests,
-the CPU fallback worker, and QML smoke. `nightly.yml` validates dependency metadata, runs the four-hour
-synthetic planner, and enables the tiny model on macOS. A self-hosted Apple Silicon job may run the full
-Breeze Q5 smoke. Reports must distinguish compiled backends from hardware-tested inference.
+the CPU fallback worker, and QML smoke.

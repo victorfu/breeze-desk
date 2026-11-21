@@ -24,10 +24,9 @@ static bool injectSearchIndexInsertFailure(DatabaseManager& manager, QString rec
     }
     recordingId.replace(QLatin1Char('\''), QStringLiteral("''"));
     QSqlQuery trigger(connection.value());
-    return trigger.exec(QStringLiteral(
-                            "CREATE TRIGGER fail_search_index_insert BEFORE INSERT ON "
-                            "search_index_fallback WHEN NEW.recording_id='%1' BEGIN "
-                            "SELECT RAISE(ABORT,'injected search index insert failure'); END")
+    return trigger.exec(QStringLiteral("CREATE TRIGGER fail_search_index_insert BEFORE INSERT ON "
+                                       "search_index_fallback WHEN NEW.recording_id='%1' BEGIN "
+                                       "SELECT RAISE(ABORT,'injected search index insert failure'); END")
                             .arg(recordingId));
 }
 
@@ -248,8 +247,7 @@ void TranscriptTest::activeTranscriptRequiresCompletedJobAndRefreshesSearch() {
         "UPDATE transcription_jobs SET state='Completed',stage='Completed',progress=1 WHERE id=?"));
     completeOther.addBindValue(otherJob.id);
     QVERIFY(completeOther.exec());
-    const auto mismatchedActivation =
-        recordings.setActiveTranscriptJob(recording.id, otherJob.id);
+    const auto mismatchedActivation = recordings.setActiveTranscriptJob(recording.id, otherJob.id);
     QVERIFY(!mismatchedActivation);
     QCOMPARE(mismatchedActivation.error().code, ErrorCode::NotFound);
     QCOMPARE(recordings.findById(recording.id).value()->activeJobId, job.id);
@@ -302,12 +300,9 @@ void TranscriptTest::repositoryDistinguishesGlossaryReplacementsFromManualEdits(
     automatic.replacementAudit = GlossaryPostProcessor::auditToJson(processed.replacements);
 
     SqliteTranscriptRepository repository(database);
-    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1,
-                                    owner));
-    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1,
-                                    owner));
-    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, false, 1,
-                                    owner));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1, owner));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 1, owner));
+    QVERIFY(repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, false, 1, owner));
     const TranscriptSegment finalized = repository.segmentsForJob(job.id).value().first();
     QCOMPARE(finalized.editedText, processed.text);
     QVERIFY(!finalized.provisional);
@@ -322,8 +317,7 @@ void TranscriptTest::repositoryDistinguishesGlossaryReplacementsFromManualEdits(
         repository.replaceChunk(recording.id, job.id, automatic.chunkId, {automatic}, true, 2, owner);
     QVERIFY(!rejected);
     QCOMPARE(rejected.error().code, ErrorCode::InvalidStateTransition);
-    QCOMPARE(repository.segment(manual.id).value()->editedText,
-             QStringLiteral("Manually corrected meeting"));
+    QCOMPARE(repository.segment(manual.id).value()->editedText, QStringLiteral("Manually corrected meeting"));
 }
 
 void TranscriptTest::replaceChunkRejectsCrossLinkedTargetsWithoutMutation() {
@@ -377,8 +371,7 @@ void TranscriptTest::replaceChunkRejectsCrossLinkedTargetsWithoutMutation() {
     original.endMs = 1'000;
     original.originalText = QStringLiteral("durable original");
     original.editedText = original.originalText;
-    QVERIFY(transcriptsA.replaceChunk(recordingA.id, jobA.id, chunkA.id, {original}, false, 1,
-                                      owner));
+    QVERIFY(transcriptsA.replaceChunk(recordingA.id, jobA.id, chunkA.id, {original}, false, 1, owner));
     const auto beforeResult = transcriptsB.segmentsForJob(jobA.id, true);
     QVERIFY(beforeResult);
     QCOMPARE(beforeResult.value().size(), 1);
@@ -388,12 +381,12 @@ void TranscriptTest::replaceChunkRejectsCrossLinkedTargetsWithoutMutation() {
     spoof.id = QStringLiteral("linked-segment-spoof");
     spoof.originalText = QStringLiteral("spoofed replacement");
     spoof.editedText = spoof.originalText;
-    const auto wrongRecording = transcriptsB.replaceChunk(
-        recordingB.id, jobA.id, chunkA.id, {spoof}, false, 2, owner);
+    const auto wrongRecording =
+        transcriptsB.replaceChunk(recordingB.id, jobA.id, chunkA.id, {spoof}, false, 2, owner);
     QVERIFY(!wrongRecording);
     QCOMPARE(wrongRecording.error().code, ErrorCode::InvalidArgument);
-    const auto wrongChunk = transcriptsB.replaceChunk(recordingA.id, jobA.id, chunkB.id, {spoof},
-                                                       false, 2, owner);
+    const auto wrongChunk =
+        transcriptsB.replaceChunk(recordingA.id, jobA.id, chunkB.id, {spoof}, false, 2, owner);
     QVERIFY(!wrongChunk);
     QCOMPARE(wrongChunk.error().code, ErrorCode::InvalidArgument);
 
@@ -503,14 +496,12 @@ void TranscriptTest::ownerlessEditsRejectActiveExecutionWithoutMutation() {
     QCOMPARE(leasedInterruptedEdit.error().code, ErrorCode::InvalidStateTransition);
 
     QSqlQuery expire(connection.value());
-    expire.prepare(QStringLiteral(
-        "UPDATE asr_execution_lease SET expires_at='2000-01-01T00:00:00.000Z' "
-        "WHERE resource='asr' AND job_id=?"));
+    expire.prepare(QStringLiteral("UPDATE asr_execution_lease SET expires_at='2000-01-01T00:00:00.000Z' "
+                                  "WHERE resource='asr' AND job_id=?"));
     expire.addBindValue(job.id);
     QVERIFY(expire.exec());
     QVERIFY(transcriptsB.saveEditedSegment(edited));
-    QCOMPARE(transcriptsB.segment(original.id).value()->editedText,
-             QStringLiteral("ownerless segment edit"));
+    QCOMPARE(transcriptsB.segment(original.id).value()->editedText, QStringLiteral("ownerless segment edit"));
 
     QSqlQuery release(connection.value());
     release.prepare(QStringLiteral("DELETE FROM asr_execution_lease WHERE resource='asr' AND job_id=?"));
@@ -522,8 +513,7 @@ void TranscriptTest::ownerlessEditsRejectActiveExecutionWithoutMutation() {
     QVERIFY(state.exec());
     edited.editedText = QStringLiteral("completed job edit");
     QVERIFY(transcriptsB.saveEditedSegment(edited));
-    QCOMPARE(transcriptsB.segment(original.id).value()->editedText,
-             QStringLiteral("completed job edit"));
+    QCOMPARE(transcriptsB.segment(original.id).value()->editedText, QStringLiteral("completed job edit"));
 
     state.bindValue(0, jobStateName(JobState::Preparing));
     state.bindValue(1, job.id);
@@ -580,8 +570,8 @@ void TranscriptTest::ownerlessMutationsRollBackWhenSearchRebuildFails() {
     const auto replace = transcripts.replaceTranscript(recording.id, job.id, {replacement});
     QVERIFY(!replace);
     QCOMPARE(replace.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(replace.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        replace.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
 
     replacement.id = QStringLiteral("atomic-ownerless-save-segment");
     replacement.originalText = QStringLiteral("Rejected save transcript");
@@ -589,21 +579,20 @@ void TranscriptTest::ownerlessMutationsRollBackWhenSearchRebuildFails() {
     const auto saveAll = transcripts.saveEditedTranscript(recording.id, job.id, {replacement});
     QVERIFY(!saveAll);
     QCOMPARE(saveAll.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(saveAll.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        saveAll.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
 
     TranscriptSegment edited = original;
     edited.editedText = QStringLiteral("Rejected single segment edit");
     const auto saveOne = transcripts.saveEditedSegment(edited);
     QVERIFY(!saveOne);
     QCOMPARE(saveOne.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(saveOne.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        saveOne.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
     const auto remove = transcripts.deleteSegment(original.id);
     QVERIFY(!remove);
     QCOMPARE(remove.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(remove.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(remove.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
 
     const auto durable = transcripts.segmentsForJob(job.id, true);
     QVERIFY(durable);
@@ -613,8 +602,8 @@ void TranscriptTest::ownerlessMutationsRollBackWhenSearchRebuildFails() {
     QCOMPARE(durable.value().constFirst().editedText, original.editedText);
 
     QSqlQuery rawIndex(connection.value());
-    rawIndex.prepare(QStringLiteral(
-        "SELECT title,transcript FROM search_index_fallback WHERE recording_id=?"));
+    rawIndex.prepare(
+        QStringLiteral("SELECT title,transcript FROM search_index_fallback WHERE recording_id=?"));
     rawIndex.addBindValue(recording.id);
     QVERIFY(rawIndex.exec());
     QVERIFY(rawIndex.next());
@@ -659,19 +648,18 @@ void TranscriptTest::finalLeasedChunkRollsBackWhenSearchRebuildFails() {
     provisional.startMs = 0;
     provisional.endMs = 1'000;
     provisional.originalText = QStringLiteral("Durable provisional transcript");
-    QVERIFY(transcripts.replaceChunk(recording.id, job.id, chunk.id, {provisional}, true, 1,
-                                     owner));
+    QVERIFY(transcripts.replaceChunk(recording.id, job.id, chunk.id, {provisional}, true, 1, owner));
     QVERIFY(injectSearchIndexInsertFailure(database, recording.id));
 
     TranscriptSegment finalSegment = provisional;
     finalSegment.id = QStringLiteral("atomic-final-segment");
     finalSegment.originalText = QStringLiteral("Rejected final transcript");
-    const auto finalized = transcripts.replaceChunk(recording.id, job.id, chunk.id, {finalSegment},
-                                                     false, 2, owner);
+    const auto finalized =
+        transcripts.replaceChunk(recording.id, job.id, chunk.id, {finalSegment}, false, 2, owner);
     QVERIFY(!finalized);
     QCOMPARE(finalized.error().code, ErrorCode::DatabaseQueryFailed);
-    QVERIFY(finalized.error().technicalDetails.contains(
-        QStringLiteral("injected search index insert failure")));
+    QVERIFY(
+        finalized.error().technicalDetails.contains(QStringLiteral("injected search index insert failure")));
 
     const auto durable = transcripts.segmentsForJob(job.id, true);
     QVERIFY(durable);
@@ -684,8 +672,8 @@ void TranscriptTest::finalLeasedChunkRollsBackWhenSearchRebuildFails() {
     const auto connection = database.connection();
     QVERIFY(connection);
     QSqlQuery rawIndex(connection.value());
-    rawIndex.prepare(QStringLiteral(
-        "SELECT title,transcript FROM search_index_fallback WHERE recording_id=?"));
+    rawIndex.prepare(
+        QStringLiteral("SELECT title,transcript FROM search_index_fallback WHERE recording_id=?"));
     rawIndex.addBindValue(recording.id);
     QVERIFY(rawIndex.exec());
     QVERIFY(rawIndex.next());
@@ -860,8 +848,7 @@ void TranscriptTest::viewModelPreservesMetadataAndControlsGlossaryAudit() {
                                            QStringLiteral("No longer matches the filter")));
     QCOMPARE(filteredViewModel.visibleSegmentCount(), 0);
     QCOMPARE(filteredViewModel.snapshot().at(0).editedText, filteredOut.editedText);
-    QCOMPARE(filteredViewModel.snapshot().at(1).editedText,
-             QStringLiteral("No longer matches the filter"));
+    QCOMPARE(filteredViewModel.snapshot().at(1).editedText, QStringLiteral("No longer matches the filter"));
     QVERIFY(filteredViewModel.editTextById(QStringLiteral("filtered-in"),
                                            QStringLiteral("No longer matches the filter")));
     filteredViewModel.setSearchText(QStringLiteral("Unrelated"));
