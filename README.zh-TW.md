@@ -57,7 +57,7 @@ C API,不執行 `whisper-cli`,也沒有雲端 ASR、Python runtime 或遙測。�
 
 | 層級 | 實作 |
 | --- | --- |
-| UI | Qt 6.8+ Quick/QML(Release 基準 6.10.1)搭配 C++17 核心 |
+| UI | Qt 6.8+ Quick/QML(Release 基準 6.12.0)搭配 C++17 核心 |
 | ASR | 固定 immutable commit 的 whisper.cpp,由 Worker 行程以函式庫方式連結 |
 | 加速 | macOS 使用 Metal + Accelerate;Windows 提供 Vulkan 或 CPU Worker 版本 |
 | 媒體 | LGPL FFmpeg sidecar 負責探測與正規化;Qt Multimedia 負責錄音與播放 |
@@ -82,7 +82,7 @@ SHA-256;模型授權與來源在程式內隨時可見,也可匯入本機的 whis
 
 ### macOS 建置
 
-安裝 CMake、Ninja、Qt 6.8+(Release 基準為 6.10.1)、Xcode Command Line Tools,以及相容
+安裝 CMake、Ninja、Qt 6.8+(Release 基準為 6.12.0)、Xcode Command Line Tools,以及相容
 LGPL 的 FFmpeg 開發 sidecar,然後執行:
 
 ```sh
