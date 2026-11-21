@@ -55,7 +55,19 @@ if not exist "%QT_TEST_DLL%" (
   exit /b 1
 )
 
-"%WINDEPLOYQT%" --debug --force --compiler-runtime --verbose 0 --qmldir "%PROJECT_ROOT%\src\qml" --translations en,zh_TW "%APP_PATH%" "%CLI_PATH%" "%WORKER_PATH%" || exit /b 1
+rem Windows HTTPS uses Schannel. windeployqt does not prune plugins left by an older Qt kit.
+"%WINDEPLOYQT%" --debug --force --compiler-runtime --include-plugins qschannelbackend --exclude-plugins qopensslbackend --verbose 0 --qmldir "%PROJECT_ROOT%\src\qml" --translations en,zh_TW "%APP_PATH%" "%CLI_PATH%" "%WORKER_PATH%" || exit /b 1
+if not exist "%BUILD_DIR%\tls\qschannelbackendd.dll" (
+  echo The Windows Schannel TLS plugin required for HTTPS downloads is missing. 1>&2
+  exit /b 1
+)
+if exist "%BUILD_DIR%\tls\qopensslbackendd.dll" (
+  del /q "%BUILD_DIR%\tls\qopensslbackendd.dll"
+  if exist "%BUILD_DIR%\tls\qopensslbackendd.dll" (
+    echo Unable to remove the obsolete Debug OpenSSL plugin. Close BreezeDesk and retry deployment. 1>&2
+    exit /b 1
+  )
+)
 copy /y "%QT_TEST_DLL%" "%BUILD_DIR%\Qt6Testd.dll" >nul || exit /b 1
 if not exist "%BUILD_DIR%\Qt6Networkd.dll" (
   echo Qt deployment did not produce Qt6Networkd.dll required by the ASR worker. 1>&2
