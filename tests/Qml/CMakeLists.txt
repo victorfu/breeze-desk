@@ -16,7 +16,14 @@ endif()
 file(TO_CMAKE_PATH "${_breezedesk_qt_plugins_dir}" _breezedesk_qt_plugins_dir)
 
 if(WIN32)
+    option(BREEZEDESK_HEADLESS_QML_TESTS "Use the Qt offscreen plugin for headless Windows QML tests" OFF)
     set(_qml_test_platform windows)
+    if(BREEZEDESK_HEADLESS_QML_TESTS)
+        if(NOT EXISTS "${_breezedesk_qt_plugins_dir}/platforms/qoffscreend.dll")
+            message(FATAL_ERROR "Windows headless QML tests require the matching Debug offscreen plugin")
+        endif()
+        set(_qml_test_platform offscreen)
+    endif()
 else()
     set(_qml_test_platform offscreen)
 endif()
@@ -35,7 +42,8 @@ qt_add_translations(tst_QmlSmoke
         ${PROJECT_SOURCE_DIR}/translations/breezedesk_zh_TW.ts
     RESOURCE_PREFIX /i18n-test)
 breezedesk_enable_strict_warnings(tst_QmlSmoke)
-add_test(NAME Qml.Smoke COMMAND tst_QmlSmoke)
+add_test(NAME Qml.Smoke COMMAND tst_QmlSmoke -o -,txt
+    -o "${CMAKE_BINARY_DIR}/Testing/Temporary/Qml.Smoke.txt,txt")
 set_tests_properties(Qml.Smoke PROPERTIES LABELS "Qml;Unit"
     ENVIRONMENT "QT_QPA_PLATFORM=${_qml_test_platform};QT_QUICK_CONTROLS_STYLE=Basic")
 
