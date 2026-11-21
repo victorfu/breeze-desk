@@ -1055,13 +1055,15 @@ void DatabaseTest::managedReferenceFenceRecognizesExternalFileAlias() {
 void DatabaseTest::managedReferenceFenceRecognizesDeepAliasChain() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
+    // Avoid spending a symlink traversal on /var -> /private/var at every absolute hop on macOS.
+    const QDir physicalDirectory(QFileInfo(directory.path()).canonicalFilePath());
     const EnvironmentVariableGuard dataRoot(QByteArrayLiteral("BREEZEDESK_DATA_ROOT"));
-    qputenv("BREEZEDESK_DATA_ROOT", directory.filePath(QStringLiteral("application-data")).toUtf8());
+    qputenv("BREEZEDESK_DATA_ROOT", physicalDirectory.filePath(QStringLiteral("application-data")).toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString managedPath =
         QDir(StoragePaths::recordings()).filePath(QStringLiteral("deep-aliased-managed.wav"));
-    const QString aliasesDirectory = directory.filePath(QStringLiteral("external-aliases"));
+    const QString aliasesDirectory = physicalDirectory.filePath(QStringLiteral("external-aliases"));
     QVERIFY2(createFile(managedPath), qPrintable(managedPath));
     QVERIFY(QDir().mkpath(aliasesDirectory));
     QString deepAlias = managedPath;

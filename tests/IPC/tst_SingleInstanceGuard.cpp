@@ -142,11 +142,13 @@ void SingleInstanceGuardTest::startupBeforeHandlerAllowsLocalFallback() {
     QCOMPARE(primary.acquire(), SingleInstanceGuard::AcquireResult::Primary);
 
     QProcess client;
+    QSignalSpy finished(&client, &QProcess::finished);
     client.start(helper, {QStringLiteral("--application-id"), applicationId, QStringLiteral("--send-command"),
                           QStringLiteral("--timeout-ms"), QStringLiteral("200"), QStringLiteral("import"),
                           QStringLiteral("/tmp/not-executed.wav")});
     QVERIFY(client.waitForStarted());
-    QTRY_COMPARE_WITH_TIMEOUT(client.state(), QProcess::NotRunning, 2'000);
+    // Service the primary socket continuously during the short client retry window.
+    QVERIFY(!finished.isEmpty() || finished.wait(2'000));
     QCOMPARE(client.exitCode(), 41);
 }
 
