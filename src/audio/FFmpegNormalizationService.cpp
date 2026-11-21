@@ -184,8 +184,7 @@ FFmpegNormalizationService::FFmpegNormalizationService(QString ffmpegPath, QObje
 
 NormalizationOperation* FFmpegNormalizationService::normalize(const QString& sourcePath,
                                                               const QString& outputPath, qint64 durationMs,
-                                                              const int audioStreamIndex,
-                                                              QObject* parent) {
+                                                              const int audioStreamIndex, QObject* parent) {
     return new FFmpegNormalizationOperation(m_ffmpegPath, sourcePath, outputPath, durationMs,
                                             audioStreamIndex, parent);
 }

@@ -66,8 +66,7 @@ int main(int argc, char* argv[]) {
         }
     }
     int staleGraceLaunch = 0;
-    const QString staleGraceStatePath =
-        qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE");
+    const QString staleGraceStatePath = qEnvironmentVariable("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE");
     if (!staleGraceStatePath.isEmpty()) {
         QFile state(staleGraceStatePath);
         if (state.open(QIODevice::ReadOnly)) {
@@ -134,8 +133,7 @@ int main(int argc, char* argv[]) {
     QObject::connect(
         &server, &Ipc::WorkerServer::envelopeReceived, &application,
         [&server, &deferredAnalysisRequests, &malformedSegmentRequests, &deferredModelLoaded,
-         &deferredModelClientId,
-         deferredModelStatePath, staleGraceLaunch,
+         &deferredModelClientId, deferredModelStatePath, staleGraceLaunch,
          forcedRecoveryLaunch](const quint64 clientId, const Ipc::Envelope& request) {
             if (request.type == Ipc::MessageType::GetCapabilities) {
                 Ipc::Envelope capabilities;
@@ -231,24 +229,19 @@ int main(int argc, char* argv[]) {
                 }
                 const qint64 startMs = request.payload.value(QStringLiteral("startMs")).toInteger(-1);
                 const qint64 endMs = request.payload.value(QStringLiteral("endMs")).toInteger(-1);
-                const bool leaseHandoffRequest =
-                    request.jobId == QStringLiteral("job-lease-handoff");
-                const bool postHandoffRequest =
-                    request.jobId == QStringLiteral("job-after-lease-handoff");
+                const bool leaseHandoffRequest = request.jobId == QStringLiteral("job-lease-handoff");
+                const bool postHandoffRequest = request.jobId == QStringLiteral("job-after-lease-handoff");
                 const bool staleGraceHandoffRequest =
                     request.jobId == QStringLiteral("job-stale-grace-handoff");
-                const bool staleGraceNextRequest =
-                    request.jobId == QStringLiteral("job-stale-grace-next");
+                const bool staleGraceNextRequest = request.jobId == QStringLiteral("job-stale-grace-next");
                 const bool checkpointFailureRequest =
                     request.jobId == QStringLiteral("job-progress-checkpoint-failure");
                 const bool postCheckpointFailureRequest =
                     request.jobId == QStringLiteral("job-after-progress-checkpoint-failure");
                 const bool completedCheckpointFailureRequest =
                     request.jobId == QStringLiteral("job-completed-chunk-checkpoint-failure");
-                const bool workerCrashRequest =
-                    request.jobId == QStringLiteral("job-worker-crash");
-                const bool postWorkerCrashRequest =
-                    request.jobId == QStringLiteral("job-after-worker-crash");
+                const bool workerCrashRequest = request.jobId == QStringLiteral("job-worker-crash");
+                const bool postWorkerCrashRequest = request.jobId == QStringLiteral("job-after-worker-crash");
                 const bool missingSegmentStartRequest =
                     request.jobId == QStringLiteral("job-missing-segment-start");
                 const bool floatingSegmentStartRequest =
@@ -257,9 +250,9 @@ int main(int argc, char* argv[]) {
                     missingSegmentStartRequest || floatingSegmentStartRequest;
                 const bool validVadPayload =
                     (leaseHandoffRequest || postHandoffRequest || staleGraceHandoffRequest ||
-                     staleGraceNextRequest || checkpointFailureRequest ||
-                     postCheckpointFailureRequest || completedCheckpointFailureRequest ||
-                     workerCrashRequest || postWorkerCrashRequest || malformedSegmentRequest)
+                     staleGraceNextRequest || checkpointFailureRequest || postCheckpointFailureRequest ||
+                     completedCheckpointFailureRequest || workerCrashRequest || postWorkerCrashRequest ||
+                     malformedSegmentRequest)
                         ? !request.payload.value(QStringLiteral("vadEnabled")).toBool()
                         : request.payload.value(QStringLiteral("vadEnabled")).toBool() &&
                               QFileInfo(request.payload.value(QStringLiteral("vadModelPath")).toString())
@@ -364,13 +357,11 @@ int main(int argc, char* argv[]) {
                 if (request.jobId == QStringLiteral("job-progress-checkpoint-failure")) {
                     return;
                 }
-                if (request.jobId == QStringLiteral("job-stale-grace-handoff") &&
-                    staleGraceLaunch == 1) {
+                if (request.jobId == QStringLiteral("job-stale-grace-handoff") && staleGraceLaunch == 1) {
                     QTimer::singleShot(100, QCoreApplication::instance(), &QCoreApplication::quit);
                     return;
                 }
-                if (request.jobId == QStringLiteral("job-restart-exhaustion") &&
-                    forcedRecoveryLaunch == 1) {
+                if (request.jobId == QStringLiteral("job-restart-exhaustion") && forcedRecoveryLaunch == 1) {
                     QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit);
                     return;
                 }

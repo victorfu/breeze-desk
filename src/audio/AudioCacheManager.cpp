@@ -32,13 +32,11 @@ Qt::CaseSensitivity fileNameCaseSensitivity() {
 #endif
 }
 
-bool belongsToGeneration(const QFileInfo& file, const QString& extension,
-                         const QString& generationId) {
+bool belongsToGeneration(const QFileInfo& file, const QString& extension, const QString& generationId) {
     if (generationId.isEmpty()) {
         return false;
     }
-    const QString suffix =
-        QStringLiteral(".%1.%2").arg(generationId, extension);
+    const QString suffix = QStringLiteral(".%1.%2").arg(generationId, extension);
     return file.fileName().endsWith(suffix, fileNameCaseSensitivity());
 }
 
@@ -50,12 +48,10 @@ QString AudioCacheManager::cacheRoot() {
     return root;
 }
 
-QString AudioCacheManager::normalizedAudioPath(const QString& recordingId,
-                                               const QString& generationId) {
+QString AudioCacheManager::normalizedAudioPath(const QString& recordingId, const QString& generationId) {
     const QString directory = QDir(cacheRoot()).filePath(QStringLiteral("audio"));
     QDir().mkpath(directory);
-    const QString generationSuffix =
-        generationId.isEmpty() ? QString{} : QStringLiteral(".") + generationId;
+    const QString generationSuffix = generationId.isEmpty() ? QString{} : QStringLiteral(".") + generationId;
     return QDir(directory).filePath(recordingId + QString::fromLatin1(NormalizationProfileTag) +
                                     generationSuffix + QStringLiteral(".wav"));
 }
@@ -64,16 +60,14 @@ bool AudioCacheManager::isReusableNormalizedAudioPath(const QString& path) {
     if (path.trimmed().isEmpty()) {
         return false;
     }
-    const QString profileToken =
-        QString::fromLatin1(NormalizationProfileTag) + QLatin1Char('.');
+    const QString profileToken = QString::fromLatin1(NormalizationProfileTag) + QLatin1Char('.');
     return QFileInfo(path).fileName().contains(profileToken, fileNameCaseSensitivity());
 }
 
 QString AudioCacheManager::waveformPath(const QString& recordingId, const QString& generationId) {
     const QString directory = QDir(cacheRoot()).filePath(QStringLiteral("waveforms"));
     QDir().mkpath(directory);
-    const QString generationSuffix =
-        generationId.isEmpty() ? QString{} : QStringLiteral(".") + generationId;
+    const QString generationSuffix = generationId.isEmpty() ? QString{} : QStringLiteral(".") + generationId;
     return QDir(directory).filePath(recordingId + generationSuffix + QStringLiteral(".bwpk"));
 }
 
@@ -110,9 +104,9 @@ void AudioCacheManager::removeExpiredTemporaryFiles(int maximumAgeHours) {
     }
 }
 
-int AudioCacheManager::removeExpiredOrphanedGenerationFiles(
-    const QSet<QString>& referencedPaths, const QString& protectedGenerationId,
-    int maximumAgeHours) {
+int AudioCacheManager::removeExpiredOrphanedGenerationFiles(const QSet<QString>& referencedPaths,
+                                                            const QString& protectedGenerationId,
+                                                            int maximumAgeHours) {
     QSet<QString> referencedKeys;
     for (const QString& path : referencedPaths) {
         const QString key = pathComparisonKey(path);

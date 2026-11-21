@@ -112,8 +112,8 @@ bool inspectPcmLayout(QFile* file, PcmLayout* layout, QString* error) {
 
 bool aggregate(const WaveformLevel& source, WaveformLevel* result) {
     if (result == nullptr || source.samplesPerPeak == 0 ||
-        source.samplesPerPeak > std::numeric_limits<quint32>::max() / 4U ||
-        source.minimums.isEmpty() || source.minimums.size() != source.maximums.size()) {
+        source.samplesPerPeak > std::numeric_limits<quint32>::max() / 4U || source.minimums.isEmpty() ||
+        source.minimums.size() != source.maximums.size()) {
         return false;
     }
     result->samplesPerPeak = source.samplesPerPeak * 4U;
@@ -135,8 +135,7 @@ bool aggregate(const WaveformLevel& source, WaveformLevel* result) {
 }
 
 bool peakPlanFits(quint64 basePeakCount) {
-    if (basePeakCount == 0 ||
-        basePeakCount > WaveformGenerator::MaximumSerializedPeakPairs) {
+    if (basePeakCount == 0 || basePeakCount > WaveformGenerator::MaximumSerializedPeakPairs) {
         return false;
     }
     quint64 totalPeakCount = basePeakCount;
@@ -361,8 +360,7 @@ QVector<WaveformLevel> WaveformGenerator::read(const QString& waveformPath, QStr
                 *error = QStringLiteral("Waveform cache contains invalid level metadata.");
             return {};
         }
-        if (count > MaximumSerializedPeakPairs ||
-            count > MaximumSerializedPeakPairs - totalPeakCount) {
+        if (count > MaximumSerializedPeakPairs || count > MaximumSerializedPeakPairs - totalPeakCount) {
             if (error != nullptr)
                 *error = QStringLiteral("Waveform cache is too large.");
             return {};
@@ -372,8 +370,7 @@ QVector<WaveformLevel> WaveformGenerator::read(const QString& waveformPath, QStr
         const qint64 remainingLevelHeaders =
             static_cast<qint64>(levelCount - levelIndex - 1U) * SerializedLevelHeaderBytes;
         if (remainingBytes < remainingLevelHeaders ||
-            count > static_cast<quint64>(remainingBytes - remainingLevelHeaders) /
-                        SerializedPeakPairBytes) {
+            count > static_cast<quint64>(remainingBytes - remainingLevelHeaders) / SerializedPeakPairBytes) {
             if (error != nullptr)
                 *error = QStringLiteral("Waveform cache peak data is truncated.");
             return {};

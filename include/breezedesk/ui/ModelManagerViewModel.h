@@ -182,8 +182,7 @@ class ModelManagerViewModel final : public QObject {
         quint64 token{0};
     };
 
-    explicit ModelManagerViewModel(Internal::ModelManagerViewModelOperations operations,
-                                   QObject* parent);
+    explicit ModelManagerViewModel(Internal::ModelManagerViewModelOperations operations, QObject* parent);
     friend struct Internal::ModelManagerViewModelTestAccess;
 
     void cancelAndDrainFileOperations();

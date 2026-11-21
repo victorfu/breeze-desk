@@ -30,8 +30,7 @@ int parseInt(const QJsonValue& value) {
 }
 
 bool checkedSubtract(const qint64 left, const qint64 right, qint64* result) {
-    if (result == nullptr ||
-        (right > 0 && left < std::numeric_limits<qint64>::min() + right) ||
+    if (result == nullptr || (right > 0 && left < std::numeric_limits<qint64>::min() + right) ||
         (right < 0 && left > std::numeric_limits<qint64>::max() + right)) {
         return false;
     }
@@ -40,8 +39,7 @@ bool checkedSubtract(const qint64 left, const qint64 right, qint64* result) {
 }
 
 bool checkedAdd(const qint64 left, const qint64 right, qint64* result) {
-    if (result == nullptr ||
-        (right > 0 && left > std::numeric_limits<qint64>::max() - right) ||
+    if (result == nullptr || (right > 0 && left > std::numeric_limits<qint64>::max() - right) ||
         (right < 0 && left < std::numeric_limits<qint64>::min() - right)) {
         return false;
     }
@@ -66,17 +64,15 @@ MediaMetadata MediaMetadata::fromFfprobeJson(const QJsonObject& root, QString* e
         qint64 streamStartMs = 0;
         const bool streamStartKnown =
             parseMilliseconds(stream.value(QStringLiteral("start_time")), &streamStartMs);
-        if ((type == QStringLiteral("audio") || type == QStringLiteral("video")) &&
-            streamStartKnown &&
+        if ((type == QStringLiteral("audio") || type == QStringLiteral("video")) && streamStartKnown &&
             (!earliestStreamStartKnown || streamStartMs < earliestStreamStartMs)) {
             earliestStreamStartMs = streamStartMs;
             earliestStreamStartKnown = true;
         }
         if (type == QStringLiteral("audio")) {
-            const bool isDefault =
-                parseInt(stream.value(QStringLiteral("disposition"))
-                             .toObject()
-                             .value(QStringLiteral("default"))) != 0;
+            const bool isDefault = parseInt(stream.value(QStringLiteral("disposition"))
+                                                .toObject()
+                                                .value(QStringLiteral("default"))) != 0;
             const bool select = !metadata.hasAudio || (!selectedAudioIsDefault && isDefault);
             metadata.hasAudio = true;
             if (select) {
@@ -85,8 +81,7 @@ MediaMetadata MediaMetadata::fromFfprobeJson(const QJsonObject& root, QString* e
                 metadata.sampleRate = parseInt(stream.value(QStringLiteral("sample_rate")));
                 metadata.channelCount = parseInt(stream.value(QStringLiteral("channels")));
                 selectedAudioDurationMs = 0;
-                (void)parseMilliseconds(stream.value(QStringLiteral("duration")),
-                                        &selectedAudioDurationMs);
+                (void)parseMilliseconds(stream.value(QStringLiteral("duration")), &selectedAudioDurationMs);
                 selectedAudioStartMs = streamStartMs;
                 selectedAudioStartKnown = streamStartKnown;
                 selectedAudioIsDefault = isDefault;
@@ -101,8 +96,7 @@ MediaMetadata MediaMetadata::fromFfprobeJson(const QJsonObject& root, QString* e
     metadata.formatName = format.value(QStringLiteral("format_name")).toString();
     metadata.bitRate = format.value(QStringLiteral("bit_rate")).toString().toLongLong();
     qint64 formatStartMs = 0;
-    bool formatStartKnown =
-        parseMilliseconds(format.value(QStringLiteral("start_time")), &formatStartMs);
+    bool formatStartKnown = parseMilliseconds(format.value(QStringLiteral("start_time")), &formatStartMs);
     if (!formatStartKnown && earliestStreamStartKnown) {
         formatStartMs = earliestStreamStartMs;
         formatStartKnown = true;

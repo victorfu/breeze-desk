@@ -59,9 +59,8 @@ constexpr int CliMediaFailureExitCode = 5;
 constexpr int CliDatabaseFailureExitCode = 8;
 constexpr int ForwardedImportTimeoutMs = 10 * 60 * 1'000;
 
-void removeExpiredOrphanedAudioCacheFiles(
-    BreezeDesk::SqliteRecordingRepository& recordings,
-    BreezeDesk::SqliteJobRepository& jobs) {
+void removeExpiredOrphanedAudioCacheFiles(BreezeDesk::SqliteRecordingRepository& recordings,
+                                          BreezeDesk::SqliteJobRepository& jobs) {
     QSet<QString> referencedPaths;
     BreezeDesk::RecordingQuery query;
     query.includeDeleted = true;
@@ -98,8 +97,7 @@ void removeExpiredOrphanedAudioCacheFiles(
         return;
     }
     QString protectedGenerationId;
-    if (activeLease.value().has_value() &&
-        activeLease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
+    if (activeLease.value().has_value() && activeLease.value()->expiresAt > QDateTime::currentDateTimeUtc()) {
         protectedGenerationId = activeLease.value()->ownerToken;
     }
     const int removed = BreezeDesk::AudioCacheManager::removeExpiredOrphanedGenerationFiles(
@@ -678,154 +676,154 @@ int main(int argc, char* argv[]) {
         [showWindow, viewModel = viewModel.get(), &recordingRepository, &jobRepository, &modelManager,
          &transcriptionCoordinator, pendingForwardedTranscriptions,
          &application](const QStringList& commandArguments) -> BreezeDesk::Ipc::ApplicationCommandReply {
-        BreezeDesk::Ipc::ApplicationCommandReply reply;
-        if (commandArguments.isEmpty()) {
-            return reply;
-        }
-        const bool json = commandArguments.contains(QStringLiteral("--json"));
-        QStringList positional = commandArguments;
-        positional.removeAll(QStringLiteral("--json"));
-        const auto setOutput = [&reply, json](const QJsonObject& object, const QString& plainText) {
-            if (json) {
-                reply.standardOutput = QJsonDocument(object).toJson(QJsonDocument::Compact);
-                reply.standardOutput.append('\n');
-            } else if (!plainText.isEmpty()) {
-                reply.standardOutput = plainText.toUtf8();
-                if (!reply.standardOutput.endsWith('\n')) {
-                    reply.standardOutput.append('\n');
-                }
-            }
-        };
-        const auto setError = [&reply](const int exitCode, const QString& message) {
-            reply.handled = true;
-            reply.exitCode = exitCode;
-            reply.standardError = message.toUtf8();
-            if (!reply.standardError.endsWith('\n')) {
-                reply.standardError.append('\n');
-            }
-        };
-
-        if (positional.first() == QLatin1String("import")) {
-            const QStringList paths = positional.mid(1);
-            if (paths.isEmpty()) {
-                setError(CliInvalidArgumentsExitCode,
-                         QStringLiteral("Import requires at least one media file."));
+            BreezeDesk::Ipc::ApplicationCommandReply reply;
+            if (commandArguments.isEmpty()) {
                 return reply;
             }
-            QVariantList urls;
-            for (const QString& path : paths) {
-                const QFileInfo file(path);
-                if (!file.isFile()) {
+            const bool json = commandArguments.contains(QStringLiteral("--json"));
+            QStringList positional = commandArguments;
+            positional.removeAll(QStringLiteral("--json"));
+            const auto setOutput = [&reply, json](const QJsonObject& object, const QString& plainText) {
+                if (json) {
+                    reply.standardOutput = QJsonDocument(object).toJson(QJsonDocument::Compact);
+                    reply.standardOutput.append('\n');
+                } else if (!plainText.isEmpty()) {
+                    reply.standardOutput = plainText.toUtf8();
+                    if (!reply.standardOutput.endsWith('\n')) {
+                        reply.standardOutput.append('\n');
+                    }
+                }
+            };
+            const auto setError = [&reply](const int exitCode, const QString& message) {
+                reply.handled = true;
+                reply.exitCode = exitCode;
+                reply.standardError = message.toUtf8();
+                if (!reply.standardError.endsWith('\n')) {
+                    reply.standardError.append('\n');
+                }
+            };
+
+            if (positional.first() == QLatin1String("import")) {
+                const QStringList paths = positional.mid(1);
+                if (paths.isEmpty()) {
+                    setError(CliInvalidArgumentsExitCode,
+                             QStringLiteral("Import requires at least one media file."));
+                    return reply;
+                }
+                QVariantList urls;
+                for (const QString& path : paths) {
+                    const QFileInfo file(path);
+                    if (!file.isFile()) {
                         setError(CliSourceMissingExitCode,
                                  QStringLiteral("Source file not found: %1").arg(path));
-                    return reply;
+                        return reply;
+                    }
+                    urls.append(QUrl::fromLocalFile(file.absoluteFilePath()));
                 }
-                urls.append(QUrl::fromLocalFile(file.absoluteFilePath()));
+                showWindow();
+                const int accepted = viewModel->importUrls(urls);
+                reply.handled = true;
+                reply.exitCode = accepted == paths.size() ? 0 : CliMediaFailureExitCode;
+                setOutput({{QStringLiteral("schemaVersion"), 1},
+                           {QStringLiteral("forwarded"), true},
+                           {QStringLiteral("accepted"), accepted}},
+                          QStringLiteral("Accepted %1 media file(s) in the %2 GUI.")
+                              .arg(accepted)
+                              .arg(QString::fromLatin1(BreezeDesk::AppConfig::ProductName)));
+                if (accepted != paths.size()) {
+                    reply.standardError =
+                        QByteArrayLiteral("The GUI could not accept every requested media file.\n");
+                }
+                return reply;
             }
-            showWindow();
-            const int accepted = viewModel->importUrls(urls);
-            reply.handled = true;
-            reply.exitCode = accepted == paths.size() ? 0 : CliMediaFailureExitCode;
-            setOutput({{QStringLiteral("schemaVersion"), 1},
-                       {QStringLiteral("forwarded"), true},
-                       {QStringLiteral("accepted"), accepted}},
-                      QStringLiteral("Accepted %1 media file(s) in the %2 GUI.")
-                          .arg(accepted)
-                          .arg(QString::fromLatin1(BreezeDesk::AppConfig::ProductName)));
-            if (accepted != paths.size()) {
-                reply.standardError =
-                    QByteArrayLiteral("The GUI could not accept every requested media file.\n");
-            }
-            return reply;
-        }
 
-        if (positional.first() == QLatin1String("transcribe")) {
-            // Option-bearing transcriptions retain the synchronous CLI/export contract and
-            // therefore execute locally. A bare request is a GUI queue command.
-            if (positional.size() != 2) {
-                return reply;
-            }
-            const QFileInfo source(positional.at(1));
-            if (!source.isFile()) {
-                setError(CliSourceMissingExitCode,
-                         QStringLiteral("Source file not found: %1").arg(positional.at(1)));
-                return reply;
-            }
-            const QString sourcePath = source.absoluteFilePath();
-            const auto existing = recordingRepository.findBySourcePath(sourcePath);
-            if (!existing) {
-                setError(CliDatabaseFailureExitCode, existing.error().diagnosticString());
-                return reply;
-            }
-            QString recordingId;
-            QString jobId;
-            QString state = QStringLiteral("Queued");
-            showWindow();
-            if (existing.value().has_value()) {
-                recordingId = existing.value()->id;
-                jobId = viewModel->enqueueTranscription(recordingId);
-                if (jobId.isEmpty()) {
-                    setError(CliDatabaseFailureExitCode,
-                             QStringLiteral("The GUI could not enqueue the transcription."));
+            if (positional.first() == QLatin1String("transcribe")) {
+                // Option-bearing transcriptions retain the synchronous CLI/export contract and
+                // therefore execute locally. A bare request is a GUI queue command.
+                if (positional.size() != 2) {
                     return reply;
                 }
-            } else if (pendingForwardedTranscriptions->contains(sourcePath)) {
-                state = QStringLiteral("Importing");
-            } else {
-                pendingForwardedTranscriptions->insert(sourcePath);
-                const int accepted = viewModel->importUrls({QUrl::fromLocalFile(sourcePath)});
-                if (accepted == 0) {
-                    pendingForwardedTranscriptions->remove(sourcePath);
-                    setError(CliMediaFailureExitCode,
-                             QStringLiteral("The GUI could not import the media file."));
+                const QFileInfo source(positional.at(1));
+                if (!source.isFile()) {
+                    setError(CliSourceMissingExitCode,
+                             QStringLiteral("Source file not found: %1").arg(positional.at(1)));
                     return reply;
                 }
-                state = pendingForwardedTranscriptions->contains(sourcePath) ? QStringLiteral("Importing")
-                                                                             : QStringLiteral("Queued");
-                const auto imported = recordingRepository.findBySourcePath(sourcePath);
-                if (imported && imported.value().has_value()) {
-                    recordingId = imported.value()->id;
+                const QString sourcePath = source.absoluteFilePath();
+                const auto existing = recordingRepository.findBySourcePath(sourcePath);
+                if (!existing) {
+                    setError(CliDatabaseFailureExitCode, existing.error().diagnosticString());
+                    return reply;
                 }
-                QTimer::singleShot(ForwardedImportTimeoutMs, &application,
-                                   [pendingForwardedTranscriptions, sourcePath] {
-                                       pendingForwardedTranscriptions->remove(sourcePath);
-                                   });
+                QString recordingId;
+                QString jobId;
+                QString state = QStringLiteral("Queued");
+                showWindow();
+                if (existing.value().has_value()) {
+                    recordingId = existing.value()->id;
+                    jobId = viewModel->enqueueTranscription(recordingId);
+                    if (jobId.isEmpty()) {
+                        setError(CliDatabaseFailureExitCode,
+                                 QStringLiteral("The GUI could not enqueue the transcription."));
+                        return reply;
+                    }
+                } else if (pendingForwardedTranscriptions->contains(sourcePath)) {
+                    state = QStringLiteral("Importing");
+                } else {
+                    pendingForwardedTranscriptions->insert(sourcePath);
+                    const int accepted = viewModel->importUrls({QUrl::fromLocalFile(sourcePath)});
+                    if (accepted == 0) {
+                        pendingForwardedTranscriptions->remove(sourcePath);
+                        setError(CliMediaFailureExitCode,
+                                 QStringLiteral("The GUI could not import the media file."));
+                        return reply;
+                    }
+                    state = pendingForwardedTranscriptions->contains(sourcePath) ? QStringLiteral("Importing")
+                                                                                 : QStringLiteral("Queued");
+                    const auto imported = recordingRepository.findBySourcePath(sourcePath);
+                    if (imported && imported.value().has_value()) {
+                        recordingId = imported.value()->id;
+                    }
+                    QTimer::singleShot(ForwardedImportTimeoutMs, &application,
+                                       [pendingForwardedTranscriptions, sourcePath] {
+                                           pendingForwardedTranscriptions->remove(sourcePath);
+                                       });
+                }
+                reply.handled = true;
+                setOutput({{QStringLiteral("schemaVersion"), 1},
+                           {QStringLiteral("forwarded"), true},
+                           {QStringLiteral("state"), state},
+                           {QStringLiteral("recordingId"), recordingId},
+                           {QStringLiteral("jobId"), jobId}},
+                          jobId.isEmpty()
+                              ? QStringLiteral("Accepted by the %1 GUI (%2).")
+                                    .arg(QString::fromLatin1(BreezeDesk::AppConfig::ProductName), state)
+                              : QStringLiteral("%1\t%2").arg(jobId, state));
+                return reply;
             }
-            reply.handled = true;
-            setOutput({{QStringLiteral("schemaVersion"), 1},
-                       {QStringLiteral("forwarded"), true},
-                       {QStringLiteral("state"), state},
-                       {QStringLiteral("recordingId"), recordingId},
-                       {QStringLiteral("jobId"), jobId}},
-                      jobId.isEmpty()
-                          ? QStringLiteral("Accepted by the %1 GUI (%2).")
-                                .arg(QString::fromLatin1(BreezeDesk::AppConfig::ProductName), state)
-                          : QStringLiteral("%1\t%2").arg(jobId, state));
-            return reply;
-        }
 
-        if (positional.size() == 3 && positional.at(0) == QLatin1String("jobs") &&
-            positional.at(1) == QLatin1String("cancel")) {
-            const QString jobId = positional.at(2);
-            const auto job = jobRepository.findById(jobId);
-            if (!job || !job.value().has_value()) {
-                setError(CliDatabaseFailureExitCode, job ? QStringLiteral("Job not found: %1").arg(jobId)
-                                                         : job.error().diagnosticString());
-                return reply;
-            }
-            const BreezeDesk::JobState state = job.value()->state;
+            if (positional.size() == 3 && positional.at(0) == QLatin1String("jobs") &&
+                positional.at(1) == QLatin1String("cancel")) {
+                const QString jobId = positional.at(2);
+                const auto job = jobRepository.findById(jobId);
+                if (!job || !job.value().has_value()) {
+                    setError(CliDatabaseFailureExitCode, job ? QStringLiteral("Job not found: %1").arg(jobId)
+                                                             : job.error().diagnosticString());
+                    return reply;
+                }
+                const BreezeDesk::JobState state = job.value()->state;
                 const bool cancellable = state == BreezeDesk::JobState::Queued ||
                                          state == BreezeDesk::JobState::Interrupted ||
                                          state == BreezeDesk::JobState::Cancelling ||
                                          BreezeDesk::JobStateMachine::isRunning(state);
                 if (!cancellable) {
-                setError(CliDatabaseFailureExitCode,
-                         QStringLiteral("Job %1 cannot be cancelled from state %2.")
-                             .arg(jobId, BreezeDesk::jobStateName(state)));
-                return reply;
-            }
-            showWindow();
-            viewModel->navigate(QStringLiteral("Queue"));
+                    setError(CliDatabaseFailureExitCode,
+                             QStringLiteral("Job %1 cannot be cancelled from state %2.")
+                                 .arg(jobId, BreezeDesk::jobStateName(state)));
+                    return reply;
+                }
+                showWindow();
+                viewModel->navigate(QStringLiteral("Queue"));
                 transcriptionCoordinator.cancel(jobId);
                 const auto updated = jobRepository.findById(jobId);
                 if (!updated || !updated.value().has_value()) {
@@ -833,7 +831,7 @@ int main(int argc, char* argv[]) {
                              updated ? QStringLiteral("Job not found after cancellation: %1").arg(jobId)
                                      : updated.error().diagnosticString());
                     return reply;
-            }
+                }
                 const BreezeDesk::JobState updatedState = updated.value()->state;
                 if (updatedState != BreezeDesk::JobState::Cancelling &&
                     updatedState != BreezeDesk::JobState::Cancelled) {
@@ -843,43 +841,43 @@ int main(int argc, char* argv[]) {
                     return reply;
                 }
                 const QString requestedState = BreezeDesk::jobStateName(updatedState);
-            reply.handled = true;
-            setOutput({{QStringLiteral("schemaVersion"), 1},
-                       {QStringLiteral("forwarded"), true},
-                       {QStringLiteral("jobId"), jobId},
-                       {QStringLiteral("state"), requestedState}},
-                      QStringLiteral("%1\t%2").arg(jobId, requestedState));
-            return reply;
-        }
-
-        if (positional.size() == 3 && positional.at(0) == QLatin1String("models") &&
-            positional.at(1) == QLatin1String("download")) {
-            const QString modelId = positional.at(2);
-            if (modelManager.manifest().find(modelId) == nullptr) {
-                    setError(CliInvalidArgumentsExitCode,
-                             QStringLiteral("Unknown model id: %1").arg(modelId));
+                reply.handled = true;
+                setOutput({{QStringLiteral("schemaVersion"), 1},
+                           {QStringLiteral("forwarded"), true},
+                           {QStringLiteral("jobId"), jobId},
+                           {QStringLiteral("state"), requestedState}},
+                          QStringLiteral("%1\t%2").arg(jobId, requestedState));
                 return reply;
             }
-            showWindow();
-            viewModel->navigate(QStringLiteral("Models"));
-            const bool installed = modelManager.isInstalled(modelId);
-            if (!installed) {
-                viewModel->modelManager()->download(modelId);
-            }
-            const QString state = installed ? QStringLiteral("Installed") : QStringLiteral("Downloading");
-            reply.handled = true;
-            setOutput({{QStringLiteral("schemaVersion"), 1},
-                       {QStringLiteral("forwarded"), true},
-                       {QStringLiteral("modelId"), modelId},
-                       {QStringLiteral("state"), state}},
-                      QStringLiteral("%1\t%2").arg(modelId, state));
-            return reply;
-        }
 
-        // Read-only commands and synchronous export/transcription variants are safe to execute
-        // locally and preserve the existing stdout schema, so the GUI explicitly declines them.
-        return reply;
-    });
+            if (positional.size() == 3 && positional.at(0) == QLatin1String("models") &&
+                positional.at(1) == QLatin1String("download")) {
+                const QString modelId = positional.at(2);
+                if (modelManager.manifest().find(modelId) == nullptr) {
+                    setError(CliInvalidArgumentsExitCode,
+                             QStringLiteral("Unknown model id: %1").arg(modelId));
+                    return reply;
+                }
+                showWindow();
+                viewModel->navigate(QStringLiteral("Models"));
+                const bool installed = modelManager.isInstalled(modelId);
+                if (!installed) {
+                    viewModel->modelManager()->download(modelId);
+                }
+                const QString state = installed ? QStringLiteral("Installed") : QStringLiteral("Downloading");
+                reply.handled = true;
+                setOutput({{QStringLiteral("schemaVersion"), 1},
+                           {QStringLiteral("forwarded"), true},
+                           {QStringLiteral("modelId"), modelId},
+                           {QStringLiteral("state"), state}},
+                          QStringLiteral("%1\t%2").arg(modelId, state));
+                return reply;
+            }
+
+            // Read-only commands and synchronous export/transcription variants are safe to execute
+            // locally and preserve the existing stdout schema, so the GUI explicitly declines them.
+            return reply;
+        });
     QObject::connect(&showAction, &QAction::triggered, &application, showWindow);
 #ifndef Q_OS_MACOS
     QObject::connect(&tray, &QSystemTrayIcon::activated, &application,

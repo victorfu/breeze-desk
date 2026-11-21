@@ -229,8 +229,7 @@ void JobQueueViewModelTest::retryResumeGateRunsBeforeOptimisticMutation() {
     QCOMPARE(retried.count(), 0);
     QCOMPARE(resumed.count(), 0);
     QCOMPARE(valueFor(model, failed, JobListModel::StateRole).toString(), QStringLiteral("Failed"));
-    QCOMPARE(valueFor(model, interrupted, JobListModel::StateRole).toString(),
-             QStringLiteral("Interrupted"));
+    QCOMPARE(valueFor(model, interrupted, JobListModel::StateRole).toString(), QStringLiteral("Interrupted"));
 
     viewModel.setRetryResumeGate([](const QString&) { return true; });
     viewModel.retry(failed);

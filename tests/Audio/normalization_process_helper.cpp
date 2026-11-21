@@ -15,8 +15,7 @@ QByteArray validWave(const qint64 durationMs = 1'000, const qint64 toneStartMs =
     constexpr quint16 BitsPerSample = 16;
     constexpr quint16 BlockAlign = Channels * (BitsPerSample / 8);
     constexpr quint32 BytesPerSecond = SampleRate * BlockAlign;
-    if (durationMs <= 0 ||
-        durationMs > std::numeric_limits<int>::max() / BytesPerSecond * 1'000) {
+    if (durationMs <= 0 || durationMs > std::numeric_limits<int>::max() / BytesPerSecond * 1'000) {
         return {};
     }
     const quint32 dataSize = static_cast<quint32>(durationMs * BytesPerSecond / 1'000);
@@ -40,10 +39,9 @@ QByteArray validWave(const qint64 durationMs = 1'000, const qint64 toneStartMs =
     bodyStream << dataSize;
     QByteArray samples(static_cast<qsizetype>(dataSize), '\0');
     if (toneStartMs >= 0 && toneEndMs > toneStartMs) {
-        const qint64 firstSample = qBound<qint64>(0, toneStartMs * SampleRate / 1'000,
-                                                 dataSize / BlockAlign);
-        const qint64 lastSample = qBound<qint64>(firstSample, toneEndMs * SampleRate / 1'000,
-                                                dataSize / BlockAlign);
+        const qint64 firstSample = qBound<qint64>(0, toneStartMs * SampleRate / 1'000, dataSize / BlockAlign);
+        const qint64 lastSample =
+            qBound<qint64>(firstSample, toneEndMs * SampleRate / 1'000, dataSize / BlockAlign);
         constexpr qint16 ToneAmplitude = 4'000;
         for (qint64 sample = firstSample; sample < lastSample; ++sample) {
             const qsizetype byte = static_cast<qsizetype>(sample * BlockAlign);
@@ -94,8 +92,7 @@ int main(int argc, char* argv[]) {
             return 6;
         }
         const QString filter = arguments.at(filterOption + 1);
-        if (!filter.contains(QStringLiteral("aresample")) ||
-            !filter.contains(QStringLiteral("async=1")) ||
+        if (!filter.contains(QStringLiteral("aresample")) || !filter.contains(QStringLiteral("async=1")) ||
             !filter.contains(QStringLiteral("first_pts=0"))) {
             return 7;
         }

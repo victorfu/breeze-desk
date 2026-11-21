@@ -127,9 +127,9 @@ CustomModelImportRequest ModelManager::customModelImportRequest(const QString& s
     request.displayName = safeCustomModelName(displayName);
     do {
         request.id = QStringLiteral("custom-") + QUuid::createUuid().toString(QUuid::WithoutBraces);
-        request.destinationPath = QDir(modelsDirectory())
-                                      .filePath(request.id + QStringLiteral("-") + request.displayName +
-                                                QStringLiteral(".bin"));
+        request.destinationPath =
+            QDir(modelsDirectory())
+                .filePath(request.id + QStringLiteral("-") + request.displayName + QStringLiteral(".bin"));
         request.stagingPath = request.destinationPath + QStringLiteral(".importing");
         request.checksumPath = request.destinationPath + QString::fromLatin1(CustomChecksumSuffix);
     } while (m_customModels.contains(request.id) || QFileInfo::exists(request.destinationPath) ||
@@ -141,15 +141,15 @@ bool ModelManager::commitCustomModelImport(const PreparedCustomModelImport& prep
     assertOwnerThread("commitCustomModelImport must run on the ModelManager owner thread");
     const CustomModelImportRequest& request = prepared.request;
     if (!prepared.success || prepared.cancelled || request.id.isEmpty() || request.stagingPath.isEmpty() ||
-        request.destinationPath.isEmpty() || request.checksumPath.isEmpty() ||
-        prepared.fileSize <= 1024 || !isValidSha256(prepared.sha256) ||
-        !QFileInfo(request.stagingPath).isFile() ||
+        request.destinationPath.isEmpty() || request.checksumPath.isEmpty() || prepared.fileSize <= 1024 ||
+        !isValidSha256(prepared.sha256) || !QFileInfo(request.stagingPath).isFile() ||
         QFileInfo(request.stagingPath).size() != prepared.fileSize ||
         QFileInfo::exists(request.destinationPath) || QFileInfo::exists(request.checksumPath) ||
         m_customModels.contains(request.id)) {
         if (error != nullptr) {
-            *error = prepared.error.isEmpty() ? QStringLiteral("The custom model import could not be published.")
-                                              : prepared.error;
+            *error = prepared.error.isEmpty()
+                         ? QStringLiteral("The custom model import could not be published.")
+                         : prepared.error;
         }
         return false;
     }
@@ -162,8 +162,7 @@ bool ModelManager::commitCustomModelImport(const PreparedCustomModelImport& prep
     }
     QSaveFile checksumFile(request.checksumPath);
     if (!checksumFile.open(QIODevice::WriteOnly) ||
-        checksumFile.write(prepared.sha256 + '\n') != prepared.sha256.size() + 1 ||
-        !checksumFile.commit()) {
+        checksumFile.write(prepared.sha256 + '\n') != prepared.sha256.size() + 1 || !checksumFile.commit()) {
         checksumFile.cancelWriting();
         QFile::remove(request.checksumPath);
         QFile::remove(request.destinationPath);

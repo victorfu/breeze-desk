@@ -14,8 +14,8 @@
 #include <QSqlQuery>
 #include <QUuid>
 
-#include <utility>
 #include <string>
+#include <utility>
 
 #if defined(Q_OS_WIN)
 #include <qt_windows.h>
@@ -194,8 +194,7 @@ QString resolvedComparisonPath(const QString& path, const int symlinkDepth = 0) 
     QString current = normalizedPath;
     QStringList unresolvedComponents;
     for (int depth = 0; depth < 256; ++depth) {
-        const QString canonical =
-            QDir::fromNativeSeparators(QFileInfo(current).canonicalFilePath());
+        const QString canonical = QDir::fromNativeSeparators(QFileInfo(current).canonicalFilePath());
         if (!canonical.isEmpty()) {
             QString resolved = canonical;
             for (const QString& component : std::as_const(unresolvedComponents)) {
@@ -217,8 +216,7 @@ QString resolvedComparisonPath(const QString& path, const int symlinkDepth = 0) 
             return QDir::fromNativeSeparators(QDir::cleanPath(resolved));
         }
         const QString component = currentInfo.fileName();
-        const QString parent =
-            QDir::fromNativeSeparators(QDir::cleanPath(currentInfo.absolutePath()));
+        const QString parent = QDir::fromNativeSeparators(QDir::cleanPath(currentInfo.absolutePath()));
         if (component.isEmpty() || parent.isEmpty() || pathEquals(parent, current)) {
             break;
         }
@@ -252,8 +250,7 @@ bool pathsEquivalent(const QString& left, const QString& right) {
     }
     const QString resolvedLeft = resolvedComparisonPath(normalizedLeft);
     const QString resolvedRight = resolvedComparisonPath(normalizedRight);
-    return !resolvedLeft.isEmpty() && !resolvedRight.isEmpty() &&
-           pathEquals(resolvedLeft, resolvedRight);
+    return !resolvedLeft.isEmpty() && !resolvedRight.isEmpty() && pathEquals(resolvedLeft, resolvedRight);
 }
 
 bool pathsAreProvablyDistinct(const QString& left, const QString& right) {
@@ -270,8 +267,7 @@ bool pathsAreProvablyDistinct(const QString& left, const QString& right) {
     }
     const QString resolvedLeft = resolvedComparisonPath(normalizedLeft);
     const QString resolvedRight = resolvedComparisonPath(normalizedRight);
-    return !resolvedLeft.isEmpty() && !resolvedRight.isEmpty() &&
-           !pathEquals(resolvedLeft, resolvedRight);
+    return !resolvedLeft.isEmpty() && !resolvedRight.isEmpty() && !pathEquals(resolvedLeft, resolvedRight);
 }
 
 QString artifactRoot(const QString& artifactKind) {
@@ -296,20 +292,17 @@ bool isSafeArtifactPath(const QString& path, const QString& artifactKind) {
     }
 
     const QFileInfo fileInfo(absolutePath);
-    const QString canonicalRoot =
-        QDir::fromNativeSeparators(QFileInfo(root).canonicalFilePath());
+    const QString canonicalRoot = QDir::fromNativeSeparators(QFileInfo(root).canonicalFilePath());
     const QString canonicalParent =
         QDir::fromNativeSeparators(QFileInfo(fileInfo.absolutePath()).canonicalFilePath());
     if (canonicalRoot.isEmpty() || canonicalParent.isEmpty() ||
-        (!pathEquals(canonicalParent, canonicalRoot) &&
-         !isStrictChildPath(canonicalParent, canonicalRoot))) {
+        (!pathEquals(canonicalParent, canonicalRoot) && !isStrictChildPath(canonicalParent, canonicalRoot))) {
         return false;
     }
 #if defined(Q_OS_UNIX)
     const QString relativeParent =
         QDir::fromNativeSeparators(QDir(root).relativeFilePath(fileInfo.absolutePath()));
-    if (relativeParent == QLatin1String("..") ||
-        relativeParent.startsWith(QLatin1String("../"))) {
+    if (relativeParent == QLatin1String("..") || relativeParent.startsWith(QLatin1String("../"))) {
         return false;
     }
     QString currentParent = root;
@@ -352,8 +345,8 @@ QString withoutExtendedWindowsPrefix(const QString& path) {
 }
 
 bool removeArtifactByHandle(const QString& path, const QString& artifactKind, QString* error) {
-    const QString canonicalRoot = QDir::fromNativeSeparators(
-        QFileInfo(artifactRoot(artifactKind)).canonicalFilePath());
+    const QString canonicalRoot =
+        QDir::fromNativeSeparators(QFileInfo(artifactRoot(artifactKind)).canonicalFilePath());
     if (canonicalRoot.isEmpty()) {
         if (error != nullptr) {
             *error = QStringLiteral("The managed file root could not be resolved.");
@@ -361,11 +354,10 @@ bool removeArtifactByHandle(const QString& path, const QString& artifactKind, QS
         return false;
     }
     const QString nativePath = QDir::toNativeSeparators(normalizedAbsolutePath(path));
-    HANDLE handle = CreateFileW(reinterpret_cast<LPCWSTR>(nativePath.utf16()),
-                                DELETE | FILE_READ_ATTRIBUTES,
-                                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
-                                OPEN_EXISTING,
-                                FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+    HANDLE handle =
+        CreateFileW(reinterpret_cast<LPCWSTR>(nativePath.utf16()), DELETE | FILE_READ_ATTRIBUTES,
+                    FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING,
+                    FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS, nullptr);
     if (handle == INVALID_HANDLE_VALUE) {
         const DWORD code = GetLastError();
         if (code == ERROR_FILE_NOT_FOUND || code == ERROR_PATH_NOT_FOUND) {
@@ -416,8 +408,7 @@ bool removeArtifactByHandle(const QString& path, const QString& artifactKind, QS
 
     FILE_DISPOSITION_INFO disposition{};
     disposition.DeleteFile = TRUE;
-    if (!SetFileInformationByHandle(handle, FileDispositionInfo, &disposition,
-                                    sizeof(disposition))) {
+    if (!SetFileInformationByHandle(handle, FileDispositionInfo, &disposition, sizeof(disposition))) {
         return fail(QStringLiteral("Windows could not mark the managed file for deletion (error %1).")
                         .arg(static_cast<qulonglong>(GetLastError())));
     }
@@ -447,8 +438,8 @@ int openPinnedAbsoluteDirectory(const QString& directoryPath, int* errorCode) {
             return -1;
         }
         const QByteArray component = QFile::encodeName(componentText);
-        const int child = ::openat(descriptor, component.constData(),
-                                   O_RDONLY | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
+        const int child =
+            ::openat(descriptor, component.constData(), O_RDONLY | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
         if (child < 0) {
             const int code = errno;
             ::close(descriptor);
@@ -467,8 +458,7 @@ bool removeArtifactAtPinnedRoot(const QString& path, const QString& artifactKind
     const QString root = artifactRoot(artifactKind);
     const QString canonicalRoot = QDir::fromNativeSeparators(QFileInfo(root).canonicalFilePath());
     const QString absolutePath = normalizedAbsolutePath(path);
-    const QString relativePath =
-        QDir::fromNativeSeparators(QDir(root).relativeFilePath(absolutePath));
+    const QString relativePath = QDir::fromNativeSeparators(QDir(root).relativeFilePath(absolutePath));
     const QStringList components = relativePath.split(QLatin1Char('/'), Qt::SkipEmptyParts);
     if (root.isEmpty() || canonicalRoot.isEmpty() || absolutePath.isEmpty() || components.isEmpty() ||
         relativePath == QLatin1String("..") || relativePath.startsWith(QLatin1String("../")) ||
@@ -496,9 +486,8 @@ bool removeArtifactAtPinnedRoot(const QString& path, const QString& artifactKind
 
     for (qsizetype index = 0; index + 1 < components.size(); ++index) {
         const QByteArray component = QFile::encodeName(components.at(index));
-        const int childDescriptor =
-            ::openat(parentDescriptor, component.constData(),
-                     O_RDONLY | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
+        const int childDescriptor = ::openat(parentDescriptor, component.constData(),
+                                             O_RDONLY | O_CLOEXEC | O_DIRECTORY | O_NOFOLLOW);
         if (childDescriptor < 0) {
             const int code = errno;
             ::close(parentDescriptor);
@@ -514,8 +503,7 @@ bool removeArtifactAtPinnedRoot(const QString& path, const QString& artifactKind
 
     const QByteArray leaf = QFile::encodeName(components.constLast());
     struct stat entryInformation {};
-    if (::fstatat(parentDescriptor, leaf.constData(), &entryInformation,
-                  AT_SYMLINK_NOFOLLOW) != 0) {
+    if (::fstatat(parentDescriptor, leaf.constData(), &entryInformation, AT_SYMLINK_NOFOLLOW) != 0) {
         const int code = errno;
         ::close(parentDescriptor);
         if (code == ENOENT) {
@@ -562,8 +550,7 @@ bool removeArtifactFile(const QString& path, const QString& artifactKind, QStrin
 
 bool resolvedPathIsWithin(const QString& path, const QString& root) {
     const QString resolvedPath = resolvedComparisonPath(path);
-    const QString canonicalRoot =
-        QDir::fromNativeSeparators(QFileInfo(root).canonicalFilePath());
+    const QString canonicalRoot = QDir::fromNativeSeparators(QFileInfo(root).canonicalFilePath());
     return !resolvedPath.isEmpty() && !canonicalRoot.isEmpty() &&
            isStrictChildPath(resolvedPath, canonicalRoot);
 }
@@ -585,19 +572,18 @@ bool isSafeManagedReference(const QString& path) {
            resolvedPathIsWithin(path, StoragePaths::cache());
 }
 
-Result<void> ensureNewManagedReferencesExist(
-    QSqlDatabase& database, const QString& existingRecordingId,
-    const QList<QPair<int, QString>>& requestedReferences) {
+Result<void> ensureNewManagedReferencesExist(QSqlDatabase& database, const QString& existingRecordingId,
+                                             const QList<QPair<int, QString>>& requestedReferences) {
     QStringList existingReferences(4);
     if (!existingRecordingId.isEmpty()) {
         QSqlQuery existing(database);
-        existing.prepare(QStringLiteral(
-            "SELECT source_path,managed_media_path,normalized_pcm_path,waveform_path "
-            "FROM recordings WHERE id=?"));
+        existing.prepare(
+            QStringLiteral("SELECT source_path,managed_media_path,normalized_pcm_path,waveform_path "
+                           "FROM recordings WHERE id=?"));
         existing.addBindValue(existingRecordingId);
         if (!existing.exec()) {
-            return Result<void>::failure(queryError(
-                QStringLiteral("The recording file references could not be checked."), existing));
+            return Result<void>::failure(
+                queryError(QStringLiteral("The recording file references could not be checked."), existing));
         }
         if (existing.next()) {
             for (int column = 0; column < existingReferences.size(); ++column) {
@@ -650,10 +636,10 @@ Result<void> enqueueArtifactDeletions(QSqlDatabase& database, const Recording& r
         }
         queuedPaths.insert(deduplicationKey);
         QSqlQuery insert(database);
-        insert.prepare(QStringLiteral(
-            "INSERT INTO pending_recording_artifact_deletions("
-            "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
-            "VALUES(?,?,?,?,?,?)"));
+        insert.prepare(
+            QStringLiteral("INSERT INTO pending_recording_artifact_deletions("
+                           "id,recording_id,artifact_kind,absolute_path,created_at,next_attempt_at) "
+                           "VALUES(?,?,?,?,?,?)"));
         insert.addBindValue(QUuid::createUuid().toString(QUuid::WithoutBraces));
         insert.addBindValue(recording.id);
         insert.addBindValue(candidate.kind);
@@ -688,10 +674,9 @@ Result<bool> pathIsReferenced(QSqlDatabase& database, const QString& path) {
 Result<void> ensureNoActiveExecutionLease(QSqlDatabase& database, const QString& recordingId,
                                           const QString& blockedMessage) {
     QSqlQuery lease(database);
-    lease.prepare(QStringLiteral(
-        "SELECT l.expires_at FROM asr_execution_lease l "
-        "JOIN transcription_jobs j ON j.id=l.job_id "
-        "WHERE l.resource='asr' AND j.recording_id=? LIMIT 1"));
+    lease.prepare(QStringLiteral("SELECT l.expires_at FROM asr_execution_lease l "
+                                 "JOIN transcription_jobs j ON j.id=l.job_id "
+                                 "WHERE l.resource='asr' AND j.recording_id=? LIMIT 1"));
     lease.addBindValue(recordingId);
     if (!lease.exec()) {
         return Result<void>::failure(
@@ -700,8 +685,8 @@ Result<void> ensureNoActiveExecutionLease(QSqlDatabase& database, const QString&
     if (lease.next()) {
         const QDateTime expiresAt = TimeUtils::fromStorageString(lease.value(0).toString());
         if (!expiresAt.isValid() || expiresAt > QDateTime::currentDateTimeUtc()) {
-            return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::InvalidStateTransition, blockedMessage));
+            return Result<void>::failure(
+                UserFacingError::validation(ErrorCode::InvalidStateTransition, blockedMessage));
         }
     }
     return Result<void>::success();
@@ -739,8 +724,7 @@ QStringList normalizedTags(const QStringList& tags) {
     return unique;
 }
 
-Result<void> replaceTags(QSqlDatabase& database, const QString& recordingId,
-                         const QStringList& tags) {
+Result<void> replaceTags(QSqlDatabase& database, const QString& recordingId, const QStringList& tags) {
     QSqlQuery remove(database);
     remove.prepare(QStringLiteral("DELETE FROM recording_tags WHERE recording_id=?"));
     remove.addBindValue(recordingId);
@@ -765,16 +749,14 @@ Result<void> replaceTags(QSqlDatabase& database, const QString& recordingId,
         attach.addBindValue(recordingId);
         attach.addBindValue(tag);
         if (!attach.exec()) {
-            return Result<void>::failure(
-                queryError(QStringLiteral("A tag could not be attached."), attach));
+            return Result<void>::failure(queryError(QStringLiteral("A tag could not be attached."), attach));
         }
     }
     return Result<void>::success();
 }
 
 Result<void> updateMetadataColumn(DatabaseManager& databaseManager, const QString& recordingId,
-                                  const QString& column, const QVariant& value,
-                                  const bool rebuildSearch) {
+                                  const QString& column, const QVariant& value, const bool rebuildSearch) {
     if (recordingId.trimmed().isEmpty()) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A recording ID is required.")));
@@ -793,19 +775,17 @@ Result<void> updateMetadataColumn(DatabaseManager& databaseManager, const QStrin
             return Result<void>::failure(UserFacingError::database(
                 ErrorCode::NotFound, QStringLiteral("The recording no longer exists."), recordingId));
         }
-        return rebuildSearch
-                   ? DatabaseSearchService(databaseManager).rebuildRecording(database, recordingId)
-                   : Result<void>::success();
+        return rebuildSearch ? DatabaseSearchService(databaseManager).rebuildRecording(database, recordingId)
+                             : Result<void>::success();
     });
 }
 
 } // namespace
 
 SqliteRecordingRepository::SqliteRecordingRepository(DatabaseManager& databaseManager,
-                                                       ArtifactFileRemover artifactFileRemover,
-                                                       ManagedReferenceWriteHook managedReferenceWriteHook)
-    : m_databaseManager(databaseManager),
-      m_artifactFileRemover(std::move(artifactFileRemover)),
+                                                     ArtifactFileRemover artifactFileRemover,
+                                                     ManagedReferenceWriteHook managedReferenceWriteHook)
+    : m_databaseManager(databaseManager), m_artifactFileRemover(std::move(artifactFileRemover)),
       m_managedReferenceWriteHook(std::move(managedReferenceWriteHook)) {}
 
 Result<void> SqliteRecordingRepository::create(Recording recording) {
@@ -824,11 +804,11 @@ Result<void> SqliteRecordingRepository::create(Recording recording) {
         if (m_managedReferenceWriteHook) {
             m_managedReferenceWriteHook();
         }
-        const auto references = ensureNewManagedReferencesExist(
-            database, {}, {{0, recording.sourcePath},
-                           {1, recording.managedMediaPath},
-                           {2, recording.normalizedPcmPath},
-                           {3, recording.waveformPath}});
+        const auto references = ensureNewManagedReferencesExist(database, {},
+                                                                {{0, recording.sourcePath},
+                                                                 {1, recording.managedMediaPath},
+                                                                 {2, recording.normalizedPcmPath},
+                                                                 {3, recording.waveformPath}});
         if (!references) {
             return references;
         }
@@ -868,8 +848,7 @@ Result<void> SqliteRecordingRepository::create(Recording recording) {
 
 Result<void> SqliteRecordingRepository::update(const Recording& recording, const QString& jobId,
                                                const QString& ownerToken) {
-    if (recording.id.trimmed().isEmpty() ||
-        (ownerToken.isEmpty() && recording.title.trimmed().isEmpty())) {
+    if (recording.id.trimmed().isEmpty() || (ownerToken.isEmpty() && recording.title.trimmed().isEmpty())) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("Recording ID and title are required.")));
     }
@@ -890,11 +869,11 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording, const
         if (m_managedReferenceWriteHook) {
             m_managedReferenceWriteHook();
         }
-        const auto references = ensureNewManagedReferencesExist(
-            database, recording.id, {{0, recording.sourcePath},
-                                     {1, recording.managedMediaPath},
-                                     {2, recording.normalizedPcmPath},
-                                     {3, recording.waveformPath}});
+        const auto references = ensureNewManagedReferencesExist(database, recording.id,
+                                                                {{0, recording.sourcePath},
+                                                                 {1, recording.managedMediaPath},
+                                                                 {2, recording.normalizedPcmPath},
+                                                                 {3, recording.waveformPath}});
         if (!references) {
             return references;
         }
@@ -941,8 +920,7 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording, const
             m_managedReferenceWriteHook();
         }
         const auto references = ensureNewManagedReferencesExist(
-            database, recording.id,
-            {{2, recording.normalizedPcmPath}, {3, recording.waveformPath}});
+            database, recording.id, {{2, recording.normalizedPcmPath}, {3, recording.waveformPath}});
         if (!references) {
             return references;
         }
@@ -971,8 +949,7 @@ Result<void> SqliteRecordingRepository::update(const Recording& recording, const
     };
     return ownerToken.isEmpty()
                ? m_databaseManager.immediateTransaction(updateAllFields)
-               : m_databaseManager.executionLeaseTransaction(jobId, ownerToken,
-                                                               updateDerivedFields);
+               : m_databaseManager.executionLeaseTransaction(jobId, ownerToken, updateDerivedFields);
 }
 
 Result<void> SqliteRecordingRepository::updateTitle(const QString& recordingId, const QString& title) {
@@ -981,13 +958,12 @@ Result<void> SqliteRecordingRepository::updateTitle(const QString& recordingId, 
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A recording title is required.")));
     }
-    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("title"),
-                                trimmedTitle, true);
+    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("title"), trimmedTitle, true);
 }
 
 Result<void> SqliteRecordingRepository::updateNotes(const QString& recordingId, const QString& notes) {
-    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("notes"),
-                                nonNull(notes), true);
+    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("notes"), nonNull(notes),
+                                true);
 }
 
 Result<void> SqliteRecordingRepository::updateReviewState(const QString& recordingId,
@@ -996,12 +972,11 @@ Result<void> SqliteRecordingRepository::updateReviewState(const QString& recordi
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument, QStringLiteral("A review state is required.")));
     }
-    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("review_state"),
-                                reviewState, false);
+    return updateMetadataColumn(m_databaseManager, recordingId, QStringLiteral("review_state"), reviewState,
+                                false);
 }
 
-Result<void> SqliteRecordingRepository::relinkSource(const QString& recordingId,
-                                                     const QString& sourcePath,
+Result<void> SqliteRecordingRepository::relinkSource(const QString& recordingId, const QString& sourcePath,
                                                      const bool clearDerivedArtifacts) {
     if (recordingId.trimmed().isEmpty() || sourcePath.isEmpty()) {
         return Result<void>::failure(UserFacingError::validation(
@@ -1017,8 +992,7 @@ Result<void> SqliteRecordingRepository::relinkSource(const QString& recordingId,
         if (m_managedReferenceWriteHook) {
             m_managedReferenceWriteHook();
         }
-        const auto references =
-            ensureNewManagedReferencesExist(database, recordingId, {{0, sourcePath}});
+        const auto references = ensureNewManagedReferencesExist(database, recordingId, {{0, sourcePath}});
         if (!references) {
             return references;
         }
@@ -1217,8 +1191,7 @@ Result<void> SqliteRecordingRepository::permanentlyDelete(const QString& id) {
     return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
         const auto leaseCheck = ensureNoActiveExecutionLease(
             database, id,
-            QStringLiteral(
-                "The recording cannot be permanently deleted while it is being transcribed."));
+            QStringLiteral("The recording cannot be permanently deleted while it is being transcribed."));
         if (!leaseCheck) {
             return leaseCheck;
         }
@@ -1272,8 +1245,8 @@ SqliteRecordingRepository::drainPendingArtifactDeletions(const QString& recordin
         if (!connection) {
             return Result<PendingArtifactDeletionReport>::failure(connection.error());
         }
-        QString statement = QStringLiteral(
-            "SELECT id FROM pending_recording_artifact_deletions WHERE next_attempt_at<=?");
+        QString statement =
+            QStringLiteral("SELECT id FROM pending_recording_artifact_deletions WHERE next_attempt_at<=?");
         if (!recordingId.trimmed().isEmpty()) {
             statement += QStringLiteral(" AND recording_id=?");
         }
@@ -1320,8 +1293,7 @@ SqliteRecordingRepository::drainPendingArtifactDeletions(const QString& recordin
 
             const auto acknowledge = [&]() -> Result<void> {
                 QSqlQuery remove(database);
-                remove.prepare(
-                    QStringLiteral("DELETE FROM pending_recording_artifact_deletions WHERE id=?"));
+                remove.prepare(QStringLiteral("DELETE FROM pending_recording_artifact_deletions WHERE id=?"));
                 remove.addBindValue(row.id);
                 if (!remove.exec()) {
                     return Result<void>::failure(queryError(
@@ -1427,8 +1399,7 @@ Result<void> SqliteRecordingRepository::setActiveTranscriptJob(const QString& re
     }
     return m_databaseManager.immediateTransaction([&](QSqlDatabase& database) {
         QSqlQuery job(database);
-        job.prepare(
-            QStringLiteral("SELECT state FROM transcription_jobs WHERE id=? AND recording_id=?"));
+        job.prepare(QStringLiteral("SELECT state FROM transcription_jobs WHERE id=? AND recording_id=?"));
         job.addBindValue(jobId);
         job.addBindValue(recordingId);
         if (!job.exec()) {
@@ -1440,13 +1411,12 @@ Result<void> SqliteRecordingRepository::setActiveTranscriptJob(const QString& re
                 ErrorCode::NotFound, QStringLiteral("The requested transcript job does not exist.")));
         }
         if (job.value(0).toString() != QLatin1String("Completed")) {
-            return Result<void>::failure(UserFacingError::validation(
-                ErrorCode::InvalidStateTransition,
-                QStringLiteral("Only a completed transcript can be activated.")));
+            return Result<void>::failure(
+                UserFacingError::validation(ErrorCode::InvalidStateTransition,
+                                            QStringLiteral("Only a completed transcript can be activated.")));
         }
         QSqlQuery update(database);
-        update.prepare(
-            QStringLiteral("UPDATE recordings SET active_job_id=?,updated_at=? WHERE id=?"));
+        update.prepare(QStringLiteral("UPDATE recordings SET active_job_id=?,updated_at=? WHERE id=?"));
         update.addBindValue(jobId);
         update.addBindValue(TimeUtils::nowStorageString());
         update.addBindValue(recordingId);

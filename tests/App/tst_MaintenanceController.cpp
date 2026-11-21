@@ -73,8 +73,7 @@ bool createDirectoryLink(const QString& target, const QString& link) {
     QProcess junction;
     junction.start(QStringLiteral("cmd.exe"),
                    {QStringLiteral("/d"), QStringLiteral("/c"), QStringLiteral("mklink"),
-                    QStringLiteral("/J"), QDir::toNativeSeparators(link),
-                    QDir::toNativeSeparators(target)});
+                    QStringLiteral("/J"), QDir::toNativeSeparators(link), QDir::toNativeSeparators(target)});
     return junction.waitForStarted(5'000) && junction.waitForFinished(5'000) &&
            junction.exitStatus() == QProcess::NormalExit && junction.exitCode() == 0;
 #else

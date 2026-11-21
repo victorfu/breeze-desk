@@ -62,31 +62,27 @@ UserFacingError jobCancelledError() {
 Result<void> validateDurableChunkGeometry(const QList<JobChunk>& chunks) {
     if (chunks.isEmpty()) {
         return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::InvalidArgument,
-            QStringLiteral("The durable transcription chunk plan is empty.")));
+            ErrorCode::InvalidArgument, QStringLiteral("The durable transcription chunk plan is empty.")));
     }
     qint64 previousEndMs = 0;
     qint64 previousOverlapAfterMs = 0;
     for (qsizetype index = 0; index < chunks.size(); ++index) {
         const JobChunk& chunk = chunks.at(index);
-        if (chunk.ordinal != static_cast<int>(index) || chunk.startMs < 0 ||
-            chunk.endMs <= chunk.startMs) {
+        if (chunk.ordinal != static_cast<int>(index) || chunk.startMs < 0 || chunk.endMs <= chunk.startMs) {
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::InvalidArgument,
                 QStringLiteral("The durable transcription chunk plan contains an invalid chunk.")));
         }
         const qint64 lengthMs = chunk.endMs - chunk.startMs;
-        if (chunk.overlapBeforeMs < 0 || chunk.overlapAfterMs < 0 ||
-            chunk.overlapBeforeMs >= lengthMs || chunk.overlapAfterMs >= lengthMs) {
+        if (chunk.overlapBeforeMs < 0 || chunk.overlapAfterMs < 0 || chunk.overlapBeforeMs >= lengthMs ||
+            chunk.overlapAfterMs >= lengthMs) {
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::InvalidArgument,
                 QStringLiteral("The durable transcription chunk plan contains an invalid chunk.")));
         }
-        const bool continuous =
-            index == 0
-                ? chunk.startMs == 0 && chunk.overlapBeforeMs == 0
-                : chunk.overlapBeforeMs == previousOverlapAfterMs &&
-                      chunk.startMs == previousEndMs - chunk.overlapBeforeMs;
+        const bool continuous = index == 0 ? chunk.startMs == 0 && chunk.overlapBeforeMs == 0
+                                           : chunk.overlapBeforeMs == previousOverlapAfterMs &&
+                                                 chunk.startMs == previousEndMs - chunk.overlapBeforeMs;
         if (!continuous) {
             return Result<void>::failure(UserFacingError::validation(
                 ErrorCode::InvalidArgument,
@@ -190,9 +186,8 @@ CliTranscriptionPersistence::beginNew(DurableTranscriptionDescriptor descriptor)
         m_active = false;
         return Result<DurableTranscriptionIdentity>::failure(claimResult.error());
     }
-    auto progressResult =
-        m_jobs.updateProgress(job.id, JobStage::Preparing,
-                              MonotonicJobProgress::map(JobStage::Preparing, 1.0), -1, m_ownerToken);
+    auto progressResult = m_jobs.updateProgress(
+        job.id, JobStage::Preparing, MonotonicJobProgress::map(JobStage::Preparing, 1.0), -1, m_ownerToken);
     if (!progressResult) {
         const auto checkpoint = transitionTo(JobState::Interrupted, QStringLiteral("DatabaseQueryFailed"),
                                              progressResult.error().diagnosticString());
@@ -223,8 +218,7 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         }
         if (!jobResult.value()) {
             return Result<ResumeSnapshot>::failure(UserFacingError::validation(
-                ErrorCode::NotFound,
-                QStringLiteral("The interrupted transcription job does not exist.")));
+                ErrorCode::NotFound, QStringLiteral("The interrupted transcription job does not exist.")));
         }
         const auto recordingResult = m_recordings.findById(jobResult.value()->recordingId);
         if (!recordingResult) {
@@ -232,8 +226,7 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         }
         if (!recordingResult.value()) {
             return Result<ResumeSnapshot>::failure(UserFacingError::validation(
-                ErrorCode::NotFound,
-                QStringLiteral("The source recording for this job no longer exists.")));
+                ErrorCode::NotFound, QStringLiteral("The source recording for this job no longer exists.")));
         }
         if (normalizedPath(recordingResult.value()->sourcePath) != normalizedPath(sourcePath)) {
             return Result<ResumeSnapshot>::failure(UserFacingError::validation(
@@ -261,10 +254,9 @@ Result<DurableTranscriptionIdentity> CliTranscriptionPersistence::resume(const Q
         preflight.value().job.state == JobState::Cancelled) {
         return Result<DurableTranscriptionIdentity>::failure(jobCancelledError());
     }
-    const bool stateCanBecomeResumable =
-        preflight.value().job.state == JobState::Interrupted ||
-        preflight.value().job.state == JobState::Failed ||
-        JobStateMachine::isRunning(preflight.value().job.state);
+    const bool stateCanBecomeResumable = preflight.value().job.state == JobState::Interrupted ||
+                                         preflight.value().job.state == JobState::Failed ||
+                                         JobStateMachine::isRunning(preflight.value().job.state);
     if (!stateCanBecomeResumable) {
         return Result<DurableTranscriptionIdentity>::failure(UserFacingError::validation(
             ErrorCode::InvalidStateTransition,
@@ -457,15 +449,13 @@ Result<void> CliTranscriptionPersistence::replaceChunkPlan(QList<JobChunk> chunk
     }
     if (!recording.value()) {
         return Result<void>::failure(UserFacingError::validation(
-            ErrorCode::NotFound,
-            QStringLiteral("The durable source recording no longer exists.")));
+            ErrorCode::NotFound, QStringLiteral("The durable source recording no longer exists.")));
     }
     const auto chunkPlanValidation = validateDurableChunkGeometry(chunks);
     if (!chunkPlanValidation) {
         return chunkPlanValidation;
     }
-    if (recording.value()->durationMs > 0 &&
-        chunks.constLast().endMs != recording.value()->durationMs) {
+    if (recording.value()->durationMs > 0 && chunks.constLast().endMs != recording.value()->durationMs) {
         return Result<void>::failure(UserFacingError::validation(
             ErrorCode::InvalidArgument,
             QStringLiteral("The new transcription chunk plan does not cover the audio exactly.")));
@@ -578,8 +568,7 @@ Result<void> CliTranscriptionPersistence::saveChunkSegments(const int ordinal,
         segment.attempt = activeChunk.attempts;
     }
     return m_transcripts.replaceChunk(m_identity.recordingId, m_identity.jobId, activeChunk.id,
-                                      std::move(segments), provisional, activeChunk.attempts,
-                                      m_ownerToken);
+                                      std::move(segments), provisional, activeChunk.attempts, m_ownerToken);
 }
 
 Result<void> CliTranscriptionPersistence::completeChunk(const int ordinal,

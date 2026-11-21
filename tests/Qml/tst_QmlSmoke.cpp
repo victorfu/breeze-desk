@@ -66,6 +66,26 @@ class EnvironmentVariableGuard final {
     QByteArray m_originalValue;
 };
 
+bool writeTestRecording(QTemporaryFile& media) {
+    media.setFileTemplate(QDir::temp().filePath(QStringLiteral("breezedesk-XXXXXX.wav")));
+    if (!media.open()) {
+        return false;
+    }
+    QDataStream stream(&media);
+    stream.setByteOrder(QDataStream::LittleEndian);
+    constexpr quint32 dataSize = 3200; // 100 ms of mono 16 kHz PCM.
+    stream.writeRawData("RIFF", 4);
+    stream << quint32(36 + dataSize);
+    stream.writeRawData("WAVEfmt ", 8);
+    stream << quint32(16) << quint16(1) << quint16(1) << quint32(16000) << quint32(32000) << quint16(2)
+           << quint16(16);
+    stream.writeRawData("data", 4);
+    stream << dataSize;
+    stream.writeRawData(QByteArray(dataSize, '\0').constData(), dataSize);
+    media.close();
+    return stream.status() == QDataStream::Ok;
+}
+
 void messageHandler(QtMsgType type, const QMessageLogContext& context, const QString& message) {
     if (type == QtWarningMsg || type == QtCriticalMsg || type == QtFatalMsg) {
         qmlMessages.append(message);
@@ -241,7 +261,7 @@ class tst_QmlSmoke final : public QObject {
             QVERIFY(!icon.isNull());
             for (const QSize& expectedSize : expectedSizes) {
                 const QImage image =
-                    icon.pixmap(expectedSize).toImage().convertToFormat(QImage::Format_RGBA8888);
+                    icon.pixmap(expectedSize, 1.0).toImage().convertToFormat(QImage::Format_RGBA8888);
                 QCOMPARE(image.size(), expectedSize);
 
                 int opaquePixels = 0;
@@ -399,9 +419,9 @@ class tst_QmlSmoke final : public QObject {
     void quitWhileRecordingOpensRecordingGuard() {
         QScopedPointer<BreezeDesk::ApplicationViewModel> injectedViewModel(
             BreezeDesk::createApplicationViewModel());
-        injectedViewModel->jobQueue()->updateJob(
-            QStringLiteral("active-job"), QStringLiteral("recording-id"), QStringLiteral("Active job"),
-            QStringLiteral("Transcribing"), QStringLiteral("Transcribing"), 0.1);
+        injectedViewModel->jobQueue()->updateJob(QStringLiteral("active-job"), QStringLiteral("recording-id"),
+                                                 QStringLiteral("Active job"), QStringLiteral("Transcribing"),
+                                                 QStringLiteral("Transcribing"), 0.1);
         FakeRecorder injectedRecorder;
         injectedRecorder.setRecording(true);
         QObject injectedMaintenance;
@@ -417,8 +437,7 @@ class tst_QmlSmoke final : public QObject {
         engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
         QVERIFY2(!engine.rootObjects().isEmpty(), "Main.qml did not create a root object.");
         QObject* root = engine.rootObjects().constFirst();
-        QObject* recordingQuitDialog =
-            root->findChild<QObject*>(QStringLiteral("recordingQuitDialog"));
+        QObject* recordingQuitDialog = root->findChild<QObject*>(QStringLiteral("recordingQuitDialog"));
         QObject* transcriptionQuitDialog =
             root->findChild<QObject*>(QStringLiteral("transcriptionQuitDialog"));
         QObject* stopRecordingAndQuitButton =
@@ -1363,12 +1382,10 @@ class tst_QmlSmoke final : public QObject {
         vm->settings()->setCompactMode(false);
         vm->settings()->setTextScale(1.0);
         vm->settings()->setTextScale(1.5);
-        vm->recordingDetail()->setDetails(
-            {{QStringLiteral("durationMs"), qint64{3'021}}});
+        vm->recordingDetail()->setDetails({{QStringLiteral("durationMs"), qint64{3'021}}});
         vm->navigate(QStringLiteral("Recording"));
         window->show();
-        QTRY_COMPARE_WITH_TIMEOUT(waveformItem->property("durationMs").toLongLong(), qint64{3'021},
-                                  1'000);
+        QTRY_COMPARE_WITH_TIMEOUT(waveformItem->property("durationMs").toLongLong(), qint64{3'021}, 1'000);
 
         const auto verifyWidth = [&](int width, bool compactInspector) {
             window->setWidth(width);
@@ -2077,7 +2094,7 @@ class tst_QmlSmoke final : public QObject {
     void viewModelCommandsHaveObservableState() {
         BreezeDesk::ApplicationViewModel vm;
         QTemporaryFile media;
-        QVERIFY(media.open());
+        QVERIFY(writeTestRecording(media));
         const QVariantList urls{QUrl::fromLocalFile(media.fileName())};
         QCOMPARE(vm.importUrls(urls), 1);
         QCOMPARE(vm.library()->recordings()->rowCount(), 1);
@@ -2136,7 +2153,7 @@ class tst_QmlSmoke final : public QObject {
     void sameRecordingCanBeOpenedAgainAfterReturningToLibrary() {
         BreezeDesk::ApplicationViewModel vm;
         QTemporaryFile media;
-        QVERIFY(media.open());
+        QVERIFY(writeTestRecording(media));
         QCOMPARE(vm.importUrls({QUrl::fromLocalFile(media.fileName())}), 1);
 
         const QModelIndex first = vm.library()->recordings()->index(0, 0);
@@ -2166,7 +2183,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(database.initialize());
         BreezeDesk::SqliteRecordingRepository repository(database);
         QTemporaryFile media;
-        QVERIFY(media.open());
+        QVERIFY(writeTestRecording(media));
 
         QString recordingId;
         {
@@ -2435,8 +2452,7 @@ class tst_QmlSmoke final : public QObject {
         }
 
         QCOMPARE(transcriptRepository.saveAttempts, 1);
-        QCOMPARE(transcriptRepository.m_segments.constFirst().editedText,
-                 QStringLiteral("Last-second edit"));
+        QCOMPARE(transcriptRepository.m_segments.constFirst().editedText, QStringLiteral("Last-second edit"));
     }
 
     void activeTranscriptDraftIsCommittedBeforeExitFlush() {
@@ -2466,9 +2482,8 @@ class tst_QmlSmoke final : public QObject {
         BreezeDesk::ApplicationViewModel vm(&recordingRepository, &transcriptRepository);
         QQmlApplicationEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
-        engine.setInitialProperties(
-            {{QStringLiteral("injectedApplicationViewModel"),
-              QVariant::fromValue(static_cast<QObject*>(&vm))}});
+        engine.setInitialProperties({{QStringLiteral("injectedApplicationViewModel"),
+                                      QVariant::fromValue(static_cast<QObject*>(&vm))}});
         engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
         QVERIFY2(!engine.rootObjects().isEmpty(), "Main.qml did not create a root object.");
         QObject* root = engine.rootObjects().constFirst();
@@ -2479,14 +2494,12 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(window);
         QQuickItem* editor = nullptr;
         QTRY_VERIFY_WITH_TIMEOUT(
-            (editor = visualDescendantsNamed(window->contentItem(),
-                                              QStringLiteral("segmentTextEditor"))
+            (editor = visualDescendantsNamed(window->contentItem(), QStringLiteral("segmentTextEditor"))
                           .value(0)) != nullptr,
             2'000);
         QQuickItem* editButton = nullptr;
         QTRY_VERIFY_WITH_TIMEOUT(
-            (editButton = visualDescendantsNamed(window->contentItem(),
-                                                  QStringLiteral("segmentEditButton"))
+            (editButton = visualDescendantsNamed(window->contentItem(), QStringLiteral("segmentEditButton"))
                               .value(0)) != nullptr,
             2'000);
         QVERIFY(editButton->isVisible());
@@ -2497,8 +2510,7 @@ class tst_QmlSmoke final : public QObject {
         QTRY_VERIFY_WITH_TIMEOUT(window->isActive(), 1'000);
 
         editor->setProperty("text", QStringLiteral("Autosaved active draft"));
-        QCOMPARE(vm.transcript()->snapshot().constFirst().editedText,
-                 QStringLiteral("Original draft text"));
+        QCOMPARE(vm.transcript()->snapshot().constFirst().editedText, QStringLiteral("Original draft text"));
         QTRY_COMPARE_WITH_TIMEOUT(transcriptRepository.saveAttempts, 1, 2'000);
         QCOMPARE(transcriptRepository.m_segments.constFirst().editedText,
                  QStringLiteral("Autosaved active draft"));
@@ -2516,13 +2528,12 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(editor->hasActiveFocus());
 
         editor->setProperty("text", QStringLiteral("Exit active draft"));
-        QCOMPARE(vm.transcript()->snapshot().constFirst().editedText,
-                 QStringLiteral("Ctrl+S active draft"));
+        QCOMPARE(vm.transcript()->snapshot().constFirst().editedText, QStringLiteral("Ctrl+S active draft"));
 
         transcriptRepository.failWrites = true;
         QVariant flushResult;
-        QVERIFY(QMetaObject::invokeMethod(root, "flushTranscriptForExit",
-                                          Q_RETURN_ARG(QVariant, flushResult)));
+        QVERIFY(
+            QMetaObject::invokeMethod(root, "flushTranscriptForExit", Q_RETURN_ARG(QVariant, flushResult)));
         QVERIFY(!flushResult.toBool());
         QCOMPARE(transcriptRepository.saveAttempts, 3);
         QVERIFY(vm.transcript()->dirty());
@@ -2530,8 +2541,8 @@ class tst_QmlSmoke final : public QObject {
                  QStringLiteral("Ctrl+S active draft"));
 
         transcriptRepository.failWrites = false;
-        QVERIFY(QMetaObject::invokeMethod(root, "flushTranscriptForExit",
-                                          Q_RETURN_ARG(QVariant, flushResult)));
+        QVERIFY(
+            QMetaObject::invokeMethod(root, "flushTranscriptForExit", Q_RETURN_ARG(QVariant, flushResult)));
         QVERIFY(flushResult.toBool());
         QCOMPARE(transcriptRepository.saveAttempts, 4);
         QCOMPARE(transcriptRepository.m_segments.constFirst().editedText,
@@ -2539,8 +2550,7 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(!vm.transcript()->dirty());
 
         editor->setProperty("text", QStringLiteral("Queued-job active draft"));
-        QCOMPARE(vm.transcript()->snapshot().constFirst().editedText,
-                 QStringLiteral("Exit active draft"));
+        QCOMPARE(vm.transcript()->snapshot().constFirst().editedText, QStringLiteral("Exit active draft"));
         vm.reloadTranscriptForJob(recording.id, QStringLiteral("new-running-job"), true);
         QCOMPARE(transcriptRepository.saveAttempts, 5);
         QCOMPARE(transcriptRepository.m_segments.constFirst().editedText,
@@ -2575,9 +2585,8 @@ class tst_QmlSmoke final : public QObject {
         BreezeDesk::ApplicationViewModel vm(&recordingRepository, &transcriptRepository);
         QQmlApplicationEngine engine;
         engine.addImportPath(QStringLiteral("qrc:/qt/qml"));
-        engine.setInitialProperties(
-            {{QStringLiteral("injectedApplicationViewModel"),
-              QVariant::fromValue(static_cast<QObject*>(&vm))}});
+        engine.setInitialProperties({{QStringLiteral("injectedApplicationViewModel"),
+                                      QVariant::fromValue(static_cast<QObject*>(&vm))}});
         engine.loadFromModule(QStringLiteral("BreezeDesk"), QStringLiteral("Main"));
         QVERIFY2(!engine.rootObjects().isEmpty(), "Main.qml did not create a root object.");
         auto* window = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
@@ -2587,14 +2596,12 @@ class tst_QmlSmoke final : public QObject {
         vm.transcript()->setSelectedIndex(0);
         QQuickItem* editor = nullptr;
         QTRY_VERIFY_WITH_TIMEOUT(
-            (editor = visualDescendantsNamed(window->contentItem(),
-                                              QStringLiteral("segmentTextEditor"))
+            (editor = visualDescendantsNamed(window->contentItem(), QStringLiteral("segmentTextEditor"))
                           .value(0)) != nullptr,
             2'000);
         QQuickItem* editButton = nullptr;
         QTRY_VERIFY_WITH_TIMEOUT(
-            (editButton = visualDescendantsNamed(window->contentItem(),
-                                                  QStringLiteral("segmentEditButton"))
+            (editButton = visualDescendantsNamed(window->contentItem(), QStringLiteral("segmentEditButton"))
                               .value(0)) != nullptr,
             2'000);
         QVERIFY(QMetaObject::invokeMethod(editButton, "clicked"));
@@ -2615,14 +2622,12 @@ class tst_QmlSmoke final : public QObject {
         vm.transcript()->setSelectedIndex(0);
         editor = nullptr;
         QTRY_VERIFY_WITH_TIMEOUT(
-            (editor = visualDescendantsNamed(window->contentItem(),
-                                              QStringLiteral("segmentTextEditor"))
+            (editor = visualDescendantsNamed(window->contentItem(), QStringLiteral("segmentTextEditor"))
                           .value(0)) != nullptr,
             2'000);
         editButton = nullptr;
         QTRY_VERIFY_WITH_TIMEOUT(
-            (editButton = visualDescendantsNamed(window->contentItem(),
-                                                  QStringLiteral("segmentEditButton"))
+            (editButton = visualDescendantsNamed(window->contentItem(), QStringLiteral("segmentEditButton"))
                               .value(0)) != nullptr,
             2'000);
         if (editor->property("readOnly").toBool()) {
@@ -2837,8 +2842,8 @@ class tst_QmlSmoke final : public QObject {
         QVERIFY(vm.transcript()->editingLocked());
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Current transcript"));
         QVERIFY(jobRepository.transition(liveJob.id, BreezeDesk::JobState::Failed,
-                                         QStringLiteral("FixtureFailure"),
-                                         QStringLiteral("Fixture failure"), liveOwner));
+                                         QStringLiteral("FixtureFailure"), QStringLiteral("Fixture failure"),
+                                         liveOwner));
         vm.finishLiveTranscript(recording.id, liveJob.id, false);
         QCOMPARE(vm.transcript()->fullText(), QStringLiteral("Current transcript"));
         QVERIFY(!vm.transcript()->editingLocked());

@@ -5,9 +5,9 @@
 namespace BreezeDesk::Asr {
 
 WorkerSegmentValidationResult validateWorkerSegmentRange(const QCborMap& payload,
-                                                          const qint64 activeChunkStartMs,
-                                                          const qint64 activeChunkEndMs,
-                                                          const qint64 recordingDurationMs) {
+                                                         const qint64 activeChunkStartMs,
+                                                         const qint64 activeChunkEndMs,
+                                                         const qint64 recordingDurationMs) {
     const QCborValue rawStart = payload.value(QStringLiteral("startMs"));
     const QCborValue rawEnd = payload.value(QStringLiteral("endMs"));
     if (!rawStart.isInteger() || !rawEnd.isInteger()) {
@@ -20,10 +20,8 @@ WorkerSegmentValidationResult validateWorkerSegmentRange(const QCborMap& payload
     const qint64 allowedEndMs = std::min(activeChunkEndMs, recordingDurationMs);
     const qint64 rawStartMs = rawStart.toInteger();
     const qint64 rawEndMs = rawEnd.toInteger();
-    if (allowedEndMs <= allowedStartMs ||
-        rawStartMs < allowedStartMs - WorkerSegmentTimestampToleranceMs ||
-        (rawEndMs > allowedEndMs &&
-         rawEndMs - allowedEndMs > WorkerSegmentTimestampToleranceMs) ||
+    if (allowedEndMs <= allowedStartMs || rawStartMs < allowedStartMs - WorkerSegmentTimestampToleranceMs ||
+        (rawEndMs > allowedEndMs && rawEndMs - allowedEndMs > WorkerSegmentTimestampToleranceMs) ||
         rawEndMs <= rawStartMs) {
         WorkerSegmentValidationResult result;
         result.error = WorkerSegmentValidationError::OutsideActiveRange;
@@ -40,7 +38,7 @@ WorkerSegmentValidationResult validateWorkerSegmentRange(const QCborMap& payload
 }
 
 WorkerSegmentValidationResult reconcileWorkerSegmentRange(WorkerSegmentValidationResult validated,
-                                                           const qint64 previousEndMs) {
+                                                          const qint64 previousEndMs) {
     if (!validated) {
         return validated;
     }

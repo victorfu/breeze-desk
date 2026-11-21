@@ -41,10 +41,10 @@ class HttpFixture final : public QTcpServer {
                     QByteArray response = offset > 0 ? QByteArrayLiteral("HTTP/1.1 206 Partial Content\r\n")
                                                      : QByteArrayLiteral("HTTP/1.1 200 OK\r\n");
                     if (offset > 0) {
-                        response += QByteArrayLiteral("Content-Range: bytes ") +
-                                    QByteArray::number(offset) + QByteArrayLiteral("-") +
-                                    QByteArray::number(m_payload.size() - 1) + QByteArrayLiteral("/") +
-                                    QByteArray::number(m_payload.size()) + QByteArrayLiteral("\r\n");
+                        response += QByteArrayLiteral("Content-Range: bytes ") + QByteArray::number(offset) +
+                                    QByteArrayLiteral("-") + QByteArray::number(m_payload.size() - 1) +
+                                    QByteArrayLiteral("/") + QByteArray::number(m_payload.size()) +
+                                    QByteArrayLiteral("\r\n");
                     }
                     response += QByteArrayLiteral("Content-Length: ") + QByteArray::number(body.size()) +
                                 QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body;
@@ -103,14 +103,13 @@ class ControlledHttpFixture final : public QTcpServer {
         QVERIFY(!m_responseStarted);
         const QByteArray body = m_payload.mid(m_activeOffset);
         const QByteArray prefix = body.first(byteCount);
-        QByteArray response = m_activeOffset > 0
-                                  ? QByteArrayLiteral("HTTP/1.1 206 Partial Content\r\n")
-                                  : QByteArrayLiteral("HTTP/1.1 200 OK\r\n");
+        QByteArray response = m_activeOffset > 0 ? QByteArrayLiteral("HTTP/1.1 206 Partial Content\r\n")
+                                                 : QByteArrayLiteral("HTTP/1.1 200 OK\r\n");
         if (m_activeOffset > 0) {
-            response += QByteArrayLiteral("Content-Range: bytes ") +
-                        QByteArray::number(m_activeOffset) + QByteArrayLiteral("-") +
-                        QByteArray::number(m_payload.size() - 1) + QByteArrayLiteral("/") +
-                        QByteArray::number(m_payload.size()) + QByteArrayLiteral("\r\n");
+            response += QByteArrayLiteral("Content-Range: bytes ") + QByteArray::number(m_activeOffset) +
+                        QByteArrayLiteral("-") + QByteArray::number(m_payload.size() - 1) +
+                        QByteArrayLiteral("/") + QByteArray::number(m_payload.size()) +
+                        QByteArrayLiteral("\r\n");
         }
         response += QByteArrayLiteral("Content-Length: ") + QByteArray::number(body.size()) +
                     QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + prefix;
@@ -198,8 +197,7 @@ class ScriptedHttpFixture final : public QTcpServer {
         }
         QByteArray response = scripted.statusLine + QByteArrayLiteral("\r\n");
         for (const auto& header : scripted.headers) {
-            response += header.first + QByteArrayLiteral(": ") + header.second +
-                        QByteArrayLiteral("\r\n");
+            response += header.first + QByteArrayLiteral(": ") + header.second + QByteArrayLiteral("\r\n");
         }
         if (scripted.chunked) {
             response += QByteArrayLiteral("Transfer-Encoding: chunked\r\n");
@@ -220,20 +218,18 @@ class ScriptedHttpFixture final : public QTcpServer {
             const QByteArray chunk = scripted.bodyChunks.at(index);
             QTimer::singleShot(static_cast<int>(index * 25), socket, [guardedSocket, chunk] {
                 if (guardedSocket != nullptr) {
-                    guardedSocket->write(QByteArray::number(chunk.size(), 16) +
-                                         QByteArrayLiteral("\r\n") + chunk +
-                                         QByteArrayLiteral("\r\n"));
+                    guardedSocket->write(QByteArray::number(chunk.size(), 16) + QByteArrayLiteral("\r\n") +
+                                         chunk + QByteArrayLiteral("\r\n"));
                     guardedSocket->flush();
                 }
             });
         }
-        QTimer::singleShot(static_cast<int>(scripted.bodyChunks.size() * 25), socket,
-                           [guardedSocket] {
-                               if (guardedSocket != nullptr) {
-                                   guardedSocket->write(QByteArrayLiteral("0\r\n\r\n"));
-                                   guardedSocket->disconnectFromHost();
-                               }
-                           });
+        QTimer::singleShot(static_cast<int>(scripted.bodyChunks.size() * 25), socket, [guardedSocket] {
+            if (guardedSocket != nullptr) {
+                guardedSocket->write(QByteArrayLiteral("0\r\n\r\n"));
+                guardedSocket->disconnectFromHost();
+            }
+        });
     }
 
     QList<ScriptedHttpResponse> m_responses;
@@ -242,8 +238,8 @@ class ScriptedHttpFixture final : public QTcpServer {
 
 class ObservingPartFile final : public QFile {
   public:
-    ObservingPartFile(const QString& path, QObject* parent, qint64* maximumSize,
-                      QByteArray* writtenBytes, bool failWrites = false)
+    ObservingPartFile(const QString& path, QObject* parent, qint64* maximumSize, QByteArray* writtenBytes,
+                      bool failWrites = false)
         : QFile(path, parent), m_maximumSize(maximumSize), m_writtenBytes(writtenBytes),
           m_failWrites(failWrites) {}
 
@@ -391,8 +387,7 @@ void ModelsTest::restartsWhenServerIgnoresRange() {
 void ModelsTest::rejectsOversizedDeclaredResponse() {
     const QByteArray payload("declared-size-bound");
     ScriptedHttpResponse response;
-    response.headers.append(
-        {QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size() + 1)});
+    response.headers.append({QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size() + 1)});
     response.bodyChunks.append(payload + QByteArrayLiteral("!"));
     ScriptedHttpFixture server({response});
     QVERIFY(server.listen(QHostAddress::LocalHost));
@@ -409,11 +404,11 @@ void ModelsTest::rejectsOversizedDeclaredResponse() {
     qint64 maximumSize = 0;
     QByteArray writtenBytes;
     QNetworkAccessManager network;
-    ModelDownloadOperation operation(
-        entry, temporary.path(), &network, nullptr,
-        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
-            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
-        });
+    ModelDownloadOperation operation(entry, temporary.path(), &network, nullptr,
+                                     [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+                                         return new ObservingPartFile(path, parent, &maximumSize,
+                                                                      &writtenBytes);
+                                     });
     QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
     operation.start();
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
@@ -444,11 +439,11 @@ void ModelsTest::capsChunkedOversizedResponse() {
     qint64 maximumSize = 0;
     QByteArray writtenBytes;
     QNetworkAccessManager network;
-    ModelDownloadOperation operation(
-        entry, temporary.path(), &network, nullptr,
-        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
-            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
-        });
+    ModelDownloadOperation operation(entry, temporary.path(), &network, nullptr,
+                                     [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+                                         return new ObservingPartFile(path, parent, &maximumSize,
+                                                                      &writtenBytes);
+                                     });
     QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
     operation.start();
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
@@ -463,8 +458,7 @@ void ModelsTest::rejectsHttpErrorBodyWithoutWriting() {
     const QByteArray errorBody(128 * 1024, 'e');
     ScriptedHttpResponse response;
     response.statusLine = QByteArrayLiteral("HTTP/1.1 404 Not Found");
-    response.headers.append(
-        {QByteArrayLiteral("Content-Length"), QByteArray::number(errorBody.size())});
+    response.headers.append({QByteArrayLiteral("Content-Length"), QByteArray::number(errorBody.size())});
     response.bodyChunks.append(errorBody);
     ScriptedHttpFixture server({response});
     QVERIFY(server.listen(QHostAddress::LocalHost));
@@ -481,11 +475,11 @@ void ModelsTest::rejectsHttpErrorBodyWithoutWriting() {
     qint64 maximumSize = 0;
     QByteArray writtenBytes;
     QNetworkAccessManager network;
-    ModelDownloadOperation operation(
-        entry, temporary.path(), &network, nullptr,
-        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
-            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
-        });
+    ModelDownloadOperation operation(entry, temporary.path(), &network, nullptr,
+                                     [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+                                         return new ObservingPartFile(path, parent, &maximumSize,
+                                                                      &writtenBytes);
+                                     });
     QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
     operation.start();
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
@@ -506,11 +500,10 @@ void ModelsTest::retriesServerErrorWithoutContamination() {
     first.bodyChunks.append(errorBody);
     ScriptedHttpResponse second;
     second.statusLine = QByteArrayLiteral("HTTP/1.1 206 Partial Content");
-    second.headers.append(
-        {QByteArrayLiteral("Content-Range"),
-         QByteArrayLiteral("bytes ") + QByteArray::number(PrefixSize) + QByteArrayLiteral("-") +
-             QByteArray::number(payload.size() - 1) + QByteArrayLiteral("/") +
-             QByteArray::number(payload.size())});
+    second.headers.append({QByteArrayLiteral("Content-Range"),
+                           QByteArrayLiteral("bytes ") + QByteArray::number(PrefixSize) +
+                               QByteArrayLiteral("-") + QByteArray::number(payload.size() - 1) +
+                               QByteArrayLiteral("/") + QByteArray::number(payload.size())});
     second.headers.append(
         {QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size() - PrefixSize)});
     second.bodyChunks.append(payload.mid(PrefixSize));
@@ -535,11 +528,11 @@ void ModelsTest::retriesServerErrorWithoutContamination() {
     qint64 maximumSize = 0;
     QByteArray writtenBytes;
     QNetworkAccessManager network;
-    ModelDownloadOperation operation(
-        entry, temporary.path(), &network, nullptr,
-        [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
-            return new ObservingPartFile(path, parent, &maximumSize, &writtenBytes);
-        });
+    ModelDownloadOperation operation(entry, temporary.path(), &network, nullptr,
+                                     [&maximumSize, &writtenBytes](const QString& path, QObject* parent) {
+                                         return new ObservingPartFile(path, parent, &maximumSize,
+                                                                      &writtenBytes);
+                                     });
     QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
     operation.start();
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5'000);
@@ -560,11 +553,10 @@ void ModelsTest::retriesTransportFailureWithoutDiscardingPrefix() {
     first.closeWithoutResponse = true;
     ScriptedHttpResponse second;
     second.statusLine = QByteArrayLiteral("HTTP/1.1 206 Partial Content");
-    second.headers.append(
-        {QByteArrayLiteral("Content-Range"),
-         QByteArrayLiteral("bytes ") + QByteArray::number(PrefixSize) + QByteArrayLiteral("-") +
-             QByteArray::number(payload.size() - 1) + QByteArrayLiteral("/") +
-             QByteArray::number(payload.size())});
+    second.headers.append({QByteArrayLiteral("Content-Range"),
+                           QByteArrayLiteral("bytes ") + QByteArray::number(PrefixSize) +
+                               QByteArrayLiteral("-") + QByteArray::number(payload.size() - 1) +
+                               QByteArrayLiteral("/") + QByteArray::number(payload.size())});
     second.headers.append(
         {QByteArrayLiteral("Content-Length"), QByteArray::number(payload.size() - PrefixSize)});
     second.bodyChunks.append(payload.mid(PrefixSize));
@@ -588,11 +580,10 @@ void ModelsTest::retriesTransportFailureWithoutDiscardingPrefix() {
 
     QByteArray writtenBytes;
     QNetworkAccessManager network;
-    ModelDownloadOperation operation(
-        entry, temporary.path(), &network, nullptr,
-        [&writtenBytes](const QString& path, QObject* parent) {
-            return new ObservingPartFile(path, parent, nullptr, &writtenBytes);
-        });
+    ModelDownloadOperation operation(entry, temporary.path(), &network, nullptr,
+                                     [&writtenBytes](const QString& path, QObject* parent) {
+                                         return new ObservingPartFile(path, parent, nullptr, &writtenBytes);
+                                     });
     QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
     operation.start();
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 5'000);
@@ -619,14 +610,13 @@ void ModelsTest::rejectsInvalidResumeMetadata_data() {
     QTest::newRow("malformed-content-range") << QByteArrayLiteral("bytes nope") << correctLength;
     QTest::newRow("wrong-range-start")
         << QByteArrayLiteral("bytes 3-") + last + QByteArrayLiteral("/") + total << correctLength;
-    QTest::newRow("wrong-range-end")
-        << QByteArrayLiteral("bytes 4-") + QByteArray::number(payload.size() - 2) +
-               QByteArrayLiteral("/") + total
-        << correctLength;
-    QTest::newRow("wrong-range-total")
-        << QByteArrayLiteral("bytes 4-") + last + QByteArrayLiteral("/") +
-               QByteArray::number(payload.size() + 1)
-        << correctLength;
+    QTest::newRow("wrong-range-end") << QByteArrayLiteral("bytes 4-") +
+                                            QByteArray::number(payload.size() - 2) + QByteArrayLiteral("/") +
+                                            total
+                                     << correctLength;
+    QTest::newRow("wrong-range-total") << QByteArrayLiteral("bytes 4-") + last + QByteArrayLiteral("/") +
+                                              QByteArray::number(payload.size() + 1)
+                                       << correctLength;
     QTest::newRow("wrong-content-length")
         << QByteArrayLiteral("bytes 4-") + last + QByteArrayLiteral("/") + total
         << QByteArray::number(remaining + 1);
@@ -693,11 +683,10 @@ void ModelsTest::removesPartialAfterWriteFailure() {
     entry.sha256 = QCryptographicHash::hash(payload, QCryptographicHash::Sha256).toHex();
     entry.downloadUrl = QStringLiteral("http://127.0.0.1:%1/model").arg(server.serverPort());
     QNetworkAccessManager network;
-    ModelDownloadOperation operation(
-        entry, temporary.path(), &network, nullptr,
-        [](const QString& path, QObject* parent) {
-            return new ObservingPartFile(path, parent, nullptr, nullptr, true);
-        });
+    ModelDownloadOperation operation(entry, temporary.path(), &network, nullptr,
+                                     [](const QString& path, QObject* parent) {
+                                         return new ObservingPartFile(path, parent, nullptr, nullptr, true);
+                                     });
     QSignalSpy finished(&operation, &ModelDownloadOperation::finished);
     operation.start();
     QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 2'000);
@@ -870,12 +859,10 @@ void ModelsTest::destroysActiveOperationAfterNetworkSiblingSafely() {
     QPointer<QNetworkAccessManager> guardedNetwork(network);
     QPointer<ModelDownloadOperation> guardedOperation(operation);
     QStringList destructionOrder;
-    connect(network, &QObject::destroyed, [&destructionOrder] {
-        destructionOrder.append(QStringLiteral("network"));
-    });
-    connect(operation, &QObject::destroyed, [&destructionOrder] {
-        destructionOrder.append(QStringLiteral("operation"));
-    });
+    connect(network, &QObject::destroyed,
+            [&destructionOrder] { destructionOrder.append(QStringLiteral("network")); });
+    connect(operation, &QObject::destroyed,
+            [&destructionOrder] { destructionOrder.append(QStringLiteral("operation")); });
 
     const QString partPath = temporary.filePath(QStringLiteral("parent-destruction.bin.part"));
     QFile existingPart(partPath);
@@ -896,8 +883,7 @@ void ModelsTest::destroysActiveOperationAfterNetworkSiblingSafely() {
 
     QVERIFY(guardedNetwork.isNull());
     QVERIFY(guardedOperation.isNull());
-    QCOMPARE(destructionOrder,
-             QStringList({QStringLiteral("network"), QStringLiteral("operation")}));
+    QCOMPARE(destructionOrder, QStringList({QStringLiteral("network"), QStringLiteral("operation")}));
     QCOMPARE(QFileInfo(partPath).size(), static_cast<qint64>(PrefixSize));
     QVERIFY(!QFileInfo::exists(temporary.filePath(QStringLiteral("parent-destruction.bin.lock"))));
 }

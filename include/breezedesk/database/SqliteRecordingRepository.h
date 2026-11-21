@@ -20,10 +20,8 @@ class SqliteRecordingRepository final : public IRecordingRepository {
     [[nodiscard]] Result<void> create(Recording recording) override;
     [[nodiscard]] Result<void> update(const Recording& recording, const QString& jobId = {},
                                       const QString& ownerToken = {}) override;
-    [[nodiscard]] Result<void> updateTitle(const QString& recordingId,
-                                           const QString& title) override;
-    [[nodiscard]] Result<void> updateNotes(const QString& recordingId,
-                                           const QString& notes) override;
+    [[nodiscard]] Result<void> updateTitle(const QString& recordingId, const QString& title) override;
+    [[nodiscard]] Result<void> updateNotes(const QString& recordingId, const QString& notes) override;
     [[nodiscard]] Result<void> updateReviewState(const QString& recordingId,
                                                  const QString& reviewState) override;
     [[nodiscard]] Result<void> relinkSource(const QString& recordingId, const QString& sourcePath,

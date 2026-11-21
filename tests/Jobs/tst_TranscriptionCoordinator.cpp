@@ -110,19 +110,18 @@ void TranscriptionCoordinatorTest::rejectsMalformedWorkerSegmentTimestamp() {
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
     const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const auto restoreEnvironment =
-        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
-            const auto restore = [](const char* name, const QByteArray& value) {
-                if (value.isNull()) {
-                    qunsetenv(name);
-                } else {
-                    qputenv(name, value);
-                }
-            };
-            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
-            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
-            restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-        });
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+        restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
+    });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
@@ -381,8 +380,8 @@ void TranscriptionCoordinatorTest::terminalCheckpointFailureRetainsLeaseUntilRec
     QSqlQuery rejectCheckpoint(connection.value());
     QVERIFY(rejectCheckpoint.exec(
         QStringLiteral("CREATE TRIGGER reject_cancel_checkpoint BEFORE UPDATE OF state ON transcription_jobs "
-        "WHEN OLD.id='job-terminal-checkpoint' AND NEW.state='Cancelled' BEGIN "
-        "SELECT RAISE(ABORT,'forced terminal checkpoint failure'); END")));
+                       "WHEN OLD.id='job-terminal-checkpoint' AND NEW.state='Cancelled' BEGIN "
+                       "SELECT RAISE(ABORT,'forced terminal checkpoint failure'); END")));
 
     coordinator.cancel(QStringLiteral("job-terminal-checkpoint"));
     const auto cancelling = jobs.findById(QStringLiteral("job-terminal-checkpoint"));
@@ -446,8 +445,7 @@ void TranscriptionCoordinatorTest::observesExternalLeaseWhileIdlePausedAndReserv
 
     QTRY_VERIFY_WITH_TIMEOUT(coordinator.isTranscriptionActive(), 3'000);
     QCOMPARE(guiJobs.findById(localJobId).value()->state, JobState::Queued);
-    QVERIFY(externalJobs.transition(externalJob.id, JobState::Failed,
-                                    QStringLiteral("ExternalTestFinished"),
+    QVERIFY(externalJobs.transition(externalJob.id, JobState::Failed, QStringLiteral("ExternalTestFinished"),
                                     QStringLiteral("External owner finished."), externalOwner));
 
     QTRY_VERIFY_WITH_TIMEOUT(!coordinator.isTranscriptionActive(), 3'000);
@@ -460,23 +458,21 @@ void TranscriptionCoordinatorTest::leaseHandoffAbandonsLocalSessionWithoutCheckp
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
     const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const QByteArray previousRestartState =
-        qgetenv("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE");
+    const QByteArray previousRestartState = qgetenv("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE");
     const auto restoreEnvironment =
-        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly,
-                     previousRestartState] {
-        const auto restore = [](const char* name, const QByteArray& value) {
-            if (value.isNull()) {
-                qunsetenv(name);
-            } else {
-                qputenv(name, value);
-            }
-        };
-        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
-        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
-        restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-        restore("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE", previousRestartState);
-    });
+        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly, previousRestartState] {
+            const auto restore = [](const char* name, const QByteArray& value) {
+                if (value.isNull()) {
+                    qunsetenv(name);
+                } else {
+                    qputenv(name, value);
+                }
+            };
+            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+            restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
+            restore("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE", previousRestartState);
+        });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
@@ -630,13 +626,11 @@ void TranscriptionCoordinatorTest::leaseHandoffDuringModelLoadUsesRequestScopedB
     QVERIFY(directory.isValid());
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
-    const QByteArray previousOverrideOnly =
-        qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
+    const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
     const QByteArray previousDeferredModelState =
         qgetenv("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE");
     const auto restoreEnvironment =
-        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly,
-                     previousDeferredModelState] {
+        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly, previousDeferredModelState] {
             const auto restore = [](const char* name, const QByteArray& value) {
                 if (value.isNull()) {
                     qunsetenv(name);
@@ -647,16 +641,13 @@ void TranscriptionCoordinatorTest::leaseHandoffDuringModelLoadUsesRequestScopedB
             restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
             restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
             restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-            restore("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE",
-                    previousDeferredModelState);
+            restore("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE", previousDeferredModelState);
         });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
-    const QString deferredModelState =
-        directory.filePath(QStringLiteral("deferred-model-request.txt"));
-    qputenv("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE",
-            deferredModelState.toUtf8());
+    const QString deferredModelState = directory.filePath(QStringLiteral("deferred-model-request.txt"));
+    qputenv("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE", deferredModelState.toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString databasePath = directory.filePath(QStringLiteral("library.sqlite"));
@@ -720,8 +711,8 @@ void TranscriptionCoordinatorTest::leaseHandoffDuringModelLoadUsesRequestScopedB
     const auto reportedLeaseLoss = [&errors] {
         for (const QList<QVariant>& arguments : errors) {
             if (!arguments.isEmpty() &&
-                arguments.constFirst().toString().contains(
-                    QStringLiteral("lost the global execution lease"), Qt::CaseInsensitive)) {
+                arguments.constFirst().toString().contains(QStringLiteral("lost the global execution lease"),
+                                                           Qt::CaseInsensitive)) {
                 return true;
             }
         }
@@ -746,21 +737,19 @@ void TranscriptionCoordinatorTest::progressCheckpointFailureKeepsNextJobQueuedBe
     QVERIFY(directory.isValid());
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
-    const QByteArray previousOverrideOnly =
-        qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const auto restoreEnvironment =
-        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
-            const auto restore = [](const char* name, const QByteArray& value) {
-                if (value.isNull()) {
-                    qunsetenv(name);
-                } else {
-                    qputenv(name, value);
-                }
-            };
-            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
-            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
-            restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-        });
+    const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+        restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
+    });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
@@ -805,10 +794,10 @@ void TranscriptionCoordinatorTest::progressCheckpointFailureKeepsNextJobQueuedBe
         "WHEN OLD.id='job-progress-checkpoint-failure' AND NEW.stage='Transcribing' "
         "AND NEW.progress>0.35 BEGIN SELECT RAISE(ABORT,'forced progress checkpoint failure'); END")));
     QSqlQuery rejectFailedChunk(connection.value());
-    QVERIFY(rejectFailedChunk.exec(QStringLiteral(
-        "CREATE TRIGGER reject_failed_chunk_checkpoint BEFORE UPDATE OF state ON job_chunks "
-        "WHEN OLD.job_id='job-progress-checkpoint-failure' AND NEW.state='Failed' "
-        "BEGIN SELECT RAISE(ABORT,'forced chunk checkpoint failure'); END")));
+    QVERIFY(rejectFailedChunk.exec(
+        QStringLiteral("CREATE TRIGGER reject_failed_chunk_checkpoint BEFORE UPDATE OF state ON job_chunks "
+                       "WHEN OLD.job_id='job-progress-checkpoint-failure' AND NEW.state='Failed' "
+                       "BEGIN SELECT RAISE(ABORT,'forced chunk checkpoint failure'); END")));
 
     TranscriptionCoordinator coordinator(recordings, jobs, transcripts, models, worker, &settings);
     QSignalSpy workerInterruptions(&worker, &WorkerProcessManager::workerInterrupted);
@@ -819,10 +808,10 @@ void TranscriptionCoordinatorTest::progressCheckpointFailureKeepsNextJobQueuedBe
         const auto current = jobs.findById(failedJobId);
         const auto chunks = jobs.chunks(failedJobId);
         const auto lease = jobs.activeLease();
-        return current && current.value().has_value() &&
-               current.value()->state == JobState::Transcribing && chunks &&
-               chunks.value().size() == 1 && chunks.value().constFirst().state == ChunkState::Running &&
-               lease && lease.value().has_value() && lease.value()->jobId == failedJobId &&
+        return current && current.value().has_value() && current.value()->state == JobState::Transcribing &&
+               chunks && chunks.value().size() == 1 &&
+               chunks.value().constFirst().state == ChunkState::Running && lease &&
+               lease.value().has_value() && lease.value()->jobId == failedJobId &&
                worker.forcedCancellationPending();
     };
     QTRY_VERIFY_WITH_TIMEOUT(retainedRunningCheckpoint(), 30'000);
@@ -855,16 +844,14 @@ void TranscriptionCoordinatorTest::progressCheckpointFailureKeepsNextJobQueuedBe
         const auto lease = jobs.activeLease();
         return current && current.value().has_value() && current.value()->state == JobState::Failed &&
                chunks && chunks.value().size() == 1 &&
-               chunks.value().constFirst().state == ChunkState::Failed && lease &&
-               !lease.value().has_value();
+               chunks.value().constFirst().state == ChunkState::Failed && lease && !lease.value().has_value();
     };
     QTRY_VERIFY_WITH_TIMEOUT(!workerInterruptions.isEmpty(), 7'000);
     QTRY_VERIFY_WITH_TIMEOUT(terminalCheckpointCompleted(), 3'000);
     const auto queued = jobs.findById(nextJobId);
     QVERIFY(queued && queued.value().has_value());
     QCOMPARE(queued.value()->state, JobState::Queued);
-    const auto claimedAfterQuiescence =
-        externalJobs.claimQueued(nextJobId, externalOwner, 10'000);
+    const auto claimedAfterQuiescence = externalJobs.claimQueued(nextJobId, externalOwner, 10'000);
     QVERIFY(claimedAfterQuiescence && claimedAfterQuiescence.value().claimed);
 }
 
@@ -873,21 +860,19 @@ void TranscriptionCoordinatorTest::completedChunkCheckpointFailureRetainsRunning
     QVERIFY(directory.isValid());
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
-    const QByteArray previousOverrideOnly =
-        qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const auto restoreEnvironment =
-        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
-            const auto restore = [](const char* name, const QByteArray& value) {
-                if (value.isNull()) {
-                    qunsetenv(name);
-                } else {
-                    qputenv(name, value);
-                }
-            };
-            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
-            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
-            restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-        });
+    const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+        restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
+    });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
@@ -937,25 +922,22 @@ void TranscriptionCoordinatorTest::completedChunkCheckpointFailureRetainsRunning
         "WHEN OLD.job_id='job-completed-chunk-checkpoint-failure' AND NEW.state='Failed' "
         "BEGIN SELECT RAISE(ABORT,'forced failed chunk checkpoint failure'); END")));
 
-    TranscriptionCoordinator coordinator(recordings, guiJobs, transcripts, models, worker,
-                                         &settings);
+    TranscriptionCoordinator coordinator(recordings, guiJobs, transcripts, models, worker, &settings);
     QSignalSpy finished(&coordinator, &TranscriptionCoordinator::transcriptionFinished);
     coordinator.initialize();
     const QString failedJobId = QStringLiteral("job-completed-chunk-checkpoint-failure");
     coordinator.enqueue(failedJobId, recording.id);
-    const auto rejectedCompletionRetainsLease =
-        [&guiJobs, &transcripts, &failedJobId] {
-            const auto current = guiJobs.findById(failedJobId);
-            const auto chunks = guiJobs.chunks(failedJobId);
-            const auto segments = transcripts.segmentsForJob(failedJobId, true);
-            const auto lease = guiJobs.activeLease();
-            return current && current.value().has_value() &&
-                   current.value()->state == JobState::Transcribing && chunks &&
-                   chunks.value().size() == 1 &&
-                   chunks.value().constFirst().state == ChunkState::Running && segments &&
-                   segments.value().size() == 1 && !segments.value().constFirst().provisional &&
-                   lease && lease.value().has_value() && lease.value()->jobId == failedJobId;
-        };
+    const auto rejectedCompletionRetainsLease = [&guiJobs, &transcripts, &failedJobId] {
+        const auto current = guiJobs.findById(failedJobId);
+        const auto chunks = guiJobs.chunks(failedJobId);
+        const auto segments = transcripts.segmentsForJob(failedJobId, true);
+        const auto lease = guiJobs.activeLease();
+        return current && current.value().has_value() && current.value()->state == JobState::Transcribing &&
+               chunks && chunks.value().size() == 1 &&
+               chunks.value().constFirst().state == ChunkState::Running && segments &&
+               segments.value().size() == 1 && !segments.value().constFirst().provisional && lease &&
+               lease.value().has_value() && lease.value()->jobId == failedJobId;
+    };
     QTRY_VERIFY_WITH_TIMEOUT(rejectedCompletionRetainsLease(), 30'000);
     QVERIFY(!worker.forcedCancellationPending());
     const auto retainedLease = externalJobs.activeLease();
@@ -978,22 +960,19 @@ void TranscriptionCoordinatorTest::completedChunkCheckpointFailureRetainsRunning
     QCOMPARE(finished.size(), 0);
 
     QSqlQuery allowFailedChunk(connection.value());
-    QVERIFY(allowFailedChunk.exec(
-        QStringLiteral("DROP TRIGGER reject_failed_after_completed_checkpoint")));
+    QVERIFY(allowFailedChunk.exec(QStringLiteral("DROP TRIGGER reject_failed_after_completed_checkpoint")));
     const auto terminalCheckpointCompleted = [&guiJobs, &failedJobId] {
         const auto current = guiJobs.findById(failedJobId);
         const auto chunks = guiJobs.chunks(failedJobId);
         const auto lease = guiJobs.activeLease();
         return current && current.value().has_value() && current.value()->state == JobState::Failed &&
                chunks && chunks.value().size() == 1 &&
-               chunks.value().constFirst().state == ChunkState::Failed && lease &&
-               !lease.value().has_value();
+               chunks.value().constFirst().state == ChunkState::Failed && lease && !lease.value().has_value();
     };
     QTRY_VERIFY_WITH_TIMEOUT(terminalCheckpointCompleted(), 3'000);
     QCOMPARE(finished.size(), 1);
     QVERIFY(!finished.constFirst().at(2).toBool());
-    const auto claimedAfterCheckpoint =
-        externalJobs.claimQueued(nextJobId, externalOwner, 10'000);
+    const auto claimedAfterCheckpoint = externalJobs.claimQueued(nextJobId, externalOwner, 10'000);
     QVERIFY(claimedAfterCheckpoint && claimedAfterCheckpoint.value().claimed);
 }
 
@@ -1002,13 +981,11 @@ void TranscriptionCoordinatorTest::modelLoadCancellationKeepsLeaseUntilTerminalE
     QVERIFY(directory.isValid());
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
-    const QByteArray previousOverrideOnly =
-        qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
+    const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
     const QByteArray previousDeferredModelState =
         qgetenv("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE");
-    const auto restoreEnvironment = qScopeGuard(
-        [previousDataRoot, previousWorkerPath, previousOverrideOnly,
-         previousDeferredModelState] {
+    const auto restoreEnvironment =
+        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly, previousDeferredModelState] {
             const auto restore = [](const char* name, const QByteArray& value) {
                 if (value.isNull()) {
                     qunsetenv(name);
@@ -1019,16 +996,13 @@ void TranscriptionCoordinatorTest::modelLoadCancellationKeepsLeaseUntilTerminalE
             restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
             restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
             restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-            restore("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE",
-                    previousDeferredModelState);
+            restore("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE", previousDeferredModelState);
         });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
-    const QString deferredModelState =
-        directory.filePath(QStringLiteral("cancelled-model-request.txt"));
-    qputenv("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE",
-            deferredModelState.toUtf8());
+    const QString deferredModelState = directory.filePath(QStringLiteral("cancelled-model-request.txt"));
+    qputenv("BREEZEDESK_TEST_COORDINATOR_DEFER_MODEL_LOAD_STATE", deferredModelState.toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     const QString databasePath = directory.filePath(QStringLiteral("library.sqlite"));
@@ -1062,8 +1036,7 @@ void TranscriptionCoordinatorTest::modelLoadCancellationKeepsLeaseUntilTerminalE
     recording.channelCount = 1;
     QVERIFY(recordings.create(recording));
 
-    TranscriptionCoordinator coordinator(recordings, guiJobs, transcripts, models, worker,
-                                         &settings);
+    TranscriptionCoordinator coordinator(recordings, guiJobs, transcripts, models, worker, &settings);
     QSignalSpy finished(&coordinator, &TranscriptionCoordinator::transcriptionFinished);
     QSignalSpy barrierSettled(&worker, &WorkerProcessManager::forcedCancellationSettled);
     coordinator.initialize();
@@ -1102,8 +1075,7 @@ void TranscriptionCoordinatorTest::modelLoadCancellationKeepsLeaseUntilTerminalE
     QCOMPARE(barrierSettled.size(), 1);
     const auto cancelled = [&guiJobs, &cancelledJobId] {
         const auto current = guiJobs.findById(cancelledJobId);
-        return current && current.value().has_value() &&
-               current.value()->state == JobState::Cancelled;
+        return current && current.value().has_value() && current.value()->state == JobState::Cancelled;
     };
     QTRY_VERIFY_WITH_TIMEOUT(cancelled(), 3'000);
     QVERIFY(!externalJobs.activeLease().value().has_value());
@@ -1111,8 +1083,7 @@ void TranscriptionCoordinatorTest::modelLoadCancellationKeepsLeaseUntilTerminalE
     QCOMPARE(finished.size(), 1);
     QVERIFY(!finished.constFirst().at(2).toBool());
 
-    const auto claimedAfterTerminal =
-        externalJobs.claimQueued(nextJobId, externalOwner, 10'000);
+    const auto claimedAfterTerminal = externalJobs.claimQueued(nextJobId, externalOwner, 10'000);
     QVERIFY(claimedAfterTerminal && claimedAfterTerminal.value().claimed);
 }
 
@@ -1121,12 +1092,10 @@ void TranscriptionCoordinatorTest::forcedCancellationRetriesAfterRestartPolicyIs
     QVERIFY(directory.isValid());
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
     const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const QByteArray previousRecoveryState =
-        qgetenv("BREEZEDESK_TEST_COORDINATOR_FORCED_RECOVERY_STATE");
-    const QByteArray previousRetryDelay =
-        qgetenv("BREEZEDESK_TEST_FORCED_CANCELLATION_RETRY_MS");
-    const auto restoreEnvironment = qScopeGuard(
-        [previousWorkerPath, previousOverrideOnly, previousRecoveryState, previousRetryDelay] {
+    const QByteArray previousRecoveryState = qgetenv("BREEZEDESK_TEST_COORDINATOR_FORCED_RECOVERY_STATE");
+    const QByteArray previousRetryDelay = qgetenv("BREEZEDESK_TEST_FORCED_CANCELLATION_RETRY_MS");
+    const auto restoreEnvironment =
+        qScopeGuard([previousWorkerPath, previousOverrideOnly, previousRecoveryState, previousRetryDelay] {
             const auto restore = [](const char* name, const QByteArray& value) {
                 if (value.isNull()) {
                     qunsetenv(name);
@@ -1141,8 +1110,7 @@ void TranscriptionCoordinatorTest::forcedCancellationRetriesAfterRestartPolicyIs
         });
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
-    const QString recoveryState =
-        directory.filePath(QStringLiteral("forced-recovery-launch-count.txt"));
+    const QString recoveryState = directory.filePath(QStringLiteral("forced-recovery-launch-count.txt"));
     qputenv("BREEZEDESK_TEST_COORDINATOR_FORCED_RECOVERY_STATE", recoveryState.toUtf8());
     qputenv("BREEZEDESK_TEST_FORCED_CANCELLATION_RETRY_MS", "500");
 
@@ -1172,8 +1140,7 @@ void TranscriptionCoordinatorTest::staleConnectionRetryDoesNotKillReplacementWor
     QVERIFY(directory.isValid());
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
     const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const QByteArray previousRetryState =
-        qgetenv("BREEZEDESK_TEST_COORDINATOR_CONNECT_RETRY_STATE");
+    const QByteArray previousRetryState = qgetenv("BREEZEDESK_TEST_COORDINATOR_CONNECT_RETRY_STATE");
     const auto restoreEnvironment =
         qScopeGuard([previousWorkerPath, previousOverrideOnly, previousRetryState] {
             const auto restore = [](const char* name, const QByteArray& value) {
@@ -1227,19 +1194,18 @@ void TranscriptionCoordinatorTest::workerCrashContinuesWithNextQueuedJob() {
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
     const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const auto restoreEnvironment =
-        qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
-            const auto restore = [](const char* name, const QByteArray& value) {
-                if (value.isNull()) {
-                    qunsetenv(name);
-                } else {
-                    qputenv(name, value);
-                }
-            };
-            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
-            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
-            restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-        });
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+        restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
+    });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
@@ -1283,8 +1249,7 @@ void TranscriptionCoordinatorTest::workerCrashContinuesWithNextQueuedJob() {
     QTRY_VERIFY_WITH_TIMEOUT(!workerInterruptions.isEmpty(), 30'000);
     const auto firstInterrupted = [&jobs, &crashedJobId] {
         const auto current = jobs.findById(crashedJobId);
-        return current && current.value().has_value() &&
-               current.value()->state == JobState::Interrupted;
+        return current && current.value().has_value() && current.value()->state == JobState::Interrupted;
     };
     QTRY_VERIFY_WITH_TIMEOUT(firstInterrupted(), 5'000);
     const auto nextCompleted = [&jobs, &nextJobId] {
@@ -1300,32 +1265,28 @@ void TranscriptionCoordinatorTest::staleCancellationGraceDoesNotKillReplacementW
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
     const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const QByteArray previousRestartState =
-        qgetenv("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE");
-    const QByteArray previousStaleGraceState =
-        qgetenv("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE");
-    const auto restoreEnvironment = qScopeGuard(
-        [previousDataRoot, previousWorkerPath, previousOverrideOnly, previousRestartState,
-         previousStaleGraceState] {
-            const auto restore = [](const char* name, const QByteArray& value) {
-                if (value.isNull()) {
-                    qunsetenv(name);
-                } else {
-                    qputenv(name, value);
-                }
-            };
-            restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
-            restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
-            restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
-            restore("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE", previousRestartState);
-            restore("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE", previousStaleGraceState);
-        });
+    const QByteArray previousRestartState = qgetenv("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE");
+    const QByteArray previousStaleGraceState = qgetenv("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE");
+    const auto restoreEnvironment = qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly,
+                                                 previousRestartState, previousStaleGraceState] {
+        const auto restore = [](const char* name, const QByteArray& value) {
+            if (value.isNull()) {
+                qunsetenv(name);
+            } else {
+                qputenv(name, value);
+            }
+        };
+        restore("BREEZEDESK_DATA_ROOT", previousDataRoot);
+        restore("BREEZEDESK_ASR_WORKER_PATH", previousWorkerPath);
+        restore("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", previousOverrideOnly);
+        restore("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE", previousRestartState);
+        restore("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE", previousStaleGraceState);
+    });
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
     qunsetenv("BREEZEDESK_TEST_COORDINATOR_RESTART_STATE");
-    const QString launchStatePath =
-        directory.filePath(QStringLiteral("stale-grace-worker-launch-count.txt"));
+    const QString launchStatePath = directory.filePath(QStringLiteral("stale-grace-worker-launch-count.txt"));
     qputenv("BREEZEDESK_TEST_COORDINATOR_STALE_GRACE_STATE", launchStatePath.toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
@@ -1393,8 +1354,8 @@ void TranscriptionCoordinatorTest::staleCancellationGraceDoesNotKillReplacementW
     const auto reportedLeaseLoss = [&errors] {
         for (const QList<QVariant>& arguments : errors) {
             if (!arguments.isEmpty() &&
-                arguments.constFirst().toString().contains(
-                    QStringLiteral("lost the global execution lease"), Qt::CaseInsensitive)) {
+                arguments.constFirst().toString().contains(QStringLiteral("lost the global execution lease"),
+                                                           Qt::CaseInsensitive)) {
                 return true;
             }
         }
@@ -1409,8 +1370,7 @@ void TranscriptionCoordinatorTest::staleCancellationGraceDoesNotKillReplacementW
     QVERIFY(externalJobs.completeAndActivate(recording.id, oldJobId, currentOwner));
     const auto oldJobFinished = [&finished, &oldJobId] {
         for (const QList<QVariant>& arguments : finished) {
-            if (arguments.size() == 3 && arguments.at(1).toString() == oldJobId &&
-                arguments.at(2).toBool()) {
+            if (arguments.size() == 3 && arguments.at(1).toString() == oldJobId && arguments.at(2).toBool()) {
                 return true;
             }
         }
@@ -1426,8 +1386,7 @@ void TranscriptionCoordinatorTest::staleCancellationGraceDoesNotKillReplacementW
     QTRY_VERIFY_WITH_TIMEOUT(!worker.forcedCancellationPending(), 1'000);
     const auto nextJobIsTranscribing = [&guiJobs, &nextJobId] {
         const auto current = guiJobs.findById(nextJobId);
-        return current && current.value().has_value() &&
-               current.value()->state == JobState::Transcribing;
+        return current && current.value().has_value() && current.value()->state == JobState::Transcribing;
     };
     QTRY_VERIFY_WITH_TIMEOUT(nextJobIsTranscribing(), 10'000);
     QVERIFY2(oldGraceDeadline.elapsed() < 4'500,
@@ -1786,8 +1745,7 @@ void TranscriptionCoordinatorTest::rejectsStartedPlanThatWouldOmitCanonicalTail(
     const QByteArray previousDataRoot = qgetenv("BREEZEDESK_DATA_ROOT");
     const QByteArray previousWorkerPath = qgetenv("BREEZEDESK_ASR_WORKER_PATH");
     const QByteArray previousOverrideOnly = qgetenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY");
-    const QByteArray previousSentinel =
-        qgetenv("BREEZEDESK_TEST_COORDINATOR_TRANSCRIPTION_SENTINEL");
+    const QByteArray previousSentinel = qgetenv("BREEZEDESK_TEST_COORDINATOR_TRANSCRIPTION_SENTINEL");
     const auto restoreEnvironment =
         qScopeGuard([previousDataRoot, previousWorkerPath, previousOverrideOnly, previousSentinel] {
             const auto restore = [](const char* name, const QByteArray& value) {
@@ -1807,8 +1765,7 @@ void TranscriptionCoordinatorTest::rejectsStartedPlanThatWouldOmitCanonicalTail(
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
     qputenv("BREEZEDESK_ASR_WORKER_PATH", BREEZEDESK_COORDINATOR_WORKER_PATH);
     qputenv("BREEZEDESK_TEST_ASR_WORKER_OVERRIDE_ONLY", "1");
-    qputenv("BREEZEDESK_TEST_COORDINATOR_TRANSCRIPTION_SENTINEL",
-            transcriptionSentinel.toUtf8());
+    qputenv("BREEZEDESK_TEST_COORDINATOR_TRANSCRIPTION_SENTINEL", transcriptionSentinel.toUtf8());
     QVERIFY(StoragePaths::ensureLayout());
 
     DatabaseManager database({directory.filePath(QStringLiteral("library.sqlite"))});
@@ -1819,8 +1776,7 @@ void TranscriptionCoordinatorTest::rejectsStartedPlanThatWouldOmitCanonicalTail(
     ModelManager models;
 
     const QString sourcePath = directory.filePath(QStringLiteral("tail-source.mp4"));
-    const QString normalizedPath =
-        directory.filePath(QStringLiteral("tail-normalized.timeline-v2.test.wav"));
+    const QString normalizedPath = directory.filePath(QStringLiteral("tail-normalized.timeline-v2.test.wav"));
     const QString waveformPath = directory.filePath(QStringLiteral("tail.waveform"));
     QVERIFY(writeFixture(sourcePath));
     QVERIFY(writePcmWaveFixture(normalizedPath, 1'000));
@@ -1867,8 +1823,7 @@ void TranscriptionCoordinatorTest::rejectsStartedPlanThatWouldOmitCanonicalTail(
     partial.startMs = 100;
     partial.endMs = 800;
     partial.originalText = QStringLiteral("preserve partial transcript");
-    QVERIFY(transcripts.replaceChunk(recording.id, job.id, durableChunk.id, {partial}, true, 1,
-                                     seedOwner));
+    QVERIFY(transcripts.replaceChunk(recording.id, job.id, durableChunk.id, {partial}, true, 1, seedOwner));
     QVERIFY(jobs.transition(job.id, JobState::Interrupted, QStringLiteral("WorkerCrashed"),
                             QStringLiteral("seed interrupted checkpoint"), seedOwner));
     const auto releasedLease = jobs.activeLease();

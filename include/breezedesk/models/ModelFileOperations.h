@@ -43,12 +43,11 @@ struct PreparedCustomModelImport {
 
 class ModelFileOperations final {
   public:
-    [[nodiscard]] static ModelVerificationResult
-    verify(const ModelVerificationSnapshot& snapshot, const std::atomic_bool* cancellation = nullptr);
+    [[nodiscard]] static ModelVerificationResult verify(const ModelVerificationSnapshot& snapshot,
+                                                        const std::atomic_bool* cancellation = nullptr);
 
     [[nodiscard]] static PreparedCustomModelImport
-    prepareImport(const CustomModelImportRequest& request,
-                  const std::atomic_bool* cancellation = nullptr);
+    prepareImport(const CustomModelImportRequest& request, const std::atomic_bool* cancellation = nullptr);
 
     static void cleanupPreparedImport(const PreparedCustomModelImport& prepared);
 };

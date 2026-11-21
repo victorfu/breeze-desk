@@ -25,8 +25,8 @@ using namespace BreezeDesk;
 namespace {
 
 bool writePcmWaveFixture(const QString& path, qint64 durationMs, quint32 sampleRate = 16'000,
-                         quint16 channels = 1, quint16 bitsPerSample = 16,
-                         bool includeAncillaryChunks = true, quint32 trailingSamples = 0) {
+                         quint16 channels = 1, quint16 bitsPerSample = 16, bool includeAncillaryChunks = true,
+                         quint32 trailingSamples = 0) {
     if (durationMs <= 0 || channels == 0 || bitsPerSample == 0 || (bitsPerSample % 8) != 0) {
         return false;
     }
@@ -208,23 +208,22 @@ void AudioTest::removesOnlyExpiredUnreferencedGenerationFiles() {
     Q_UNUSED(restoreDataRoot)
     qputenv("BREEZEDESK_DATA_ROOT", directory.path().toUtf8());
 
-    const QString referenced = AudioCacheManager::normalizedAudioPath(
-        QStringLiteral("referenced"), QStringLiteral("finished-owner"));
-    const QString activeOwner = AudioCacheManager::waveformPath(
-        QStringLiteral("in-progress"), QStringLiteral("active-owner"));
-    const QString orphanedAudio = AudioCacheManager::normalizedAudioPath(
-        QStringLiteral("orphaned-audio"), QStringLiteral("stale-owner"));
-    const QString orphanedWaveform = AudioCacheManager::waveformPath(
-        QStringLiteral("orphaned-waveform"), QStringLiteral("stale-owner"));
-    const QString recentOrphan = AudioCacheManager::normalizedAudioPath(
-        QStringLiteral("recent-orphan"), QStringLiteral("stale-owner"));
+    const QString referenced = AudioCacheManager::normalizedAudioPath(QStringLiteral("referenced"),
+                                                                      QStringLiteral("finished-owner"));
+    const QString activeOwner =
+        AudioCacheManager::waveformPath(QStringLiteral("in-progress"), QStringLiteral("active-owner"));
+    const QString orphanedAudio = AudioCacheManager::normalizedAudioPath(QStringLiteral("orphaned-audio"),
+                                                                         QStringLiteral("stale-owner"));
+    const QString orphanedWaveform =
+        AudioCacheManager::waveformPath(QStringLiteral("orphaned-waveform"), QStringLiteral("stale-owner"));
+    const QString recentOrphan = AudioCacheManager::normalizedAudioPath(QStringLiteral("recent-orphan"),
+                                                                        QStringLiteral("stale-owner"));
 
     const auto createFile = [](const QString& path) {
         QFile file(path);
         return file.open(QIODevice::WriteOnly) && file.write("cache") == 5;
     };
-    for (const QString& path :
-         {referenced, activeOwner, orphanedAudio, orphanedWaveform, recentOrphan}) {
+    for (const QString& path : {referenced, activeOwner, orphanedAudio, orphanedWaveform, recentOrphan}) {
         QVERIFY(createFile(path));
     }
     const QDateTime oldTimestamp = QDateTime::currentDateTimeUtc().addDays(-2);
@@ -238,8 +237,8 @@ void AudioTest::removesOnlyExpiredUnreferencedGenerationFiles() {
 #ifdef Q_OS_WIN
     referencedKey = referencedKey.toUpper();
 #endif
-    QCOMPARE(AudioCacheManager::removeExpiredOrphanedGenerationFiles(
-                 QSet<QString>{referencedKey}, QStringLiteral("active-owner"), 24),
+    QCOMPARE(AudioCacheManager::removeExpiredOrphanedGenerationFiles(QSet<QString>{referencedKey},
+                                                                     QStringLiteral("active-owner"), 24),
              2);
     QVERIFY(QFileInfo(referenced).isFile());
     QVERIFY(QFileInfo(activeOwner).isFile());
@@ -400,9 +399,8 @@ void AudioTest::rejectsTruncatedWaveformCacheHeaders() {
     QVERIFY2(error.contains(QStringLiteral("truncated"), Qt::CaseInsensitive), qPrintable(error));
 
     const QString levelHeaderPath = temporary.filePath(QStringLiteral("truncated-level.bwpk"));
-    QVERIFY(writeWaveformCacheFixture(levelHeaderPath, 1, [](QDataStream& stream) {
-        stream << quint32{256};
-    }));
+    QVERIFY(
+        writeWaveformCacheFixture(levelHeaderPath, 1, [](QDataStream& stream) { stream << quint32{256}; }));
     QVERIFY(WaveformGenerator::read(levelHeaderPath, &error).isEmpty());
     QVERIFY2(error.contains(QStringLiteral("truncated"), Qt::CaseInsensitive), qPrintable(error));
 }
@@ -411,9 +409,8 @@ void AudioTest::rejectsWaveformCachePayloadBeforeAllocation() {
     QTemporaryDir temporary;
     QVERIFY(temporary.isValid());
     const QString path = temporary.filePath(QStringLiteral("missing-payload.bwpk"));
-    QVERIFY(writeWaveformCacheFixture(path, 1, [](QDataStream& stream) {
-        stream << quint32{256} << quint64{4096};
-    }));
+    QVERIFY(writeWaveformCacheFixture(path, 1,
+                                      [](QDataStream& stream) { stream << quint32{256} << quint64{4096}; }));
 
     QString error;
     QVERIFY(WaveformGenerator::read(path, &error).isEmpty());
@@ -425,8 +422,7 @@ void AudioTest::rejectsOversizedWaveformCacheBeforeAllocation() {
     QVERIFY(temporary.isValid());
     const QString path = temporary.filePath(QStringLiteral("oversized.bwpk"));
     QVERIFY(writeWaveformCacheFixture(path, 1, [](QDataStream& stream) {
-        stream << quint32{256}
-               << quint64{WaveformGenerator::MaximumSerializedPeakPairs + 1ULL};
+        stream << quint32{256} << quint64{WaveformGenerator::MaximumSerializedPeakPairs + 1ULL};
     }));
 
     QString error;
@@ -452,9 +448,8 @@ void AudioTest::rejectsInvalidWaveformCacheMetadata() {
     QVERIFY2(error.contains(QStringLiteral("metadata"), Qt::CaseInsensitive), qPrintable(error));
 
     const QString zeroCountPath = temporary.filePath(QStringLiteral("zero-count.bwpk"));
-    QVERIFY(writeWaveformCacheFixture(zeroCountPath, 1, [](QDataStream& stream) {
-        stream << quint32{256} << quint64{0};
-    }));
+    QVERIFY(writeWaveformCacheFixture(zeroCountPath, 1,
+                                      [](QDataStream& stream) { stream << quint32{256} << quint64{0}; }));
     QVERIFY(WaveformGenerator::read(zeroCountPath, &error).isEmpty());
     QVERIFY2(error.contains(QStringLiteral("metadata"), Qt::CaseInsensitive), qPrintable(error));
 }
@@ -493,8 +488,7 @@ void AudioTest::validatesNormalizedPcmWithAncillaryChunks() {
     // Ten trailing samples put the PCM duration at 40,745.625 ms. The canonical
     // whole-millisecond duration must floor to a fully readable endpoint.
     QVERIFY(writePcmWaveFixture(decodedMp4Audio, 40'745, 16'000, 1, 16, false, 10));
-    QVERIFY2(NormalizedAudioValidator::validate(decodedMp4Audio, 40'789, &info, &error),
-             qPrintable(error));
+    QVERIFY2(NormalizedAudioValidator::validate(decodedMp4Audio, 40'789, &info, &error), qPrintable(error));
     QCOMPARE(info.durationMs, 40'745);
 }
 
@@ -576,8 +570,7 @@ void AudioTest::normalizationMapsSelectedAudioStream() {
     QVERIFY(writeSourceFixture(sourcePath));
 
     FFmpegNormalizationService service(QString::fromUtf8(BREEZEDESK_NORMALIZATION_HELPER_PATH));
-    QScopedPointer<NormalizationOperation> operation(
-        service.normalize(sourcePath, outputPath, 1'000, 1));
+    QScopedPointer<NormalizationOperation> operation(service.normalize(sourcePath, outputPath, 1'000, 1));
     QSignalSpy finished(operation.data(), &NormalizationOperation::finished);
     if (finished.isEmpty()) {
         QVERIFY(finished.wait(5'000));

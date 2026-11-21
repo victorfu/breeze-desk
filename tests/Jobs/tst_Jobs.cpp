@@ -328,8 +328,7 @@ void JobsTest::jobParametersCanBeUpdated() {
     const auto saved = repository.findById(job.id);
     QVERIFY(saved && saved.value().has_value());
     QCOMPARE(saved.value()->parameters, parameters);
-    const auto missing =
-        repository.updateParameters(QStringLiteral("missing-job"), parameters, owner);
+    const auto missing = repository.updateParameters(QStringLiteral("missing-job"), parameters, owner);
     QVERIFY(!missing);
     QCOMPARE(missing.error().code, ErrorCode::ExecutionLeaseLost);
 }
@@ -545,8 +544,7 @@ void JobsTest::staleOwnerCannotMutateReclaimedJob() {
     QSqlQuery expire(connection.value());
     QVERIFY(expire.exec(QStringLiteral(
         "UPDATE asr_execution_lease SET expires_at='2000-01-01T00:00:00.000Z' WHERE resource='asr'")));
-    const auto expiredWrite =
-        jobsA.updateProgress(job.id, JobStage::Finalizing, 0.99, 9, ownerA);
+    const auto expiredWrite = jobsA.updateProgress(job.id, JobStage::Finalizing, 0.99, 9, ownerA);
     QVERIFY(!expiredWrite);
     QCOMPARE(expiredWrite.error().code, ErrorCode::ExecutionLeaseLost);
 
@@ -581,14 +579,12 @@ void JobsTest::staleOwnerCannotMutateReclaimedJob() {
     recordingB.durationMs = 2'000;
     QVERIFY(recordingsB.update(recordingB, job.id, ownerB));
 
-    const auto staleTransition = jobsA.transition(job.id, JobState::Failed,
-                                                  QStringLiteral("StaleFailure"),
+    const auto staleTransition = jobsA.transition(job.id, JobState::Failed, QStringLiteral("StaleFailure"),
                                                   QStringLiteral("stale owner"), ownerA);
     QVERIFY(!staleTransition);
     QCOMPARE(staleTransition.error().code, ErrorCode::ExecutionLeaseLost);
     QVERIFY(!jobsA.updateProgress(job.id, JobStage::Finalizing, 1.0, 4, ownerA));
-    QVERIFY(!jobsA.updateParameters(job.id,
-                                    {{QStringLiteral("sourceHash"), QString(64, QLatin1Char('a'))}},
+    QVERIFY(!jobsA.updateParameters(job.id, {{QStringLiteral("sourceHash"), QString(64, QLatin1Char('a'))}},
                                     ownerA));
     QVERIFY(!jobsA.updateRuntimeInfo(job.id, QStringLiteral("cpu"), QStringLiteral("engine-a"),
                                      QStringLiteral("worker-a"),
@@ -731,13 +727,11 @@ void JobsTest::recordingUpdatesArePartitionedByOwnership() {
     QCOMPARE(fullUpdate.error().code, ErrorCode::InvalidStateTransition);
     QCOMPARE(fullUpdate.error().message,
              QStringLiteral("The recording cannot be replaced while it is being transcribed."));
-    const auto relink =
-        recordingsB.relinkSource(recording.id, QStringLiteral("replacement.mp4"), true);
+    const auto relink = recordingsB.relinkSource(recording.id, QStringLiteral("replacement.mp4"), true);
     QVERIFY(!relink);
     QCOMPARE(relink.error().code, ErrorCode::InvalidStateTransition);
     QCOMPARE(relink.error().message,
-             QStringLiteral(
-                 "The recording source cannot be relinked while it is being transcribed."));
+             QStringLiteral("The recording source cannot be relinked while it is being transcribed."));
 
     Recording other;
     other.id = QStringLiteral("different-recording");
@@ -763,8 +757,7 @@ void JobsTest::recordingUpdatesArePartitionedByOwnership() {
     QVERIFY(!permanentDelete);
     QCOMPARE(permanentDelete.error().code, ErrorCode::InvalidStateTransition);
     QCOMPARE(permanentDelete.error().message,
-             QStringLiteral(
-                 "The recording cannot be permanently deleted while it is being transcribed."));
+             QStringLiteral("The recording cannot be permanently deleted while it is being transcribed."));
     const auto preservedRecording = recordingsA.findById(recording.id);
     QVERIFY(preservedRecording && preservedRecording.value().has_value());
     QVERIFY(preservedRecording.value()->deletedAt.isValid());
@@ -782,8 +775,8 @@ void JobsTest::recordingUpdatesArePartitionedByOwnership() {
     const auto connection = databaseA.connection();
     QVERIFY(connection);
     QSqlQuery corruptLease(connection.value());
-    corruptLease.prepare(QStringLiteral(
-        "UPDATE asr_execution_lease SET expires_at='not-a-valid-timestamp' WHERE job_id=?"));
+    corruptLease.prepare(
+        QStringLiteral("UPDATE asr_execution_lease SET expires_at='not-a-valid-timestamp' WHERE job_id=?"));
     corruptLease.addBindValue(job.id);
     QVERIFY(corruptLease.exec());
     QCOMPARE(corruptLease.numRowsAffected(), 1);
@@ -920,16 +913,14 @@ void JobsTest::malformedExecutionLeaseFailsClosed_data() {
     QTest::addColumn<QString>("corruptValue");
     QTest::addColumn<bool>("disableForeignKeys");
 
-    QTest::newRow("invalid-acquired-at") << QStringLiteral("acquired_at")
-                                          << QStringLiteral("not-a-timestamp") << false;
-    QTest::newRow("invalid-heartbeat-at") << QStringLiteral("heartbeat_at")
-                                           << QStringLiteral("not-a-timestamp") << false;
-    QTest::newRow("invalid-expires-at") << QStringLiteral("expires_at")
-                                         << QStringLiteral("not-a-timestamp") << false;
-    QTest::newRow("empty-owner") << QStringLiteral("owner_token") << QStringLiteral("   ")
-                                  << false;
-    QTest::newRow("missing-job") << QStringLiteral("job_id")
-                                  << QStringLiteral("missing-lease-job") << true;
+    QTest::newRow("invalid-acquired-at")
+        << QStringLiteral("acquired_at") << QStringLiteral("not-a-timestamp") << false;
+    QTest::newRow("invalid-heartbeat-at")
+        << QStringLiteral("heartbeat_at") << QStringLiteral("not-a-timestamp") << false;
+    QTest::newRow("invalid-expires-at")
+        << QStringLiteral("expires_at") << QStringLiteral("not-a-timestamp") << false;
+    QTest::newRow("empty-owner") << QStringLiteral("owner_token") << QStringLiteral("   ") << false;
+    QTest::newRow("missing-job") << QStringLiteral("job_id") << QStringLiteral("missing-lease-job") << true;
 }
 
 void JobsTest::malformedExecutionLeaseFailsClosed() {
@@ -990,35 +981,34 @@ void JobsTest::malformedExecutionLeaseFailsClosed() {
         }
         return values;
     };
-    const QStringList jobSnapshot = queryValues(
-        QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at FROM "
-                       "transcription_jobs WHERE id='malformed-lease-active-job'"),
-        6);
-    const QStringList queuedSnapshot = queryValues(
-        QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at FROM "
-                       "transcription_jobs WHERE id='malformed-lease-queued-job'"),
-        6);
-    const QStringList chunkSnapshot = queryValues(
-        QStringLiteral("SELECT id,state,attempts,error FROM job_chunks WHERE "
-                       "id='malformed-lease-chunk'"),
-        4);
-    const QStringList eventSnapshot = queryValues(
-        QStringLiteral("SELECT COUNT(*),COALESCE(MAX(id),0) FROM transcription_job_events"), 2);
+    const QStringList jobSnapshot =
+        queryValues(QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at FROM "
+                                   "transcription_jobs WHERE id='malformed-lease-active-job'"),
+                    6);
+    const QStringList queuedSnapshot =
+        queryValues(QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at FROM "
+                                   "transcription_jobs WHERE id='malformed-lease-queued-job'"),
+                    6);
+    const QStringList chunkSnapshot =
+        queryValues(QStringLiteral("SELECT id,state,attempts,error FROM job_chunks WHERE "
+                                   "id='malformed-lease-chunk'"),
+                    4);
+    const QStringList eventSnapshot =
+        queryValues(QStringLiteral("SELECT COUNT(*),COALESCE(MAX(id),0) FROM transcription_job_events"), 2);
 
     if (disableForeignKeys) {
         QSqlQuery foreignKeys(connection.value());
         QVERIFY(foreignKeys.exec(QStringLiteral("PRAGMA foreign_keys=OFF")));
     }
     QSqlQuery corrupt(connection.value());
-    corrupt.prepare(QStringLiteral("UPDATE asr_execution_lease SET %1=? WHERE resource='asr'")
-                        .arg(column));
+    corrupt.prepare(QStringLiteral("UPDATE asr_execution_lease SET %1=? WHERE resource='asr'").arg(column));
     corrupt.addBindValue(corruptValue);
     QVERIFY(corrupt.exec());
     QCOMPARE(corrupt.numRowsAffected(), 1);
-    const QStringList corruptLeaseSnapshot = queryValues(
-        QStringLiteral("SELECT owner_token,job_id,acquired_at,heartbeat_at,expires_at FROM "
-                       "asr_execution_lease WHERE resource='asr'"),
-        5);
+    const QStringList corruptLeaseSnapshot =
+        queryValues(QStringLiteral("SELECT owner_token,job_id,acquired_at,heartbeat_at,expires_at FROM "
+                                   "asr_execution_lease WHERE resource='asr'"),
+                    5);
 
     const auto activeLease = jobsB.activeLease();
     QVERIFY(!activeLease);
@@ -1026,8 +1016,7 @@ void JobsTest::malformedExecutionLeaseFailsClosed() {
     const auto nextClaim = jobsB.claimNextQueued(QStringLiteral("other-owner"), 10'000);
     QVERIFY(!nextClaim);
     QCOMPARE(nextClaim.error().code, ErrorCode::DatabaseCorrupt);
-    const auto directClaim =
-        jobsB.claimQueued(queuedJob.id, QStringLiteral("other-owner"), 10'000);
+    const auto directClaim = jobsB.claimQueued(queuedJob.id, QStringLiteral("other-owner"), 10'000);
     QVERIFY(!directClaim);
     QCOMPARE(directClaim.error().code, ErrorCode::DatabaseCorrupt);
     const auto recovery =
@@ -1035,28 +1024,24 @@ void JobsTest::malformedExecutionLeaseFailsClosed() {
     QVERIFY(!recovery);
     QCOMPARE(recovery.error().code, ErrorCode::DatabaseCorrupt);
 
-    QCOMPARE(queryValues(
-                 QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at "
-                                "FROM transcription_jobs WHERE id='malformed-lease-active-job'"),
-                 6),
+    QCOMPARE(queryValues(QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at "
+                                        "FROM transcription_jobs WHERE id='malformed-lease-active-job'"),
+                         6),
              jobSnapshot);
-    QCOMPARE(queryValues(
-                 QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at "
-                                "FROM transcription_jobs WHERE id='malformed-lease-queued-job'"),
-                 6),
+    QCOMPARE(queryValues(QStringLiteral("SELECT state,stage,progress,error_code,error_message,interrupted_at "
+                                        "FROM transcription_jobs WHERE id='malformed-lease-queued-job'"),
+                         6),
              queuedSnapshot);
     QCOMPARE(queryValues(QStringLiteral("SELECT id,state,attempts,error FROM job_chunks WHERE "
                                         "id='malformed-lease-chunk'"),
                          4),
              chunkSnapshot);
-    QCOMPARE(queryValues(
-                 QStringLiteral("SELECT COUNT(*),COALESCE(MAX(id),0) FROM transcription_job_events"),
-                 2),
-             eventSnapshot);
-    QCOMPARE(queryValues(
-                 QStringLiteral("SELECT owner_token,job_id,acquired_at,heartbeat_at,expires_at FROM "
-                                "asr_execution_lease WHERE resource='asr'"),
-                 5),
+    QCOMPARE(
+        queryValues(QStringLiteral("SELECT COUNT(*),COALESCE(MAX(id),0) FROM transcription_job_events"), 2),
+        eventSnapshot);
+    QCOMPARE(queryValues(QStringLiteral("SELECT owner_token,job_id,acquired_at,heartbeat_at,expires_at FROM "
+                                        "asr_execution_lease WHERE resource='asr'"),
+                         5),
              corruptLeaseSnapshot);
 }
 
@@ -1106,8 +1091,7 @@ void JobsTest::exactOwnerRepairsMalformedLeaseTimestamps() {
     const auto unreadable = jobsB.activeLease();
     QVERIFY(!unreadable);
     QCOMPARE(unreadable.error().code, ErrorCode::DatabaseCorrupt);
-    const auto wrongOwner =
-        jobsB.renewLease(job.id, QStringLiteral("not-the-owner"), 120'000);
+    const auto wrongOwner = jobsB.renewLease(job.id, QStringLiteral("not-the-owner"), 120'000);
     QVERIFY(!wrongOwner);
     QCOMPARE(wrongOwner.error().code, ErrorCode::ExecutionLeaseLost);
     QSqlQuery stillCorrupt(connection.value());

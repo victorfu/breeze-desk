@@ -83,10 +83,10 @@ StorageLayoutInitializationResult StoragePaths::initializeLayout(const QString& 
     }
 
     if (!restoreDataRootEnvironment(inheritedRootWasSet, inheritedRoot)) {
-        result.error = QStringLiteral(
-                           "The configured application data directory failed (%1), and the default "
+        result.error =
+            QStringLiteral("The configured application data directory failed (%1), and the default "
                            "data-root environment could not be restored.")
-                           .arg(configuredError);
+                .arg(configuredError);
         return result;
     }
 
@@ -97,10 +97,9 @@ StorageLayoutInitializationResult StoragePaths::initializeLayout(const QString& 
         return result;
     }
 
-    result.error =
-        QStringLiteral("The configured application data directory failed (%1), and the default "
-                       "data directory also failed (%2).")
-            .arg(configuredError, fallbackError);
+    result.error = QStringLiteral("The configured application data directory failed (%1), and the default "
+                                  "data directory also failed (%2).")
+                       .arg(configuredError, fallbackError);
     return result;
 }
 
@@ -115,8 +114,7 @@ bool StoragePaths::ensureLayout(QString* error) {
             return false;
         }
 
-        QTemporaryFile probe(
-            QDir(directory).filePath(QStringLiteral(".breezedesk-write-probe-XXXXXX")));
+        QTemporaryFile probe(QDir(directory).filePath(QStringLiteral(".breezedesk-write-probe-XXXXXX")));
         if (!probe.open() || probe.write("ok", 2) != 2 || !probe.flush()) {
             if (error != nullptr) {
                 *error = QStringLiteral("Application data directory is not writable: %1").arg(directory);

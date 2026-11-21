@@ -19,8 +19,7 @@ enum class CliExitCode {
     InternalFailure = 12,
 };
 
-[[nodiscard]] inline CliExitCode transcriptionSessionFailureExitCode(
-    const UserFacingError& error) noexcept {
+[[nodiscard]] inline CliExitCode transcriptionSessionFailureExitCode(const UserFacingError& error) noexcept {
     if (error.code == ErrorCode::OperationCancelled || error.code == ErrorCode::JobCancelled) {
         return CliExitCode::Cancelled;
     }

@@ -78,9 +78,9 @@ bool isDirectChildOfDirectory(const QString& filePath, const QString& directoryP
     const QFileInfo fileInfo(filePath);
     const QFileInfo parentInfo(fileInfo.absolutePath());
     const QFileInfo directoryInfo(directoryPath);
-    const QString parent = QDir::fromNativeSeparators(
-        QDir::cleanPath(parentInfo.canonicalFilePath().isEmpty() ? parentInfo.absoluteFilePath()
-                                                                 : parentInfo.canonicalFilePath()));
+    const QString parent = QDir::fromNativeSeparators(QDir::cleanPath(parentInfo.canonicalFilePath().isEmpty()
+                                                                          ? parentInfo.absoluteFilePath()
+                                                                          : parentInfo.canonicalFilePath()));
     const QString directory = QDir::fromNativeSeparators(
         QDir::cleanPath(directoryInfo.canonicalFilePath().isEmpty() ? directoryInfo.absoluteFilePath()
                                                                     : directoryInfo.canonicalFilePath()));
@@ -131,8 +131,7 @@ bool publishManagedImport(const QString& stagingPath, const QString& destination
     const QString nativeStagingPath = QDir::toNativeSeparators(stagingPath);
     const QString nativeDestinationPath = QDir::toNativeSeparators(destinationPath);
     return MoveFileExW(reinterpret_cast<LPCWSTR>(nativeStagingPath.utf16()),
-                       reinterpret_cast<LPCWSTR>(nativeDestinationPath.utf16()),
-                       MOVEFILE_WRITE_THROUGH) != 0;
+                       reinterpret_cast<LPCWSTR>(nativeDestinationPath.utf16()), MOVEFILE_WRITE_THROUGH) != 0;
 #else
     std::error_code error;
     const QByteArray encodedStagingPath = QFile::encodeName(stagingPath);
@@ -250,9 +249,7 @@ WaveformLoadResult loadWaveform(const QString& recordingId, const QString& wavef
 namespace BreezeDesk {
 
 struct ApplicationViewModel::ManagedCopyState {
-    ManagedCopyState() {
-        pool.setMaxThreadCount(2);
-    }
+    ManagedCopyState() { pool.setMaxThreadCount(2); }
 
     QThreadPool pool;
     QHash<QFutureWatcher<ManagedCopyResult>*, std::shared_ptr<std::atomic_bool>> activeCopies;
@@ -468,8 +465,8 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                                              const bool openSingleImport) {
     const bool trackedFolderImport = folderOperation != 0;
     const bool openAfterImport = openSingleImport && urls.size() == 1;
-    const auto cancellation = trackedFolderImport ? m_folderImportCancellation
-                                                   : std::make_shared<std::atomic_bool>(false);
+    const auto cancellation =
+        trackedFolderImport ? m_folderImportCancellation : std::make_shared<std::atomic_bool>(false);
     QStringList synchronouslyImportedIds;
     const QMetaObject::Connection importedConnection =
         openAfterImport ? connect(&m_library, &LibraryViewModel::recordingImported, this,
@@ -485,8 +482,7 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
     for (const QVariant& value : urls) {
         const QUrl url = value.canConvert<QUrl>() ? value.toUrl() : QUrl::fromLocalFile(value.toString());
         const QFileInfo source(url.toLocalFile());
-        if (url.isLocalFile() && source.isFile() &&
-            !MediaFileSupport::isSupportedPath(source.fileName())) {
+        if (url.isLocalFile() && source.isFile() && !MediaFileSupport::isSupportedPath(source.fileName())) {
             // Route the rejection through LibraryViewModel so every import mode reports the same
             // user-facing error without scheduling an unnecessary managed copy first.
             referencedUrls.append(url);
@@ -530,8 +526,8 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
         const QString safeName =
             safeSuffix.isEmpty() ? safeStem : QStringLiteral("%1.%2").arg(safeStem, safeSuffix);
         const QString operationId = QUuid::createUuid().toString(QUuid::WithoutBraces);
-        const QString destination = QDir(StoragePaths::recordings())
-                                        .filePath(QStringLiteral("%1-%2").arg(operationId, safeName));
+        const QString destination =
+            QDir(StoragePaths::recordings()).filePath(QStringLiteral("%1-%2").arg(operationId, safeName));
         const QString stagingDirectory = managedImportStagingDirectory();
         if (!QDir().mkpath(stagingDirectory)) {
             if (trackedFolderImport) {
@@ -557,9 +553,8 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                     if (tracked) {
                         --m_folderImportActiveCopies;
                     }
-                    const bool cancelled =
-                        m_managedCopyState->shuttingDown || result.cancelled ||
-                        cancellation->load(std::memory_order_relaxed);
+                    const bool cancelled = m_managedCopyState->shuttingDown || result.cancelled ||
+                                           cancellation->load(std::memory_order_relaxed);
                     if (cancelled) {
                         removeManagedImportStagingFile(result.stagingPath);
                         if (tracked) {
@@ -612,8 +607,8 @@ int ApplicationViewModel::importUrlsInternal(const QVariantList& urls, const qui
                         }
                     }
                 });
-        watcher->setFuture(QtConcurrent::run(&m_managedCopyState->pool, copyManagedMedia, url,
-                                             stagingPath, destination, cancellation));
+        watcher->setFuture(QtConcurrent::run(&m_managedCopyState->pool, copyManagedMedia, url, stagingPath,
+                                             destination, cancellation));
         ++scheduledCount;
     }
     const int referencedCount = static_cast<int>(referencedUrls.size());
@@ -890,8 +885,7 @@ QString ApplicationViewModel::enqueueTranscription(const QString& recordingId) {
         return {};
     }
     if (recordingId == m_activeRecordingId) {
-        if (!requestActiveTranscriptDraftCommit() ||
-            (m_transcript.dirty() && !saveActiveTranscript())) {
+        if (!requestActiveTranscriptDraftCommit() || (m_transcript.dirty() && !saveActiveTranscript())) {
             return {};
         }
     }
