@@ -2533,7 +2533,7 @@ void TranscriptionCoordinator::removeCacheCandidateIfUnreferenced(const QString&
         return;
     }
     if (recording.value().has_value()) {
-        const auto referencesCandidate = [&candidate, PathCaseSensitivity](const QString& referencedPath) {
+        const auto referencesCandidate = [&candidate](const QString& referencedPath) {
             return !referencedPath.isEmpty() && QDir::cleanPath(QFileInfo(referencedPath).absoluteFilePath())
                                                         .compare(candidate, PathCaseSensitivity) == 0;
         };

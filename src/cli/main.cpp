@@ -966,8 +966,7 @@ TranscribeRunResult runHeadlessTranscription(const QString& source, const QStrin
             return;
         }
         if (current.value().has_value()) {
-            const auto referencesCandidate = [&candidate,
-                                              PathCaseSensitivity](const QString& referencedPath) {
+            const auto referencesCandidate = [&candidate](const QString& referencedPath) {
                 return !referencedPath.isEmpty() &&
                        QDir::cleanPath(QFileInfo(referencedPath).absoluteFilePath())
                                .compare(candidate, PathCaseSensitivity) == 0;
