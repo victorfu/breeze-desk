@@ -69,6 +69,17 @@ include(BreezeDeskCompilerCache)
 include(BreezeDeskWarnings)
 breezedesk_enable_compiler_cache()
 
+# A workspace-local Windows kit can include Multimedia even when the system Qt kit does not.
+if(WIN32 AND NOT Qt6_DIR AND NOT Qt6_ROOT AND NOT CMAKE_PREFIX_PATH
+        AND NOT DEFINED ENV{Qt6_DIR} AND NOT DEFINED ENV{Qt6_ROOT}
+        AND NOT DEFINED ENV{CMAKE_PREFIX_PATH})
+    set(_local_qt_kit "${CMAKE_CURRENT_SOURCE_DIR}/build/ci-qt/6.12.0/msvc2022_64")
+    if(EXISTS "${_local_qt_kit}/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake")
+        list(PREPEND CMAKE_PREFIX_PATH "${_local_qt_kit}")
+    endif()
+    unset(_local_qt_kit)
+endif()
+
 find_package(Qt6 6.8 REQUIRED QUIET COMPONENTS
     Core Gui Qml Quick QuickControls2 Sql Multimedia Network Concurrent Svg Widgets LinguistTools)
 qt_standard_project_setup(REQUIRES 6.8 I18N_TRANSLATED_LANGUAGES en zh_TW)
